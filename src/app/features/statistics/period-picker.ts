@@ -1,7 +1,7 @@
 import { Component, ElementRef, EventEmitter, HostListener, Input, Output, ViewChild } from '@angular/core';
 import { selectedRange, type SelectionUnit } from './period-range';
 
-export interface AppliedRange { readonly start: string; readonly end: string; }
+export interface AppliedRange { readonly start: string; readonly end: string; readonly unit?: SelectionUnit; }
 
 @Component({
   selector: 'app-period-picker',
@@ -113,7 +113,7 @@ export class PeriodPicker {
     const range = this.draftRange();
     if (!range) return;
     this.appliedUnit = this.unit;
-    this.rangeChange.emit(range);
+    this.rangeChange.emit({ ...range, unit: this.unit });
     this.open = false;
     setTimeout(() => this.trigger?.nativeElement.focus());
   }
