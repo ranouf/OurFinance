@@ -38,3 +38,12 @@ test('import and undo are disabled without an explicit test group', async () => 
     strictEqual(response.status, 503);
   }
 });
+test('custom categories stay disabled without an explicit test group', async () => {
+  const configured = { ...env, FIREBASE_SERVICE_ACCOUNT_JSON: 'configured' };
+  for (const [method, path] of [['POST', '/groups/g1/categories'], ['PATCH', '/groups/g1/categories/custom_123e4567-e89b-42d3-a456-426614174000']]) {
+    const response = await handleRequest(new Request(`https://worker.example${path}`, { method }), configured);
+    strictEqual(response.status, 503);
+  }
+  const preflight = await handleRequest(new Request('https://worker.example/groups/g1/categories', { method: 'OPTIONS', headers: { Origin: env.ALLOWED_ORIGIN } }), configured);
+  strictEqual(preflight.headers.get('Access-Control-Allow-Methods')?.includes('PATCH'), true);
+});

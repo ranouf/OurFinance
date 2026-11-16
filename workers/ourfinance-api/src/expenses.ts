@@ -1,12 +1,12 @@
 import { splitAmount, validateExpense, type Allocation, type SplitMode } from '../../../src/app/shared/utils/split-engine';
-import { categories, type CategoryId } from '../../../src/app/shared/utils/categories';
+import { categories, categoryById, categoryIcons, isCustomCategoryId, type CategoryColor, type CategoryDefinition } from '../../../src/app/shared/utils/categories';
 import { serviceAccessToken } from './service-account';
 
 export interface ExpenseEnv { readonly FIREBASE_PROJECT_ID: string; readonly FIREBASE_SERVICE_ACCOUNT_JSON: string; }
 export interface ExpenseInput {
   readonly idempotencyKey: string;
   readonly description: string;
-  readonly categoryId: CategoryId;
+  readonly categoryId: string;
   readonly currency: string;
   readonly date: string;
   readonly amountMinor: number;
@@ -26,7 +26,7 @@ export function parseExpense(value: unknown): ExpenseInput {
   const input = value as Record<string, unknown>;
   if (typeof input['idempotencyKey'] !== 'string' || !/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(input['idempotencyKey']) ||
       typeof input['description'] !== 'string' || !input['description'].trim() || input['description'].length > 160 ||
-      (input['categoryId'] !== undefined && !categories.some(category => category.id === input['categoryId'])) ||
+      (input['categoryId'] !== undefined && (typeof input['categoryId'] !== 'string' || (!categories.some(category => category.id === input['categoryId']) && !isCustomCategoryId(input['categoryId'])))) ||
       typeof input['currency'] !== 'string' || !Intl.supportedValuesOf('currency').includes(input['currency']) ||
       typeof input['date'] !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(input['date']) || !validDate(input['date']) ||
       !Number.isSafeInteger(input['amountMinor']) || (input['amountMinor'] as number) <= 0 ||
@@ -44,7 +44,7 @@ export function parseExpense(value: unknown): ExpenseInput {
     const allocations = splitAmount(input['amountMinor'] as number, splitMode);
     validateExpense(input['amountMinor'] as number, payments, allocations, new Set([...payments, ...allocations].map(item => item.userId)));
   } catch { throw new ExpenseError(400, 'unbalanced_expense'); }
-  return { idempotencyKey: input['idempotencyKey'], description: input['description'].trim(), categoryId: (input['categoryId'] ?? 'other') as CategoryId, currency: input['currency'], date: input['date'], amountMinor: input['amountMinor'] as number, payments, splitMode };
+  return { idempotencyKey: input['idempotencyKey'], description: input['description'].trim(), categoryId: (input['categoryId'] ?? 'other') as string, currency: input['currency'], date: input['date'], amountMinor: input['amountMinor'] as number, payments, splitMode };
 }
 
 function validDate(value: string): boolean {
@@ -90,13 +90,21 @@ export async function createExpense(value: unknown, uid: string, groupId: string
     const fields = record?.['fields'] as Record<string, { stringValue?: string }> | undefined;
     if (!fields || fields['status']?.stringValue !== 'active') throw new ExpenseError(403, 'member_inactive');
   }
+  let category: CategoryDefinition = categoryById(expense.categoryId);
+  if (isCustomCategoryId(expense.categoryId)) {
+    const stored = await read(`groups/${groupId}/categories/${expense.categoryId}`);
+    const fields = stored?.['fields'] as Record<string, { stringValue?: string }> | undefined;
+    const icon = categoryIcons.find(item => item.id === fields?.['iconId']?.stringValue);
+    if (fields?.['status']?.stringValue !== 'active' || !fields['name']?.stringValue || !icon || !fields['color']?.stringValue) throw new ExpenseError(403, 'category_unavailable');
+    category = { id: expense.categoryId, label: fields['name'].stringValue, icon: icon.glyph, color: fields['color'].stringValue as CategoryColor };
+  }
   validateExpense(expense.amountMinor, expense.payments, allocations, new Set(members));
   const expenseId = expense.idempotencyKey;
   const now = new Date().toISOString();
   const write = (path: string, fields: Record<string, unknown>, exists?: boolean) => ({ update: { name: `${root}/${path}`, fields }, ...(exists === undefined ? {} : { currentDocument: { exists } }) });
   const writes = [
     write(`groups/${groupId}/expenses/${expenseId}`, {
-      description: string(expense.description), categoryId: string(expense.categoryId), currency: string(expense.currency), date: string(expense.date), amountMinor: integer(expense.amountMinor), createdBy: string(uid), createdAt: { timestampValue: now },
+      description: string(expense.description), categoryId: string(expense.categoryId), categoryLabel: string(category.label), categoryIcon: string(category.icon), categoryColor: string(category.color), currency: string(expense.currency), date: string(expense.date), amountMinor: integer(expense.amountMinor), createdBy: string(uid), createdAt: { timestampValue: now },
       payments: amountEntries(expense.payments), allocations: amountEntries(allocations), splitSnapshotJson: string(JSON.stringify(expense.splitMode)), deleted: { booleanValue: false },
     }, false),
     write(`users/${uid}/groupPreferences/${groupId}`, {

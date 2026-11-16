@@ -6,7 +6,7 @@ import type { DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import type { Group } from '../../core/firebase/group-model';
 import { ExpenseService, type ExpenseHistoryEntry } from '../../core/firebase/expense-service';
 import { formatMinor } from '../../shared/utils/currency';
-import { categoryById } from '../../shared/utils/categories';
+import { categoryColorClass } from '../../shared/utils/categories';
 import { matchesDescription } from './matches-description';
 
 @Component({
@@ -43,10 +43,11 @@ import { matchesDescription } from './matches-description';
                 <details>
                   <summary class="cursor-pointer py-3">
                     <span class="float-right ml-2 font-semibold">{{ amount(entry) }}</span>
-                    <span class="break-words font-medium">{{ categoryById(entry.categoryId).icon }} {{ entry.description }}</span>
+                    <span class="break-words font-medium"><span class="rounded-md px-1.5 py-0.5" [class]="categoryColorClass(entry.categoryColor)">{{ entry.categoryIcon }}</span> {{ entry.description }}</span>
                     <span class="block text-sm text-slate-600">{{ entry.date }} · Voir les parts</span>
                   </summary>
                   <div class="grid gap-4 pb-4 text-sm">
+                    <p>Catégorie : {{ entry.categoryLabel }}</p>
                     <div>
                       <h3 class="font-semibold">Paiements</h3>
                       @for (payment of entry.payments; track payment.userId) {
@@ -100,7 +101,7 @@ export class ExpenseHistory implements OnChanges {
   amount(entry: ExpenseHistoryEntry): string { return this.format(entry.amountMinor, entry.currency); }
   format(amountMinor: number, currency: string): string { return formatMinor(amountMinor, currency, 'fr-CA'); }
   memberLabel(userId: string): string { return userId === this.user?.uid ? 'Moi' : userId; }
-  categoryById = categoryById;
+  categoryColorClass = categoryColorClass;
   async refresh(): Promise<void> {
     this.searchTerm = this.search.trim();
     this.entries.set([]);

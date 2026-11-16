@@ -1,11 +1,12 @@
-import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, Output, signal } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { FirebaseApp } from 'firebase/app';
 import type { User } from 'firebase/auth';
 import type { Group } from '../../core/firebase/group-model';
 import { ExpenseService } from '../../core/firebase/expense-service';
+import { CategoryService } from '../../core/firebase/category-service';
 import { currencyCodes, formatMinor, minorDigits } from '../../shared/utils/currency';
-import { categories } from '../../shared/utils/categories';
+import { categories, type CustomCategory } from '../../shared/utils/categories';
 import { prepareExpense, type ExpenseDraft } from './expense-draft';
 import type { SplitMode } from '../../shared/utils/split-engine';
 
@@ -41,7 +42,7 @@ import type { SplitMode } from '../../shared/utils/split-engine';
           </label>
           <label class="block text-sm font-medium">Catégorie
             <select class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="category" [(ngModel)]="draft.categoryId">
-              @for (category of categories; track category.id) { <option [value]="category.id">{{ category.icon }} {{ category.label }}</option> }
+                @for (category of availableCategories(); track category.id) { <option [value]="category.id">{{ category.icon }} {{ category.label }}</option> }
             </select>
           </label>
           @if (members().length) {
@@ -85,29 +86,48 @@ export class ExpenseForm implements OnChanges {
   @Input({ required: true }) user?: User;
   @Input({ required: true }) firebaseApp?: FirebaseApp;
   @Input({ required: true }) workerUrl?: string;
+  @Input() categoryRevision = 0;
   readonly currencies = currencyCodes();
   readonly categories = categories;
   readonly members = signal<{ userId: string }[]>([]);
+  readonly customCategories = signal<CustomCategory[]>([]);
   readonly busy = signal(false);
   readonly message = signal('');
   readonly previewRows = signal<{ userId: string; amount: string }[]>([]);
   selectedGroupId = '';
   draft: ExpenseDraft = this.emptyDraft();
   private service?: ExpenseService;
+  private categoryService?: CategoryService;
   private pendingKey?: string;
   private pendingBody?: string;
 
-  ngOnChanges(): void { if (this.firebaseApp && this.workerUrl) this.service = new ExpenseService(this.firebaseApp, this.workerUrl); }
+  ngOnChanges(changes: SimpleChanges): void {
+    if (this.firebaseApp && this.workerUrl) {
+      this.service = new ExpenseService(this.firebaseApp, this.workerUrl);
+      this.categoryService = new CategoryService(this.firebaseApp, this.workerUrl);
+    }
+    if (changes['categoryRevision'] && !changes['categoryRevision'].firstChange && this.selectedGroupId) void this.loadCategories().catch(() => this.message.set('Catégories indisponibles.'));
+  }
+  availableCategories() { return [...categories, ...this.customCategories().filter(category => category.status === 'active')]; }
+  private async loadCategories(): Promise<void> {
+    const groupId = this.selectedGroupId;
+    if (!groupId || !this.categoryService) return;
+    const items = await this.categoryService.list(groupId);
+    if (this.selectedGroupId !== groupId) return;
+    this.customCategories.set(items);
+    if (!this.availableCategories().some(category => category.id === this.draft.categoryId)) this.draft.categoryId = 'other';
+  }
   private emptyDraft(): ExpenseDraft { return { description: '', amount: '', currency: 'CAD', date: new Date().toISOString().slice(0, 10), categoryId: 'other', payerId: '', kind: 'equal', rows: [] }; }
   clearValues(): void { this.previewRows.set([]); this.draft.rows.forEach(row => row.value = ''); }
   async loadGroup(): Promise<void> {
-    this.members.set([]); this.previewRows.set([]); this.message.set(''); this.draft = this.emptyDraft();
+    this.members.set([]); this.customCategories.set([]); this.previewRows.set([]); this.message.set(''); this.draft = this.emptyDraft();
     this.pendingKey = undefined; this.pendingBody = undefined;
     const groupId = this.selectedGroupId;
     const group = this.groups.find(item => item.id === groupId);
     if (!group || !this.service || !this.user) return;
     this.draft.currency = group.currency;
     try {
+      await this.loadCategories();
       const members = (await this.service.members(groupId)).filter(member => member.status === 'active');
       if (this.selectedGroupId !== groupId) return;
       this.members.set(members);

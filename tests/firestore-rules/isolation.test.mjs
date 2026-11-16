@@ -19,6 +19,7 @@ before(async () => {
     await setDoc(doc(db, 'groups/b/expenses/e2'), { amountMinor: 100 });
     await setDoc(doc(db, 'groups/a/expenses/e1/attachments/receipt'), { publicId: 'synthetic' });
     await setDoc(doc(db, 'groups/a/activity/ev1'), { action: 'expense_created' });
+    await setDoc(doc(db, 'groups/a/categories/custom_123e4567-e89b-42d3-a456-426614174000'), { name: 'Frais de chalet', status: 'active' });
     await setDoc(doc(db, 'users/alice/groupPreferences/a'), { modeJson: '{"kind":"equal","users":["alice"]}' });
     await setDoc(doc(db, 'users/alice/groupPreferences/b'), { modeJson: '{"kind":"equal","users":["alice"]}' });
     await setDoc(doc(db, 'users/alice/importBatches/b1'), { groupId: 'a', status: 'active' });
@@ -95,4 +96,14 @@ test('imported records and batch metadata follow active membership', async () =>
   await assertFails(getDoc(doc(bob, 'users/alice/importBatches/b1')));
   await assertFails(setDoc(doc(alice, 'groups/a/importedRecords/fake'), { sourceId: 'fake' }));
   await assertFails(setDoc(doc(alice, 'users/alice/importBatches/fake'), { groupId: 'a' }));
+});
+
+test('les catégories personnalisées sont lisibles uniquement par les membres actifs et non modifiables directement', async () => {
+  const path = 'groups/a/categories/custom_123e4567-e89b-42d3-a456-426614174000';
+  const alice = env.authenticatedContext('alice').firestore();
+  const bob = env.authenticatedContext('bob').firestore();
+  await assertSucceeds(getDoc(doc(alice, path)));
+  await assertFails(getDoc(doc(bob, path)));
+  await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), path)));
+  await assertFails(setDoc(doc(alice, path), { name: 'Falsifiée' }));
 });

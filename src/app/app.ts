@@ -15,10 +15,11 @@ import { SettlementHistory } from './features/settlements/settlement-history';
 import { BalanceSummary } from './features/balances/balance-summary';
 import { StatisticsSummary } from './features/statistics/statistics-summary';
 import { ActivityHistory } from './features/activity/activity-history';
+import { CategoryManager } from './features/categories/category-manager';
 
 @Component({
   selector: 'app-root',
-  imports: [AppShell, FormsModule, ExpenseForm, ExpenseHistory, SettlementForm, SettlementHistory, BalanceSummary, StatisticsSummary, ActivityHistory],
+  imports: [AppShell, FormsModule, ExpenseForm, ExpenseHistory, SettlementForm, SettlementHistory, BalanceSummary, StatisticsSummary, ActivityHistory, CategoryManager],
   template: `
     <app-shell>
       <div class="mx-auto max-w-md rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">
@@ -56,13 +57,14 @@ import { ActivityHistory } from './features/activity/activity-history';
               } @else { <p class="mt-4 text-sm text-amber-800">Le service de création de groupes n’est pas encore configuré.</p> }
             </section>
             @if (workerUrl && firebaseApp && groups().length) {
-              <app-expense-form [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" (saved)="onExpenseSaved()" />
+              <app-category-manager [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" (changed)="onCategoryChanged()" />
+              <app-expense-form [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" [categoryRevision]="categoryRevision()" (saved)="onExpenseSaved()" />
               <app-expense-history [groups]="groups()" [firebaseApp]="firebaseApp" [user]="user" [workerUrl]="workerUrl" [revision]="expenseRevision()" />
               <app-settlement-form [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" (saved)="onSettlementSaved()" />
               <app-settlement-history [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" [revision]="settlementRevision()" />
               <app-balance-summary [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [revision]="expenseRevision() + settlementRevision()" />
               <app-statistics-summary [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [revision]="expenseRevision() + settlementRevision()" />
-              <app-activity-history [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [revision]="expenseRevision() + settlementRevision()" />
+              <app-activity-history [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [revision]="expenseRevision() + settlementRevision() + categoryRevision()" />
             }
           }
           <button class="mt-6 rounded-lg border border-slate-300 px-4 py-2" type="button" (click)="logout()">Déconnexion</button>
@@ -107,6 +109,7 @@ export class App implements OnInit, OnDestroy {
   readonly currencies = currencyCodes();
   readonly groups = signal<Group[]>([]);
   readonly expenseRevision = signal(0);
+  readonly categoryRevision = signal(0);
   readonly settlementRevision = signal(0);
   readonly groupServiceReady = signal(false);
   groupName = '';
@@ -177,5 +180,6 @@ export class App implements OnInit, OnDestroy {
   }
   async logout(): Promise<void> { this.groups.set([]); await this.auth?.logout(); }
   onExpenseSaved(): void { this.expenseRevision.update(value => value + 1); }
+  onCategoryChanged(): void { this.categoryRevision.update(value => value + 1); }
   onSettlementSaved(): void { this.settlementRevision.update(value => value + 1); }
 }

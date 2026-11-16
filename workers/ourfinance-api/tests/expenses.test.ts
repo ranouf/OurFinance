@@ -57,3 +57,27 @@ test('revoked participant prevents a commit', async () => {
   await rejects(createExpense(input, 'alice', 'g1', { FIREBASE_PROJECT_ID: 'ourfinance-test', FIREBASE_SERVICE_ACCOUNT_JSON: service }, transport as typeof fetch), (error: unknown) => error instanceof ExpenseError && error.code === 'member_inactive');
   strictEqual(committed, false);
 });
+
+test('une catégorie personnalisée active est figée sur la dépense, une archive est refusée', async () => {
+  const { privateKey } = await generateKeyPair('RS256', { extractable: true });
+  const service = JSON.stringify({ project_id: 'ourfinance-test', client_email: 'test@ourfinance-test.iam.gserviceaccount.com', private_key: await exportPKCS8(privateKey) });
+  const categoryId = 'custom_123e4567-e89b-42d3-a456-426614174000';
+  let status = 'active';
+  let commit: any;
+  const transport = async (resource: string | URL | Request, options?: RequestInit) => {
+    const url = String(resource);
+    if (url.includes('oauth2.googleapis.com')) return Response.json({ access_token: 'service-token' });
+    if (url.endsWith(':beginTransaction')) return Response.json({ transaction: 'txn' });
+    if (url.includes('/categories/') && url.includes('?transaction=')) return Response.json({ fields: { status: { stringValue: status }, name: { stringValue: 'Frais de chalet' }, iconId: { stringValue: 'home' }, color: { stringValue: 'sky' } } });
+    if (url.includes('?transaction=')) return Response.json({ fields: { status: { stringValue: 'active' } } });
+    if (url.endsWith(':commit')) { commit = JSON.parse(String(options?.body)); return Response.json({ writeResults: [{}, {}, {}] }); }
+    return Response.json({});
+  };
+  const env = { FIREBASE_PROJECT_ID: 'ourfinance-test', FIREBASE_SERVICE_ACCOUNT_JSON: service };
+  await createExpense({ ...input, categoryId }, 'alice', 'g1', env, transport as typeof fetch);
+  strictEqual(commit.writes[0].update.fields.categoryLabel.stringValue, 'Frais de chalet');
+  strictEqual(commit.writes[0].update.fields.categoryIcon.stringValue, '🏠');
+  status = 'archived'; commit = undefined;
+  await rejects(createExpense({ ...input, categoryId }, 'alice', 'g1', env, transport as typeof fetch), (error: unknown) => error instanceof ExpenseError && error.code === 'category_unavailable');
+  strictEqual(commit, undefined);
+});

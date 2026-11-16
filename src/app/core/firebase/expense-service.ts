@@ -2,14 +2,17 @@ import type { FirebaseApp } from 'firebase/app';
 import type { User } from 'firebase/auth';
 import { collection, doc, getDoc, getDocs, getFirestore, limit, orderBy, query, startAfter, where, type DocumentData, type QueryDocumentSnapshot } from 'firebase/firestore';
 import { decodeStoredPreference } from '../../shared/utils/split-preference';
-import type { CategoryId } from '../../shared/utils/categories';
+import { categoryById, type CategoryColor } from '../../shared/utils/categories';
 import type { Allocation, SplitMode } from '../../shared/utils/split-engine';
 import type { GroupMember } from './group-model';
 
 export interface ExpenseHistoryEntry {
   readonly id: string;
   readonly description: string;
-  readonly categoryId: CategoryId;
+  readonly categoryId: string;
+  readonly categoryLabel: string;
+  readonly categoryIcon: string;
+  readonly categoryColor: CategoryColor;
   readonly date: string;
   readonly amountMinor: number;
   readonly currency: string;
@@ -27,10 +30,14 @@ export class ExpenseService {
     return {
       entries: snapshot.docs.filter(item => item.data()['deleted'] !== true).map(item => {
         const data = item.data();
+        const fallback = categoryById(String(data['categoryId'] ?? 'other'));
         return {
           id: item.id,
           description: String(data['description']),
-          categoryId: typeof data['categoryId'] === 'string' ? data['categoryId'] as CategoryId : 'other',
+          categoryId: String(data['categoryId'] ?? 'other'),
+          categoryLabel: String(data['categoryLabel'] ?? fallback.label),
+          categoryIcon: String(data['categoryIcon'] ?? fallback.icon),
+          categoryColor: (data['categoryColor'] ?? fallback.color) as CategoryColor,
           date: String(data['date']),
           amountMinor: Number(data['amountMinor']),
           currency: String(data['currency']),

@@ -11,6 +11,10 @@ const labels: Record<string, string> = {
   settlement_recorded: 'Remboursement déclaré',
   import_created: 'Import créé',
   import_undone: 'Import annulé',
+  category_created: 'Catégorie créée',
+  category_updated: 'Catégorie modifiée',
+  category_archived: 'Catégorie archivée',
+  category_reactivated: 'Catégorie réactivée',
 };
 
 @Component({

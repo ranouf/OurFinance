@@ -1,11 +1,10 @@
 import { minorDigits } from '../../shared/utils/currency';
-import type { CategoryId } from '../../shared/utils/categories';
 import { splitAmount, validateExpense, type Allocation, type SplitMode } from '../../shared/utils/split-engine';
 
 export type ModeKind = SplitMode['kind'];
 export interface SplitRow { userId: string; selected: boolean; value: string; }
 export interface ExpenseDraft {
-  description: string; amount: string; currency: string; date: string; categoryId: CategoryId;
+  description: string; amount: string; currency: string; date: string; categoryId: string;
   payerId: string; kind: ModeKind; rows: SplitRow[];
 }
 
