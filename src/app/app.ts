@@ -10,10 +10,11 @@ import { currencyCodes } from './shared/utils/currency';
 import { Group } from './core/firebase/group-model';
 import { ExpenseForm } from './features/expenses/expense-form';
 import { ExpenseHistory } from './features/expenses/expense-history';
+import { SettlementForm } from './features/settlements/settlement-form';
 
 @Component({
   selector: 'app-root',
-  imports: [AppShell, FormsModule, ExpenseForm, ExpenseHistory],
+  imports: [AppShell, FormsModule, ExpenseForm, ExpenseHistory, SettlementForm],
   template: `
     <app-shell>
       <div class="mx-auto max-w-md rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">
@@ -53,6 +54,7 @@ import { ExpenseHistory } from './features/expenses/expense-history';
             @if (workerUrl && firebaseApp && groups().length) {
               <app-expense-form [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" (saved)="onExpenseSaved()" />
               <app-expense-history [groups]="groups()" [firebaseApp]="firebaseApp" [user]="user" [workerUrl]="workerUrl" [revision]="expenseRevision()" />
+              <app-settlement-form [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" />
             }
           }
           <button class="mt-6 rounded-lg border border-slate-300 px-4 py-2" type="button" (click)="logout()">Déconnexion</button>
