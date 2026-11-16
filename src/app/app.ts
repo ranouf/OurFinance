@@ -1,9 +1,13 @@
-import { Component, OnDestroy, OnInit, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, effect, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { getAuth } from 'firebase/auth';
 import { AppShell } from './shared/components/app-shell/app-shell';
 import { AuthService } from './core/firebase/auth-service';
 import { FirebaseWebConfig, createFirebaseApp } from './core/firebase/firebase-config';
+import type { GroupService } from './core/firebase/group-service';
+import type { FirebaseApp } from 'firebase/app';
+import { currencyCodes } from './shared/utils/currency';
+import { Group } from './core/firebase/group-model';
 
 @Component({
   selector: 'app-root',
@@ -21,7 +25,29 @@ import { FirebaseWebConfig, createFirebaseApp } from './core/firebase/firebase-c
           @if (!user.emailVerified) {
             <p class="mt-4 rounded-lg bg-amber-50 p-3 text-amber-900" role="status">Confirmez votre adresse courriel avant d’utiliser les groupes.</p>
           } @else {
-            <p class="mt-4 rounded-lg bg-teal-50 p-3 text-teal-900" role="status">Compte vérifié. Les groupes et dépenses seront disponibles après l’intégration des transactions sécurisées.</p>
+            <section class="mt-6" aria-label="Mes groupes">
+              <h2 class="text-lg font-semibold">Mes groupes</h2>
+              @if (groups().length) {
+                <ul class="mt-3 space-y-2">
+                  @for (group of groups(); track group.id) {
+                    <li class="rounded-lg border border-slate-200 p-3">{{ group.name }} · {{ group.currency }}</li>
+                  }
+                </ul>
+              } @else { <p class="mt-2 text-slate-600">Aucun groupe disponible.</p> }
+              @if (groupServiceReady()) {
+                <form class="mt-5 space-y-3" (ngSubmit)="createGroup()">
+                  <label class="block text-sm">Nom du groupe
+                    <input class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="groupName" [(ngModel)]="groupName" maxlength="80" required />
+                  </label>
+                  <label class="block text-sm">Devise proposée
+                    <select class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="groupCurrency" [(ngModel)]="groupCurrency">
+                      @for (currency of currencies; track currency) { <option [value]="currency">{{ currency }}</option> }
+                    </select>
+                  </label>
+                  <button class="rounded-lg bg-teal-700 px-4 py-2 text-white disabled:opacity-50" type="submit" [disabled]="busy()">Créer un groupe</button>
+                </form>
+              } @else { <p class="mt-4 text-sm text-amber-800">Le service de création de groupes n’est pas encore configuré.</p> }
+            </section>
           }
           <button class="mt-6 rounded-lg border border-slate-300 px-4 py-2" type="button" (click)="logout()">Déconnexion</button>
         } @else {
@@ -59,6 +85,23 @@ export class App implements OnInit, OnDestroy {
   readonly busy = signal(false);
   readonly message = signal('');
   auth?: AuthService;
+  private groupService?: GroupService;
+  private firebaseApp?: FirebaseApp;
+  private workerUrl?: string;
+  readonly currencies = currencyCodes();
+  readonly groups = signal<Group[]>([]);
+  readonly groupServiceReady = signal(false);
+  groupName = '';
+  groupCurrency = 'CAD';
+
+  constructor() {
+    effect(() => {
+      if (this.state() === 'ready') {
+        const user = this.auth?.user();
+        if (user?.emailVerified) void this.loadGroups();
+      }
+    });
+  }
   email = '';
   password = '';
   readonly heading = () => this.mode() === 'register' ? 'Créer un compte' : this.mode() === 'reset' ? 'Réinitialiser le mot de passe' : 'Bienvenue';
@@ -69,7 +112,11 @@ export class App implements OnInit, OnDestroy {
       if (!response.ok) throw new Error('Configuration absente');
       const config = await response.json() as FirebaseWebConfig;
       if (config.projectId !== 'ourfinance-test') throw new Error('Projet non autorisé');
-      this.auth = new AuthService(getAuth(createFirebaseApp(config)));
+      const firebaseApp = createFirebaseApp(config);
+      this.auth = new AuthService(getAuth(firebaseApp));
+      this.firebaseApp = firebaseApp;
+      this.workerUrl = config.workerUrl;
+      this.groupServiceReady.set(!!config.workerUrl);
       this.state.set('ready');
     } catch { this.state.set('unconfigured'); }
   }
@@ -91,5 +138,24 @@ export class App implements OnInit, OnDestroy {
     catch { this.message.set('Connexion Google impossible.'); }
     finally { this.busy.set(false); }
   }
-  async logout(): Promise<void> { await this.auth?.logout(); }
+  private async loadGroups(): Promise<void> {
+    const user = this.auth?.user();
+    if (!user || !this.firebaseApp) return;
+    try {
+      if (!this.groupService) { const { GroupService } = await import('./core/firebase/group-service'); this.groupService = new GroupService(this.firebaseApp, this.workerUrl); }
+      this.groups.set(await this.groupService.list(user));
+    }
+    catch { this.message.set('Liste des groupes indisponible.'); }
+  }
+  async createGroup(): Promise<void> {
+    const user = this.auth?.user();
+    if (!user || !this.firebaseApp || this.busy()) return;
+    this.busy.set(true); this.message.set('');
+    try {
+      if (!this.groupService) { const { GroupService } = await import('./core/firebase/group-service'); this.groupService = new GroupService(this.firebaseApp, this.workerUrl); }
+      await this.groupService.create(user, this.groupName, this.groupCurrency); this.groupName = ''; await this.loadGroups(); }
+    catch { this.message.set('Création du groupe impossible.'); }
+    finally { this.busy.set(false); }
+  }
+  async logout(): Promise<void> { this.groups.set([]); await this.auth?.logout(); }
 }

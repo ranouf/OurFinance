@@ -6,6 +6,7 @@ export interface FirebaseWebConfig {
   authDomain: string;
   projectId: string;
   appId: string;
+  workerUrl?: string;
 }
 
 export function createFirebaseApp(config: FirebaseWebConfig): FirebaseApp {
