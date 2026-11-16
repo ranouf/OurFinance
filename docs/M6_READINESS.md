@@ -31,3 +31,5 @@ Les 27 captures ont été décompressées seulement dans `/tmp/ourfinance-privat
 Aucun workflow de déploiement n'est activé. La mise en production nécessite l'accord explicite de l'utilisateur après validation des critères ci-dessus. Les previews doivent viser un projet Firebase de test isolé.
 
 Revue des accès de la pile de test et contraintes de sauvegarde : [M6_SECURITY_REVIEW.md](M6_SECURITY_REVIEW.md).
+
+Essai intégré M3/M4 sur ordinateur et mobile : [M6_E2E_SMOKE.md](M6_E2E_SMOKE.md).
