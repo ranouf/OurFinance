@@ -15,3 +15,7 @@ Depuis l’environnement cloud le 16 novembre 2026 UTC : `/health` → 200, `POS
 5. Supprimer les données fictives et les jetons temporaires hors dépôt après l’essai. Noter uniquement les codes HTTP et l’horodatage dans la PR.
 
 Le script n’affiche jamais les jetons. Il vérifie explicitement l’hôte du Worker de test pour éviter d’envoyer un jeton vers une autre destination. Les résultats membre/tiers/révoqué sont **non exécutés** tant que la fixture et les jetons locaux ne sont pas préparés.
+
+## Résultat réel (16 novembre 2026, 06:25:25 UTC)
+
+Essai exécuté depuis la session locale avec trois comptes et un groupe entièrement fictifs, après publication de `firestore.rules` **uniquement** dans `ourfinance-test` : membre actif 200 ; tiers absent 403 ; second membre actif 200 avant révocation ; tiers 403 ; même second membre après `status=revoked` 403 avec son ID token encore valide. Les trois documents et les trois comptes fictifs ont ensuite été supprimés. Aucun jeton ou mot de passe n'a été transmis au dépôt ou à ce chat. Cela valide la révocation d'accès aux documents par cette route ; les reçus privés et les écritures financières ne sont pas encore validés.
