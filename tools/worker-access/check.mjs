@@ -4,11 +4,12 @@ const groupId = process.env.TEST_GROUP_ID;
 if (!endpoint || !groupId || !/^[A-Za-z0-9_-]{1,128}$/.test(groupId)) throw new Error('URL Worker ou groupe de test absent');
 const base = new URL(endpoint);
 if (base.protocol !== 'https:' || base.hostname !== 'ourfinance-api-dev.ur-inance.workers.dev') throw new Error('URL Worker de test inattendue');
-const expected = [
-  ['membre', process.env.TEST_MEMBER_ID_TOKEN, 200],
-  ['tiers', process.env.TEST_OUTSIDER_ID_TOKEN, 403],
-  ['révoqué', process.env.TEST_REVOKED_ID_TOKEN, 403],
-];
+const expected = process.env.TEST_STAGE === 'revoked'
+  ? [['révoqué', process.env.TEST_REVOKED_ID_TOKEN, 403]]
+  : [
+      ['membre', process.env.TEST_MEMBER_ID_TOKEN, 200],
+      ['tiers', process.env.TEST_OUTSIDER_ID_TOKEN, 403],
+    ];
 let failures = 0;
 for (const [label, token, wanted] of expected) {
   if (!token) { console.log(`${label}: NON TESTÉ (jeton absent)`); continue; }
