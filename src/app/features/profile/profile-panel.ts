@@ -2,6 +2,7 @@ import { ChangeDetectorRef, Component, Input, OnChanges, signal } from '@angular
 import { FormsModule } from '@angular/forms';
 import type { FirebaseApp } from 'firebase/app';
 import type { User } from 'firebase/auth';
+import { GoogleAuthProvider, linkWithPopup } from 'firebase/auth';
 import { ProfileService, type ProfilePreferences } from '../../core/firebase/profile-service';
 import { currencyCodes } from '../../shared/utils/currency';
 
@@ -35,6 +36,14 @@ import { currencyCodes } from '../../shared/utils/currency';
           </label>
           <button class="w-full rounded-lg bg-teal-700 px-4 py-3 font-semibold text-white disabled:opacity-50" type="submit" [disabled]="busy() || !user?.emailVerified">Enregistrer le profil</button>
         </form>
+        <div class="mt-5 border-t border-slate-200 pt-4">
+          <h3 class="font-semibold">Méthodes de connexion</h3>
+          @if (googleLinked()) { <p class="mt-2 text-sm text-slate-600">Google est associé à ce compte.</p> }
+          @else {
+            <button class="mt-2 rounded-lg border border-teal-700 px-3 py-2 text-sm text-teal-800 disabled:opacity-50" type="button"
+              [disabled]="busy() || !user?.emailVerified" (click)="linkGoogle()">Associer mon compte Google</button>
+          }
+        </div>
       }
       @if (message()) { <p class="mt-3 text-sm" role="status">{{ message() }}</p> }
     </section>
@@ -54,6 +63,7 @@ export class ProfilePanel implements OnChanges {
   private requestId = 0;
 
   constructor(private readonly changeDetector: ChangeDetectorRef) {}
+  googleLinked(): boolean { return this.user?.providerData.some(provider => provider.providerId === 'google.com') ?? false; }
   ngOnChanges(): void {
     if (!this.firebaseApp || !this.user) return;
     this.service = new ProfileService(this.firebaseApp);
@@ -80,5 +90,18 @@ export class ProfilePanel implements OnChanges {
       this.message.set('Profil enregistré.');
     } catch (error) { this.message.set(error instanceof Error && error.message === 'Préférences de profil invalides' ? error.message : 'Enregistrement du profil impossible.'); }
     finally { this.busy.set(false); this.changeDetector.markForCheck(); }
+  }
+  async linkGoogle(): Promise<void> {
+    const user = this.user;
+    if (!user?.emailVerified || this.busy() || this.googleLinked()) return;
+    this.busy.set(true); this.message.set('');
+    try {
+      await linkWithPopup(user, new GoogleAuthProvider());
+      this.message.set('Compte Google associé.');
+    } catch (error) {
+      const code = typeof error === 'object' && error !== null && 'code' in error ? String(error.code) : '';
+      this.message.set(code === 'auth/credential-already-in-use' ? 'Ce compte Google est déjà associé à un autre compte.' :
+        'Association Google impossible. Vérifiez la fenêtre de connexion et réessayez.');
+    } finally { this.busy.set(false); this.changeDetector.markForCheck(); }
   }
 }
