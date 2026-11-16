@@ -31,6 +31,14 @@ export async function collectGroupExportV2(
     ...Object.fromEntries(['expenseId', 'commentId', 'settlementId', 'batchId', 'categoryId']
       .filter(key => item.data[key] !== undefined).map(key => [key, item.data[key]])),
   }));
+  const owner = group.members.find(member => member.role === 'owner' && member.status === 'active');
+  if (owner?.userId !== user.uid) throw new Error('Sauvegarde réservée au propriétaire');
+  const importBatches = (await reader.list(`users/${user.uid}/importBatches`))
+    .filter(item => item.data['groupId'] === groupId)
+    .map(item => ({ id: item.id, ownerId: user.uid, status: item.data['status'] as 'active' | 'undone',
+      source: item.data['source'] as 'splitwise_csv', recordIds: item.data['recordIds'] as string[],
+      createdAt: timestamp(item.data['createdAt']),
+      undoneAt: item.data['status'] === 'undone' ? timestamp(item.data['undoneAt']) : null }));
   const url = new URL(`/groups/${encodeURIComponent(groupId)}/backup/preferences`, workerUrl);
   if (url.protocol !== 'https:') throw new Error('URL de sauvegarde non sécurisée');
   const response = await transport(url, { headers: { Authorization: `Bearer ${await user.getIdToken()}` }, cache: 'no-store' });
@@ -46,5 +54,5 @@ export async function collectGroupExportV2(
     return row;
   });
   if ((await reader.read(`groups/${groupId}/members/${user.uid}`))?.data['status'] !== 'active') throw new Error('Membre révoqué pendant la sauvegarde');
-  return serializeGroupExportV2({ ...group, version: 2, expenseAuthors, comments, activity, preferences });
+  return serializeGroupExportV2({ ...group, version: 2, expenseAuthors, comments, activity, importBatches, preferences });
 }

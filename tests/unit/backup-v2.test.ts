@@ -19,6 +19,7 @@ const group: GroupExportV2 = {
   expenseAuthors: [{ expenseId: 'e', userId: 'alice' }],
   comments: [{ expenseId: 'e', id: 'c', authorId: 'alice', text: 'Commentaire fictif', createdAt: '2026-11-16T18:00:00.000Z' }],
   activity: [{ id: 'e', actorId: 'alice', action: 'expense_created', at: '2026-11-16T18:00:00.000Z', expenseId: 'e' }],
+  importBatches: [],
   receipts: [{ expenseId: 'e', attachmentId: 'a', format: 'png', status: 'active', mediaIncluded: false }],
   preferences: [{ userId: 'alice', modeJson: '{"kind":"equal","users":["alice"]}', memberIds: ['alice'], updatedAt: '2026-11-16T18:00:00.000Z' }],
 };
@@ -58,6 +59,8 @@ test('restore preflight verifies the archived receipt and original group before 
   const result = await preflightBackupRestoreV2(backup, target);
   strictEqual(result.receiptCount, 1);
   strictEqual(result.preferenceCount, 1);
+  strictEqual(result.commentCount, 1);
+  strictEqual(result.activityCount, 1);
   await rejects(preflightBackupRestoreV2(backup, { ...target, groupId: 'other' }));
   await rejects(preflightBackupRestoreV2({ ...backup, receipts: [{ ...backup.receipts[0], bytes: new Uint8Array([1]) }] }, target));
 });

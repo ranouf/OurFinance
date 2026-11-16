@@ -11,6 +11,7 @@ const fixture: GroupExportV2 = {
   expenseAuthors: [],
   comments: [],
   activity: [],
+  importBatches: [],
   preferences: [
     { userId: 'alice', modeJson: '{"kind":"exact","amounts":[{"userId":"alice","amountMinor":50},{"userId":"bob","amountMinor":51}]}', memberIds: ['alice', 'bob'], updatedAt: exportedAt },
     { userId: 'bob', modeJson: null, memberIds: [], updatedAt: null },
@@ -64,4 +65,15 @@ test('V2 rejects activity from an outsider or an unknown action', () => {
   const event = { id: 'event', actorId: 'alice', action: 'expense_created', at: exportedAt, expenseId: 'expense' };
   throws(() => serializeGroupExportV2({ ...fixture, activity: [{ ...event, actorId: 'outsider' }] }));
   throws(() => serializeGroupExportV2({ ...fixture, activity: [{ ...event, action: 'unknown' }] }));
+});
+
+test('V2 requires each import batch and its exact archived record IDs', () => {
+  const record = { id: 'record', sourceId: 'synthetic-001', batchId: 'batch', date: '2026-11-01', description: 'Fictif',
+    currency: 'CAD', amountMinor: 101, netImpactsMinor: { alice: 101, bob: -101 }, splitStatus: 'undetermined' as const, status: 'active' as const };
+  const batch = { id: 'batch', ownerId: 'alice', status: 'active' as const, source: 'splitwise_csv' as const,
+    recordIds: ['record'], createdAt: exportedAt, undoneAt: null };
+  const withImport = { ...fixture, importedRecords: [record], importBatches: [batch] };
+  strictEqual(JSON.parse(serializeGroupExportV2(withImport)).importBatches[0].recordIds[0], 'record');
+  throws(() => serializeGroupExportV2({ ...withImport, importBatches: [] }));
+  throws(() => serializeGroupExportV2({ ...withImport, importBatches: [{ ...batch, recordIds: ['other'] }] }));
 });

@@ -12,6 +12,9 @@ export interface RestorePreflightV2 {
   readonly expenseCount: number;
   readonly settlementCount: number;
   readonly importCount: number;
+  readonly importBatchCount: number;
+  readonly commentCount: number;
+  readonly activityCount: number;
   readonly receiptCount: number;
   readonly preferenceCount: number;
   readonly absentPreferenceCount: number;
@@ -37,6 +40,9 @@ export function preflightGroupRestoreV2(groupJson: string, target: RestoreTarget
     expenseCount: source.expenses.length,
     settlementCount: source.settlements.length,
     importCount: source.importedRecords.length,
+    importBatchCount: source.importBatches.length,
+    commentCount: source.comments.length,
+    activityCount: source.activity.length,
     receiptCount: source.receipts.length,
     preferenceCount: source.preferences.filter(row => row.modeJson !== null).length,
     absentPreferenceCount: source.preferences.filter(row => row.modeJson === null).length,

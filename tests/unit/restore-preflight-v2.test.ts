@@ -11,6 +11,7 @@ const fixture: GroupExportV2 = {
   expenseAuthors: [],
   comments: [],
   activity: [],
+  importBatches: [],
   preferences: [
     { userId: 'alice', modeJson: '{"kind":"equal","users":["alice","bob"]}', memberIds: ['alice', 'bob'], updatedAt: '2026-11-16T18:00:00.000Z' },
     { userId: 'bob', modeJson: null, memberIds: [], updatedAt: null },

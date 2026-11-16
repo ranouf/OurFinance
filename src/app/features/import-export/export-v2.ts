@@ -8,6 +8,8 @@ export interface GroupExportV2 extends Omit<GroupExportV1, 'version'> {
   readonly comments: readonly { readonly expenseId: string; readonly id: string; readonly authorId: string; readonly text: string; readonly createdAt: string }[];
   readonly activity: readonly { readonly id: string; readonly actorId: string; readonly action: string; readonly at: string;
     readonly expenseId?: string; readonly commentId?: string; readonly settlementId?: string; readonly batchId?: string; readonly categoryId?: string }[];
+  readonly importBatches: readonly { readonly id: string; readonly ownerId: string; readonly status: 'active' | 'undone'; readonly source: 'splitwise_csv';
+    readonly recordIds: readonly string[]; readonly createdAt: string; readonly undoneAt: string | null }[];
   /** One row per member, including members who have never saved a split. */
   readonly preferences: readonly {
     readonly userId: string;
@@ -106,6 +108,20 @@ export function serializeGroupExportV2(value: GroupExportV2): string {
     ...(row.settlementId === undefined ? {} : { settlementId: row.settlementId }),
     ...(row.batchId === undefined ? {} : { batchId: row.batchId }),
     ...(row.categoryId === undefined ? {} : { categoryId: row.categoryId }) }));
+  const recordIdsByBatch = new Map<string, string[]>();
+  for (const row of group.importedRecords) recordIdsByBatch.set(row.batchId, [...(recordIdsByBatch.get(row.batchId) ?? []), row.id]);
+  if (!Array.isArray(value.importBatches) || new Set(value.importBatches.map(row => row?.id)).size !== value.importBatches.length ||
+      value.importBatches.length !== recordIdsByBatch.size || value.importBatches.some(row => {
+        if (!row || !idPattern.test(row.id) || !members.has(row.ownerId) || row.source !== 'splitwise_csv' ||
+            !['active', 'undone'].includes(row.status) || !isoTime(row.createdAt) ||
+            (row.status === 'undone' ? !isoTime(row.undoneAt) : row.undoneAt !== null) ||
+            !Array.isArray(row.recordIds) || !recordIdsByBatch.has(row.id)) return true;
+        const expected = recordIdsByBatch.get(row.id)!;
+        return row.recordIds.length !== expected.length || new Set(row.recordIds).size !== expected.length ||
+          row.recordIds.some((id: string) => !expected.includes(id));
+      })) throw new Error('Lots d’import incomplets');
+  const importBatches = value.importBatches.map(row => ({ id: row.id, ownerId: row.ownerId, status: row.status, source: row.source,
+    recordIds: [...row.recordIds], createdAt: row.createdAt, undoneAt: row.undoneAt }));
   const preferences = value.preferences.map((row: GroupExportV2['preferences'][number], index: number) => {
     if (!row || row.userId !== group.members[index].userId || !Array.isArray(row.memberIds)) throw new Error('Préférences de groupe incohérentes');
     if (row.modeJson === null) {
@@ -117,5 +133,5 @@ export function serializeGroupExportV2(value: GroupExportV2): string {
     if (row.memberIds.length !== mode.memberIds.length || row.memberIds.some((id, i) => id !== mode.memberIds[i])) throw new Error('Participants de préférence incohérents');
     return { userId: row.userId, modeJson: mode.modeJson, memberIds: mode.memberIds, updatedAt: row.updatedAt };
   });
-  return `${JSON.stringify({ ...group, version: 2, expenseAuthors, comments, activity, preferences }, null, 2)}\n`;
+  return `${JSON.stringify({ ...group, version: 2, expenseAuthors, comments, activity, importBatches, preferences }, null, 2)}\n`;
 }
