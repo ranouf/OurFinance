@@ -6,6 +6,7 @@ import { BalanceService } from '../../core/firebase/balance-service';
 import type { Group } from '../../core/firebase/group-model';
 import { formatMinorExact } from '../../shared/utils/currency';
 import type { LedgerTotal } from '../../shared/utils/ledger';
+import { locale } from '../../shared/utils/i18n';
 
 @Component({
   selector: 'app-balance-summary',
@@ -13,7 +14,7 @@ import type { LedgerTotal } from '../../shared/utils/ledger';
   template: `
     <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-5" aria-label="Soldes du groupe">
       <h2 class="text-lg font-semibold">Soldes du groupe</h2>
-      <p class="mt-1 text-sm text-slate-600">Dépenses et remboursements déclarés, séparés par devise. Les imports historiques sans parts restent exclus.</p>
+      <p class="mt-1 text-sm text-slate-600">Dépenses et remboursements dans la devise du groupe. Les imports historiques sans parts restent exclus.</p>
       <label class="mt-4 block text-sm font-medium">Groupe
         <select class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="balanceGroup" [(ngModel)]="selectedGroupId" (ngModelChange)="refresh()">
           <option value="">Choisir un groupe</option>
@@ -61,7 +62,7 @@ export class BalanceSummary implements OnChanges {
   currencies(): string[] { return [...new Set(this.totals().map(row => row.currency))].sort(); }
   rowsFor(currency: string): LedgerTotal[] { return this.totals().filter(row => row.currency === currency); }
   memberLabel(userId: string): string { return userId === this.user?.uid ? 'Moi' : userId; }
-  amount(row: LedgerTotal): string { return formatMinorExact(row.balanceMinor, row.currency, 'fr-CA'); }
+  amount(row: LedgerTotal): string { return formatMinorExact(row.balanceMinor, row.currency, locale()); }
   label(row: LedgerTotal): string { return row.balanceMinor > 0n ? 'À recevoir' : row.balanceMinor < 0n ? 'À payer' : 'Équilibré'; }
   async refresh(): Promise<void> {
     const groupId = this.selectedGroupId;

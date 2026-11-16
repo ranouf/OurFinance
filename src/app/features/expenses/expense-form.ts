@@ -8,7 +8,7 @@ import { CategoryService } from '../../core/firebase/category-service';
 import { formatMinor, minorDigits } from '../../shared/utils/currency';
 import { categories, type CustomCategory } from '../../shared/utils/categories';
 import { categoryLabel } from '../../shared/utils/category-label';
-import { language } from '../../shared/utils/i18n';
+import { language, locale } from '../../shared/utils/i18n';
 import { prepareExpense, type ExpenseDraft } from './expense-draft';
 import type { SplitMode } from '../../shared/utils/split-engine';
 
@@ -67,7 +67,7 @@ import type { SplitMode } from '../../shared/utils/split-engine';
               <button class="mt-4 rounded-lg border border-teal-700 px-3 py-2 text-sm text-teal-800" type="button" (click)="preview()">Calculer les parts</button>
               @if (previewRows().length) {
                 <ul class="mt-3 text-sm" aria-label="Parts calculées">
-                  @for (row of previewRows(); track row.userId) { <li>{{ row.userId === user?.uid ? 'Moi' : row.userId }} : {{ row.amount }}</li> }
+                  @for (row of previewRows(); track row.userId) { <li>{{ row.userId === user?.uid ? 'Moi' : row.userId }} : {{ formatMinor(row.amountMinor, draft.currency, locale()) }}</li> }
                 </ul>
               }
             </fieldset>
@@ -90,11 +90,13 @@ export class ExpenseForm implements OnChanges {
   readonly categories = categories;
   readonly categoryLabel = categoryLabel;
   readonly language = language;
+  readonly locale = locale;
+  readonly formatMinor = formatMinor;
   readonly members = signal<{ userId: string }[]>([]);
   readonly customCategories = signal<CustomCategory[]>([]);
   readonly busy = signal(false);
   readonly message = signal('');
-  readonly previewRows = signal<{ userId: string; amount: string }[]>([]);
+  readonly previewRows = signal<{ userId: string; amountMinor: number }[]>([]);
   selectedGroupId = '';
   draft: ExpenseDraft = this.emptyDraft();
   private service?: ExpenseService;
@@ -161,7 +163,7 @@ export class ExpenseForm implements OnChanges {
     this.previewRows.set([]); this.message.set('');
     try {
       const result = prepareExpense(this.draft, new Set(this.members().map(member => member.userId)));
-      this.previewRows.set(result.allocations.map(item => ({ userId: item.userId, amount: formatMinor(item.amountMinor, this.draft.currency, 'fr-CA') })));
+      this.previewRows.set(result.allocations.map(item => ({ userId: item.userId, amountMinor: item.amountMinor })));
     } catch (error) { this.message.set(error instanceof Error ? error.message : 'Répartition invalide'); }
   }
   async save(): Promise<void> {

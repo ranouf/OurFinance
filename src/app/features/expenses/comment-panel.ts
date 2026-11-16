@@ -4,6 +4,7 @@ import type { FirebaseApp } from 'firebase/app';
 import type { User } from 'firebase/auth';
 import type { DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import { CommentService, type ExpenseComment } from '../../core/firebase/comment-service';
+import { locale } from '../../shared/utils/i18n';
 
 @Component({
   selector: 'app-comment-panel',
@@ -53,7 +54,7 @@ export class CommentPanel implements OnChanges {
     if (this.firebaseApp && this.workerUrl) this.service = new CommentService(this.firebaseApp, this.workerUrl);
     if (changes['groupId'] || changes['expenseId']) void this.refresh();
   }
-  date(entry: ExpenseComment): string { return new Intl.DateTimeFormat('fr-CA', { dateStyle: 'medium', timeStyle: 'short' }).format(entry.createdAt.toDate()); }
+  date(entry: ExpenseComment): string { return new Intl.DateTimeFormat(locale(), { dateStyle: 'medium', timeStyle: 'short' }).format(entry.createdAt.toDate()); }
   async refresh(): Promise<void> { this.entries.set([]); this.last = undefined; this.hasMore.set(false); this.message.set(''); await this.loadMore(); }
   async loadMore(): Promise<void> {
     if (!this.service || !this.groupId || !this.expenseId || this.busy()) return;

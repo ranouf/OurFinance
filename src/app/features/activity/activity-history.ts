@@ -5,6 +5,7 @@ import type { User } from 'firebase/auth';
 import type { DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import { ActivityService, type ActivityEntry } from '../../core/firebase/activity-service';
 import type { Group } from '../../core/firebase/group-model';
+import { locale } from '../../shared/utils/i18n';
 
 const labels: Record<string, string> = {
   expense_created: 'Dépense créée',
@@ -67,7 +68,7 @@ export class ActivityHistory implements OnChanges {
     if (changes['revision'] && !changes['revision'].firstChange && this.selectedGroupId) void this.refresh();
   }
   label(action: string): string { return labels[action] ?? 'Activité enregistrée'; }
-  date(entry: ActivityEntry): string { return new Intl.DateTimeFormat('fr-CA', { dateStyle: 'medium', timeStyle: 'short' }).format(entry.at.toDate()); }
+  date(entry: ActivityEntry): string { return new Intl.DateTimeFormat(locale(), { dateStyle: 'medium', timeStyle: 'short' }).format(entry.at.toDate()); }
   async refresh(): Promise<void> {
     this.entries.set([]);
     this.last = undefined;

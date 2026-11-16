@@ -6,6 +6,7 @@ import type { DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import type { Group } from '../../core/firebase/group-model';
 import { SettlementService, type SettlementHistoryEntry } from '../../core/firebase/settlement-service';
 import { formatMinor } from '../../shared/utils/currency';
+import { locale } from '../../shared/utils/i18n';
 
 @Component({
   selector: 'app-settlement-history',
@@ -56,7 +57,7 @@ export class SettlementHistory implements OnChanges {
     if (this.firebaseApp && this.workerUrl) this.service = new SettlementService(this.firebaseApp, this.workerUrl);
     if (changes['revision'] && !changes['revision'].firstChange && this.selectedGroupId) void this.refresh();
   }
-  amount(entry: SettlementHistoryEntry): string { return formatMinor(entry.amountMinor, entry.currency, 'fr-CA'); }
+  amount(entry: SettlementHistoryEntry): string { return formatMinor(entry.amountMinor, entry.currency, locale()); }
   memberLabel(userId: string): string { return userId === this.user?.uid ? 'Moi' : userId; }
   async refresh(): Promise<void> { this.entries.set([]); this.last = undefined; this.hasMore.set(false); await this.load(); }
   async loadMore(): Promise<void> { await this.load(); }
