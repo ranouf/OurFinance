@@ -6,10 +6,11 @@ import type { Group } from '../../core/firebase/group-model';
 import { buildBackupPackageV1 } from './backup-package';
 import { encodeBackupZipV1 } from './backup-zip';
 import { collectGroupExportV1, FirebaseExportReader } from './export-collector';
+import { collectGroupExportV2 } from './export-collector-v2';
 import { serializeGroupLedgerCsvV1 } from './group-csv';
 import type { GroupExportV1 } from './export-v1';
 
-type ExportKind = 'csv' | 'json' | 'zip';
+type ExportKind = 'csv' | 'json' | 'json-v2' | 'zip';
 
 @Component({
   selector: 'app-export-panel',
@@ -17,7 +18,7 @@ type ExportKind = 'csv' | 'json' | 'zip';
   template: `
     <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-5" aria-label="Exporter un groupe">
       <h2 class="text-lg font-semibold">Exporter un groupe</h2>
-      <p class="mt-2 text-sm text-slate-700">Ces exports sont partiels. Ils ne permettent pas encore de restaurer le groupe : comptes, préférences, commentaires, activité et remboursements interdevises sont absents.</p>
+      <p class="mt-2 text-sm text-slate-700">Ces exports sont partiels et ne restaurent pas encore le groupe. Le JSON V2 inclut les remboursements interdevises ; les formats V1 les omettent. Comptes, préférences, commentaires et activité restent absents.</p>
       <div class="mt-4 space-y-3">
         <label class="block text-sm font-medium">Groupe
           <select class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="exportGroup" [(ngModel)]="groupId">
@@ -29,6 +30,7 @@ type ExportKind = 'csv' | 'json' | 'zip';
           <select class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="exportKind" [(ngModel)]="kind">
             <option value="csv">CSV de consultation</option>
             <option value="json">JSON du groupe, partiel</option>
+            <option value="json-v2">JSON V2 avec remboursements multidevises, partiel</option>
             <option value="zip">ZIP du groupe avec reçus privés, partiel</option>
           </select>
         </label>
@@ -72,10 +74,10 @@ export class ExportPanel {
         bytes = await encodeBackupZipV1(backup);
         extension = 'zip'; contentType = 'application/zip';
       } else {
-        const json = await collectGroupExportV1(reader, user, groupId);
+        const json = kind === 'json-v2' ? await collectGroupExportV2(reader, user, groupId) : await collectGroupExportV1(reader, user, groupId);
         const content = kind === 'csv' ? serializeGroupLedgerCsvV1(JSON.parse(json) as GroupExportV1) : json;
         bytes = new TextEncoder().encode(content);
-        extension = kind; contentType = kind === 'csv' ? 'text/csv;charset=utf-8' : 'application/json';
+        extension = kind === 'csv' ? 'csv' : 'json'; contentType = kind === 'csv' ? 'text/csv;charset=utf-8' : 'application/json';
       }
       if (this.groupId !== groupId || this.user?.uid !== user.uid) throw new Error('Sélection modifiée');
       // A fresh, owned ArrayBuffer avoids exposing a subarray or unsafe BlobPart type.
@@ -84,7 +86,7 @@ export class ExportPanel {
       const url = URL.createObjectURL(new Blob([copy.buffer], { type: contentType }));
       const anchor = document.createElement('a');
       anchor.href = url;
-      anchor.download = `ourfinance-${groupId}-partiel-${new Date().toISOString().slice(0, 10)}.${extension}`;
+      anchor.download = `ourfinance-${groupId}-${kind === 'json-v2' ? 'v2-' : ''}partiel-${new Date().toISOString().slice(0, 10)}.${extension}`;
       anchor.hidden = true;
       document.body.append(anchor);
       anchor.click();
