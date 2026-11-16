@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { detectLanguage, validateProfilePreferences } from '../../src/app/core/firebase/profile-service';
+import { validateProfilePreferences } from '../../src/app/core/firebase/profile-service';
+import { detectLanguage } from '../../src/app/shared/utils/i18n';
 
 test('profile preferences keep a supported language and time zone without a personal currency', () => {
   assert.deepEqual(validateProfilePreferences({ displayName: '  Alex Exemple  ', preferredLanguage: 'fr',

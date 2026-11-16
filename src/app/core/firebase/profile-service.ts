@@ -1,16 +1,7 @@
 import type { FirebaseApp } from 'firebase/app';
 import { updateProfile, type User } from 'firebase/auth';
 import { doc, getDoc, getFirestore, setDoc } from 'firebase/firestore';
-
-export type Language = 'fr' | 'en' | 'ja';
-
-export function detectLanguage(languages: readonly string[]): Language {
-  for (const tag of languages) {
-    const primary = tag.toLowerCase().split('-')[0];
-    if (primary === 'fr' || primary === 'en' || primary === 'ja') return primary;
-  }
-  return 'en';
-}
+import { detectLanguage, type Language } from '../../shared/utils/i18n';
 
 export interface ProfilePreferences {
   readonly displayName: string;
