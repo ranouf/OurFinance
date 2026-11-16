@@ -6,7 +6,7 @@ import { encodeBackupZipV2 } from '../../src/app/features/import-export/backup-z
 import { decodeBackupZipV2 } from '../../src/app/features/import-export/backup-zip-read';
 import { serializeGroupExportV2, type GroupExportV2 } from '../../src/app/features/import-export/export-v2';
 import { preflightBackupRestoreV2 } from '../../src/app/features/import-export/restore-preflight-v2';
-import { restoreInventoryV2 } from '../../src/app/features/import-export/restore-inventory-v2';
+import { compareRestoreInventoryV2, restoreInventoryV2 } from '../../src/app/features/import-export/restore-inventory-v2';
 
 const group: GroupExportV2 = {
   format: 'OurFinanceGroupExport', version: 2, exportedAt: '2026-11-16T18:00:00.000Z',
@@ -72,4 +72,16 @@ test('restore inventory includes private receipt, comments and personal preferen
   strictEqual(inventory.receiptDocuments[0], 'groups/g/expenses/e/attachments/a');
   strictEqual(inventory.userDocuments.includes('users/alice/groupPreferences/g'), true);
   strictEqual(inventory.groupDocuments.includes('groups/g/activity/e'), true);
+});
+
+test('dry-run marks stale operations and derived documents for deletion', () => {
+  const diff = compareRestoreInventoryV2(group,
+    ['groups/g', 'groups/g/expenses/old', 'groups/g/balances/old', 'groups/g/invitations/old'],
+    ['users/alice/groupMemberships/g', 'users/alice/groupPreferences/g', 'users/alice/importBatches/old']);
+  deepStrictEqual(diff.deleteGroupDocuments, ['groups/g/expenses/old', 'groups/g/balances/old', 'groups/g/invitations/old']);
+  strictEqual(diff.replaceGroupDocuments.includes('groups/g/expenses/e'), true);
+  deepStrictEqual(diff.deleteUserDocuments, ['users/alice/importBatches/old']);
+  const withoutPreference = { ...group, preferences: [{ userId: 'alice', modeJson: null, memberIds: [], updatedAt: null }] };
+  const absent = compareRestoreInventoryV2(withoutPreference, ['groups/g'], ['users/alice/groupPreferences/g']);
+  deepStrictEqual(absent.deleteUserDocuments, ['users/alice/groupPreferences/g']);
 });
