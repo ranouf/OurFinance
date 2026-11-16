@@ -4,6 +4,7 @@ import { decodeBackupZipV1 } from '../../src/app/features/import-export/backup-z
 import { decodeBackupZipV2, encodeBackupZipV2 } from '../../src/app/features/import-export/backup-zip-v2';
 import { verifyBackupPackageV2, type BackupPackageV2 } from '../../src/app/features/import-export/backup-package-v2';
 import { serializeGroupExportV2, type GroupExportV2 } from '../../src/app/features/import-export/export-v2';
+import { previewBackupRestoreV2 } from '../../src/app/features/import-export/backup-restore-preview-v2';
 
 const digest = async (bytes: Uint8Array): Promise<string> => [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))]
   .map(byte => byte.toString(16).padStart(2, '0')).join('');
@@ -50,4 +51,15 @@ test('V2 rejects tampered bytes, missing media and changed FX totals', async () 
   await assert.rejects(verifyBackupPackageV2({ ...value, receipts: [] }));
   const altered = value.groupJson.replace('"debtAmountMinor": 51', '"debtAmountMinor": 52');
   await assert.rejects(verifyBackupPackageV2({ ...value, groupJson: altered }));
+});
+
+test('V2 restore preview reports verified FX and receipts without writing data', async () => {
+  const zip = await encodeBackupZipV2(await makePackage());
+  const preview = await previewBackupRestoreV2(zip);
+  assert.equal(preview.scope, 'group-v2-partial');
+  assert.equal(preview.counts.fxSettlements, 1);
+  assert.equal(preview.counts.privateReceiptFiles, 1);
+  assert.equal(preview.omitted.includes('comptes et identités Auth'), true);
+  const corrupt = zip.slice(); corrupt[100] ^= 1;
+  await assert.rejects(previewBackupRestoreV2(corrupt));
 });

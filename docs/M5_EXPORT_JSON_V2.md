@@ -6,6 +6,8 @@ L’exporteur lit cette collection sous les règles Firestore d’un membre acti
 
 Le JSON V2 est **partiel et non restaurable à ce stade**. Il n’inclut pas les identités Auth, préférences personnelles, commentaires, activité ni les octets des reçus. Le ZIP V2 ajoute les octets des reçus privés avec un manifeste SHA-256 vérifiable ; il reste lui aussi partiel et non restaurable. Une procédure de restauration transactionnelle vérifiée reste à développer avant de considérer ce format comme une sauvegarde complète. Ne pas importer un fichier V2 avec le lecteur ZIP V1.
 
+Le panneau d’export peut examiner localement un ZIP V2 et afficher le nombre d’opérations FX et de reçus vérifiés. Cette lecture ne transmet pas le fichier et n’écrit aucune donnée ; un fichier corrompu ou V1 est refusé par ce prévisualiseur V2.
+
 Essai réel à faire sur `ourfinance-test`, après réservation dans l’issue #30 : créer une dépense et un règlement FX entièrement fictifs, exporter JSON V2 depuis un membre actif, vérifier les deux montants, le taux et la date, puis vérifier qu’un tiers et un membre révoqué ne peuvent pas exporter. Nettoyer tous les comptes et documents fictifs ; ne publier ni contenu du JSON, ni jeton, ni données privées.
 
 Pour le ZIP V2, ajouter un reçu PNG fictif `authenticated`, vérifier `manifest.json`, `group.json`, l’unique fichier média et les SHA-256 avec `decodeBackupZipV2`. L’URL Cloudinary non signée doit rester refusée. Supprimer l’asset et ses métadonnées à la fin.

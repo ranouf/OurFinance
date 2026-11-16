@@ -7,6 +7,7 @@ import { buildBackupPackageV1 } from './backup-package';
 import { buildBackupPackageV2 } from './backup-package-v2';
 import { encodeBackupZipV1 } from './backup-zip';
 import { encodeBackupZipV2 } from './backup-zip-v2';
+import { previewBackupRestoreV2, type BackupRestorePreviewV2 } from './backup-restore-preview-v2';
 import { collectGroupExportV1, FirebaseExportReader } from './export-collector';
 import { collectGroupExportV2 } from './export-collector-v2';
 import { serializeGroupLedgerCsvV1 } from './group-csv';
@@ -44,6 +45,22 @@ type ExportKind = 'csv' | 'json' | 'json-v2' | 'zip' | 'zip-v2';
         </button>
         @if (message()) { <p class="text-sm" role="status">{{ message() }}</p> }
       </div>
+      <div class="mt-6 border-t border-slate-200 pt-4">
+        <h3 class="font-semibold">Examiner un ZIP V2 avant restauration</h3>
+        <p class="mt-1 text-sm text-slate-600">Vérification locale, sans envoi ni écriture. La restauration n’est pas encore disponible.</p>
+        <label class="mt-3 block text-sm font-medium">Archive ZIP V2
+          <input class="mt-1 block w-full text-sm" type="file" accept=".zip,application/zip" (change)="previewFile($event)" />
+        </label>
+        @if (preview()) {
+          <div class="mt-3 rounded-lg bg-slate-50 p-3 text-sm" role="status">
+            <p class="break-all font-semibold">{{ preview()!.groupName }} · {{ preview()!.groupId }}</p>
+            <p>{{ preview()!.counts.members }} membres · {{ preview()!.counts.expenses }} dépenses · {{ preview()!.counts.settlements }} remboursements · {{ preview()!.counts.fxSettlements }} remboursements multidevises</p>
+            <p>{{ preview()!.counts.privateReceiptFiles }} reçus privés vérifiés · export du {{ preview()!.exportedAt }}</p>
+            <p class="mt-1 text-amber-800">Archive partielle : comptes, préférences, commentaires et activité absents. Aucune restauration effectuée.</p>
+          </div>
+        }
+        @if (previewMessage()) { <p class="mt-2 text-sm text-rose-700" role="status">{{ previewMessage() }}</p> }
+      </div>
     </section>
   `,
 })
@@ -55,8 +72,23 @@ export class ExportPanel {
 
   readonly busy = signal(false);
   readonly message = signal('');
+  readonly preview = signal<BackupRestorePreviewV2 | undefined>(undefined);
+  readonly previewMessage = signal('');
   groupId = '';
   kind: ExportKind = 'csv';
+  private previewRequestId = 0;
+
+  async previewFile(event: Event): Promise<void> {
+    const requestId = ++this.previewRequestId;
+    this.preview.set(undefined); this.previewMessage.set('');
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    if (file.size > 60_000_000) { this.previewMessage.set('Archive trop volumineuse.'); return; }
+    try {
+      const result = await previewBackupRestoreV2(new Uint8Array(await file.arrayBuffer()));
+      if (requestId === this.previewRequestId) this.preview.set(result);
+    } catch { if (requestId === this.previewRequestId) this.previewMessage.set('Archive V2 invalide ou incomplète.'); }
+  }
 
   async download(): Promise<void> {
     const user = this.user;
