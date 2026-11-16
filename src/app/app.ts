@@ -28,24 +28,28 @@ import { language, locale, setLanguage, t } from './shared/utils/i18n';
   imports: [AppShell, FormsModule, ExpenseForm, ExpenseHistory, SettlementForm, SettlementHistory, BalanceSummary, StatisticsSummary, ActivityHistory, CategoryManager, InvitationPanel, GroupCurrencyPanel, ExportPanel, ProfilePanel],
   template: `
     <app-shell>
-      <div class="mx-auto max-w-md rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">
-        <h1 class="text-2xl font-bold">{{ heading() }}</h1>
+      <div class="mx-auto rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8" [class.max-w-md]="!auth?.user()" [class.max-w-3xl]="!!auth?.user()">
+        <h1 class="text-2xl font-bold tracking-tight sm:text-3xl">{{ heading() }}</h1>
         @if (!online()) { <p class="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900" role="status">{{ t('offline') }}</p> }
         @if (state() === 'loading') {
           <p class="mt-4 text-slate-600" role="status">{{ t('loadingConfig') }}</p>
         } @else if (state() === 'unconfigured') {
           <p class="mt-4 text-slate-600" role="status">{{ t('missingConfig') }}</p>
         } @else if (auth?.user(); as user) {
-          <p class="mt-4 text-slate-600">{{ t('connectedAs') }} {{ user.email }}.</p>
+          <p class="mt-3 break-all text-sm text-slate-600">{{ t('connectedAs') }} {{ user.email }}.</p>
           @if (!user.emailVerified) {
             <p class="mt-4 rounded-lg bg-amber-50 p-3 text-amber-900" role="status">{{ t('verifyEmail') }}</p>
           } @else {
-            <section class="mt-6" [attr.aria-label]="t('myGroups')">
-              <h2 class="text-lg font-semibold">{{ t('myGroups') }}</h2>
+            <section class="mt-7" [attr.aria-label]="t('myGroups')">
+              <h2 class="text-xl font-semibold">{{ t('myGroups') }}</h2>
               @if (groups().length) {
-                <ul class="mt-3 space-y-2">
+                <ul class="mt-4 grid gap-3 sm:grid-cols-2">
                   @for (group of groups(); track group.id) {
-                    <li class="rounded-lg border border-slate-200 p-3">{{ group.name }} · {{ group.currency }}</li>
+                    <li class="flex min-w-0 items-center gap-3 rounded-xl border border-teal-100 bg-teal-50 p-4">
+                      <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-lg font-bold text-teal-800" aria-hidden="true">{{ group.name.slice(0, 1).toUpperCase() }}</span>
+                      <span class="min-w-0 flex-1 truncate font-semibold">{{ group.name }}</span>
+                      <span class="shrink-0 rounded-full bg-white px-2 py-1 text-xs font-semibold text-teal-900">{{ group.currency }}</span>
+                    </li>
                   }
                 </ul>
               } @else { <p class="mt-2 text-slate-600">{{ t('noGroups') }}</p> }
@@ -107,6 +111,11 @@ import { language, locale, setLanguage, t } from './shared/utils/i18n';
           <button class="mt-6 rounded-lg border border-slate-300 px-4 py-2" type="button" (click)="logout()">{{ t('logout') }}</button>
         } @else {
           <p class="mt-3 text-slate-600">{{ t('testSpace') }}</p>
+          <div class="mt-6 flex flex-wrap gap-1 rounded-xl bg-slate-100 p-1 text-sm" role="group" [attr.aria-label]="t('welcome')">
+            <button class="rounded-lg px-3 py-2 font-medium focus-visible:ring-2 focus-visible:ring-teal-700" type="button" [attr.aria-pressed]="mode() === 'login'" [class.bg-white]="mode() === 'login'" [class.shadow-sm]="mode() === 'login'" (click)="mode.set('login')">{{ t('connection') }}</button>
+            <button class="rounded-lg px-3 py-2 font-medium focus-visible:ring-2 focus-visible:ring-teal-700" type="button" [attr.aria-pressed]="mode() === 'register'" [class.bg-white]="mode() === 'register'" [class.shadow-sm]="mode() === 'register'" (click)="mode.set('register')">{{ t('signup') }}</button>
+            <button class="rounded-lg px-3 py-2 font-medium focus-visible:ring-2 focus-visible:ring-teal-700" type="button" [attr.aria-pressed]="mode() === 'reset'" [class.bg-white]="mode() === 'reset'" [class.shadow-sm]="mode() === 'reset'" (click)="mode.set('reset')">{{ t('forgotten') }}</button>
+          </div>
           <form class="mt-6 space-y-4" (ngSubmit)="submit()">
             <label class="block text-sm font-medium">{{ t('email') }}
               <input class="mt-1 w-full rounded-lg border border-slate-300 p-3" type="email" name="email" autocomplete="email" [(ngModel)]="email" required />
@@ -123,11 +132,6 @@ import { language, locale, setLanguage, t } from './shared/utils/i18n';
           @if (mode() === 'login') {
             <button class="mt-3 w-full rounded-lg border border-slate-300 px-4 py-3 disabled:opacity-50" type="button" [disabled]="busy() || !online()" (click)="google()">{{ t('google') }}</button>
           }
-          <div class="mt-5 flex gap-4 text-sm text-teal-700">
-            <button type="button" (click)="mode.set('login')">{{ t('connection') }}</button>
-            <button type="button" (click)="mode.set('register')">{{ t('signup') }}</button>
-            <button type="button" (click)="mode.set('reset')">{{ t('forgotten') }}</button>
-          </div>
         }
         @if (message()) { <p class="mt-4 text-sm" role="status">{{ message() }}</p> }
       </div>
