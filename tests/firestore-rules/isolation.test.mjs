@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { after, before, test } from 'node:test';
 import { initializeTestEnvironment, assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc, collection, collectionGroup, getDocs, query, where } from 'firebase/firestore';
+import { doc, getDoc, setDoc, deleteDoc, collection, collectionGroup, getDocs, query, where } from 'firebase/firestore';
 
 let env;
 before(async () => {
@@ -61,7 +61,13 @@ test('profile cannot be read or changed by another user', async () => {
   const db = env.authenticatedContext('alice').firestore();
   await assertFails(getDoc(doc(db, 'users/bob')));
   await assertFails(setDoc(doc(db, 'users/bob'), { displayName: 'X' }));
-  await assertSucceeds(setDoc(doc(db, 'users/alice'), { displayName: 'A' }));
+  const valid = { displayName: 'Alex Exemple', preferredLanguage: 'fr', timeZone: 'America/Toronto' };
+  await assertSucceeds(setDoc(doc(db, 'users/alice'), valid));
+  await assertSucceeds(getDoc(doc(db, 'users/alice')));
+  await assertFails(setDoc(doc(db, 'users/alice'), { ...valid, role: 'owner' }));
+  await assertFails(setDoc(doc(db, 'users/alice'), { ...valid, preferredLanguage: 'es' }));
+  await assertFails(setDoc(doc(db, 'users/alice'), { ...valid, referenceCurrency: 'CAD' }));
+  await assertFails(deleteDoc(doc(db, 'users/alice')));
 });
 
 test('a revoked member loses receipts, activity and personal preference', async () => {

@@ -18,10 +18,11 @@ import { ActivityHistory } from './features/activity/activity-history';
 import { CategoryManager } from './features/categories/category-manager';
 import { InvitationPanel } from './features/groups/invitation-panel';
 import { ExportPanel } from './features/import-export/export-panel';
+import { ProfilePanel } from './features/profile/profile-panel';
 
 @Component({
   selector: 'app-root',
-  imports: [AppShell, FormsModule, ExpenseForm, ExpenseHistory, SettlementForm, SettlementHistory, BalanceSummary, StatisticsSummary, ActivityHistory, CategoryManager, InvitationPanel, ExportPanel],
+  imports: [AppShell, FormsModule, ExpenseForm, ExpenseHistory, SettlementForm, SettlementHistory, BalanceSummary, StatisticsSummary, ActivityHistory, CategoryManager, InvitationPanel, ExportPanel, ProfilePanel],
   template: `
     <app-shell>
       <div class="mx-auto max-w-md rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">
@@ -90,6 +91,10 @@ import { ExportPanel } from './features/import-export/export-panel';
               } @placeholder {
                 <p class="mt-6 rounded-xl border border-slate-200 p-4 text-sm text-slate-600" role="status">Chargement de l’export de groupe…</p>
               }
+            }
+            @if (firebaseApp) {
+              @defer (on viewport) { <app-profile-panel [user]="user" [firebaseApp]="firebaseApp" /> }
+              @placeholder { <p class="mt-6 text-sm text-slate-600" role="status">Chargement du profil…</p> }
             }
           }
           <button class="mt-6 rounded-lg border border-slate-300 px-4 py-2" type="button" (click)="logout()">Déconnexion</button>
