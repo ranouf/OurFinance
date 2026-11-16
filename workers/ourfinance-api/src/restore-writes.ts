@@ -23,6 +23,7 @@ export function buildRestoreWrites(value: GroupExportV2, live: LiveRestoreInvent
   const backup = JSON.parse(serializeGroupExportV2(value)) as GroupExportV2;
   if (!/^[A-Za-z0-9_-]{1,128}$/.test(projectId) || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(restoreId) || Number.isNaN(Date.parse(now))) throw new Error('Contexte de restauration invalide');
   const diff = compareRestoreInventoryV2(backup, live.groupDocuments, live.userDocuments);
+  if (live.receiptPublicIds.length > 1000 || new Set(live.receiptPublicIds).size !== live.receiptPublicIds.length) throw new Error('Médias actuels trop nombreux ou ambigus');
   const active = backup.receipts.filter(row => row.status === 'active');
   const stagedByReceipt = new Map(staged.map(row => [`${row.expenseId}/${row.attachmentId}`, row]));
   if (stagedByReceipt.size !== staged.length || staged.length !== active.length || active.some(row => {
@@ -87,6 +88,10 @@ export function buildRestoreWrites(value: GroupExportV2, live: LiveRestoreInvent
     groupId: string(backup.group.id), source: string(row.source), status: string(row.status), recordIds: array(row.recordIds.map(string)),
     createdAt: time(row.createdAt), ...(row.undoneAt ? { undoneAt: time(row.undoneAt) } : {}),
   });
+  writes.push({ update: { name: `${root}/${groupPath}/restoreJobs/${restoreId}`, fields: {
+    ownerId: string(ownerId), status: string('cleanup_pending'), createdAt: time(now),
+    oldPublicIds: array(live.receiptPublicIds.map(string)), newPublicIds: array(staged.map(row => string(row.publicId))),
+  } }, currentDocument: { exists: false } });
   if (new TextEncoder().encode(JSON.stringify({ writes })).byteLength > 8_000_000) throw new Error('Restauration trop volumineuse pour une transaction');
   return { writes, previousReceiptPublicIds: live.receiptPublicIds };
 }

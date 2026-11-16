@@ -80,7 +80,7 @@ export async function collectLiveRestoreInventory(uid: string, groupId: string, 
         (restoreId && group.fields['restoreId']?.stringValue !== restoreId) ||
         caller?.fields?.['status']?.stringValue !== 'active' || caller.fields['role']?.stringValue !== 'owner') throw new RestoreInventoryError(403, 'owner_required');
     const groupCollections = ['members', 'categories', 'expenses', 'settlements', 'importedRecords', 'activity', 'balances', 'statistics', 'invitations'];
-    await assertCollections(`groups/${groupId}`, new Set(groupCollections));
+    await assertCollections(`groups/${groupId}`, new Set([...groupCollections, 'restoreJobs']));
     const pages = await Promise.all(groupCollections.map(name => list(`groups/${groupId}/${name}`)));
     const groupDocuments = [`groups/${groupId}`, ...pages.flatMap(page => page.map(row => row.name!.slice(`${root}/`.length)))];
     const members = pages[0].map(row => row.name!.slice(row.name!.lastIndexOf('/') + 1));

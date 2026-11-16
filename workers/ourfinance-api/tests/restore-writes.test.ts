@@ -33,6 +33,7 @@ test('atomic restore plan replaces old expense, keeps authors and points to stag
   strictEqual(writes.find(row => row.update?.name.endsWith('/groups/g'))?.update?.fields.status.stringValue, 'active');
   strictEqual(writes.find(row => row.update?.name.endsWith('/groups/g'))?.update?.fields.lastRestoreId.stringValue, restoreId);
   strictEqual(writes.find(row => row.update?.name.endsWith('/groups/g'))?.updateMask?.fieldPaths.includes('restoreId'), true);
+  strictEqual(writes.some(row => row.update?.name.endsWith(`/groups/g/restoreJobs/${restoreId}`)), true);
   strictEqual(plan.previousReceiptPublicIds[0], 'ourfinance-test/g/old/a');
 });
 
