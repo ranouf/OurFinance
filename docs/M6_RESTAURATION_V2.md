@@ -4,7 +4,7 @@
 
 ## Portée
 
-- Restaurer exclusivement le groupe d’origine, avec sa devise inchangée et le même ensemble d’identités de membres.
+- Restaurer exclusivement le groupe d’origine, avec sa devise inchangée et les mêmes identités, rôles et statuts de membres. Une restauration ne réactive pas un membre révoqué.
 - Remplacer les dépenses, règlements, imports, catégories personnalisées, commentaires, activité, reçus privés et préférences personnelles de chaque membre, y compris l’absence de préférence.
 - Préserver les auteurs des dépenses pour maintenir la règle « auteur seul » après restauration. Préserver les lots d’import sous `users/{ownerId}/importBatches` pour permettre l’annulation.
 - Révoquer les invitations en attente ; invalider ou recalculer tout document dérivé de soldes/statistiques. Inventorier les sous-collections inattendues et refuser plutôt que laisser un état ancien silencieux.

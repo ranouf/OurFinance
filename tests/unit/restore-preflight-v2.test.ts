@@ -18,7 +18,7 @@ const fixture: GroupExportV2 = {
     { userId: 'bob', modeJson: null, memberIds: [], updatedAt: null },
   ],
 };
-const target = { groupId: 'original_group', currency: 'CAD', memberIds: ['bob', 'alice'], ownerId: 'alice' };
+const target = { groupId: 'original_group', currency: 'CAD', memberIds: ['bob', 'alice'], ownerId: 'alice', memberStatuses: { alice: 'active' as const, bob: 'revoked' as const } };
 
 test('preflight counts preferences and checks the original group and members without writing', () => {
   const result = preflightGroupRestoreV2(serializeGroupExportV2(fixture), target);

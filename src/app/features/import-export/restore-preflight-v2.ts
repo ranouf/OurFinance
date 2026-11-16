@@ -6,6 +6,7 @@ export interface RestoreTargetV2 {
   readonly currency: string;
   readonly memberIds: readonly string[];
   readonly ownerId: string;
+  readonly memberStatuses: Readonly<Record<string, 'active' | 'revoked'>>;
 }
 export interface RestorePreflightV2 {
   readonly groupId: string;
@@ -36,6 +37,8 @@ export function preflightGroupRestoreV2(groupJson: string, target: RestoreTarget
   if (members.size !== target.memberIds.length || members.size !== source.members.length || source.members.some(member => !members.has(member.userId))) {
     throw new Error('Membres du groupe différents');
   }
+  if (source.members.some(member => target.memberStatuses[member.userId] !== member.status) ||
+      Object.keys(target.memberStatuses).length !== source.members.length) throw new Error('Statuts des membres différents');
   return {
     groupId: source.group.id,
     sourceExportedAt: source.exportedAt,
