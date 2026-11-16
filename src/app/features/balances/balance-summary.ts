@@ -6,23 +6,23 @@ import { BalanceService } from '../../core/firebase/balance-service';
 import type { Group } from '../../core/firebase/group-model';
 import { formatMinorExact } from '../../shared/utils/currency';
 import type { LedgerTotal } from '../../shared/utils/ledger';
-import { locale } from '../../shared/utils/i18n';
+import { locale, t } from '../../shared/utils/i18n';
 
 @Component({
   selector: 'app-balance-summary',
   imports: [FormsModule],
   template: `
-    <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-5" aria-label="Soldes du groupe">
-      <h2 class="text-lg font-semibold">Soldes du groupe</h2>
-      <p class="mt-1 text-sm text-slate-600">Dépenses et remboursements dans la devise du groupe. Les imports historiques sans parts restent exclus.</p>
-      <label class="mt-4 block text-sm font-medium">Groupe
+    <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-5" [attr.aria-label]="t('groupBalances')">
+      <h2 class="text-lg font-semibold">{{ t('groupBalances') }}</h2>
+      <p class="mt-1 text-sm text-slate-600">{{ t('balanceIntro') }}</p>
+      <label class="mt-4 block text-sm font-medium">{{ t('group') }}
         <select class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="balanceGroup" [(ngModel)]="selectedGroupId" (ngModelChange)="refresh()">
-          <option value="">Choisir un groupe</option>
+          <option value="">{{ t('chooseGroup') }}</option>
           @for (group of groups; track group.id) { <option [value]="group.id">{{ group.name }}</option> }
         </select>
       </label>
       @if (selectedGroupId) {
-        <button class="mt-3 rounded-lg border border-teal-700 px-3 py-2 text-sm text-teal-800 disabled:opacity-50" type="button" [disabled]="busy()" (click)="refresh()">Actualiser</button>
+        <button class="mt-3 rounded-lg border border-teal-700 px-3 py-2 text-sm text-teal-800 disabled:opacity-50" type="button" [disabled]="busy()" (click)="refresh()">{{ t('refresh') }}</button>
         @for (currency of currencies(); track currency) {
           <div class="mt-4">
             <h3 class="font-semibold">{{ currency }}</h3>
@@ -35,8 +35,8 @@ import { locale } from '../../shared/utils/i18n';
               }
             </ul>
           </div>
-        } @empty { @if (!busy() && !message()) { <p class="mt-4 text-sm text-slate-600">Aucune opération à répartir dans ce groupe.</p> } }
-        @if (incompleteCount()) { <p class="mt-3 text-sm text-amber-800">{{ incompleteCount() }} dépense(s) sans parts connues exclue(s) du calcul.</p> }
+        } @empty { @if (!busy() && !message()) { <p class="mt-4 text-sm text-slate-600">{{ t('noBalance') }}</p> } }
+        @if (incompleteCount()) { <p class="mt-3 text-sm text-amber-800">{{ incompleteCount() }} {{ t('unknownShares') }}</p> }
       }
       @if (message()) { <p class="mt-4 text-sm text-rose-700" role="status">{{ message() }}</p> }
     </section>
@@ -48,6 +48,7 @@ export class BalanceSummary implements OnChanges {
   @Input({ required: true }) user?: User;
   @Input() revision = 0;
   readonly totals = signal<LedgerTotal[]>([]);
+  readonly t = t;
   readonly incompleteCount = signal(0);
   readonly busy = signal(false);
   readonly message = signal('');
@@ -61,9 +62,9 @@ export class BalanceSummary implements OnChanges {
   }
   currencies(): string[] { return [...new Set(this.totals().map(row => row.currency))].sort(); }
   rowsFor(currency: string): LedgerTotal[] { return this.totals().filter(row => row.currency === currency); }
-  memberLabel(userId: string): string { return userId === this.user?.uid ? 'Moi' : userId; }
+  memberLabel(userId: string): string { return userId === this.user?.uid ? t('me') : userId; }
   amount(row: LedgerTotal): string { return formatMinorExact(row.balanceMinor, row.currency, locale()); }
-  label(row: LedgerTotal): string { return row.balanceMinor > 0n ? 'À recevoir' : row.balanceMinor < 0n ? 'À payer' : 'Équilibré'; }
+  label(row: LedgerTotal): string { return row.balanceMinor > 0n ? t('receivable') : row.balanceMinor < 0n ? t('payable') : t('balanced'); }
   async refresh(): Promise<void> {
     const groupId = this.selectedGroupId;
     const requestId = ++this.requestId;
@@ -74,7 +75,7 @@ export class BalanceSummary implements OnChanges {
       const result = await this.service.load(groupId);
       if (requestId !== this.requestId) return;
       this.totals.set(result.totals); this.incompleteCount.set(result.incompleteCount);
-    } catch { if (requestId === this.requestId) this.message.set('Soldes indisponibles.'); }
+    } catch { if (requestId === this.requestId) this.message.set(t('balancesUnavailable')); }
     finally { if (requestId === this.requestId) this.busy.set(false); }
   }
 }
