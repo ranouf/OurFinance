@@ -1,6 +1,6 @@
 # Références d'interface — OurFinance
 
-Les captures de référence proviennent de l'application Splitwise et servent à comprendre les **parcours et fonctionnalités**, pas à copier son identité visuelle. Les images ne sont pas encore ajoutées au dépôt : elles doivent être déposées dans `docs/screenshots/` avant une analyse visuelle par Codex.
+Les captures de référence proviennent de Splitwise et servent à comprendre les **parcours et fonctionnalités**, pas à copier son identité visuelle. Elles ont été transmises **privément à Codex** et ne doivent **pas** être ajoutées au dépôt. La nouvelle direction graphique approuvée est **[Everyday Pop](DESIGN_EVERYDAY_POP.md)**, avec ses illustrations SVG versionnées dans `public/illustrations/`.
 
 ## Parcours à examiner dans les captures
 
