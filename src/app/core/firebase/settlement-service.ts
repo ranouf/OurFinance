@@ -1,4 +1,6 @@
+import type { FirebaseApp } from 'firebase/app';
 import type { User } from 'firebase/auth';
+import { collection, getDocs, getFirestore, limit, orderBy, query, startAfter, type DocumentData, type QueryDocumentSnapshot } from 'firebase/firestore';
 
 export interface SettlementRequest {
   readonly idempotencyKey: string;
@@ -9,8 +11,38 @@ export interface SettlementRequest {
   readonly toUserId: string;
 }
 
+export interface SettlementHistoryEntry {
+  readonly id: string;
+  readonly date: string;
+  readonly currency: string;
+  readonly amountMinor: number;
+  readonly fromUserId: string;
+  readonly toUserId: string;
+}
+
 export class SettlementService {
-  constructor(private readonly workerUrl: string) {}
+  constructor(private readonly app: FirebaseApp, private readonly workerUrl: string) {}
+
+  async history(groupId: string, after?: QueryDocumentSnapshot<DocumentData>): Promise<{ entries: SettlementHistoryEntry[]; last?: QueryDocumentSnapshot<DocumentData>; hasMore: boolean }> {
+    const settlements = collection(getFirestore(this.app), 'groups', groupId, 'settlements');
+    const ordered = query(settlements, orderBy('date', 'desc'), limit(20), ...(after ? [startAfter(after)] : []));
+    const snapshot = await getDocs(ordered);
+    return {
+      entries: snapshot.docs.filter(item => item.data()['deleted'] !== true).map(item => {
+        const data = item.data();
+        return {
+          id: item.id,
+          date: String(data['date']),
+          currency: String(data['currency']),
+          amountMinor: Number(data['amountMinor']),
+          fromUserId: String(data['fromUserId']),
+          toUserId: String(data['toUserId']),
+        };
+      }),
+      last: snapshot.docs.at(-1),
+      hasMore: snapshot.size === 20,
+    };
+  }
 
   async create(user: User, groupId: string, request: SettlementRequest): Promise<string> {
     if (!user.emailVerified) throw new Error('Adresse courriel non confirmée');

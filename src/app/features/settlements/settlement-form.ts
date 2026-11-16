@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, Input, OnChanges, signal } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, Output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { FirebaseApp } from 'firebase/app';
 import type { User } from 'firebase/auth';
@@ -47,6 +47,7 @@ import { parseMinor } from '../expenses/expense-draft';
   `,
 })
 export class SettlementForm implements OnChanges {
+  @Output() readonly saved = new EventEmitter<void>();
   @Input({ required: true }) groups: Group[] = [];
   @Input({ required: true }) user?: User;
   @Input({ required: true }) firebaseApp?: FirebaseApp;
@@ -69,7 +70,7 @@ export class SettlementForm implements OnChanges {
   ngOnChanges(): void {
     if (this.firebaseApp && this.workerUrl) {
       this.expenseService = new ExpenseService(this.firebaseApp, this.workerUrl);
-      this.settlementService = new SettlementService(this.workerUrl);
+      this.settlementService = new SettlementService(this.firebaseApp, this.workerUrl);
     }
   }
 
@@ -104,7 +105,7 @@ export class SettlementForm implements OnChanges {
     try {
       await this.settlementService.create(this.user, this.selectedGroupId, { idempotencyKey, ...content } satisfies SettlementRequest);
       this.pendingKey = undefined; this.pendingBody = undefined;
-      this.amount = ''; this.message.set('Remboursement enregistré.');
+      this.amount = ''; this.message.set('Remboursement enregistré.'); this.saved.emit();
     } catch (error) { this.message.set(error instanceof Error ? error.message : 'Enregistrement impossible'); }
     finally { this.busy.set(false); }
   }

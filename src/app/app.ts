@@ -11,10 +11,11 @@ import { Group } from './core/firebase/group-model';
 import { ExpenseForm } from './features/expenses/expense-form';
 import { ExpenseHistory } from './features/expenses/expense-history';
 import { SettlementForm } from './features/settlements/settlement-form';
+import { SettlementHistory } from './features/settlements/settlement-history';
 
 @Component({
   selector: 'app-root',
-  imports: [AppShell, FormsModule, ExpenseForm, ExpenseHistory, SettlementForm],
+  imports: [AppShell, FormsModule, ExpenseForm, ExpenseHistory, SettlementForm, SettlementHistory],
   template: `
     <app-shell>
       <div class="mx-auto max-w-md rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">
@@ -54,7 +55,8 @@ import { SettlementForm } from './features/settlements/settlement-form';
             @if (workerUrl && firebaseApp && groups().length) {
               <app-expense-form [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" (saved)="onExpenseSaved()" />
               <app-expense-history [groups]="groups()" [firebaseApp]="firebaseApp" [user]="user" [workerUrl]="workerUrl" [revision]="expenseRevision()" />
-              <app-settlement-form [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" />
+              <app-settlement-form [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" (saved)="onSettlementSaved()" />
+              <app-settlement-history [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" [revision]="settlementRevision()" />
             }
           }
           <button class="mt-6 rounded-lg border border-slate-300 px-4 py-2" type="button" (click)="logout()">Déconnexion</button>
@@ -99,6 +101,7 @@ export class App implements OnInit, OnDestroy {
   readonly currencies = currencyCodes();
   readonly groups = signal<Group[]>([]);
   readonly expenseRevision = signal(0);
+  readonly settlementRevision = signal(0);
   readonly groupServiceReady = signal(false);
   groupName = '';
   groupCurrency = 'CAD';
@@ -168,4 +171,5 @@ export class App implements OnInit, OnDestroy {
   }
   async logout(): Promise<void> { this.groups.set([]); await this.auth?.logout(); }
   onExpenseSaved(): void { this.expenseRevision.update(value => value + 1); }
+  onSettlementSaved(): void { this.settlementRevision.update(value => value + 1); }
 }
