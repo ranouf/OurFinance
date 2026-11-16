@@ -16,10 +16,11 @@ import { BalanceSummary } from './features/balances/balance-summary';
 import { StatisticsSummary } from './features/statistics/statistics-summary';
 import { ActivityHistory } from './features/activity/activity-history';
 import { CategoryManager } from './features/categories/category-manager';
+import { InvitationPanel } from './features/groups/invitation-panel';
 
 @Component({
   selector: 'app-root',
-  imports: [AppShell, FormsModule, ExpenseForm, ExpenseHistory, SettlementForm, SettlementHistory, BalanceSummary, StatisticsSummary, ActivityHistory, CategoryManager],
+  imports: [AppShell, FormsModule, ExpenseForm, ExpenseHistory, SettlementForm, SettlementHistory, BalanceSummary, StatisticsSummary, ActivityHistory, CategoryManager, InvitationPanel],
   template: `
     <app-shell>
       <div class="mx-auto max-w-md rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">
@@ -56,6 +57,7 @@ import { CategoryManager } from './features/categories/category-manager';
                 </form>
               } @else { <p class="mt-4 text-sm text-amber-800">Le service de création de groupes n’est pas encore configuré.</p> }
             </section>
+            @if (workerUrl) { <app-invitation-panel [groups]="groups()" [user]="user" [workerUrl]="workerUrl" (joined)="onInvitationJoined()" /> }
             @if (workerUrl && firebaseApp && groups().length) {
               <app-category-manager [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" (changed)="onCategoryChanged()" />
               <app-expense-form [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" [categoryRevision]="categoryRevision()" (saved)="onExpenseSaved()" />
@@ -182,4 +184,5 @@ export class App implements OnInit, OnDestroy {
   onExpenseSaved(): void { this.expenseRevision.update(value => value + 1); }
   onCategoryChanged(): void { this.categoryRevision.update(value => value + 1); }
   onSettlementSaved(): void { this.settlementRevision.update(value => value + 1); }
+  onInvitationJoined(): void { void this.loadGroups(); }
 }
