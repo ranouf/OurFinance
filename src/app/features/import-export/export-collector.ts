@@ -34,6 +34,11 @@ const text = (data: Record<string, unknown>, key: string): string => {
   if (typeof value !== 'string') throw new Error(`Champ ${key} absent de l’export`);
   return value;
 };
+const oneOf = <T extends string>(data: Record<string, unknown>, key: string, allowed: readonly T[]): T => {
+  const value = text(data, key);
+  if (!allowed.includes(value as T)) throw new Error(`Champ ${key} invalide pour l’export`);
+  return value as T;
+};
 const integer = (data: Record<string, unknown>, key: string): number => {
   const value = data[key];
   if (!Number.isSafeInteger(value)) throw new Error(`Champ ${key} invalide pour l’export`);
@@ -86,16 +91,16 @@ export async function collectGroupExportV1(reader: ExportReader, user: Pick<User
     })),
     settlements: settlements.map(item => ({
       id: item.id, date: text(item.data, 'date'), currency: text(item.data, 'currency'), amountMinor: integer(item.data, 'amountMinor'),
-      fromUserId: text(item.data, 'fromUserId'), toUserId: text(item.data, 'toUserId'), status: text(item.data, 'status'), deleted: boolean(item.data, 'deleted'),
+      fromUserId: text(item.data, 'fromUserId'), toUserId: text(item.data, 'toUserId'), status: oneOf(item.data, 'status', ['recorded'] as const), deleted: boolean(item.data, 'deleted'),
     })),
     importedRecords: importedRecords.map(item => ({
       id: item.id, sourceId: text(item.data, 'sourceId'), batchId: text(item.data, 'batchId'), date: text(item.data, 'date'),
       description: text(item.data, 'description'), currency: text(item.data, 'currency'), amountMinor: integer(item.data, 'amountMinor'),
       netImpactsMinor: impacts(item.data), splitStatus: text(item.data, 'splitStatus') as 'undetermined', status: text(item.data, 'status') as 'active' | 'undone',
     })),
-    categories: categories.map(item => ({ id: item.id, name: text(item.data, 'name'), iconId: text(item.data, 'iconId'), color: text(item.data, 'color'), status: text(item.data, 'status') })),
+    categories: categories.map(item => ({ id: item.id, name: text(item.data, 'name'), iconId: text(item.data, 'iconId'), color: text(item.data, 'color'), status: oneOf(item.data, 'status', ['active', 'archived'] as const) })),
     receipts: receiptPages.flatMap((page, index) => page.map(item => ({
-      expenseId: expenses[index].id, attachmentId: item.id, format: text(item.data, 'format') as 'jpg' | 'png', status: text(item.data, 'status'), mediaIncluded: false as const,
+      expenseId: expenses[index].id, attachmentId: item.id, format: oneOf(item.data, 'format', ['jpg', 'png'] as const), status: oneOf(item.data, 'status', ['active', 'deleted'] as const), mediaIncluded: false as const,
     }))),
   };
   // A membership change during pagination must not produce a file for a revoked user.

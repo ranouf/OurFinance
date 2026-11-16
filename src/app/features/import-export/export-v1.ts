@@ -15,16 +15,16 @@ export interface GroupExportV1 {
   }[];
   readonly settlements: readonly {
     readonly id: string; readonly date: string; readonly currency: string; readonly amountMinor: number;
-    readonly fromUserId: string; readonly toUserId: string; readonly status: string; readonly deleted: boolean;
+    readonly fromUserId: string; readonly toUserId: string; readonly status: 'recorded'; readonly deleted: boolean;
   }[];
   readonly importedRecords: readonly {
     readonly id: string; readonly sourceId: string; readonly batchId: string; readonly date: string; readonly description: string;
     readonly currency: string; readonly amountMinor: number; readonly netImpactsMinor: Readonly<Record<string, number>>;
     readonly splitStatus: 'undetermined'; readonly status: 'active' | 'undone';
   }[];
-  readonly categories: readonly { readonly id: string; readonly name: string; readonly iconId: string; readonly color: string; readonly status: string }[];
+  readonly categories: readonly { readonly id: string; readonly name: string; readonly iconId: string; readonly color: string; readonly status: 'active' | 'archived' }[];
   readonly receipts: readonly {
-    readonly expenseId: string; readonly attachmentId: string; readonly format: 'jpg' | 'png'; readonly status: string;
+    readonly expenseId: string; readonly attachmentId: string; readonly format: 'jpg' | 'png'; readonly status: 'active' | 'deleted';
     /** Metadata only: a separate authorized binary export is required. */
     readonly mediaIncluded: false;
   }[];
@@ -51,16 +51,16 @@ export function validateGroupExportV1(value: GroupExportV1): void {
   };
   validateCollection(value.expenses); validateCollection(value.settlements); validateCollection(value.importedRecords); validateCollection(value.categories);
   for (const row of value.expenses) {
-    const entries = [...row.payments, ...row.allocations];
+    const validEntries = (entries: readonly Allocation[]) => entries.length > 0 && unique(entries.map(entry => entry.userId)) &&
+      entries.every(entry => memberIds.has(entry.userId) && Number.isSafeInteger(entry.amountMinor) && entry.amountMinor >= 0);
     if (!date(row.date) || !row.description.trim() || !currency(row.currency) || !amount(row.amountMinor) ||
         !id.test(row.categoryId) || !row.categoryLabel.trim() || !row.categoryIcon.trim() || !row.categoryColor.trim() ||
-        !row.payments.length || !row.allocations.length || !row.splitSnapshotJson ||
-        entries.some(entry => !memberIds.has(entry.userId) || !Number.isSafeInteger(entry.amountMinor)) ||
+        !validEntries(row.payments) || !validEntries(row.allocations) || !row.splitSnapshotJson || typeof row.deleted !== 'boolean' ||
         sum(row.payments.map(entry => entry.amountMinor)) !== BigInt(row.amountMinor) ||
         sum(row.allocations.map(entry => entry.amountMinor)) !== BigInt(row.amountMinor)) throw new Error(`Dépense ${row.id} incohérente`);
   }
   for (const row of value.settlements) {
-    if (!date(row.date) || !currency(row.currency) || !amount(row.amountMinor) ||
+    if (!date(row.date) || !currency(row.currency) || !amount(row.amountMinor) || row.status !== 'recorded' || typeof row.deleted !== 'boolean' ||
         !memberIds.has(row.fromUserId) || !memberIds.has(row.toUserId) || row.fromUserId === row.toUserId) throw new Error(`Règlement ${row.id} incohérent`);
   }
   for (const row of value.importedRecords) {
@@ -70,10 +70,12 @@ export function validateGroupExportV1(value: GroupExportV1): void {
         !impacts.length || impacts.some(([userId, impact]) => !memberIds.has(userId) || !Number.isSafeInteger(impact)) ||
         sum(impacts.map(([, impact]) => impact)) !== 0n) throw new Error(`Import ${row.id} incohérent`);
   }
-  if (value.categories.some(row => !row.name.trim() || !row.iconId.trim() || !row.color.trim())) throw new Error('Catégorie invalide');
-  const expenseIds = new Set(value.expenses.map(row => row.id));
+  if (value.categories.some(row => !row.name.trim() || !row.iconId.trim() || !row.color.trim() || !['active', 'archived'].includes(row.status))) throw new Error('Catégorie invalide');
+  const expensesById = new Map(value.expenses.map(row => [row.id, row]));
   if (!unique(value.receipts.map(row => `${row.expenseId}/${row.attachmentId}`)) ||
-      value.receipts.some(row => !expenseIds.has(row.expenseId) || !id.test(row.attachmentId) || !['jpg', 'png'].includes(row.format) || row.mediaIncluded !== false)) {
+      value.receipts.some(row => !expensesById.has(row.expenseId) || !id.test(row.attachmentId) || !['jpg', 'png'].includes(row.format) ||
+        !['active', 'deleted'].includes(row.status) || row.mediaIncluded !== false ||
+        (expensesById.get(row.expenseId)?.deleted && row.status === 'active'))) {
     throw new Error('Métadonnées de reçu invalides');
   }
 }

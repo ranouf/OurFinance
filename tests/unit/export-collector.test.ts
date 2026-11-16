@@ -47,3 +47,12 @@ test('refuses unverified users, missing category snapshot and membership revoked
   } };
   await rejects(collectGroupExportV1(revoked, user, 'group_test'), /révoqué/);
 });
+
+test('refuses unknown receipt states and an active receipt on a deleted expense', async () => {
+  const unknown: ExportReader = { ...reader, list: async path => path.endsWith('/attachments') ?
+    [{ id: 'receipt_1', data: { format: 'png', status: 'pending' } }] : reader.list(path) };
+  await rejects(collectGroupExportV1(unknown, user, 'group_test'), /status/);
+  const deleted: ExportReader = { ...reader, list: async path => path === `${root}/expenses` ?
+    [{ ...collections[path][0], data: { ...collections[path][0].data, deleted: true } }] : reader.list(path) };
+  await rejects(collectGroupExportV1(deleted, user, 'group_test'), /reçu/i);
+});

@@ -31,3 +31,13 @@ test('exports only declared fields even when a source object carries an extra se
   const source = { ...fixture, group: { ...fixture.group, accidentalSecret: 'never-export' } };
   strictEqual(serializeGroupExportV1(source).includes('never-export'), false);
 });
+
+test('refuses duplicate or negative shares and invalid logical states', () => {
+  const expense = fixture.expenses[0];
+  throws(() => serializeGroupExportV1({ ...fixture, expenses: [{ ...expense, allocations: [expense.allocations[0], expense.allocations[0], { userId: 'member_b', amountMinor: 1 }] }] }));
+  throws(() => serializeGroupExportV1({ ...fixture, expenses: [{ ...expense, allocations: [{ userId: 'member_a', amountMinor: -1 }, { userId: 'member_b', amountMinor: 102 }] }] }));
+  throws(() => serializeGroupExportV1({ ...fixture, expenses: [{ ...expense, deleted: 'false' as unknown as boolean }] }));
+  throws(() => serializeGroupExportV1({ ...fixture, receipts: [{ ...fixture.receipts[0], status: 'unknown' as 'active' }] }));
+  throws(() => serializeGroupExportV1({ ...fixture, expenses: [{ ...expense, deleted: true }] }));
+  throws(() => serializeGroupExportV1({ ...fixture, categories: [{ ...fixture.categories[0], status: 'unexpected' as 'active' }] }));
+});

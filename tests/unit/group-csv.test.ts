@@ -35,7 +35,7 @@ test('CSV report refuses an unbalanced source and marks logical deletion', () =>
   strictEqual(deleted.includes('"determined","deleted"'), true);
 });
 
-test('CSV report refuses a per-member impact outside safe integer range', () => {
+test('CSV report refuses negative shares before computing member impacts', () => {
   const extreme = { ...fixture.expenses[0], amountMinor: 1,
     payments: [{ userId: 'alex', amountMinor: Number.MAX_SAFE_INTEGER }, { userId: 'camille', amountMinor: 1 - Number.MAX_SAFE_INTEGER }],
     allocations: [{ userId: 'alex', amountMinor: 1 - Number.MAX_SAFE_INTEGER }, { userId: 'camille', amountMinor: Number.MAX_SAFE_INTEGER }],
