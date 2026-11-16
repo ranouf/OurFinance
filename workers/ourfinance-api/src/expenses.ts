@@ -1,8 +1,9 @@
 import { splitAmount, validateExpense, type Allocation, type SplitMode } from '../../../src/app/shared/utils/split-engine';
 import { categories, categoryById, categoryIcons, isCustomCategoryId, type CategoryColor, type CategoryDefinition } from '../../../src/app/shared/utils/categories';
 import { serviceAccessToken } from './service-account';
+import { destroyAuthenticated, type CloudinaryEnv } from './cloudinary';
 
-export interface ExpenseEnv { readonly FIREBASE_PROJECT_ID: string; readonly FIREBASE_SERVICE_ACCOUNT_JSON: string; }
+export interface ExpenseEnv extends Partial<CloudinaryEnv> { readonly FIREBASE_PROJECT_ID: string; readonly FIREBASE_SERVICE_ACCOUNT_JSON: string; }
 export interface ExpenseInput {
   readonly idempotencyKey: string;
   readonly description: string;
@@ -143,6 +144,7 @@ export async function mutateExpense(value: unknown, uid: string, groupId: string
   if (typeof begin['transaction'] !== 'string') throw new ExpenseError(503, 'transaction_unavailable');
   const transaction = begin['transaction'];
   let committed = false;
+  const pendingReceipts: { name: string; publicId: string }[] = [];
   try {
     const read = async (path: string) => {
       const response = await transport(`https://firestore.googleapis.com/v1/${root}/${path}?transaction=${encodeURIComponent(transaction)}`, { headers });
@@ -160,9 +162,9 @@ export async function mutateExpense(value: unknown, uid: string, groupId: string
     const stored = await read(`groups/${groupId}/expenses/${expenseId}`);
     const fields = stored?.['fields'] as Record<string, { stringValue?: string; integerValue?: string; booleanValue?: boolean }> | undefined;
     if (!fields || fields['createdBy']?.stringValue !== uid) throw new ExpenseError(403, 'author_required');
-    if (fields['deleted']?.booleanValue === true) throw new ExpenseError(409, 'expense_deleted');
+    if (fields['deleted']?.booleanValue === true && method !== 'DELETE') throw new ExpenseError(409, 'expense_deleted');
     const revision = Number(fields['revision']?.integerValue ?? 0);
-    if (revision !== expectedRevision) throw new ExpenseError(409, 'revision_conflict');
+    if (revision !== expectedRevision && fields['deleted']?.booleanValue !== true) throw new ExpenseError(409, 'revision_conflict');
     const nextRevision = revision + 1;
     const now = new Date().toISOString();
     let changes: Record<string, unknown>;
@@ -183,16 +185,55 @@ export async function mutateExpense(value: unknown, uid: string, groupId: string
       changes = { deleted: { booleanValue: true }, revision: integer(nextRevision), updatedAt: { timestampValue: now }, deletedAt: { timestampValue: now } };
     }
     const action = method === 'PATCH' ? 'expense_updated' : 'expense_deleted';
-    const writes = [
+    const writes: unknown[] = [
       { update: { name: `${root}/groups/${groupId}/expenses/${expenseId}`, fields: changes }, updateMask: { fieldPaths: Object.keys(changes) } },
       { update: { name: `${root}/groups/${groupId}/activity/${expenseId}_${method === 'PATCH' ? 'edit' : 'delete'}_${nextRevision}`, fields: { actorId: string(uid), action: string(action), expenseId: string(expenseId), at: { timestampValue: now } } }, currentDocument: { exists: false } },
     ];
+    if (method === 'DELETE') {
+      const listUrl = new URL(`https://firestore.googleapis.com/v1/${root}/groups/${groupId}/expenses/${expenseId}/attachments`);
+      listUrl.searchParams.set('transaction', transaction);
+      listUrl.searchParams.set('pageSize', '51');
+      const listed = await json(await transport(listUrl, { headers }));
+      const documents = listed['documents'];
+      if (listed['nextPageToken'] || (Array.isArray(documents) && documents.length > 50)) throw new ExpenseError(409, 'too_many_receipts');
+      if (documents !== undefined && !Array.isArray(documents)) throw new ExpenseError(503, 'invalid_receipts');
+      for (const document of (documents ?? []) as Record<string, unknown>[]) {
+        const name = document['name'];
+        const meta = document['fields'] as Record<string, { stringValue?: string; booleanValue?: boolean }> | undefined;
+        if (typeof name !== 'string' || !name.startsWith(`${root}/groups/${groupId}/expenses/${expenseId}/attachments/`) || !meta) throw new ExpenseError(503, 'invalid_receipts');
+        if (meta['status']?.stringValue !== 'active' && meta['cleanupPending']?.booleanValue !== true) continue;
+        const attachmentId = name.slice(name.lastIndexOf('/') + 1);
+        const publicId = meta['publicId']?.stringValue;
+        if (!idPattern.test(attachmentId) || publicId !== `ourfinance-test/${groupId}/${expenseId}/${attachmentId}` || meta['type']?.stringValue !== 'authenticated') throw new ExpenseError(503, 'invalid_receipts');
+        pendingReceipts.push({ name, publicId });
+        if (meta['status']?.stringValue === 'active') writes.push({ update: { name, fields: { status: string('deleted'), deletedAt: { timestampValue: now }, cleanupPending: { booleanValue: true } } }, updateMask: { fieldPaths: ['status', 'deletedAt', 'cleanupPending'] } });
+      }
+      if (pendingReceipts.length && (!env.CLOUDINARY_CLOUD_NAME || !env.CLOUDINARY_API_KEY || !env.CLOUDINARY_API_SECRET)) throw new ExpenseError(503, 'media_cleanup_unavailable');
+      if (fields['deleted']?.booleanValue === true) {
+        if (!pendingReceipts.length) throw new ExpenseError(409, 'expense_deleted');
+        await json(await transport(`https://firestore.googleapis.com/v1/${root}:rollback`, { method: 'POST', headers, body: JSON.stringify({ transaction }) }));
+        committed = true;
+        await cleanupReceipts(pendingReceipts, env as ExpenseEnv & CloudinaryEnv, headers, transport);
+        return;
+      }
+    }
     await json(await transport(`https://firestore.googleapis.com/v1/${root}:commit`, { method: 'POST', headers, body: JSON.stringify({ transaction, writes }) }));
     committed = true;
+    if (pendingReceipts.length) await cleanupReceipts(pendingReceipts, env as ExpenseEnv & CloudinaryEnv, headers, transport);
   } finally {
     if (!committed) {
       try { await transport(`https://firestore.googleapis.com/v1/${root}:rollback`, { method: 'POST', headers, body: JSON.stringify({ transaction }) }); }
       catch { /* Preserve the original error. */ }
     }
+  }
+}
+
+async function cleanupReceipts(receipts: readonly { name: string; publicId: string }[], env: ExpenseEnv & CloudinaryEnv, headers: Record<string, string>, transport: typeof fetch): Promise<void> {
+  for (const receipt of receipts) {
+    try {
+      await destroyAuthenticated(receipt.publicId, env, transport);
+      const url = `https://firestore.googleapis.com/v1/${receipt.name}?updateMask.fieldPaths=cleanupPending`;
+      await json(await transport(url, { method: 'PATCH', headers, body: JSON.stringify({ fields: { cleanupPending: { booleanValue: false } } }) }));
+    } catch { throw new ExpenseError(503, 'media_cleanup_failed'); }
   }
 }

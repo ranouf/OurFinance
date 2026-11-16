@@ -161,7 +161,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     catch { return new Response(JSON.stringify({ error: 'Non authentifié' }), { status: 401, headers }); }
     try {
       const body = await readLimitedJson(request, request.method === 'PATCH' ? 8192 : 256);
-      await mutateExpense(body, uid, expenseItemMatch[1], expenseItemMatch[2], request.method, { FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT_JSON: env.FIREBASE_SERVICE_ACCOUNT_JSON });
+      await mutateExpense(body, uid, expenseItemMatch[1], expenseItemMatch[2], request.method, env as Required<Env>);
       return new Response(null, { status: 204, headers });
     } catch (error) {
       const status = error instanceof ExpenseError ? error.status : error instanceof RequestBodyError ? 400 : 503;
