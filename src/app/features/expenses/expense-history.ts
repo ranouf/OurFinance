@@ -20,10 +20,22 @@ import { formatMinor } from '../../shared/utils/currency';
         </select>
       </label>
       @if (selectedGroupId) {
+        <div class="mt-4 grid gap-3 sm:grid-cols-2">
+          <label class="block text-sm font-medium">Du
+            <input class="mt-1 w-full rounded-lg border border-slate-300 p-3" type="date" name="historyFrom" [(ngModel)]="from" (ngModelChange)="refresh()" />
+          </label>
+          <label class="block text-sm font-medium">Au
+            <input class="mt-1 w-full rounded-lg border border-slate-300 p-3" type="date" name="historyTo" [(ngModel)]="to" (ngModelChange)="refresh()" />
+          </label>
+        </div>
+        <label class="mt-3 block text-sm font-medium">Rechercher dans les dépenses chargées
+          <input class="mt-1 w-full rounded-lg border border-slate-300 p-3" type="search" name="historySearch" [(ngModel)]="search" placeholder="Description" />
+        </label>
+        @if (from && to && from > to) { <p class="mt-2 text-sm text-rose-700">La date de début doit précéder la date de fin.</p> }
         <button class="mt-3 rounded-lg border border-teal-700 px-3 py-2 text-sm text-teal-800 disabled:opacity-50" type="button" [disabled]="busy()" (click)="refresh()">Actualiser</button>
-        @if (entries().length) {
+        @if (filteredEntries().length) {
           <ul class="mt-4 divide-y divide-slate-200">
-            @for (entry of entries(); track entry.id) {
+            @for (entry of filteredEntries(); track entry.id) {
               <li>
                 <details>
                   <summary class="cursor-pointer py-3">
@@ -49,8 +61,9 @@ import { formatMinor } from '../../shared/utils/currency';
               </li>
             }
           </ul>
-          @if (hasMore()) { <button class="mt-3 rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:opacity-50" type="button" [disabled]="busy()" (click)="loadMore()">Afficher plus</button> }
-        } @else if (!busy() && !message()) { <p class="mt-4 text-sm text-slate-600">Aucune dépense dans ce groupe.</p> }
+        }
+        @if (hasMore()) { <button class="mt-3 rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:opacity-50" type="button" [disabled]="busy()" (click)="loadMore()">Charger 20 dépenses de plus</button> }
+        @if (!filteredEntries().length && !busy() && !message() && !(from && to && from > to)) { <p class="mt-4 text-sm text-slate-600">Aucune dépense correspondante dans les pages chargées.</p> }
       }
       @if (message()) { <p class="mt-4 text-sm text-rose-700" role="status">{{ message() }}</p> }
     </section>
@@ -67,6 +80,9 @@ export class ExpenseHistory implements OnChanges {
   readonly busy = signal(false);
   readonly message = signal('');
   selectedGroupId = '';
+  from = '';
+  to = '';
+  search = '';
   private service?: ExpenseService;
   private last?: QueryDocumentSnapshot<DocumentData>;
   private requestId = 0;
@@ -79,6 +95,10 @@ export class ExpenseHistory implements OnChanges {
   amount(entry: ExpenseHistoryEntry): string { return this.format(entry.amountMinor, entry.currency); }
   format(amountMinor: number, currency: string): string { return formatMinor(amountMinor, currency, 'fr-CA'); }
   memberLabel(userId: string): string { return userId === this.user?.uid ? 'Moi' : userId; }
+  filteredEntries(): ExpenseHistoryEntry[] {
+    const term = this.search.trim().toLocaleLowerCase('fr-CA');
+    return term ? this.entries().filter(entry => entry.description.toLocaleLowerCase('fr-CA').includes(term)) : this.entries();
+  }
 
   async refresh(): Promise<void> {
     this.entries.set([]);
@@ -93,10 +113,10 @@ export class ExpenseHistory implements OnChanges {
     const groupId = this.selectedGroupId;
     const requestId = ++this.requestId;
     this.message.set('');
-    if (!groupId || !this.service) { this.busy.set(false); return; }
+    if (!groupId || !this.service || (this.from && this.to && this.from > this.to)) { this.busy.set(false); return; }
     this.busy.set(true);
     try {
-      const page = await this.service.history(groupId, this.last);
+      const page = await this.service.history(groupId, this.last, this.from, this.to);
       if (requestId !== this.requestId) return;
       this.entries.update(entries => [...entries, ...page.entries]);
       this.last = page.last;

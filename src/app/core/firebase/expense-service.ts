@@ -1,6 +1,6 @@
 import type { FirebaseApp } from 'firebase/app';
 import type { User } from 'firebase/auth';
-import { collection, doc, getDoc, getDocs, getFirestore, limit, orderBy, query, startAfter, type DocumentData, type QueryDocumentSnapshot } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, getFirestore, limit, orderBy, query, startAfter, where, type DocumentData, type QueryDocumentSnapshot } from 'firebase/firestore';
 import { decodeStoredPreference } from '../../shared/utils/split-preference';
 import type { Allocation, SplitMode } from '../../shared/utils/split-engine';
 import type { GroupMember } from './group-model';
@@ -18,9 +18,9 @@ export interface ExpenseHistoryEntry {
 export class ExpenseService {
   constructor(private readonly app: FirebaseApp, private readonly workerUrl: string) {}
 
-  async history(groupId: string, after?: QueryDocumentSnapshot<DocumentData>): Promise<{ entries: ExpenseHistoryEntry[]; last?: QueryDocumentSnapshot<DocumentData>; hasMore: boolean }> {
+  async history(groupId: string, after?: QueryDocumentSnapshot<DocumentData>, from?: string, to?: string): Promise<{ entries: ExpenseHistoryEntry[]; last?: QueryDocumentSnapshot<DocumentData>; hasMore: boolean }> {
     const expenses = collection(getFirestore(this.app), 'groups', groupId, 'expenses');
-    const ordered = query(expenses, orderBy('date', 'desc'), limit(20), ...(after ? [startAfter(after)] : []));
+    const ordered = query(expenses, ...(from ? [where('date', '>=', from)] : []), ...(to ? [where('date', '<=', to)] : []), orderBy('date', 'desc'), limit(20), ...(after ? [startAfter(after)] : []));
     const snapshot = await getDocs(ordered);
     return {
       entries: snapshot.docs.filter(item => item.data()['deleted'] !== true).map(item => {
