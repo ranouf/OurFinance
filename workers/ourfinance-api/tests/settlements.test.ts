@@ -12,24 +12,26 @@ test('settlement parser requires sender identity, distinct recipient and exact m
   ]) throws(() => parseSettlement({ ...input, ...changed }, 'alice'), SettlementError);
 });
 
-async function fixture(revoked = false) {
+async function fixture(revoked = false, conflict = false) {
   const { privateKey } = await generateKeyPair('RS256', { extractable: true });
   const env = { FIREBASE_PROJECT_ID: 'ourfinance-test', FIREBASE_SERVICE_ACCOUNT_JSON: JSON.stringify({ project_id: 'ourfinance-test', client_email: 'test@ourfinance-test.iam.gserviceaccount.com', private_key: await exportPKCS8(privateKey) }) };
   const reads: string[] = [];
   let commit: any;
+  let rollbacks = 0;
   const transport = async (resource: string | URL | Request, options?: RequestInit) => {
     const url = String(resource);
     if (url.includes('oauth2.googleapis.com')) return Response.json({ access_token: 'service-token' });
     strictEqual(new Headers(options?.headers).get('Authorization'), 'Bearer service-token');
     if (url.endsWith(':beginTransaction')) return Response.json({ transaction: 'txn' });
+    if (url.endsWith(':rollback')) { rollbacks++; return Response.json({}); }
     if (url.includes('?transaction=')) {
       reads.push(url);
       return Response.json({ fields: { status: { stringValue: revoked && url.includes('/members/bob') ? 'revoked' : 'active' } } });
     }
-    if (url.endsWith(':commit')) { commit = JSON.parse(String(options?.body)); return Response.json({ writeResults: [{}, {}] }); }
+    if (url.endsWith(':commit')) { commit = JSON.parse(String(options?.body)); return conflict ? Response.json({ error: 'conflict' }, { status: 409 }) : Response.json({ writeResults: [{}, {}] }); }
     throw new Error('Requête inattendue');
   };
-  return { env, reads, transport: transport as typeof fetch, committed: () => commit };
+  return { env, reads, transport: transport as typeof fetch, committed: () => commit, rollbacks: () => rollbacks };
 }
 
 test('transaction checks both active members and atomically records transfer plus activity', async () => {
@@ -43,10 +45,18 @@ test('transaction checks both active members and atomically records transfer plu
   strictEqual(commit.writes[0].update.fields.amountMinor.integerValue, '51');
   strictEqual(commit.writes[0].update.fields.currency.stringValue, 'CAD');
   strictEqual(commit.writes[1].update.name.endsWith(`/groups/g1/activity/settlement_${input.idempotencyKey}`), true);
+  strictEqual(f.rollbacks(), 0);
 });
 
 test('revoked recipient prevents any settlement write', async () => {
   const f = await fixture(true);
   await rejects(createSettlement(input, 'alice', 'g1', f.env, f.transport), (error: unknown) => error instanceof SettlementError && error.status === 403);
   strictEqual(f.committed(), undefined);
+  strictEqual(f.rollbacks(), 1);
+});
+
+test('commit conflict is returned and its transaction is rolled back', async () => {
+  const f = await fixture(false, true);
+  await rejects(createSettlement(input, 'alice', 'g1', f.env, f.transport), (error: unknown) => error instanceof SettlementError && error.status === 409);
+  strictEqual(f.rollbacks(), 1);
 });

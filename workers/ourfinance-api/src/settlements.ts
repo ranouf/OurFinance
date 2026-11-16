@@ -46,27 +46,36 @@ export async function createSettlement(value: unknown, uid: string, groupId: str
   const begin = await checked(await transport(`https://firestore.googleapis.com/v1/${root}:beginTransaction`, { method: 'POST', headers, body: '{}' }));
   if (typeof begin['transaction'] !== 'string') throw new SettlementError(503, 'transaction_unavailable');
   const transaction = begin['transaction'];
-  const read = async (path: string) => {
-    const response = await transport(`https://firestore.googleapis.com/v1/${root}/${path}?transaction=${encodeURIComponent(transaction)}`, { headers });
-    if (response.status === 404) return null;
-    return await checked(response);
-  };
-  const group = await read(`groups/${groupId}`);
-  const status = (document: Record<string, unknown> | null) => ((document?.['fields'] as Record<string, { stringValue?: string }> | undefined)?.['status']?.stringValue);
-  if (status(group) !== 'active') throw new SettlementError(403, 'group_inactive');
-  for (const memberId of [uid, input.toUserId]) {
-    if (status(await read(`groups/${groupId}/members/${memberId}`)) !== 'active') throw new SettlementError(403, 'member_inactive');
+  let committed = false;
+  try {
+    const read = async (path: string) => {
+      const response = await transport(`https://firestore.googleapis.com/v1/${root}/${path}?transaction=${encodeURIComponent(transaction)}`, { headers });
+      if (response.status === 404) return null;
+      return await checked(response);
+    };
+    const group = await read(`groups/${groupId}`);
+    const status = (document: Record<string, unknown> | null) => ((document?.['fields'] as Record<string, { stringValue?: string }> | undefined)?.['status']?.stringValue);
+    if (status(group) !== 'active') throw new SettlementError(403, 'group_inactive');
+    for (const memberId of [uid, input.toUserId]) {
+      if (status(await read(`groups/${groupId}/members/${memberId}`)) !== 'active') throw new SettlementError(403, 'member_inactive');
+    }
+    const now = new Date().toISOString();
+    const settlementId = input.idempotencyKey;
+    const create = (path: string, fields: Record<string, unknown>) => ({ update: { name: `${root}/${path}`, fields }, currentDocument: { exists: false } });
+    const writes = [
+      create(`groups/${groupId}/settlements/${settlementId}`, {
+        date: string(input.date), currency: string(input.currency), amountMinor: { integerValue: String(input.amountMinor) }, fromUserId: string(uid), toUserId: string(input.toUserId),
+        status: string('recorded'), createdBy: string(uid), createdAt: { timestampValue: now }, deleted: { booleanValue: false },
+      }),
+      create(`groups/${groupId}/activity/settlement_${settlementId}`, { actorId: string(uid), action: string('settlement_recorded'), settlementId: string(settlementId), at: { timestampValue: now } }),
+    ];
+    await checked(await transport(`https://firestore.googleapis.com/v1/${root}:commit`, { method: 'POST', headers, body: JSON.stringify({ transaction, writes }) }));
+    committed = true;
+    return settlementId;
+  } finally {
+    if (!committed) {
+      try { await transport(`https://firestore.googleapis.com/v1/${root}:rollback`, { method: 'POST', headers, body: JSON.stringify({ transaction }) }); }
+      catch { /* Preserve the original denial or service error. */ }
+    }
   }
-  const now = new Date().toISOString();
-  const settlementId = input.idempotencyKey;
-  const create = (path: string, fields: Record<string, unknown>) => ({ update: { name: `${root}/${path}`, fields }, currentDocument: { exists: false } });
-  const writes = [
-    create(`groups/${groupId}/settlements/${settlementId}`, {
-      date: string(input.date), currency: string(input.currency), amountMinor: { integerValue: String(input.amountMinor) }, fromUserId: string(uid), toUserId: string(input.toUserId),
-      status: string('recorded'), createdBy: string(uid), createdAt: { timestampValue: now }, deleted: { booleanValue: false },
-    }),
-    create(`groups/${groupId}/activity/settlement_${settlementId}`, { actorId: string(uid), action: string('settlement_recorded'), settlementId: string(settlementId), at: { timestampValue: now } }),
-  ];
-  await checked(await transport(`https://firestore.googleapis.com/v1/${root}:commit`, { method: 'POST', headers, body: JSON.stringify({ transaction, writes }) }));
-  return settlementId;
 }
