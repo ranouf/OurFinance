@@ -4,7 +4,7 @@ import { serializeGroupExportV2, type GroupExportV2 } from '../../src/app/featur
 import { preflightGroupRestoreV2 } from '../../src/app/features/import-export/restore-preflight-v2';
 
 const fixture: GroupExportV2 = {
-  format: 'OurFinanceGroupExport', version: 2, exportedAt: '2026-11-16T18:00:00.000Z',
+  format: 'OurFinanceGroupExport', version: 2, snapshotMode: 'server_transaction', exportedAt: '2026-11-16T18:00:00.000Z',
   group: { id: 'original_group', name: 'Groupe fictif', currency: 'CAD' },
   members: [{ userId: 'alice', role: 'owner', status: 'active' }, { userId: 'bob', role: 'member', status: 'revoked' }],
   expenses: [], settlements: [], importedRecords: [], categories: [], receipts: [],

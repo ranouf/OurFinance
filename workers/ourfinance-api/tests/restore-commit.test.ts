@@ -6,7 +6,7 @@ import { commitGroupRestoreV2, readRestoreOutcome, RestoreCommitError } from '..
 
 const restoreId = '123e4567-e89b-42d3-a456-426614174000';
 const backup: GroupExportV2 = {
-  format: 'OurFinanceGroupExport', version: 2, exportedAt: '2026-11-16T18:00:00.000Z',
+  format: 'OurFinanceGroupExport', version: 2, snapshotMode: 'server_transaction', exportedAt: '2026-11-16T18:00:00.000Z',
   group: { id: 'g', name: 'Fictif', currency: 'CAD' },
   members: [{ userId: 'alice', role: 'owner', status: 'active' }],
   expenses: [], settlements: [], importedRecords: [], categories: [], receipts: [],

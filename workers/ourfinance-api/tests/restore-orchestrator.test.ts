@@ -8,7 +8,7 @@ import { restoreGroupFromPackage, RestoreOrchestrationError, type RestoreOperati
 const restoreId = '123e4567-e89b-42d3-a456-426614174000';
 const at = '2026-11-16T18:00:00.000Z';
 const group: GroupExportV2 = {
-  format: 'OurFinanceGroupExport', version: 2, exportedAt: at,
+  format: 'OurFinanceGroupExport', version: 2, snapshotMode: 'server_transaction', exportedAt: at,
   group: { id: 'g', name: 'Fictif', currency: 'CAD' }, members: [{ userId: 'alice', role: 'owner', status: 'active' }],
   expenses: [], settlements: [], importedRecords: [], categories: [], receipts: [], expenseAuthors: [], receiptOwners: [],
   comments: [], activity: [], importBatches: [], preferences: [{ userId: 'alice', modeJson: null, memberIds: [], updatedAt: null }],
@@ -39,6 +39,18 @@ test('verified archive follows lock, stage, inventory, commit and cleanup', asyn
   const result = await restoreGroupFromPackage('alice', 'g', restoreId, await archive(), env, fetch, operations(events));
   deepStrictEqual(events, ['begin', 'stage', 'inventory', 'commit', 'cleanup']);
   strictEqual(result.cleanupPending, false);
+});
+
+test('client partial snapshot cannot start a restore lock', async () => {
+  const events: string[] = [];
+  const source = await archive();
+  const groupJson = serializeGroupExportV2({ ...group, snapshotMode: 'client_partial' });
+  const bytes = new TextEncoder().encode(groupJson);
+  const partial = { ...source, groupJson, manifest: { ...source.manifest,
+    groupJson: { ...source.manifest.groupJson, sha256: await sha256Hex(bytes), byteLength: bytes.length } } };
+  await rejects(restoreGroupFromPackage('alice', 'g', restoreId, partial, env, fetch, operations(events)),
+    (error: unknown) => error instanceof RestoreOrchestrationError && error.code === 'invalid_backup');
+  deepStrictEqual(events, []);
 });
 
 test('failed commit with confirmed lock aborts and cleans staged assets', async () => {

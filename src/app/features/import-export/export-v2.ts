@@ -3,6 +3,7 @@ import { serializeGroupExportV1, type GroupExportV1 } from './export-v1';
 /** Schema only: collection and restoration require privileged, separately tested routes. */
 export interface GroupExportV2 extends Omit<GroupExportV1, 'version'> {
   readonly version: 2;
+  readonly snapshotMode: 'client_partial' | 'server_transaction';
   /** Required to preserve author-only edit and delete rights after restoration. */
   readonly expenseAuthors: readonly { readonly expenseId: string; readonly userId: string }[];
   readonly receiptOwners: readonly { readonly expenseId: string; readonly attachmentId: string; readonly ownerId: string }[];
@@ -72,7 +73,8 @@ function normalizeMode(modeJson: string, members: ReadonlySet<string>): { modeJs
 
 /** A V2 document explicitly preserves each member's split preference or its absence. */
 export function serializeGroupExportV2(value: GroupExportV2): string {
-  if (value.version !== 2 || !Array.isArray(value.preferences) || value.preferences.length !== value.members.length) throw new Error('Préférences de groupe incomplètes');
+  if (value.version !== 2 || !['client_partial', 'server_transaction'].includes(value.snapshotMode) ||
+      !Array.isArray(value.preferences) || value.preferences.length !== value.members.length) throw new Error('Préférences de groupe incomplètes');
   const group = JSON.parse(serializeGroupExportV1({ ...value, version: 1 })) as GroupExportV1;
   const members = new Set(group.members.map(item => item.userId));
   if (group.members.filter(item => item.role === 'owner' && item.status === 'active').length !== 1 ||
@@ -142,5 +144,5 @@ export function serializeGroupExportV2(value: GroupExportV2): string {
     if (row.memberIds.length !== mode.memberIds.length || row.memberIds.some((id, i) => id !== mode.memberIds[i])) throw new Error('Participants de préférence incohérents');
     return { userId: row.userId, modeJson: mode.modeJson, memberIds: mode.memberIds, updatedAt: row.updatedAt };
   });
-  return `${JSON.stringify({ ...group, version: 2, expenseAuthors, receiptOwners, comments, activity, importBatches, preferences }, null, 2)}\n`;
+  return `${JSON.stringify({ ...group, version: 2, snapshotMode: value.snapshotMode, expenseAuthors, receiptOwners, comments, activity, importBatches, preferences }, null, 2)}\n`;
 }

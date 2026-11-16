@@ -9,7 +9,7 @@ import { preflightBackupRestoreV2 } from '../../src/app/features/import-export/r
 import { compareRestoreInventoryV2, restoreInventoryV2 } from '../../src/app/features/import-export/restore-inventory-v2';
 
 const group: GroupExportV2 = {
-  format: 'OurFinanceGroupExport', version: 2, exportedAt: '2026-11-16T18:00:00.000Z',
+  format: 'OurFinanceGroupExport', version: 2, snapshotMode: 'server_transaction', exportedAt: '2026-11-16T18:00:00.000Z',
   group: { id: 'g', name: 'Fictif', currency: 'CAD' },
   members: [{ userId: 'alice', role: 'owner', status: 'active' }],
   expenses: [{ id: 'e', date: '2026-11-01', description: 'Fictif', currency: 'CAD', amountMinor: 101,

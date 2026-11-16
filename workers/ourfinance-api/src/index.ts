@@ -13,6 +13,7 @@ import { createImportBatch, undoImportBatch, ImportError } from './import-batche
 import { writeCategory, CategoryError } from './custom-categories';
 import { createComment, CommentError } from './comments';
 import { collectBackupPreferences, BackupPreferencesError } from './backup-preferences';
+import { collectBackupSnapshotV2, BackupSnapshotError } from './backup-snapshot';
 import { decodeBackupZipV2 } from '../../../src/app/features/import-export/backup-zip-read';
 import { restoreGroupFromPackage, RestoreOrchestrationError } from './restore-orchestrator';
 import { abortRestoreLock, RestoreLockError } from './restore-lock';
@@ -103,6 +104,22 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     }
   }
   const backupPreferencesMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/backup\/preferences$/.exec(url.pathname);
+  const backupSnapshotMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/backup\/snapshot$/.exec(url.pathname);
+  if (backupSnapshotMatch && request.method === 'GET') {
+    if (env.ENABLE_BACKUP_POC !== 'true' || env.BACKUP_POC_GROUP_ID !== backupSnapshotMatch[1] || !env.FIREBASE_SERVICE_ACCOUNT_JSON) return new Response(JSON.stringify({ error: 'Sauvegarde non configurée' }), { status: 503, headers });
+    let uid: string;
+    try { uid = await verifyFirebaseVerifiedEmail(bearerToken(request), env.FIREBASE_PROJECT_ID); }
+    catch { return new Response(JSON.stringify({ error: 'Non authentifié' }), { status: 401, headers }); }
+    try {
+      const snapshot = await collectBackupSnapshotV2(uid, backupSnapshotMatch[1], { FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT_JSON: env.FIREBASE_SERVICE_ACCOUNT_JSON });
+      if (new TextEncoder().encode(snapshot).byteLength > 10_000_000) return new Response(JSON.stringify({ error: 'Sauvegarde trop volumineuse' }), { status: 413, headers });
+      return new Response(snapshot, { status: 200, headers });
+    } catch (error) {
+      const status = error instanceof BackupSnapshotError ? error.status : 503;
+      const code = error instanceof BackupSnapshotError ? error.code : 'backup_unavailable';
+      return new Response(JSON.stringify({ error: code }), { status, headers });
+    }
+  }
   if (backupPreferencesMatch && request.method === 'GET') {
     if (env.ENABLE_BACKUP_POC !== 'true' || env.BACKUP_POC_GROUP_ID !== backupPreferencesMatch[1] || !env.FIREBASE_SERVICE_ACCOUNT_JSON) return new Response(JSON.stringify({ error: 'Sauvegarde non configurée' }), { status: 503, headers });
     let uid: string;

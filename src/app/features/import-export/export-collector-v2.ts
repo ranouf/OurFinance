@@ -5,14 +5,21 @@ import { serializeGroupExportV2, type GroupExportV2 } from './export-v2';
 
 const timestamp = (value: unknown): string => typeof value === 'object' && value !== null && 'toDate' in value && typeof value.toDate === 'function'
   ? (value as { toDate(): Date }).toDate().toISOString() : value as string;
+const selectedMembers = (modeJson: string): string[] => {
+  const mode = JSON.parse(modeJson) as Record<string, unknown>;
+  const entries = mode['kind'] === 'equal' ? mode['users'] : mode['kind'] === 'exact' ? mode['amounts'] :
+    mode['kind'] === 'percentage' ? mode['weightsBasisPoints'] : mode['kind'] === 'shares' ? mode['weights'] :
+      mode['kind'] === 'adjustment' ? mode['adjustments'] : null;
+  if (!Array.isArray(entries)) throw new Error('Préférence personnelle invalide');
+  return entries.map(item => mode['kind'] === 'equal' ? item : item?.userId) as string[];
+};
 
-/** Collects member preferences through the owner-authorized Worker route. */
-export async function collectGroupExportV2(
+async function collectGroupExportV2WithPreferences(
   reader: ExportReader,
-  user: Pick<User, 'uid' | 'emailVerified' | 'getIdToken'>,
+  user: Pick<User, 'uid' | 'emailVerified'>,
   groupId: string,
-  workerUrl: string,
-  transport: typeof fetch = fetch,
+  snapshotMode: GroupExportV2['snapshotMode'],
+  getPreferences: (memberIds: readonly string[]) => Promise<GroupExportV2['preferences']>,
 ): Promise<string> {
   const group = JSON.parse(await collectGroupExportV1(reader, user, groupId)) as GroupExportV1;
   const expenses = await reader.list(`groups/${groupId}/expenses`);
@@ -47,13 +54,7 @@ export async function collectGroupExportV2(
       source: item.data['source'] as 'splitwise_csv', recordIds: item.data['recordIds'] as string[],
       createdAt: timestamp(item.data['createdAt']),
       undoneAt: item.data['status'] === 'undone' ? timestamp(item.data['undoneAt']) : null }));
-  const url = new URL(`/groups/${encodeURIComponent(groupId)}/backup/preferences`, workerUrl);
-  if (url.protocol !== 'https:') throw new Error('URL de sauvegarde non sécurisée');
-  const response = await transport(url, { headers: { Authorization: `Bearer ${await user.getIdToken()}` }, cache: 'no-store' });
-  if (!response.ok) throw new Error(`Préférences de sauvegarde indisponibles (HTTP ${response.status})`);
-  const result: unknown = await response.json();
-  if (!result || typeof result !== 'object' || !('preferences' in result) || !Array.isArray(result.preferences)) throw new Error('Réponse de sauvegarde invalide');
-  const rows = result.preferences as GroupExportV2['preferences'];
+  const rows = await getPreferences(group.members.map(member => member.userId));
   const byUser = new Map(rows.map(row => [row.userId, row]));
   if (byUser.size !== rows.length || rows.length !== group.members.length || rows.some(row => !group.members.some(member => member.userId === row.userId))) throw new Error('Préférences de sauvegarde incohérentes');
   const preferences = group.members.map(member => {
@@ -62,5 +63,35 @@ export async function collectGroupExportV2(
     return row;
   });
   if ((await reader.read(`groups/${groupId}/members/${user.uid}`))?.data['status'] !== 'active') throw new Error('Membre révoqué pendant la sauvegarde');
-  return serializeGroupExportV2({ ...group, version: 2, expenseAuthors, receiptOwners, comments, activity, importBatches, preferences });
+  return serializeGroupExportV2({ ...group, version: 2, snapshotMode, expenseAuthors, receiptOwners, comments, activity, importBatches, preferences });
+}
+
+/** Client collection remains partial because preferences are fetched in a separate Worker snapshot. */
+export async function collectGroupExportV2(
+  reader: ExportReader,
+  user: Pick<User, 'uid' | 'emailVerified' | 'getIdToken'>,
+  groupId: string,
+  workerUrl: string,
+  transport: typeof fetch = fetch,
+): Promise<string> {
+  return collectGroupExportV2WithPreferences(reader, user, groupId, 'client_partial', async () => {
+    const url = new URL(`/groups/${encodeURIComponent(groupId)}/backup/preferences`, workerUrl);
+    if (url.protocol !== 'https:') throw new Error('URL de sauvegarde non sécurisée');
+    const response = await transport(url, { headers: { Authorization: `Bearer ${await user.getIdToken()}` }, cache: 'no-store' });
+    if (!response.ok) throw new Error(`Préférences de sauvegarde indisponibles (HTTP ${response.status})`);
+    const result: unknown = await response.json();
+    if (!result || typeof result !== 'object' || !('preferences' in result) || !Array.isArray(result.preferences)) throw new Error('Réponse de sauvegarde invalide');
+    return result.preferences as GroupExportV2['preferences'];
+  });
+}
+
+/** All reads through this reader must share one Firestore read transaction. */
+export async function collectGroupExportV2FromReader(reader: ExportReader, user: Pick<User, 'uid' | 'emailVerified'>, groupId: string): Promise<string> {
+  return collectGroupExportV2WithPreferences(reader, user, groupId, 'server_transaction', async memberIds => Promise.all(memberIds.map(async userId => {
+    const document = await reader.read(`users/${userId}/groupPreferences/${groupId}`);
+    if (!document) return { userId, modeJson: null, memberIds: [], updatedAt: null };
+    const modeJson = document.data['modeJson'] as string;
+    return { userId, modeJson, memberIds: (document.data['memberIds'] as string[] | undefined) ?? selectedMembers(modeJson),
+      updatedAt: timestamp(document.data['updatedAt']) };
+  })));
 }

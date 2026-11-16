@@ -4,7 +4,7 @@ import { serializeGroupExportV2, type GroupExportV2 } from '../../src/app/featur
 
 const exportedAt = '2026-11-16T18:00:00.000Z';
 const fixture: GroupExportV2 = {
-  format: 'OurFinanceGroupExport', version: 2, exportedAt,
+  format: 'OurFinanceGroupExport', version: 2, snapshotMode: 'client_partial', exportedAt,
   group: { id: 'g', name: 'Groupe fictif', currency: 'CAD' },
   members: [{ userId: 'alice', role: 'owner', status: 'active' }, { userId: 'bob', role: 'member', status: 'revoked' }],
   expenses: [], settlements: [], importedRecords: [], categories: [], receipts: [],

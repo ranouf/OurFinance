@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import { deepStrictEqual, rejects, strictEqual } from 'node:assert';
-import { collectGroupExportV2 } from '../../src/app/features/import-export/export-collector-v2';
+import { collectGroupExportV2, collectGroupExportV2FromReader } from '../../src/app/features/import-export/export-collector-v2';
 import type { ExportReader } from '../../src/app/features/import-export/export-collector';
 
 const member = { id: 'alice', data: { role: 'owner', status: 'active' } };
@@ -55,4 +55,13 @@ test('collector preserves expense authors and comments from Firestore documents'
   deepStrictEqual(result.receiptOwners, [{ expenseId: 'expense', attachmentId: 'receipt', ownerId: 'alice' }]);
   deepStrictEqual(result.comments, [{ expenseId: 'expense', id: 'comment', authorId: 'alice', text: 'Note fictive', createdAt: '2026-11-16T18:00:00.000Z' }]);
   deepStrictEqual(result.activity, [{ id: 'expense', actorId: 'alice', action: 'expense_created', at: '2026-11-16T18:00:00.000Z', expenseId: 'expense' }]);
+});
+
+test('one transactional reader can collect every member preference without a Worker callback', async () => {
+  const snapshot: ExportReader = { list: reader.list, read: async path => path === 'users/alice/groupPreferences/g'
+    ? { id: 'g', data: { modeJson: '{"kind":"equal","users":["alice","bob"]}', updatedAt: '2026-11-16T18:00:00.000Z' } }
+    : reader.read(path) };
+  const result = JSON.parse(await collectGroupExportV2FromReader(snapshot, user, 'g'));
+  deepStrictEqual(result.preferences[0].memberIds, ['alice', 'bob']);
+  strictEqual(result.preferences[1].modeJson, null);
 });

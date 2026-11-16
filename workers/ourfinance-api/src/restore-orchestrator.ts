@@ -33,7 +33,7 @@ export async function restoreGroupFromPackage(
   try { await verifyBackupPackageV2(archive); }
   catch (error) { throw new RestoreOrchestrationError('invalid_backup', { cause: error }); }
   const backup = JSON.parse(archive.groupJson) as GroupExportV2;
-  if (backup.group.id !== groupId) throw new RestoreOrchestrationError('invalid_backup');
+  if (backup.group.id !== groupId || backup.snapshotMode !== 'server_transaction') throw new RestoreOrchestrationError('invalid_backup');
   const receipts = archive.receipts.map((item, index) => ({
     expenseId: archive.manifest.receipts[index].expenseId, attachmentId: archive.manifest.receipts[index].attachmentId,
     format: item.contentType === 'image/png' ? 'png' as const : 'jpg' as const, bytes: item.bytes,
