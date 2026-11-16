@@ -6,9 +6,11 @@ Statut : **non prêt pour la production**. Aucun déploiement ni fusion automati
 
 - `npm run typecheck` : passe.
 - `npm run build` : passe ; PWA produit un manifeste et un service worker.
-- `npm run test:unit` : dix tests passent (répartitions, devises, préférences, soldes, CSV).
+- `npm run test:unit` : 27 tests passent (répartitions, devises, préférences, soldes, CSV et parcours récents).
 - `npm run test:rules` : téléchargement du JAR bloqué localement, mais la CI GitHub [run 43806177443](https://github.com/ranouf/OurFinance/actions/runs/43806177443) a démarré l’émulateur et validé **4 tests sur 4**.
-- `npm audit --omit=dev --audit-level=high` : **échoue**. Quatre alertes élevées concernent la chaîne `firebase` → `@firebase/firestore` → `@grpc/grpc-js` ; npm indique « No fix available » pour deux avis gRPC (`GHSA-m9gg-hp2v-232j`, `GHSA-f596-whhp-79r4`). Suivre une mise à jour des dépendances et réévaluer la portée navigateur/serveur avant tout lancement.
+- `npm audit --omit=dev --audit-level=high` : **passe** après résolution explicite de `@grpc/grpc-js` en version 1.14.7. L'ancienne version 1.9.16 arrivait par `firebase` → `@firebase/firestore` et était concernée par `GHSA-m9gg-hp2v-232j` et `GHSA-f596-whhp-79r4`. Une installation propre, le typecheck, 27 tests unitaires, 41 tests Worker et la compilation passent. Le verrouillage force une version plus récente que la plage transitive de Firestore ; surveiller la compatibilité et supprimer cette résolution lorsque Firestore adoptera une version corrigée.
+
+L'audit complet conserve **14 alertes modérées**, toutes dans la chaîne de développement `firebase-tools`. L'outil propose des changements majeurs pour la plupart des avis ; ne pas les appliquer sans valider les commandes de test et de déploiement. Le build signale aussi un dépassement du budget initial (947,59 ko pour 500 ko). Ces points restent à traiter avant la production.
 
 ## Contrôles bloquants
 
