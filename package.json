@@ -8,7 +8,8 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
-    "test:rules": "firebase emulators:exec --only firestore --project ourfinance-rules-test \"node --test tests/firestore-rules/*.test.mjs\""
+    "test:rules": "firebase emulators:exec --only firestore --project ourfinance-rules-test \"node --test tests/firestore-rules/*.test.mjs\"",
+    "test:unit": "tsx --test tests/unit/*.test.ts"
   },
   "private": true,
   "packageManager": "npm@11.9.0",
@@ -34,6 +35,7 @@
     "postcss": "^8.5.33",
     "prettier": "^3.8.1",
     "tailwindcss": "^4.3.5",
+    "tsx": "^4.23.15",
     "typescript": "~6.0.2"
   }
 }
