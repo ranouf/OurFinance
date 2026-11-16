@@ -37,6 +37,9 @@ const messages = {
     noBalance: 'Aucune opération à répartir dans ce groupe.', unknownShares: 'dépense(s) sans parts connues exclue(s) du calcul.',
     receivable: 'À recevoir', payable: 'À payer', balanced: 'Équilibré', balancesUnavailable: 'Soldes indisponibles.',
     settlementHistory: 'Historique des remboursements', noSettlement: 'Aucun remboursement dans ce groupe.', historyUnavailable: 'Historique indisponible.',
+    loadingGroupCurrency: 'Chargement de la devise du groupe…', changeGroupCurrency: 'Modifier la devise du groupe', currencyBeforeFirst: 'Le propriétaire peut la modifier seulement avant la toute première opération. Elle restera ensuite verrouillée.',
+    saveGroupCurrency: 'Enregistrer la devise', currencyChanged: 'Devise du groupe enregistrée.', currencyLocked: 'Devise définitivement verrouillée après une opération.',
+    currencyDisabled: 'Modification de devise désactivée dans cet environnement.', currencyChangeFailed: 'Modification de devise impossible.',
   },
   en: {
     testEnvironment: 'Test environment', offline: 'Offline: server data is unavailable. Reconnect to refresh it and save transactions.',
@@ -64,6 +67,9 @@ const messages = {
     noBalance: 'No shared transactions in this group.', unknownShares: 'expense(s) with unknown shares excluded from the calculation.',
     receivable: 'To receive', payable: 'To pay', balanced: 'Balanced', balancesUnavailable: 'Balances unavailable.',
     settlementHistory: 'Repayment history', noSettlement: 'No repayments in this group.', historyUnavailable: 'History unavailable.',
+    loadingGroupCurrency: 'Loading group currency…', changeGroupCurrency: 'Change group currency', currencyBeforeFirst: 'The owner can change it only before the first transaction. It remains locked afterwards.',
+    saveGroupCurrency: 'Save currency', currencyChanged: 'Group currency saved.', currencyLocked: 'Currency is permanently locked after a transaction.',
+    currencyDisabled: 'Currency changes are disabled in this environment.', currencyChangeFailed: 'Could not change currency.',
   },
   ja: {
     testEnvironment: 'テスト環境', offline: 'オフラインです。サーバーのデータを利用できません。再接続して更新・保存してください。',
@@ -91,6 +97,9 @@ const messages = {
     noBalance: 'このグループに分担対象の取引はありません。', unknownShares: '件の分担額不明の支出を計算から除外しました。',
     receivable: '受取額', payable: '支払額', balanced: '精算済み', balancesUnavailable: '残高を取得できません。',
     settlementHistory: '返済履歴', noSettlement: 'このグループに返済はありません。', historyUnavailable: '履歴を取得できません。',
+    loadingGroupCurrency: 'グループの通貨を読み込んでいます…', changeGroupCurrency: 'グループの通貨を変更', currencyBeforeFirst: '所有者は最初の取引前にのみ変更できます。その後は固定されます。',
+    saveGroupCurrency: '通貨を保存', currencyChanged: 'グループの通貨を保存しました。', currencyLocked: '取引後の通貨は変更できません。',
+    currencyDisabled: 'この環境では通貨の変更が無効です。', currencyChangeFailed: '通貨を変更できません。',
   },
 } as const;
 

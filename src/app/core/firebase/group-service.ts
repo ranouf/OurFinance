@@ -15,7 +15,8 @@ export class GroupService {
       const data = snapshot.data();
       const currency = data['currencyCode'] ?? data['currency'];
       if (typeof data['name'] !== 'string' || typeof currency !== 'string') return null;
-      return { id: snapshot.id, name: data['name'], currency, ownerId: String(data['ownerId'] ?? ''), status: data['status'] === 'archived' ? 'archived' : 'active' } satisfies Group;
+      const group: Group = { id: snapshot.id, name: data['name'], currency, ownerId: String(data['ownerId'] ?? ''), currencyLocked: data['currencyLockedAt'] != null, status: data['status'] === 'archived' ? 'archived' : 'active' };
+      return group;
     }));
     return groups.filter((group): group is Group => group !== null);
   }
@@ -33,5 +34,17 @@ export class GroupService {
     const result = await response.json() as { groupId?: string };
     if (!result.groupId) throw new Error('Réponse Worker invalide');
     return result.groupId;
+  }
+
+  async changeCurrency(user: User, groupId: string, currencyCode: string): Promise<void> {
+    if (!user.emailVerified || !this.workerUrl || !/^[A-Za-z0-9_-]{1,128}$/.test(groupId)) throw new Error('Modification indisponible');
+    const url = new URL(`/groups/${encodeURIComponent(groupId)}/currency`, this.workerUrl);
+    if (url.protocol !== 'https:') throw new Error('URL Worker non sécurisée');
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${await user.getIdToken()}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ currencyCode }),
+    });
+    if (!response.ok) throw new Error(response.status === 403 ? 'currency_locked' : response.status === 503 ? 'currency_disabled' : 'currency_failed');
   }
 }
