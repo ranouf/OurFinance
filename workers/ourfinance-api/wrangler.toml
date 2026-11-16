@@ -1,0 +1,4 @@
+name = "ourfinance-api-dev"
+main = "src/index.ts"
+compatibility_date = "2026-11-15"
+workers_dev = true
