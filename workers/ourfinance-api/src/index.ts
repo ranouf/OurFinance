@@ -6,6 +6,7 @@ export interface Env {
   FIREBASE_PROJECT_ID: string;
   ALLOWED_ORIGIN: string;
   FIREBASE_SERVICE_ACCOUNT_JSON?: string;
+  ENABLE_GROUP_CREATION?: string;
 }
 
 export async function handleRequest(request: Request, env: Env): Promise<Response> {
@@ -22,7 +23,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
   const url = new URL(request.url);
   if (url.pathname === '/health' && request.method === 'GET') return new Response(JSON.stringify({ status: 'ok' }), { headers });
   if (url.pathname === '/groups' && request.method === 'POST') {
-    if (!env.FIREBASE_SERVICE_ACCOUNT_JSON) return new Response(JSON.stringify({ error: 'Création non configurée' }), { status: 503, headers });
+    if (!env.FIREBASE_SERVICE_ACCOUNT_JSON || env.ENABLE_GROUP_CREATION !== 'true') return new Response(JSON.stringify({ error: 'Création non configurée' }), { status: 503, headers });
     try {
       const token = bearerToken(request);
       const uid = await verifyFirebaseVerifiedEmail(token, env.FIREBASE_PROJECT_ID);

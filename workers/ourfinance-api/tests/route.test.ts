@@ -12,3 +12,7 @@ test('unapproved origin and missing token are rejected', async () => {
   strictEqual((await handleRequest(new Request('https://worker.example/health', { headers: { Origin: 'https://evil.example' } }), env)).status, 403);
   strictEqual((await handleRequest(new Request('https://worker.example/groups/g/access'), env)).status, 401);
 });
+test('group creation remains disabled by default even with server identity', async () => {
+  const response = await handleRequest(new Request('https://worker.example/groups', { method: 'POST', headers: { Origin: env.ALLOWED_ORIGIN } }), { ...env, FIREBASE_SERVICE_ACCOUNT_JSON: 'configured' });
+  strictEqual(response.status, 503);
+});
