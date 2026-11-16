@@ -17,6 +17,13 @@ export async function collectGroupExportV2(
   if (authors.size !== expenses.length || expenses.length !== group.expenses.length ||
       group.expenses.some(row => typeof authors.get(row.id) !== 'string')) throw new Error('Auteurs des dépenses incomplets');
   const expenseAuthors = group.expenses.map(row => ({ expenseId: row.id, userId: authors.get(row.id) as string }));
+  const commentPages = await Promise.all(group.expenses.map(row => reader.list(`groups/${groupId}/expenses/${row.id}/comments`)));
+  const comments = commentPages.flatMap((page, index) => page.map(item => ({
+    expenseId: group.expenses[index].id, id: item.id,
+    authorId: item.data['authorId'] as string, text: item.data['text'] as string,
+    createdAt: typeof item.data['createdAt'] === 'object' && item.data['createdAt'] !== null && 'toDate' in item.data['createdAt']
+      ? (item.data['createdAt'] as { toDate(): Date }).toDate().toISOString() : item.data['createdAt'] as string,
+  })));
   const url = new URL(`/groups/${encodeURIComponent(groupId)}/backup/preferences`, workerUrl);
   if (url.protocol !== 'https:') throw new Error('URL de sauvegarde non sécurisée');
   const response = await transport(url, { headers: { Authorization: `Bearer ${await user.getIdToken()}` }, cache: 'no-store' });
@@ -32,5 +39,5 @@ export async function collectGroupExportV2(
     return row;
   });
   if ((await reader.read(`groups/${groupId}/members/${user.uid}`))?.data['status'] !== 'active') throw new Error('Membre révoqué pendant la sauvegarde');
-  return serializeGroupExportV2({ ...group, version: 2, expenseAuthors, preferences });
+  return serializeGroupExportV2({ ...group, version: 2, expenseAuthors, comments, preferences });
 }

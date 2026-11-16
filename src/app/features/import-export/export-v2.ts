@@ -5,6 +5,7 @@ export interface GroupExportV2 extends Omit<GroupExportV1, 'version'> {
   readonly version: 2;
   /** Required to preserve author-only edit and delete rights after restoration. */
   readonly expenseAuthors: readonly { readonly expenseId: string; readonly userId: string }[];
+  readonly comments: readonly { readonly expenseId: string; readonly id: string; readonly authorId: string; readonly text: string; readonly createdAt: string }[];
   /** One row per member, including members who have never saved a split. */
   readonly preferences: readonly {
     readonly userId: string;
@@ -74,6 +75,13 @@ export function serializeGroupExportV2(value: GroupExportV2): string {
     throw new Error('Auteurs des dépenses incomplets');
   }
   const expenseAuthors = value.expenseAuthors.map(row => ({ expenseId: row.expenseId, userId: row.userId }));
+  const expenseIds = new Set(group.expenses.map(row => row.id));
+  if (!Array.isArray(value.comments) || new Set(value.comments.map(row => `${row?.expenseId}/${row?.id}`)).size !== value.comments.length ||
+      value.comments.some(row => !row || !expenseIds.has(row.expenseId) || !idPattern.test(row.id) ||
+        !members.has(row.authorId) || typeof row.text !== 'string' || !row.text.trim() || row.text.length > 1000 || !isoTime(row.createdAt))) {
+    throw new Error('Commentaires de sauvegarde invalides');
+  }
+  const comments = value.comments.map(row => ({ expenseId: row.expenseId, id: row.id, authorId: row.authorId, text: row.text, createdAt: row.createdAt }));
   const preferences = value.preferences.map((row: GroupExportV2['preferences'][number], index: number) => {
     if (!row || row.userId !== group.members[index].userId || !Array.isArray(row.memberIds)) throw new Error('Préférences de groupe incohérentes');
     if (row.modeJson === null) {
@@ -85,5 +93,5 @@ export function serializeGroupExportV2(value: GroupExportV2): string {
     if (row.memberIds.length !== mode.memberIds.length || row.memberIds.some((id, i) => id !== mode.memberIds[i])) throw new Error('Participants de préférence incohérents');
     return { userId: row.userId, modeJson: mode.modeJson, memberIds: mode.memberIds, updatedAt: row.updatedAt };
   });
-  return `${JSON.stringify({ ...group, version: 2, expenseAuthors, preferences }, null, 2)}\n`;
+  return `${JSON.stringify({ ...group, version: 2, expenseAuthors, comments, preferences }, null, 2)}\n`;
 }

@@ -9,6 +9,7 @@ const fixture: GroupExportV2 = {
   members: [{ userId: 'alice', role: 'owner', status: 'active' }, { userId: 'bob', role: 'member', status: 'revoked' }],
   expenses: [], settlements: [], importedRecords: [], categories: [], receipts: [],
   expenseAuthors: [],
+  comments: [],
   preferences: [
     { userId: 'alice', modeJson: '{"kind":"exact","amounts":[{"userId":"alice","amountMinor":50},{"userId":"bob","amountMinor":51}]}', memberIds: ['alice', 'bob'], updatedAt: exportedAt },
     { userId: 'bob', modeJson: null, memberIds: [], updatedAt: null },
@@ -51,4 +52,9 @@ test('V2 rejects expense authors outside the member set', () => {
   strictEqual(JSON.parse(serializeGroupExportV2(withExpense)).expenseAuthors[0].userId, 'alice');
   throws(() => serializeGroupExportV2({ ...withExpense, expenseAuthors: [] }));
   throws(() => serializeGroupExportV2({ ...withExpense, expenseAuthors: [{ expenseId: 'e', userId: 'outsider' }] }));
+});
+
+test('V2 rejects comments outside the archived expense or membership', () => {
+  throws(() => serializeGroupExportV2({ ...fixture, comments: [{ expenseId: 'missing', id: 'c', authorId: 'alice', text: 'Fictif', createdAt: exportedAt }] }));
+  throws(() => serializeGroupExportV2({ ...fixture, comments: [{ expenseId: 'missing', id: 'c', authorId: 'outsider', text: 'Fictif', createdAt: exportedAt }] }));
 });

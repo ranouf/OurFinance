@@ -17,6 +17,7 @@ const group: GroupExportV2 = {
     splitSnapshotJson: '{"kind":"equal","users":["alice"]}', deleted: false }],
   settlements: [], importedRecords: [], categories: [],
   expenseAuthors: [{ expenseId: 'e', userId: 'alice' }],
+  comments: [{ expenseId: 'e', id: 'c', authorId: 'alice', text: 'Commentaire fictif', createdAt: '2026-11-16T18:00:00.000Z' }],
   receipts: [{ expenseId: 'e', attachmentId: 'a', format: 'png', status: 'active', mediaIncluded: false }],
   preferences: [{ userId: 'alice', modeJson: '{"kind":"equal","users":["alice"]}', memberIds: ['alice'], updatedAt: '2026-11-16T18:00:00.000Z' }],
 };
@@ -38,6 +39,7 @@ test('V2 ZIP preserves member preference and private receipt bytes', async () =>
   const backup = await packageFixture();
   const decoded = await decodeBackupZipV2(await encodeBackupZipV2(backup));
   strictEqual(JSON.parse(decoded.groupJson).preferences[0].modeJson, group.preferences[0].modeJson);
+  strictEqual(JSON.parse(decoded.groupJson).comments[0].text, 'Commentaire fictif');
   deepStrictEqual(decoded.receipts[0].bytes, backup.receipts[0].bytes);
 });
 
