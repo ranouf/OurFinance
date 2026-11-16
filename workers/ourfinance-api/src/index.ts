@@ -1,12 +1,16 @@
 import { bearerToken, verifyFirebaseIdToken, verifyFirebaseVerifiedEmail } from './auth';
 import { createGroup } from './groups';
+import { handleMedia } from './media';
+import type { CloudinaryEnv } from './cloudinary';
 import { readMember } from './firestore';
 
-export interface Env {
+export interface Env extends Partial<CloudinaryEnv> {
   FIREBASE_PROJECT_ID: string;
   ALLOWED_ORIGIN: string;
   FIREBASE_SERVICE_ACCOUNT_JSON?: string;
   ENABLE_GROUP_CREATION?: string;
+  ENABLE_MEDIA_POC?: string;
+  MEDIA_POC_GROUP_ID?: string;
 }
 
 export async function handleRequest(request: Request, env: Env): Promise<Response> {
@@ -16,12 +20,18 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
   if (origin) headers.set('Access-Control-Allow-Origin', origin);
   headers.set('Vary', 'Origin');
   if (request.method === 'OPTIONS') {
-    headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    headers.set('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
     headers.set('Access-Control-Allow-Headers', 'Authorization, Content-Type');
     return new Response(null, { status: 204, headers });
   }
   const url = new URL(request.url);
   if (url.pathname === '/health' && request.method === 'GET') return new Response(JSON.stringify({ status: 'ok' }), { headers });
+  const mediaMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/expenses\/([A-Za-z0-9_-]{1,128})\/attachments(?:\/([A-Za-z0-9_-]{1,128}))?$/.exec(url.pathname);
+  if (mediaMatch && ((request.method === 'POST' && !mediaMatch[3]) || ((request.method === 'GET' || request.method === 'DELETE') && !!mediaMatch[3]))) {
+    if (env.ENABLE_MEDIA_POC !== 'true' || !env.MEDIA_POC_GROUP_ID || env.MEDIA_POC_GROUP_ID !== mediaMatch[1] || !env.FIREBASE_SERVICE_ACCOUNT_JSON || !env.CLOUDINARY_CLOUD_NAME || !env.CLOUDINARY_API_KEY || !env.CLOUDINARY_API_SECRET) return new Response(JSON.stringify({ error: 'Médias non configurés' }), { status: 503, headers });
+    try { return await handleMedia(request, { groupId: mediaMatch[1], expenseId: mediaMatch[2], attachmentId: mediaMatch[3] }, env as Required<Env>, headers); }
+    catch { return new Response(JSON.stringify({ error: 'Média indisponible' }), { status: 502, headers }); }
+  }
   if (url.pathname === '/groups' && request.method === 'POST') {
     if (!env.FIREBASE_SERVICE_ACCOUNT_JSON || env.ENABLE_GROUP_CREATION !== 'true') return new Response(JSON.stringify({ error: 'Création non configurée' }), { status: 503, headers });
     try {
