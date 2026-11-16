@@ -1,9 +1,14 @@
 /** Synthetic-only integration check. Credentials and file bytes stay in memory. */
-import { FirebaseError, initializeApp, deleteApp } from 'firebase/app';
-import { getAuth, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { createRequire } from 'node:module';
 import { FirebaseExportReader } from '../../src/app/features/import-export/export-collector';
 import { buildBackupPackageV1, verifyBackupPackageV1 } from '../../src/app/features/import-export/backup-package';
 import { encodeBackupZipV1 } from '../../src/app/features/import-export/backup-zip';
+
+// The repository uses CommonJS for imported .ts files under tsx. Load Firebase
+// through the same condition to keep its app/firestore component registry shared.
+const require = createRequire(import.meta.url);
+const { FirebaseError, initializeApp, deleteApp } = require('firebase/app') as typeof import('firebase/app');
+const { getAuth, signInWithEmailAndPassword, signOut } = require('firebase/auth') as typeof import('firebase/auth');
 
 const required = (name: string) => {
   const value = process.env[name];
