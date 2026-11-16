@@ -24,6 +24,14 @@ test('backup preferences remain disabled without one explicit test group', async
   const response = await handleRequest(new Request('https://worker.example/groups/g1/backup/preferences'), { ...env, FIREBASE_SERVICE_ACCOUNT_JSON: 'configured' });
   strictEqual(response.status, 503);
 });
+test('restoration and cleanup remain disabled without one explicit test group', async () => {
+  const configured = { ...env, FIREBASE_SERVICE_ACCOUNT_JSON: 'configured', CLOUDINARY_CLOUD_NAME: 'configured', CLOUDINARY_API_KEY: 'configured', CLOUDINARY_API_SECRET: 'configured' };
+  const id = '123e4567-e89b-42d3-a456-426614174000';
+  for (const [method, path] of [['POST', `/groups/g1/backup/restores/${id}`], ['DELETE', `/groups/g1/backup/restores/${id}`], ['POST', `/groups/g1/backup/restores/${id}/cleanup`]]) {
+    const response = await handleRequest(new Request(`https://worker.example${path}`, { method }), configured);
+    strictEqual(response.status, 503);
+  }
+});
 test('expense creation is disabled without an explicit test group', async () => {
   const response = await handleRequest(new Request('https://worker.example/groups/g1/expenses', { method: 'POST', headers: { Origin: env.ALLOWED_ORIGIN } }), { ...env, FIREBASE_SERVICE_ACCOUNT_JSON: 'configured' });
   strictEqual(response.status, 503);

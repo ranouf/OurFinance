@@ -13,6 +13,11 @@ import { createImportBatch, undoImportBatch, ImportError } from './import-batche
 import { writeCategory, CategoryError } from './custom-categories';
 import { createComment, CommentError } from './comments';
 import { collectBackupPreferences, BackupPreferencesError } from './backup-preferences';
+import { decodeBackupZipV2 } from '../../../src/app/features/import-export/backup-zip-read';
+import { restoreGroupFromPackage, RestoreOrchestrationError } from './restore-orchestrator';
+import { abortRestoreLock, RestoreLockError } from './restore-lock';
+import { retryRestoreCleanup, RestoreCleanupError } from './restore-cleanup';
+import { readLimitedBody } from './media';
 
 export interface Env extends Partial<CloudinaryEnv> {
   FIREBASE_PROJECT_ID: string;
@@ -37,6 +42,8 @@ export interface Env extends Partial<CloudinaryEnv> {
   COMMENT_POC_GROUP_ID?: string;
   ENABLE_BACKUP_POC?: string;
   BACKUP_POC_GROUP_ID?: string;
+  ENABLE_RESTORE_POC?: string;
+  RESTORE_POC_GROUP_ID?: string;
 }
 
 export async function handleRequest(request: Request, env: Env): Promise<Response> {
@@ -52,6 +59,49 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
   }
   const url = new URL(request.url);
   if (url.pathname === '/health' && request.method === 'GET') return new Response(JSON.stringify({ status: 'ok' }), { headers });
+  const restoreMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/backup\/restores\/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})(?:\/(cleanup))?$/.exec(url.pathname);
+  if (restoreMatch && (request.method === 'POST' || request.method === 'DELETE')) {
+    const [groupId, restoreId, suffix] = restoreMatch.slice(1);
+    if (env.ENABLE_RESTORE_POC !== 'true' || env.RESTORE_POC_GROUP_ID !== groupId || !env.FIREBASE_SERVICE_ACCOUNT_JSON ||
+        !env.CLOUDINARY_CLOUD_NAME || !env.CLOUDINARY_API_KEY || !env.CLOUDINARY_API_SECRET) {
+      return new Response(JSON.stringify({ error: 'Restauration non configurée' }), { status: 503, headers });
+    }
+    let uid: string;
+    try { uid = await verifyFirebaseVerifiedEmail(bearerToken(request), env.FIREBASE_PROJECT_ID); }
+    catch { return new Response(JSON.stringify({ error: 'Non authentifié' }), { status: 401, headers }); }
+    const restoreEnv = { FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT_JSON: env.FIREBASE_SERVICE_ACCOUNT_JSON,
+      CLOUDINARY_CLOUD_NAME: env.CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY: env.CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET: env.CLOUDINARY_API_SECRET };
+    try {
+      if (request.method === 'POST' && !suffix) {
+        if (request.headers.get('Content-Type')?.split(';')[0].trim() !== 'application/zip' ||
+            Number(request.headers.get('Content-Length') ?? 0) > 60_000_000) return new Response(JSON.stringify({ error: 'Archive invalide ou trop volumineuse' }), { status: 413, headers });
+        let bytes: Uint8Array;
+        try { bytes = await readLimitedBody(request, 60_000_000); }
+        catch { return new Response(JSON.stringify({ error: 'Archive absente ou trop volumineuse' }), { status: 413, headers }); }
+        let archive;
+        try { archive = await decodeBackupZipV2(bytes); }
+        catch { return new Response(JSON.stringify({ error: 'Archive invalide' }), { status: 400, headers }); }
+        const result = await restoreGroupFromPackage(uid, groupId, restoreId, archive, restoreEnv);
+        return new Response(JSON.stringify(result), { status: result.cleanupPending ? 202 : 200, headers });
+      }
+      if (request.method === 'DELETE' && !suffix) {
+        await abortRestoreLock(uid, groupId, restoreId, restoreEnv);
+        try { await retryRestoreCleanup(uid, groupId, restoreId, restoreEnv); return new Response(null, { status: 204, headers }); }
+        catch { return new Response(JSON.stringify({ restoreId, cleanupPending: true }), { status: 202, headers }); }
+      }
+      if (request.method === 'POST' && suffix === 'cleanup') {
+        await retryRestoreCleanup(uid, groupId, restoreId, restoreEnv);
+        return new Response(null, { status: 204, headers });
+      }
+      return new Response(JSON.stringify({ error: 'Méthode non prise en charge' }), { status: 405, headers });
+    } catch (error) {
+      const status = error instanceof RestoreOrchestrationError ? error.code === 'invalid_backup' ? 400 : 503 :
+        error instanceof RestoreLockError || error instanceof RestoreCleanupError ? error.status : 503;
+      const code = error instanceof RestoreOrchestrationError || error instanceof RestoreLockError || error instanceof RestoreCleanupError
+        ? error.code : 'restore_unavailable';
+      return new Response(JSON.stringify({ error: code }), { status, headers });
+    }
+  }
   const backupPreferencesMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/backup\/preferences$/.exec(url.pathname);
   if (backupPreferencesMatch && request.method === 'GET') {
     if (env.ENABLE_BACKUP_POC !== 'true' || env.BACKUP_POC_GROUP_ID !== backupPreferencesMatch[1] || !env.FIREBASE_SERVICE_ACCOUNT_JSON) return new Response(JSON.stringify({ error: 'Sauvegarde non configurée' }), { status: 503, headers });
