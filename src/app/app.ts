@@ -59,20 +59,30 @@ import { ExportPanel } from './features/import-export/export-panel';
                 </form>
               } @else { <p class="mt-4 text-sm text-amber-800">Le service de création de groupes n’est pas encore configuré.</p> }
             </section>
-            @if (workerUrl) { <app-invitation-panel [groups]="groups()" [user]="user" [workerUrl]="workerUrl" (joined)="onInvitationJoined()" /> }
+            @if (workerUrl) {
+              @defer (on viewport) { <app-invitation-panel [groups]="groups()" [user]="user" [workerUrl]="workerUrl" (joined)="onInvitationJoined()" /> }
+              @placeholder { <p class="mt-6 text-sm text-slate-600" role="status">Chargement des invitations…</p> }
+            }
             @if (workerUrl && firebaseApp && groups().length) {
-              <app-category-manager [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" (changed)="onCategoryChanged()" />
+              @defer (on viewport) { <app-category-manager [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" (changed)="onCategoryChanged()" /> }
+              @placeholder { <p class="mt-6 text-sm text-slate-600" role="status">Chargement des catégories…</p> }
               @defer (on viewport) {
                 <app-expense-form [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" [categoryRevision]="categoryRevision()" (saved)="onExpenseSaved()" />
               } @placeholder {
                 <p class="mt-6 rounded-xl border border-slate-200 p-4 text-sm text-slate-600" role="status">Chargement du formulaire de dépense…</p>
               }
-              <app-expense-history [groups]="groups()" [firebaseApp]="firebaseApp" [user]="user" [workerUrl]="workerUrl" [revision]="expenseRevision()" (commented)="onCommentAdded()" />
-              <app-settlement-form [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" (saved)="onSettlementSaved()" />
-              <app-settlement-history [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" [revision]="settlementRevision()" />
-              <app-balance-summary [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [revision]="expenseRevision() + settlementRevision()" />
-              <app-statistics-summary [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [revision]="expenseRevision() + settlementRevision()" />
-              <app-activity-history [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [revision]="expenseRevision() + settlementRevision() + categoryRevision() + commentRevision()" />
+              @defer (on viewport) { <app-expense-history [groups]="groups()" [firebaseApp]="firebaseApp" [user]="user" [workerUrl]="workerUrl" [revision]="expenseRevision()" (commented)="onCommentAdded()" /> }
+              @placeholder { <p class="mt-6 text-sm text-slate-600" role="status">Chargement de l’historique des dépenses…</p> }
+              @defer (on viewport) { <app-settlement-form [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" (saved)="onSettlementSaved()" /> }
+              @placeholder { <p class="mt-6 text-sm text-slate-600" role="status">Chargement des remboursements…</p> }
+              @defer (on viewport) { <app-settlement-history [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" [revision]="settlementRevision()" /> }
+              @placeholder { <p class="mt-6 text-sm text-slate-600" role="status">Chargement de l’historique des remboursements…</p> }
+              @defer (on viewport) { <app-balance-summary [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [revision]="expenseRevision() + settlementRevision()" /> }
+              @placeholder { <p class="mt-6 text-sm text-slate-600" role="status">Chargement des soldes…</p> }
+              @defer (on viewport) { <app-statistics-summary [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [revision]="expenseRevision() + settlementRevision()" /> }
+              @placeholder { <p class="mt-6 text-sm text-slate-600" role="status">Chargement des statistiques…</p> }
+              @defer (on viewport) { <app-activity-history [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [revision]="expenseRevision() + settlementRevision() + categoryRevision() + commentRevision()" /> }
+              @placeholder { <p class="mt-6 text-sm text-slate-600" role="status">Chargement de l’activité…</p> }
             }
             @if (firebaseApp && groups().length) {
               @defer (on viewport) {
