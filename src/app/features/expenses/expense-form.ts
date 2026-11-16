@@ -7,6 +7,8 @@ import { ExpenseService } from '../../core/firebase/expense-service';
 import { CategoryService } from '../../core/firebase/category-service';
 import { formatMinor, minorDigits } from '../../shared/utils/currency';
 import { categories, type CustomCategory } from '../../shared/utils/categories';
+import { categoryLabel } from '../../shared/utils/category-label';
+import { language } from '../../shared/utils/i18n';
 import { prepareExpense, type ExpenseDraft } from './expense-draft';
 import type { SplitMode } from '../../shared/utils/split-engine';
 
@@ -40,7 +42,7 @@ import type { SplitMode } from '../../shared/utils/split-engine';
           </label>
           <label class="block text-sm font-medium">Catégorie
             <select class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="category" [(ngModel)]="draft.categoryId">
-                @for (category of availableCategories(); track category.id) { <option [value]="category.id">{{ category.icon }} {{ category.label }}</option> }
+                @for (category of availableCategories(); track category.id) { <option [value]="category.id">{{ category.icon }} {{ categoryLabel(category.id, language(), category.label) }}</option> }
             </select>
           </label>
           @if (members().length) {
@@ -86,6 +88,8 @@ export class ExpenseForm implements OnChanges {
   @Input({ required: true }) workerUrl?: string;
   @Input() categoryRevision = 0;
   readonly categories = categories;
+  readonly categoryLabel = categoryLabel;
+  readonly language = language;
   readonly members = signal<{ userId: string }[]>([]);
   readonly customCategories = signal<CustomCategory[]>([]);
   readonly busy = signal(false);
