@@ -1,12 +1,13 @@
 import { verifyBackupPackageV1, type BackupManifestV1, type BackupPackageV1 } from './backup-package';
+import { verifyBackupPackageV2, type BackupManifestV2, type BackupPackageV2 } from './backup-package-v2';
 import { crc32 } from './backup-zip';
 
 const decoder = new TextDecoder('utf-8', { fatal: true });
 const validName = (name: string) => name === 'manifest.json' || name === 'group.json' ||
   /^[A-Za-z0-9_-]{1,128}\/[A-Za-z0-9_-]{1,128}\/[A-Za-z0-9_-]{1,128}\.(png|jpg)$/.test(name);
 
-/** Reads only the bounded, uncompressed ZIP subset emitted by encodeBackupZipV1. */
-export async function decodeBackupZipV1(bytes: Uint8Array): Promise<BackupPackageV1> {
+/** Reads only the bounded, uncompressed ZIP subset emitted by our encoder. */
+function readStoredBackupZip(bytes: Uint8Array): Map<string, Uint8Array> {
   if (bytes.byteLength < 22 || bytes.byteLength > 60_000_000) throw new Error('Archive ZIP invalide ou trop volumineuse');
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const end = bytes.byteLength - 22;
@@ -43,6 +44,11 @@ export async function decodeBackupZipV1(bytes: Uint8Array): Promise<BackupPackag
     position += 46 + nameLength;
   }
   if (position !== end || !files.has('manifest.json') || !files.has('group.json')) throw new Error('ZIP incomplet');
+  return files;
+}
+
+export async function decodeBackupZipV1(bytes: Uint8Array): Promise<BackupPackageV1> {
+  const files = readStoredBackupZip(bytes);
   const manifest = JSON.parse(decoder.decode(files.get('manifest.json'))) as BackupManifestV1;
   const groupJson = decoder.decode(files.get('group.json'));
   if (!Array.isArray(manifest.receipts) || files.size !== manifest.receipts.length + 2) throw new Error('Manifeste ZIP incomplet');
@@ -53,5 +59,20 @@ export async function decodeBackupZipV1(bytes: Uint8Array): Promise<BackupPackag
   });
   const result: BackupPackageV1 = { manifest, groupJson, receipts };
   await verifyBackupPackageV1(result);
+  return result;
+}
+
+export async function decodeBackupZipV2(bytes: Uint8Array): Promise<BackupPackageV2> {
+  const files = readStoredBackupZip(bytes);
+  const manifest = JSON.parse(decoder.decode(files.get('manifest.json'))) as BackupManifestV2;
+  const groupJson = decoder.decode(files.get('group.json'));
+  if (!Array.isArray(manifest.receipts) || files.size !== manifest.receipts.length + 2) throw new Error('Manifeste ZIP incomplet');
+  const receipts = manifest.receipts.map(item => {
+    const data = files.get(item.filename);
+    if (!data) throw new Error('Reçu absent du ZIP');
+    return { filename: item.filename, contentType: item.contentType, byteLength: data.byteLength, sha256: item.sha256, bytes: data };
+  });
+  const result: BackupPackageV2 = { manifest, groupJson, receipts };
+  await verifyBackupPackageV2(result);
   return result;
 }

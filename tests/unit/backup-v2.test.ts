@@ -1,0 +1,47 @@
+import { test } from 'node:test';
+import { deepStrictEqual, rejects, strictEqual } from 'node:assert';
+import { sha256Hex } from '../../src/app/features/import-export/backup-package';
+import { verifyBackupPackageV2, type BackupPackageV2 } from '../../src/app/features/import-export/backup-package-v2';
+import { encodeBackupZipV2 } from '../../src/app/features/import-export/backup-zip';
+import { decodeBackupZipV2 } from '../../src/app/features/import-export/backup-zip-read';
+import { serializeGroupExportV2, type GroupExportV2 } from '../../src/app/features/import-export/export-v2';
+
+const group: GroupExportV2 = {
+  format: 'OurFinanceGroupExport', version: 2, exportedAt: '2026-11-16T18:00:00.000Z',
+  group: { id: 'g', name: 'Fictif', currency: 'CAD' },
+  members: [{ userId: 'alice', role: 'owner', status: 'active' }],
+  expenses: [{ id: 'e', date: '2026-11-01', description: 'Fictif', currency: 'CAD', amountMinor: 101,
+    categoryId: 'other', categoryLabel: 'Autre', categoryIcon: '📌', categoryColor: 'slate',
+    payments: [{ userId: 'alice', amountMinor: 101 }], allocations: [{ userId: 'alice', amountMinor: 101 }],
+    splitSnapshotJson: '{"kind":"equal","users":["alice"]}', deleted: false }],
+  settlements: [], importedRecords: [], categories: [],
+  receipts: [{ expenseId: 'e', attachmentId: 'a', format: 'png', status: 'active', mediaIncluded: false }],
+  preferences: [{ userId: 'alice', modeJson: '{"kind":"equal","users":["alice"]}', memberIds: ['alice'], updatedAt: '2026-11-16T18:00:00.000Z' }],
+};
+
+async function packageFixture(): Promise<BackupPackageV2> {
+  const groupJson = serializeGroupExportV2(group);
+  const bytes = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 0]);
+  const sha256 = await sha256Hex(bytes);
+  return {
+    groupJson,
+    manifest: { format: 'OurFinanceBackupManifest', version: 2, scope: 'group-v2-partial', groupId: 'g', exportedAt: group.exportedAt,
+      groupJson: { filename: 'group.json', sha256: await sha256Hex(new TextEncoder().encode(groupJson)), byteLength: new TextEncoder().encode(groupJson).byteLength },
+      receipts: [{ expenseId: 'e', attachmentId: 'a', filename: 'g/e/a.png', sha256, byteLength: bytes.byteLength, contentType: 'image/png' }] },
+    receipts: [{ filename: 'g/e/a.png', bytes, sha256, byteLength: bytes.byteLength, contentType: 'image/png' }],
+  };
+}
+
+test('V2 ZIP preserves member preference and private receipt bytes', async () => {
+  const backup = await packageFixture();
+  const decoded = await decodeBackupZipV2(await encodeBackupZipV2(backup));
+  strictEqual(JSON.parse(decoded.groupJson).preferences[0].modeJson, group.preferences[0].modeJson);
+  deepStrictEqual(decoded.receipts[0].bytes, backup.receipts[0].bytes);
+});
+
+test('V2 refuses a modified preference, receipt or manifest scope', async () => {
+  const backup = await packageFixture();
+  await rejects(verifyBackupPackageV2({ ...backup, groupJson: backup.groupJson.replace('alice', 'other') }));
+  await rejects(verifyBackupPackageV2({ ...backup, receipts: [{ ...backup.receipts[0], bytes: new Uint8Array([1]) }] }));
+  await rejects(verifyBackupPackageV2({ ...backup, manifest: { ...backup.manifest, scope: 'group-v1-partial' as 'group-v2-partial' } }));
+});

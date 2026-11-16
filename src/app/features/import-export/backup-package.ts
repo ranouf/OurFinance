@@ -18,7 +18,7 @@ export interface BackupPackageV1 {
   readonly groupJson: string;
   readonly receipts: readonly ExportedReceipt[];
 }
-const digest = async (bytes: Uint8Array): Promise<string> => {
+export const sha256Hex = async (bytes: Uint8Array): Promise<string> => {
   const copy = new Uint8Array(bytes.byteLength);
   copy.set(bytes);
   const hash = await crypto.subtle.digest('SHA-256', copy);
@@ -49,7 +49,7 @@ export async function buildBackupPackageV1(
   const groupBytes = new TextEncoder().encode(groupJson);
   const manifest: BackupManifestV1 = {
     format: 'OurFinanceBackupManifest', version: 1, groupId, exportedAt: group.exportedAt,
-    groupJson: { filename: 'group.json', sha256: await digest(groupBytes), byteLength: groupBytes.byteLength },
+    groupJson: { filename: 'group.json', sha256: await sha256Hex(groupBytes), byteLength: groupBytes.byteLength },
     receipts: active.map((row, index) => ({
       expenseId: row.expenseId, attachmentId: row.attachmentId, filename: receipts[index].filename,
       sha256: receipts[index].sha256, byteLength: receipts[index].byteLength, contentType: receipts[index].contentType,
@@ -64,7 +64,7 @@ export async function verifyBackupPackageV1(value: BackupPackageV1): Promise<voi
   if (value.manifest.format !== 'OurFinanceBackupManifest' || value.manifest.version !== 1 || value.manifest.scope !== 'group-v1-partial' ||
       value.manifest.groupJson.filename !== 'group.json' || value.manifest.receipts.length !== value.receipts.length) throw new Error('Manifeste de sauvegarde invalide');
   const groupBytes = new TextEncoder().encode(value.groupJson);
-  if (groupBytes.byteLength !== value.manifest.groupJson.byteLength || await digest(groupBytes) !== value.manifest.groupJson.sha256) throw new Error('Intégrité du groupe invalide');
+  if (groupBytes.byteLength !== value.manifest.groupJson.byteLength || await sha256Hex(groupBytes) !== value.manifest.groupJson.sha256) throw new Error('Intégrité du groupe invalide');
   const group = JSON.parse(value.groupJson) as GroupExportV1;
   validateGroupExportV1(group);
   if (group.group.id !== value.manifest.groupId || group.exportedAt !== value.manifest.exportedAt) throw new Error('Groupe du manifeste invalide');
@@ -77,6 +77,6 @@ export async function verifyBackupPackageV1(value: BackupPackageV1): Promise<voi
     if (meta.expenseId !== row.expenseId || meta.attachmentId !== row.attachmentId ||
         meta.filename !== expectedName || file.filename !== expectedName || meta.byteLength !== file.bytes.byteLength ||
         meta.contentType !== expectedType || file.contentType !== expectedType ||
-        meta.sha256 !== file.sha256 || await digest(file.bytes) !== meta.sha256) throw new Error('Intégrité du reçu invalide');
+        meta.sha256 !== file.sha256 || await sha256Hex(file.bytes) !== meta.sha256) throw new Error('Intégrité du reçu invalide');
   }
 }

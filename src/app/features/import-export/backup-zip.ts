@@ -1,4 +1,5 @@
 import { verifyBackupPackageV1, type BackupPackageV1 } from './backup-package';
+import { verifyBackupPackageV2, type BackupPackageV2 } from './backup-package-v2';
 
 const encoder = new TextEncoder();
 const signature = { local: 0x04034b50, central: 0x02014b50, end: 0x06054b50 };
@@ -17,6 +18,15 @@ interface FileEntry { readonly name: string; readonly nameBytes: Uint8Array; rea
 /** Portable uncompressed ZIP; caller must keep the resulting partial backup private. */
 export async function encodeBackupZipV1(value: BackupPackageV1): Promise<Uint8Array> {
   await verifyBackupPackageV1(value);
+  return encodeStoredBackupZip(value);
+}
+
+export async function encodeBackupZipV2(value: BackupPackageV2): Promise<Uint8Array> {
+  await verifyBackupPackageV2(value);
+  return encodeStoredBackupZip(value);
+}
+
+function encodeStoredBackupZip(value: { readonly manifest: object; readonly groupJson: string; readonly receipts: readonly { readonly filename: string; readonly bytes: Uint8Array }[] }): Uint8Array {
   const files = [
     { name: 'manifest.json', bytes: encoder.encode(`${JSON.stringify(value.manifest, null, 2)}\n`) },
     { name: 'group.json', bytes: encoder.encode(value.groupJson) },
