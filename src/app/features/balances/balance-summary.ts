@@ -4,7 +4,7 @@ import type { FirebaseApp } from 'firebase/app';
 import type { User } from 'firebase/auth';
 import { BalanceService } from '../../core/firebase/balance-service';
 import type { Group } from '../../core/firebase/group-model';
-import { formatMinor } from '../../shared/utils/currency';
+import { formatMinorExact } from '../../shared/utils/currency';
 import type { LedgerTotal } from '../../shared/utils/ledger';
 
 @Component({
@@ -61,7 +61,7 @@ export class BalanceSummary implements OnChanges {
   currencies(): string[] { return [...new Set(this.totals().map(row => row.currency))].sort(); }
   rowsFor(currency: string): LedgerTotal[] { return this.totals().filter(row => row.currency === currency); }
   memberLabel(userId: string): string { return userId === this.user?.uid ? 'Moi' : userId; }
-  amount(row: LedgerTotal): string { return formatMinor(Number(row.balanceMinor), row.currency, 'fr-CA'); }
+  amount(row: LedgerTotal): string { return formatMinorExact(row.balanceMinor, row.currency, 'fr-CA'); }
   label(row: LedgerTotal): string { return row.balanceMinor > 0n ? 'À recevoir' : row.balanceMinor < 0n ? 'À payer' : 'Équilibré'; }
   async refresh(): Promise<void> {
     const groupId = this.selectedGroupId;
