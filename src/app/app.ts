@@ -51,7 +51,11 @@ import { ExportPanel } from './features/import-export/export-panel';
               } @else { <p class="mt-4 text-sm text-amber-800">Le service de création de groupes n’est pas encore configuré.</p> }
             </section>
             @if (workerUrl && firebaseApp && groups().length) {
-              <app-expense-form [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" />
+              @defer (on viewport) {
+                <app-expense-form [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" />
+              } @placeholder {
+                <p class="mt-6 rounded-xl border border-slate-200 p-4 text-sm text-slate-600" role="status">Chargement du formulaire de dépense…</p>
+              }
             }
             @if (firebaseApp && groups().length) {
               @defer (on viewport) {
