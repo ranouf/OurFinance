@@ -11,6 +11,25 @@ export interface MediaEnv extends CloudinaryEnv {
 const idPattern = /^[A-Za-z0-9_-]{1,128}$/;
 const string = (value: string) => ({ stringValue: value });
 
+/** Firestore hides the receipt before remote deletion; a failed remote call remains retryable. */
+export async function deleteReceiptAsset(path: string, publicId: string, alreadyDeleted: boolean, accessToken: string, env: MediaEnv, transport: typeof fetch = fetch): Promise<void> {
+  const root = `projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents`;
+  const name = `${root}/${path}`;
+  const headers = { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' };
+  if (!alreadyDeleted) {
+    const update = await transport(`https://firestore.googleapis.com/v1/${root}:commit`, {
+      method: 'POST', headers,
+      body: JSON.stringify({ writes: [{ update: { name, fields: { status: string('deleted'), cleanupPending: { booleanValue: true }, deletedAt: { timestampValue: new Date().toISOString() } } }, updateMask: { fieldPaths: ['status', 'cleanupPending', 'deletedAt'] }, currentDocument: { exists: true } }] }),
+    });
+    if (!update.ok) throw new Error('Suppression logique refusée');
+  }
+  await destroyAuthenticated(publicId, env, transport);
+  const cleared = await transport(`https://firestore.googleapis.com/v1/${name}?updateMask.fieldPaths=cleanupPending`, {
+    method: 'PATCH', headers, body: JSON.stringify({ fields: { cleanupPending: { booleanValue: false } } }),
+  });
+  if (!cleared.ok) throw new Error('Nettoyage du reçu non acquitté');
+}
+
 export async function readLimitedBody(request: Request, limit: number): Promise<Uint8Array> {
   if (!request.body) throw new Error('Corps absent');
   const reader = request.body.getReader();
@@ -88,20 +107,17 @@ export async function handleMedia(request: Request, ids: { groupId: string; expe
     let meta;
     try { meta = await firestoreDocument(`${expensePath}/attachments/${attachmentId}`, token, env); }
     catch { throw new MediaDiagnosticError('metadata_read'); }
-    if (!meta || meta['status']?.stringValue !== 'active' || meta['type']?.stringValue !== 'authenticated') return Response.json({ error: 'Pièce jointe absente' }, { status: 404, headers });
+    if (!meta || meta['type']?.stringValue !== 'authenticated' ||
+        (meta['status']?.stringValue !== 'active' && !(request.method === 'DELETE' && meta['status']?.stringValue === 'deleted' && meta['cleanupPending']?.booleanValue === true))) {
+      return Response.json({ error: 'Pièce jointe absente' }, { status: 404, headers });
+    }
     if (request.method === 'DELETE' && meta['ownerId']?.stringValue !== uid && member.role !== 'owner') return Response.json({ error: 'Suppression refusée' }, { status: 403, headers });
     const publicId = meta['publicId']?.stringValue;
     const format = meta['format']?.stringValue;
     if (publicId !== `ourfinance-test/${groupId}/${expenseId}/${attachmentId}` || (format !== 'jpg' && format !== 'png')) return Response.json({ error: 'Métadonnées invalides' }, { status: 500, headers });
     if (request.method === 'DELETE') {
-      const root = `projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents`;
       const accessToken = await serviceAccessToken(env.FIREBASE_SERVICE_ACCOUNT_JSON, env.FIREBASE_PROJECT_ID);
-      const update = await fetch(`https://firestore.googleapis.com/v1/${root}:commit`, {
-        method: 'POST', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ writes: [{ update: { name: `${root}/${expensePath}/attachments/${attachmentId}`, fields: { status: string('deleted') } }, updateMask: { fieldPaths: ['status'] }, currentDocument: { exists: true } }] }),
-      });
-      if (!update.ok) throw new Error('Suppression logique refusée');
-      await destroyAuthenticated(publicId, env);
+      await deleteReceiptAsset(`${expensePath}/attachments/${attachmentId}`, publicId, meta['status']?.stringValue === 'deleted', accessToken, env);
       return new Response(null, { status: 204, headers });
     }
     let url: URL;
