@@ -1,9 +1,11 @@
-import { bearerToken, verifyFirebaseIdToken } from './auth';
+import { bearerToken, verifyFirebaseIdToken, verifyFirebaseVerifiedEmail } from './auth';
+import { createGroup } from './groups';
 import { readMember } from './firestore';
 
 export interface Env {
   FIREBASE_PROJECT_ID: string;
   ALLOWED_ORIGIN: string;
+  FIREBASE_SERVICE_ACCOUNT_JSON?: string;
 }
 
 export async function handleRequest(request: Request, env: Env): Promise<Response> {
@@ -13,12 +15,25 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
   if (origin) headers.set('Access-Control-Allow-Origin', origin);
   headers.set('Vary', 'Origin');
   if (request.method === 'OPTIONS') {
-    headers.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     headers.set('Access-Control-Allow-Headers', 'Authorization, Content-Type');
     return new Response(null, { status: 204, headers });
   }
   const url = new URL(request.url);
   if (url.pathname === '/health' && request.method === 'GET') return new Response(JSON.stringify({ status: 'ok' }), { headers });
+  if (url.pathname === '/groups' && request.method === 'POST') {
+    if (!env.FIREBASE_SERVICE_ACCOUNT_JSON) return new Response(JSON.stringify({ error: 'Création non configurée' }), { status: 503, headers });
+    try {
+      const token = bearerToken(request);
+      const uid = await verifyFirebaseVerifiedEmail(token, env.FIREBASE_PROJECT_ID);
+      if (Number(request.headers.get('Content-Length') ?? 0) > 4096) throw new Error('Corps trop volumineux');
+      const raw = await request.text();
+      if (raw.length > 4096) throw new Error('Corps trop volumineux');
+      const body: unknown = JSON.parse(raw);
+      const groupId = await createGroup(body, uid, { FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT_JSON: env.FIREBASE_SERVICE_ACCOUNT_JSON });
+      return new Response(JSON.stringify({ groupId }), { status: 201, headers });
+    } catch { return new Response(JSON.stringify({ error: 'Création impossible' }), { status: 400, headers }); }
+  }
   const match = /^\/groups\/([A-Za-z0-9_-]{1,128})\/access$/.exec(url.pathname);
   if (!match || request.method !== 'GET') return new Response(JSON.stringify({ error: 'Route inconnue' }), { status: 404, headers });
   try {

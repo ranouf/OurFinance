@@ -18,3 +18,15 @@ export function bearerToken(request: Request): string {
   if (!header?.startsWith('Bearer ') || !header.slice(7).trim()) throw new Error('Jeton absent');
   return header.slice(7).trim();
 }
+
+export async function verifyFirebaseVerifiedEmail(token: string, projectId: string, keySet: JWTVerifyGetKey = googleKeys): Promise<string> {
+  const { payload } = await jwtVerify(token, keySet, {
+    issuer: `https://securetoken.google.com/${projectId}`,
+    audience: projectId,
+    algorithms: ['RS256'],
+  });
+  if (payload.email_verified !== true || typeof payload.sub !== 'string' || !payload.sub || payload.sub.length > 128) {
+    throw new Error('Adresse courriel non vérifiée');
+  }
+  return payload.sub;
+}

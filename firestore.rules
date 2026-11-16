@@ -13,6 +13,10 @@ service cloud.firestore {
     }
     match /users/{uid} {
       allow read, write: if signedIn() && request.auth.uid == uid;
+      match /groupMemberships/{groupId} {
+        allow read: if signedIn() && request.auth.uid == uid;
+        allow write: if false;
+      }
       match /groupPreferences/{groupId} {
         allow read: if signedIn() && request.auth.uid == uid && member(groupId);
         // Written with the expense transaction through the Worker only.

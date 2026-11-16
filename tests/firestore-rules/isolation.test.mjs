@@ -38,6 +38,17 @@ test('client financial writes and collection group reads fail', async () => {
   await assertFails(getDocs(collection(db, 'groups/b/expenses')));
 });
 
+test('personal group references are private and client-writes denied', async () => {
+  const alice = env.authenticatedContext('alice').firestore();
+  const bob = env.authenticatedContext('bob').firestore();
+  await env.withSecurityRulesDisabled(async context => {
+    await setDoc(doc(context.firestore(), 'users/alice/groupMemberships/a'), { groupId: 'a' });
+  });
+  await assertSucceeds(getDoc(doc(alice, 'users/alice/groupMemberships/a')));
+  await assertFails(getDoc(doc(bob, 'users/alice/groupMemberships/a')));
+  await assertFails(setDoc(doc(alice, 'users/alice/groupMemberships/b'), { groupId: 'b' }));
+});
+
 test('profile cannot be read or changed by another user', async () => {
   const db = env.authenticatedContext('alice').firestore();
   await assertFails(getDoc(doc(db, 'users/bob')));
