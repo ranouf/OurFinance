@@ -64,6 +64,7 @@ test('une catégorie personnalisée active est figée sur la dépense, une archi
   const categoryId = 'custom_123e4567-e89b-42d3-a456-426614174000';
   let status = 'active';
   let commit: any;
+  let rolledBack = false;
   const transport = async (resource: string | URL | Request, options?: RequestInit) => {
     const url = String(resource);
     if (url.includes('oauth2.googleapis.com')) return Response.json({ access_token: 'service-token' });
@@ -71,6 +72,7 @@ test('une catégorie personnalisée active est figée sur la dépense, une archi
     if (url.includes('/categories/') && url.includes('?transaction=')) return Response.json({ fields: { status: { stringValue: status }, name: { stringValue: 'Frais de chalet' }, iconId: { stringValue: 'home' }, color: { stringValue: 'sky' } } });
     if (url.includes('?transaction=')) return Response.json({ fields: { status: { stringValue: 'active' } } });
     if (url.endsWith(':commit')) { commit = JSON.parse(String(options?.body)); return Response.json({ writeResults: [{}, {}, {}] }); }
+    if (url.endsWith(':rollback')) { rolledBack = true; return Response.json({}); }
     return Response.json({});
   };
   const env = { FIREBASE_PROJECT_ID: 'ourfinance-test', FIREBASE_SERVICE_ACCOUNT_JSON: service };
@@ -80,4 +82,5 @@ test('une catégorie personnalisée active est figée sur la dépense, une archi
   status = 'archived'; commit = undefined;
   await rejects(createExpense({ ...input, categoryId }, 'alice', 'g1', env, transport as typeof fetch), (error: unknown) => error instanceof ExpenseError && error.code === 'category_unavailable');
   strictEqual(commit, undefined);
+  strictEqual(rolledBack, true);
 });

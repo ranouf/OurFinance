@@ -77,6 +77,8 @@ export async function createExpense(value: unknown, uid: string, groupId: string
   const begin = await json(await transport(`https://firestore.googleapis.com/v1/${root}:beginTransaction`, { method: 'POST', headers, body: '{}' }));
   if (typeof begin['transaction'] !== 'string') throw new ExpenseError(503, 'transaction_unavailable');
   const transaction = begin['transaction'];
+  let committed = false;
+  try {
   const read = async (path: string) => {
     const response = await transport(`https://firestore.googleapis.com/v1/${root}/${path}?transaction=${encodeURIComponent(transaction)}`, { headers });
     if (response.status === 404) return null;
@@ -113,5 +115,12 @@ export async function createExpense(value: unknown, uid: string, groupId: string
     write(`groups/${groupId}/activity/${expenseId}`, { actorId: string(uid), action: string('expense_created'), expenseId: string(expenseId), at: { timestampValue: now } }, false),
   ];
   await json(await transport(`https://firestore.googleapis.com/v1/${root}:commit`, { method: 'POST', headers, body: JSON.stringify({ transaction, writes }) }));
+  committed = true;
   return expenseId;
+  } finally {
+    if (!committed) {
+      try { await transport(`https://firestore.googleapis.com/v1/${root}:rollback`, { method: 'POST', headers, body: JSON.stringify({ transaction }) }); }
+      catch { /* Preserve the original error. */ }
+    }
+  }
 }
