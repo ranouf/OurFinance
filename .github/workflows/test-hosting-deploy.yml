@@ -1,0 +1,45 @@
+name: Deploy test Hosting manually
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  hosting_test:
+    runs-on: ubuntu-latest
+    environment: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Check isolated test configuration
+        env:
+          TEST_FIREBASE_DEPLOY_SA_JSON: ${{ secrets.TEST_FIREBASE_DEPLOY_SA_JSON }}
+          TEST_FIREBASE_API_KEY: ${{ secrets.TEST_FIREBASE_API_KEY }}
+          TEST_FIREBASE_AUTH_DOMAIN: ${{ vars.TEST_FIREBASE_AUTH_DOMAIN }}
+          TEST_FIREBASE_PROJECT_ID: ${{ vars.TEST_FIREBASE_PROJECT_ID }}
+          TEST_FIREBASE_APP_ID: ${{ vars.TEST_FIREBASE_APP_ID }}
+        run: |
+          test "$TEST_FIREBASE_PROJECT_ID" = 'ourfinance-test'
+          test "$TEST_FIREBASE_AUTH_DOMAIN" = 'ourfinance-test.firebaseapp.com'
+          test -n "$TEST_FIREBASE_DEPLOY_SA_JSON"
+          test -n "$TEST_FIREBASE_API_KEY"
+          test -n "$TEST_FIREBASE_APP_ID"
+      - run: npm ci
+      - name: Build isolated test app
+        env:
+          TEST_FIREBASE_API_KEY: ${{ secrets.TEST_FIREBASE_API_KEY }}
+          TEST_FIREBASE_AUTH_DOMAIN: ${{ vars.TEST_FIREBASE_AUTH_DOMAIN }}
+          TEST_FIREBASE_PROJECT_ID: ${{ vars.TEST_FIREBASE_PROJECT_ID }}
+          TEST_FIREBASE_APP_ID: ${{ vars.TEST_FIREBASE_APP_ID }}
+          TEST_WORKER_URL: https://ourfinance-api-dev.ur-inance.workers.dev
+        run: |
+          npm run config:test
+          npm run typecheck
+          npm run build
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.TEST_FIREBASE_DEPLOY_SA_JSON }}
+      - name: Deploy Hosting to test only
+        run: npx firebase-tools deploy --only hosting --project ourfinance-test --non-interactive

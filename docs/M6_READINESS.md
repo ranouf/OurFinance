@@ -7,7 +7,7 @@ Mise à jour : 16 novembre 2026 (UTC). **Le projet n’est pas prêt pour la pro
 | Jalon | Réalisé et vérifié | Encore ouvert |
 | --- | --- | --- |
 | M0 | Chaîne Firebase Auth → Worker → Firestore/Cloudinary testée avec membre, tiers et membre révoqué ; reçu `authenticated` privé ; dépense atomique fictive. | Suivi durable des quotas et coûts gratuits. |
-| M1 | Angular, Tailwind, PWA et CI de PR ; Hosting de test utilisé manuellement. | Preview isolée par PR et déploiement automatisé contrôlé vers Hosting, règles et Worker de test. |
+| M1 | Angular, Tailwind, PWA et CI de PR ; Hosting de test utilisé manuellement. Un workflow manuel Hosting de test est préparé, sans exécution. | Identité Hosting limitée et essai du workflow après intégration autorisée ; preview isolée par PR et déploiement contrôlé des règles et du Worker. |
 | M2 | Auth email/Google, récupération, création de groupe et invitations essayées avec comptes fictifs. | Profil et association Google du PR #68 à tester sur Firebase ; groupe personnel et groupe à trois membres à inclure dans un E2E consolidé. |
 | M3 | Cinq partages, préférence par utilisateur/groupe, historique, catégories, commentaires et recherche progressive. | Édition et suppression logique par **l’auteur seulement** : décision reçue, code et essai encore ouverts. |
 | M4 | Remboursements ordinaires, soldes et statistiques ; route FX du PR #61 essayée réellement, UI du PR #62 essayée sur ordinateur/mobile. | Statistiques FX du PR #63 en essai ; validation du parcours intégré et historique FX sur plusieurs pages. |
@@ -26,7 +26,7 @@ Les preuves des essais fictifs déjà exécutés sont dans les descriptions des 
 2. Terminer l’édition/suppression logique M3 avec autorisation serveur de l’auteur uniquement, audit et effets sur reçus/export.
 3. Exécuter un E2E consolidé : compte, groupe personnel et groupe multi-membres, invitation, cinq partages, reçu, remboursement, statistiques, import rapproché/annulé, export et changement de membre.
 4. Vérifier la PWA, l’accessibilité et le responsive sur Chrome Android et Safari iOS réels ; mesurer performances et quotas sur la pile gratuite.
-5. Mettre en place le pipeline de preview/déploiement de test avec une identité minimale et sans secret dans les artefacts, puis auditer IAM et sauvegardes. Le dépôt n’a actuellement que `.github/workflows/pr-validation.yml` : aucun workflow de déploiement automatique n’est activé.
+5. Configurer une identité Hosting limitée pour le workflow manuel de test, puis l’essayer après intégration autorisée du fichier ; mettre en place les previews PR et le déploiement distinct des règles/index/Worker, sans secret dans les artefacts. Aucun workflow de déploiement automatique n’est activé.
 6. Revoir les PR empilées, les dépendances et les contrôles de branche avant toute fusion. Le déploiement de production et les PR non brouillon demandent une décision distincte de Cédric.
 
 Voir [M6_SECURITY_REVIEW.md](M6_SECURITY_REVIEW.md) et [M6_E2E_SMOKE.md](M6_E2E_SMOKE.md) pour les essais ponctuels déjà documentés. Les résultats du projet de test ne remplacent pas les critères de production.
