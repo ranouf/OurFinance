@@ -1,12 +1,29 @@
 import type { FirebaseApp } from 'firebase/app';
 import type { User } from 'firebase/auth';
-import { collection, doc, getDoc, getDocs, getFirestore } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, getFirestore, limit, orderBy, query, startAfter, type DocumentData, type QueryDocumentSnapshot } from 'firebase/firestore';
 import { decodeStoredPreference } from '../../shared/utils/split-preference';
 import type { SplitMode } from '../../shared/utils/split-engine';
 import type { GroupMember } from './group-model';
 
 export class ExpenseService {
   constructor(private readonly app: FirebaseApp, private readonly workerUrl: string) {}
+
+  async history(groupId: string, after?: QueryDocumentSnapshot<DocumentData>): Promise<{ entries: { id: string; description: string; date: string; amountMinor: number; currency: string }[]; last?: QueryDocumentSnapshot<DocumentData>; hasMore: boolean }> {
+    const expenses = collection(getFirestore(this.app), 'groups', groupId, 'expenses');
+    const ordered = query(expenses, orderBy('date', 'desc'), limit(20), ...(after ? [startAfter(after)] : []));
+    const snapshot = await getDocs(ordered);
+    return {
+      entries: snapshot.docs.filter(item => item.data()['deleted'] !== true).map(item => ({
+        id: item.id,
+        description: String(item.data()['description']),
+        date: String(item.data()['date']),
+        amountMinor: Number(item.data()['amountMinor']),
+        currency: String(item.data()['currency']),
+      })),
+      last: snapshot.docs.at(-1),
+      hasMore: snapshot.size === 20,
+    };
+  }
 
   async members(groupId: string): Promise<GroupMember[]> {
     const snapshot = await getDocs(collection(getFirestore(this.app), 'groups', groupId, 'members'));

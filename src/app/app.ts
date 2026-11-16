@@ -9,10 +9,11 @@ import type { FirebaseApp } from 'firebase/app';
 import { currencyCodes } from './shared/utils/currency';
 import { Group } from './core/firebase/group-model';
 import { ExpenseForm } from './features/expenses/expense-form';
+import { ExpenseHistory } from './features/expenses/expense-history';
 
 @Component({
   selector: 'app-root',
-  imports: [AppShell, FormsModule, ExpenseForm],
+  imports: [AppShell, FormsModule, ExpenseForm, ExpenseHistory],
   template: `
     <app-shell>
       <div class="mx-auto max-w-md rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">
@@ -50,7 +51,8 @@ import { ExpenseForm } from './features/expenses/expense-form';
               } @else { <p class="mt-4 text-sm text-amber-800">Le service de création de groupes n’est pas encore configuré.</p> }
             </section>
             @if (workerUrl && firebaseApp && groups().length) {
-              <app-expense-form [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" />
+              <app-expense-form [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" (saved)="onExpenseSaved()" />
+              <app-expense-history [groups]="groups()" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" [revision]="expenseRevision()" />
             }
           }
           <button class="mt-6 rounded-lg border border-slate-300 px-4 py-2" type="button" (click)="logout()">Déconnexion</button>
@@ -94,6 +96,7 @@ export class App implements OnInit, OnDestroy {
   workerUrl?: string;
   readonly currencies = currencyCodes();
   readonly groups = signal<Group[]>([]);
+  readonly expenseRevision = signal(0);
   readonly groupServiceReady = signal(false);
   groupName = '';
   groupCurrency = 'CAD';
@@ -162,4 +165,5 @@ export class App implements OnInit, OnDestroy {
     finally { this.busy.set(false); }
   }
   async logout(): Promise<void> { this.groups.set([]); await this.auth?.logout(); }
+  onExpenseSaved(): void { this.expenseRevision.update(value => value + 1); }
 }

@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, Input, OnChanges, signal } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, Output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { FirebaseApp } from 'firebase/app';
 import type { User } from 'firebase/auth';
@@ -74,6 +74,7 @@ import type { SplitMode } from '../../shared/utils/split-engine';
 })
 export class ExpenseForm implements OnChanges {
   constructor(private readonly changeDetector: ChangeDetectorRef) {}
+  @Output() readonly saved = new EventEmitter<void>();
   @Input({ required: true }) groups: Group[] = [];
   @Input({ required: true }) user?: User;
   @Input({ required: true }) firebaseApp?: FirebaseApp;
@@ -149,7 +150,7 @@ export class ExpenseForm implements OnChanges {
       this.pendingKey = idempotencyKey; this.pendingBody = serialized;
       await this.service.create(this.user, this.selectedGroupId, { idempotencyKey, ...content });
       this.pendingKey = undefined; this.pendingBody = undefined;
-      this.message.set('Dépense enregistrée.'); this.draft.description = ''; this.draft.amount = ''; this.previewRows.set([]);
+      this.message.set('Dépense enregistrée.'); this.draft.description = ''; this.draft.amount = ''; this.previewRows.set([]); this.saved.emit();
     } catch (error) { this.message.set(error instanceof Error ? error.message : 'Enregistrement impossible'); }
     finally { this.busy.set(false); }
   }
