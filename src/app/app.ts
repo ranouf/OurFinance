@@ -9,10 +9,11 @@ import type { FirebaseApp } from 'firebase/app';
 import { currencyCodes } from './shared/utils/currency';
 import { Group } from './core/firebase/group-model';
 import { ExpenseForm } from './features/expenses/expense-form';
+import { ExportPanel } from './features/import-export/export-panel';
 
 @Component({
   selector: 'app-root',
-  imports: [AppShell, FormsModule, ExpenseForm],
+  imports: [AppShell, FormsModule, ExpenseForm, ExportPanel],
   template: `
     <app-shell>
       <div class="mx-auto max-w-md rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">
@@ -51,6 +52,13 @@ import { ExpenseForm } from './features/expenses/expense-form';
             </section>
             @if (workerUrl && firebaseApp && groups().length) {
               <app-expense-form [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" />
+            }
+            @if (firebaseApp && groups().length) {
+              @defer (on viewport) {
+                <app-export-panel [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" />
+              } @placeholder {
+                <div class="mt-6" aria-hidden="true"></div>
+              }
             }
           }
           <button class="mt-6 rounded-lg border border-slate-300 px-4 py-2" type="button" (click)="logout()">Déconnexion</button>
