@@ -30,6 +30,8 @@ test('owner combines the Worker snapshot with the group in member order', async 
 test('collector refuses an incomplete or denied preference snapshot', async () => {
   const incomplete = async () => Response.json({ preferences: rows.slice(0, 1) });
   await rejects(collectGroupExportV2(reader, user, 'g', 'https://worker.example', incomplete as typeof fetch));
+  const outsider = async () => Response.json({ preferences: [...rows, { userId: 'outsider', modeJson: null, memberIds: [], updatedAt: null }] });
+  await rejects(collectGroupExportV2(reader, user, 'g', 'https://worker.example', outsider as typeof fetch));
   const denied = async () => Response.json({}, { status: 403 });
   await rejects(collectGroupExportV2(reader, user, 'g', 'https://worker.example', denied as typeof fetch));
 });

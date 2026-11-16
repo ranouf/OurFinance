@@ -20,7 +20,7 @@ export async function collectGroupExportV2(
   if (!result || typeof result !== 'object' || !('preferences' in result) || !Array.isArray(result.preferences)) throw new Error('Réponse de sauvegarde invalide');
   const rows = result.preferences as GroupExportV2['preferences'];
   const byUser = new Map(rows.map(row => [row.userId, row]));
-  if (byUser.size !== rows.length) throw new Error('Préférences de sauvegarde dupliquées');
+  if (byUser.size !== rows.length || rows.length !== group.members.length || rows.some(row => !group.members.some(member => member.userId === row.userId))) throw new Error('Préférences de sauvegarde incohérentes');
   const preferences = group.members.map(member => {
     const row = byUser.get(member.userId);
     if (!row) throw new Error('Préférences de sauvegarde incomplètes');
