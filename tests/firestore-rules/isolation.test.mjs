@@ -21,6 +21,8 @@ before(async () => {
     await setDoc(doc(db, 'groups/a/activity/ev1'), { action: 'expense_created' });
     await setDoc(doc(db, 'users/alice/groupPreferences/a'), { modeJson: '{"kind":"equal","users":["alice"]}' });
     await setDoc(doc(db, 'users/alice/groupPreferences/b'), { modeJson: '{"kind":"equal","users":["alice"]}' });
+    await setDoc(doc(db, 'users/alice/importBatches/b1'), { groupId: 'a', status: 'active' });
+    await setDoc(doc(db, 'groups/a/importedRecords/r1'), { sourceId: 'synthetic', status: 'active' });
   });
 });
 after(async () => { await env?.cleanup(); });
@@ -82,4 +84,15 @@ test('client cannot forge membership or invitation', async () => {
   await assertFails(setDoc(doc(alice, 'groups/b/members/alice'), { role: 'owner', status: 'active' }));
   await assertFails(setDoc(doc(alice, 'groups/a/invitations/fake'), { token: 'fake' }));
   await assertFails(setDoc(doc(alice, 'groups/a/expenses/e1/attachments/fake'), { publicId: 'fake' }));
+});
+
+test('imported records and batch metadata follow active membership', async () => {
+  const alice = env.authenticatedContext('alice').firestore();
+  const bob = env.authenticatedContext('bob').firestore();
+  await assertSucceeds(getDoc(doc(alice, 'groups/a/importedRecords/r1')));
+  await assertSucceeds(getDoc(doc(alice, 'users/alice/importBatches/b1')));
+  await assertFails(getDoc(doc(bob, 'groups/a/importedRecords/r1')));
+  await assertFails(getDoc(doc(bob, 'users/alice/importBatches/b1')));
+  await assertFails(setDoc(doc(alice, 'groups/a/importedRecords/fake'), { sourceId: 'fake' }));
+  await assertFails(setDoc(doc(alice, 'users/alice/importBatches/fake'), { groupId: 'a' }));
 });

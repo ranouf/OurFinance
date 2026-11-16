@@ -22,6 +22,10 @@ service cloud.firestore {
         // Written with the expense transaction through the Worker only.
         allow write: if false;
       }
+      match /importBatches/{batchId} {
+        allow read: if signedIn() && request.auth.uid == uid && member(resource.data.groupId);
+        allow write: if false;
+      }
       match /{other=**} { allow read, write: if false; }
     }
     match /groups/{groupId} {
@@ -49,6 +53,7 @@ service cloud.firestore {
         }
       }
       match /settlements/{settlementId} { allow read: if member(groupId); allow write: if false; }
+      match /importedRecords/{recordId} { allow read: if member(groupId); allow write: if false; }
       match /activity/{eventId} { allow read: if member(groupId); allow write: if false; }
       match /balances/{balanceId} { allow read: if member(groupId); allow write: if false; }
       match /statistics/{periodId} { allow read: if member(groupId); allow write: if false; }

@@ -8,6 +8,7 @@ import { readMember } from './firestore';
 import { readLimitedJson, RequestBodyError } from './request-body';
 import { acceptInvitation, createInvitation, InvitationError } from './invitations';
 import { createSettlement, SettlementError } from './settlements';
+import { createImportBatch, undoImportBatch, ImportError } from './import-batches';
 
 export interface Env extends Partial<CloudinaryEnv> {
   FIREBASE_PROJECT_ID: string;
@@ -22,6 +23,8 @@ export interface Env extends Partial<CloudinaryEnv> {
   INVITATION_POC_GROUP_ID?: string;
   ENABLE_SETTLEMENT_POC?: string;
   SETTLEMENT_POC_GROUP_ID?: string;
+  ENABLE_IMPORT_POC?: string;
+  IMPORT_POC_GROUP_ID?: string;
 }
 
 export async function handleRequest(request: Request, env: Env): Promise<Response> {
@@ -37,6 +40,29 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
   }
   const url = new URL(request.url);
   if (url.pathname === '/health' && request.method === 'GET') return new Response(JSON.stringify({ status: 'ok' }), { headers });
+  const importCreate = /^\/groups\/([A-Za-z0-9_-]{1,128})\/imports$/.exec(url.pathname);
+  const importUndo = /^\/groups\/([A-Za-z0-9_-]{1,128})\/imports\/([A-Za-z0-9_-]{1,128})$/.exec(url.pathname);
+  if ((importCreate && request.method === 'POST') || (importUndo && request.method === 'DELETE')) {
+    const groupId = (importCreate ?? importUndo)![1];
+    if (env.ENABLE_IMPORT_POC !== 'true' || env.IMPORT_POC_GROUP_ID !== groupId || !env.FIREBASE_SERVICE_ACCOUNT_JSON) return new Response(JSON.stringify({ error: 'Import non configuré' }), { status: 503, headers });
+    let uid: string;
+    try { uid = await verifyFirebaseVerifiedEmail(bearerToken(request), env.FIREBASE_PROJECT_ID); }
+    catch { return new Response(JSON.stringify({ error: 'Non authentifié' }), { status: 401, headers }); }
+    try {
+      const importEnv = { FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT_JSON: env.FIREBASE_SERVICE_ACCOUNT_JSON };
+      if (importCreate) {
+        const body = await readLimitedJson(request, 16384);
+        const result = await createImportBatch(body, uid, groupId, importEnv);
+        return new Response(JSON.stringify(result), { status: 201, headers });
+      }
+      await undoImportBatch(importUndo![2], uid, groupId, importEnv);
+      return new Response(null, { status: 204, headers });
+    } catch (error) {
+      const status = error instanceof ImportError ? error.status : error instanceof RequestBodyError ? 400 : 503;
+      const code = error instanceof ImportError || error instanceof RequestBodyError ? error.code : 'import_unavailable';
+      return new Response(JSON.stringify({ error: code }), { status, headers });
+    }
+  }
   const settlementMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/settlements$/.exec(url.pathname);
   if (settlementMatch && request.method === 'POST') {
     if (env.ENABLE_SETTLEMENT_POC !== 'true' || env.SETTLEMENT_POC_GROUP_ID !== settlementMatch[1] || !env.FIREBASE_SERVICE_ACCOUNT_JSON) return new Response(JSON.stringify({ error: 'Règlements non configurés' }), { status: 503, headers });
