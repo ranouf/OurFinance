@@ -5,7 +5,7 @@ import type { User } from 'firebase/auth';
 import { BalanceService } from '../../core/firebase/balance-service';
 import type { Group } from '../../core/firebase/group-model';
 import { formatMinorExact } from '../../shared/utils/currency';
-import { calculateBalances, type ExpenseLedgerEntry, type SettlementLedgerEntry } from '../../shared/utils/ledger';
+import { calculateBalances, type ExpenseLedgerEntry, type FxSettlementLedgerEntry, type SettlementLedgerEntry } from '../../shared/utils/ledger';
 import { periodRange, type StatisticsPeriod } from './period-range';
 
 interface CurrencyStatistics {
@@ -23,7 +23,7 @@ interface CurrencyStatistics {
   template: `
     <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-5" aria-label="Statistiques du groupe">
       <h2 class="text-lg font-semibold">Statistiques du groupe</h2>
-      <p class="mt-1 text-sm text-slate-600">Dépenses et remboursements déclarés, sans conversion de devises. Les imports historiques sans parts restent exclus.</p>
+      <p class="mt-1 text-sm text-slate-600">Dépenses et remboursements déclarés, séparés par devise de dette. Pour un transfert multidevise, le taux enregistré détermine le montant payé ; les statistiques comptent la dette réglée dans sa devise d’origine. Les imports historiques sans parts restent exclus.</p>
       <label class="mt-4 block text-sm font-medium">Groupe
         <select class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="statisticsGroup" [(ngModel)]="selectedGroupId" (ngModelChange)="refresh()">
           <option value="">Choisir un groupe</option>
@@ -53,7 +53,7 @@ interface CurrencyStatistics {
             <h3 class="font-semibold">{{ row.currency }}</h3>
             <dl class="mt-2 grid grid-cols-2 gap-x-3 gap-y-2">
               <dt>Dépenses du groupe</dt><dd class="text-right font-medium">{{ amount(row.spentMinor, row.currency) }}</dd>
-              <dt>Remboursements déclarés</dt><dd class="text-right font-medium">{{ amount(row.settledMinor, row.currency) }}</dd>
+              <dt>Dettes remboursées</dt><dd class="text-right font-medium">{{ amount(row.settledMinor, row.currency) }}</dd>
               <dt>Payé par moi</dt><dd class="text-right font-medium">{{ amount(row.myPaidMinor, row.currency) }}</dd>
               <dt>Ma part due</dt><dd class="text-right font-medium">{{ amount(row.myOwedMinor, row.currency) }}</dd>
               <dt>Mon solde</dt><dd class="text-right font-semibold">{{ amount(row.myBalanceMinor, row.currency) }}</dd>
@@ -82,6 +82,7 @@ export class StatisticsSummary implements OnChanges {
   private service?: BalanceService;
   private expenses: ExpenseLedgerEntry[] = [];
   private settlements: SettlementLedgerEntry[] = [];
+  private fxSettlements: FxSettlementLedgerEntry[] = [];
   private requestId = 0;
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -92,13 +93,13 @@ export class StatisticsSummary implements OnChanges {
   async refresh(): Promise<void> {
     const groupId = this.selectedGroupId;
     const requestId = ++this.requestId;
-    this.statistics.set([]); this.incompleteCount.set(0); this.message.set(''); this.expenses = []; this.settlements = [];
+    this.statistics.set([]); this.incompleteCount.set(0); this.message.set(''); this.expenses = []; this.settlements = []; this.fxSettlements = [];
     if (!groupId || !this.service) { this.busy.set(false); return; }
     this.busy.set(true);
     try {
       const result = await this.service.entries(groupId);
       if (requestId !== this.requestId) return;
-      this.expenses = result.expenses; this.settlements = result.settlements; this.incompleteCount.set(result.incompleteCount);
+      this.expenses = result.expenses; this.settlements = result.settlements; this.fxSettlements = result.fxSettlements; this.incompleteCount.set(result.incompleteCount);
       this.recompute();
     } catch { if (requestId === this.requestId) this.message.set('Statistiques indisponibles.'); }
     finally { if (requestId === this.requestId) this.busy.set(false); }
@@ -107,7 +108,7 @@ export class StatisticsSummary implements OnChanges {
     if (!this.selectedGroupId) return;
     const range = periodRange(this.period, this.month, this.year);
     if (!range) { this.statistics.set([]); return; }
-    const totals = calculateBalances(this.expenses, this.settlements, range.start, range.end);
+    const totals = calculateBalances(this.expenses, this.settlements, range.start, range.end, this.fxSettlements);
     const currencies = [...new Set(totals.map(row => row.currency))].sort();
     this.statistics.set(currencies.map(currency => {
       const rows = totals.filter(row => row.currency === currency);
