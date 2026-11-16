@@ -26,7 +26,7 @@ test('expense transaction reads active group/members and atomically writes expen
     if (url.includes('?transaction=')) {
       readPaths.push(url);
       if (url.includes('/groups/g1/members/')) return Response.json({ fields: { status: { stringValue: 'active' } } });
-      return Response.json({ fields: { status: { stringValue: 'active' } } });
+      return Response.json({ fields: { status: { stringValue: 'active' }, currencyCode: { stringValue: 'CAD' } } });
     }
     if (url.endsWith(':commit')) { commit = JSON.parse(String(options?.body)); return Response.json({ writeResults: [{},{},{}] }); }
     throw new Error('Requête inattendue');
@@ -34,12 +34,13 @@ test('expense transaction reads active group/members and atomically writes expen
   strictEqual(await createExpense({ ...input, categoryId: 'education' }, 'alice', 'g1', { FIREBASE_PROJECT_ID: 'ourfinance-test', FIREBASE_SERVICE_ACCOUNT_JSON: service }, transport as typeof fetch), input.idempotencyKey);
   strictEqual(readPaths.length, 3);
   strictEqual(commit.transaction, 'txn');
-  strictEqual(commit.writes.length, 3);
+  strictEqual(commit.writes.length, 4);
   strictEqual(commit.writes[0].currentDocument.exists, false);
   deepStrictEqual(commit.writes[0].update.fields.allocations.arrayValue.values.map((item: any) => item.mapValue.fields.amountMinor.integerValue), ['51','50']);
   strictEqual(commit.writes[0].update.fields.categoryId.stringValue, 'education');
   strictEqual(commit.writes[1].update.name.endsWith('/users/alice/groupPreferences/g1'), true);
   strictEqual(commit.writes[2].update.name.endsWith(`/groups/g1/activity/${input.idempotencyKey}`), true);
+  strictEqual(commit.writes[3].updateMask.fieldPaths[0], 'currencyLockedAt');
 });
 test('revoked participant prevents a commit', async () => {
   const { privateKey } = await generateKeyPair('RS256', { extractable: true });
@@ -50,12 +51,31 @@ test('revoked participant prevents a commit', async () => {
     if (url.includes('oauth2.googleapis.com')) return Response.json({ access_token: 'service-token' });
     if (url.endsWith(':beginTransaction')) return Response.json({ transaction: 'txn' });
     if (url.includes('/members/bob')) return Response.json({ fields: { status: { stringValue: 'revoked' } } });
-    if (url.includes('?transaction=')) return Response.json({ fields: { status: { stringValue: 'active' } } });
+    if (url.includes('?transaction=')) return Response.json({ fields: { status: { stringValue: 'active' }, currencyCode: { stringValue: 'CAD' } } });
     if (url.endsWith(':commit')) committed = true;
     return Response.json({});
   };
   await rejects(createExpense(input, 'alice', 'g1', { FIREBASE_PROJECT_ID: 'ourfinance-test', FIREBASE_SERVICE_ACCOUNT_JSON: service }, transport as typeof fetch), (error: unknown) => error instanceof ExpenseError && error.code === 'member_inactive');
   strictEqual(committed, false);
+});
+
+test('an expense in another currency is denied before commit and rolled back', async () => {
+  const { privateKey } = await generateKeyPair('RS256', { extractable: true });
+  const service = JSON.stringify({ project_id: 'ourfinance-test', client_email: 'test@ourfinance-test.iam.gserviceaccount.com', private_key: await exportPKCS8(privateKey) });
+  let committed = false;
+  let rolledBack = false;
+  const transport = async (resource: string | URL | Request) => {
+    const url = String(resource);
+    if (url.includes('oauth2.googleapis.com')) return Response.json({ access_token: 'service-token' });
+    if (url.endsWith(':beginTransaction')) return Response.json({ transaction: 'txn' });
+    if (url.endsWith(':rollback')) { rolledBack = true; return Response.json({}); }
+    if (url.includes('?transaction=')) return Response.json({ fields: { status: { stringValue: 'active' }, currencyCode: { stringValue: 'JPY' } } });
+    if (url.endsWith(':commit')) committed = true;
+    return Response.json({});
+  };
+  await rejects(createExpense(input, 'alice', 'g1', { FIREBASE_PROJECT_ID: 'ourfinance-test', FIREBASE_SERVICE_ACCOUNT_JSON: service }, transport as typeof fetch), (error: unknown) => error instanceof ExpenseError && error.code === 'currency_mismatch');
+  strictEqual(committed, false);
+  strictEqual(rolledBack, true);
 });
 
 test('une catégorie personnalisée active est figée sur la dépense, une archive est refusée', async () => {
@@ -70,7 +90,7 @@ test('une catégorie personnalisée active est figée sur la dépense, une archi
     if (url.includes('oauth2.googleapis.com')) return Response.json({ access_token: 'service-token' });
     if (url.endsWith(':beginTransaction')) return Response.json({ transaction: 'txn' });
     if (url.includes('/categories/') && url.includes('?transaction=')) return Response.json({ fields: { status: { stringValue: status }, name: { stringValue: 'Frais de chalet' }, iconId: { stringValue: 'home' }, color: { stringValue: 'sky' } } });
-    if (url.includes('?transaction=')) return Response.json({ fields: { status: { stringValue: 'active' } } });
+    if (url.includes('?transaction=')) return Response.json({ fields: { status: { stringValue: 'active' }, currencyCode: { stringValue: 'CAD' } } });
     if (url.endsWith(':commit')) { commit = JSON.parse(String(options?.body)); return Response.json({ writeResults: [{}, {}, {}] }); }
     if (url.endsWith(':rollback')) { rolledBack = true; return Response.json({}); }
     return Response.json({});

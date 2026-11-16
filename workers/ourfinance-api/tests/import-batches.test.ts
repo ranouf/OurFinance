@@ -14,7 +14,7 @@ type Fields = Record<string, any>;
 async function fixture(revoked = false) {
   const { privateKey } = await generateKeyPair('RS256', { extractable: true });
   const env = { FIREBASE_PROJECT_ID: 'ourfinance-test', FIREBASE_SERVICE_ACCOUNT_JSON: JSON.stringify({ project_id: 'ourfinance-test', client_email: 'test@ourfinance-test.iam.gserviceaccount.com', private_key: await exportPKCS8(privateKey) }) };
-  const docs = new Map<string, Fields>([['groups/synthetic-group', { status: { stringValue: 'active' } }]]);
+  const docs = new Map<string, Fields>([['groups/synthetic-group', { status: { stringValue: 'active' }, currencyCode: { stringValue: 'CAD' } }]]);
   for (const id of ['alex', 'camille', 'sam']) docs.set(`groups/${groupId}/members/${id}`, { status: { stringValue: revoked && id === 'sam' ? 'revoked' : 'active' }, role: { stringValue: id === 'alex' ? 'owner' : 'member' } });
   let commits = 0, rollbacks = 0;
   const transport = async (resource: string | URL | Request, options?: RequestInit) => {
@@ -54,6 +54,7 @@ test('synthetic batch persists impacts without inferred payments and can be undo
   strictEqual(records.length, 2);
   strictEqual(records.every(([, data]) => data.splitStatus.stringValue === 'undetermined' && !data.payments && !data.allocations), true);
   strictEqual(f.docs.get(`users/alex/importBatches/${batchId}`)?.status.stringValue, 'active');
+  strictEqual(typeof f.docs.get(`groups/${groupId}`)?.currencyLockedAt?.timestampValue, 'string');
   await undoImportBatch(batchId, 'alex', groupId, f.env, f.transport);
   strictEqual(f.commits(), 2);
   strictEqual(records.every(([path]) => f.docs.get(path)?.status.stringValue === 'undone'), true);
@@ -74,4 +75,12 @@ test('same source cannot be reimported; revoked member cannot start a batch', as
   const ordinary = await fixture();
   await rejects(createImportBatch(input, 'camille', groupId, ordinary.env, ordinary.transport), (error: unknown) => error instanceof ImportError && error.code === 'owner_required');
   strictEqual(ordinary.commits(), 0);
+});
+
+test('a mixed-currency import is rejected without writing any record', async () => {
+  const f = await fixture();
+  const mixed = { ...input, records: [input.records[0], { ...input.records[1], currency: 'JPY' }] };
+  await rejects(createImportBatch(mixed, 'alex', groupId, f.env, f.transport), (error: unknown) => error instanceof ImportError && error.code === 'currency_mismatch');
+  strictEqual(f.commits(), 0);
+  strictEqual(f.rollbacks(), 1);
 });

@@ -21,7 +21,7 @@ export async function createGroup(value: unknown, uid: string, env: GroupEnv, tr
   const update = (path: string, fields: Record<string, unknown>) => ({ update: { name: `${root}/${path}`, fields }, currentDocument: { exists: false } });
   const string = (stringValue: string) => ({ stringValue });
   const writes = [
-    update(`groups/${groupId}`, { name: string(group.name), currency: string(group.currency), ownerId: string(uid), status: string('active'), createdAt: { timestampValue: now } }),
+    update(`groups/${groupId}`, { name: string(group.name), currency: string(group.currency), currencyCode: string(group.currency), ownerId: string(uid), status: string('active'), createdAt: { timestampValue: now } }),
     update(`groups/${groupId}/members/${uid}`, { role: string('owner'), status: string('active'), joinedAt: { timestampValue: now } }),
     update(`users/${uid}/groupMemberships/${groupId}`, { groupId: string(groupId), role: string('owner'), status: string('active') }),
   ];

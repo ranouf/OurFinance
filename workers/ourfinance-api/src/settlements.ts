@@ -56,19 +56,22 @@ export async function createSettlement(value: unknown, uid: string, groupId: str
     const group = await read(`groups/${groupId}`);
     const status = (document: Record<string, unknown> | null) => ((document?.['fields'] as Record<string, { stringValue?: string }> | undefined)?.['status']?.stringValue);
     if (status(group) !== 'active') throw new SettlementError(403, 'group_inactive');
+    const groupFields = group?.['fields'] as Record<string, { stringValue?: string }> | undefined;
+    if ((groupFields?.['currencyCode']?.stringValue ?? groupFields?.['currency']?.stringValue) !== input.currency) throw new SettlementError(400, 'currency_mismatch');
     for (const memberId of [uid, input.toUserId]) {
       if (status(await read(`groups/${groupId}/members/${memberId}`)) !== 'active') throw new SettlementError(403, 'member_inactive');
     }
     const now = new Date().toISOString();
     const settlementId = input.idempotencyKey;
     const create = (path: string, fields: Record<string, unknown>) => ({ update: { name: `${root}/${path}`, fields }, currentDocument: { exists: false } });
-    const writes = [
+    const writes: unknown[] = [
       create(`groups/${groupId}/settlements/${settlementId}`, {
         date: string(input.date), currency: string(input.currency), amountMinor: { integerValue: String(input.amountMinor) }, fromUserId: string(uid), toUserId: string(input.toUserId),
         status: string('recorded'), createdBy: string(uid), createdAt: { timestampValue: now }, deleted: { booleanValue: false },
       }),
       create(`groups/${groupId}/activity/settlement_${settlementId}`, { actorId: string(uid), action: string('settlement_recorded'), settlementId: string(settlementId), at: { timestampValue: now } }),
     ];
+    if (!groupFields?.['currencyLockedAt']) writes.push({ update: { name: `${root}/groups/${groupId}`, fields: { currencyLockedAt: { timestampValue: now } } }, updateMask: { fieldPaths: ['currencyLockedAt'] } });
     await checked(await transport(`https://firestore.googleapis.com/v1/${root}:commit`, { method: 'POST', headers, body: JSON.stringify({ transaction, writes }) }));
     committed = true;
     return settlementId;

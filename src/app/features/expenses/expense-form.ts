@@ -5,7 +5,7 @@ import type { User } from 'firebase/auth';
 import type { Group } from '../../core/firebase/group-model';
 import { ExpenseService } from '../../core/firebase/expense-service';
 import { CategoryService } from '../../core/firebase/category-service';
-import { currencyCodes, formatMinor, minorDigits } from '../../shared/utils/currency';
+import { formatMinor, minorDigits } from '../../shared/utils/currency';
 import { categories, type CustomCategory } from '../../shared/utils/categories';
 import { prepareExpense, type ExpenseDraft } from './expense-draft';
 import type { SplitMode } from '../../shared/utils/split-engine';
@@ -31,11 +31,9 @@ import type { SplitMode } from '../../shared/utils/split-engine';
             <label class="block text-sm font-medium">Montant
               <input class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="amount" [(ngModel)]="draft.amount" inputmode="decimal" placeholder="0,00" required />
             </label>
-            <label class="block text-sm font-medium">Devise
-              <select class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="currency" [(ngModel)]="draft.currency">
-                @for (code of currencies; track code) { <option [value]="code">{{ code }}</option> }
-              </select>
-            </label>
+            <div class="block text-sm font-medium">Devise du groupe
+              <div class="mt-1 rounded-lg border border-slate-300 bg-slate-50 p-3" aria-label="Devise fixe du groupe">{{ draft.currency }}</div>
+            </div>
           </div>
           <label class="block text-sm font-medium">Date
             <input class="mt-1 w-full rounded-lg border border-slate-300 p-3" type="date" name="date" [(ngModel)]="draft.date" required />
@@ -87,7 +85,6 @@ export class ExpenseForm implements OnChanges {
   @Input({ required: true }) firebaseApp?: FirebaseApp;
   @Input({ required: true }) workerUrl?: string;
   @Input() categoryRevision = 0;
-  readonly currencies = currencyCodes();
   readonly categories = categories;
   readonly members = signal<{ userId: string }[]>([]);
   readonly customCategories = signal<CustomCategory[]>([]);
