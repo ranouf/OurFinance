@@ -40,6 +40,10 @@ const messages = {
     loadingGroupCurrency: 'Chargement de la devise du groupe…', changeGroupCurrency: 'Modifier la devise du groupe', currencyBeforeFirst: 'Le propriétaire peut la modifier seulement avant la toute première opération. Elle restera ensuite verrouillée.',
     saveGroupCurrency: 'Enregistrer la devise', currencyChanged: 'Devise du groupe enregistrée.', currencyLocked: 'Devise définitivement verrouillée après une opération.',
     currencyDisabled: 'Modification de devise désactivée dans cet environnement.', currencyChangeFailed: 'Modification de devise impossible.',
+    groupCategories: 'Catégories du groupe', categoryIntro: 'Les catégories de base sont disponibles dans tous les groupes. Les membres actifs peuvent partager leurs propres catégories ici.',
+    customCategory: 'Catégorie personnalisée', newCategory: 'Nouvelle catégorie', archivedSuffix: ' (archivée)', categoryName: 'Nom', categoryIcon: 'Icône', categoryColor: 'Couleur', categoryPreview: 'Aperçu',
+    saveCategory: 'Enregistrer les modifications', createCategory: 'Créer la catégorie', reactivateCategory: 'Réactiver', archiveCategory: 'Archiver', categoryCountOne: 'catégorie personnalisée, y compris les archives.', categoryCountMany: 'catégories personnalisées, y compris les archives.',
+    categoriesUnavailable: 'Catégories indisponibles.', categorySaved: 'Catégorie enregistrée.', categorySaveFailed: 'Enregistrement impossible.', categoryManagerArchived: 'Catégorie archivée.', categoryManagerReactivated: 'Catégorie réactivée.', categoryUpdateFailed: 'Modification impossible.',
   },
   en: {
     testEnvironment: 'Test environment', offline: 'Offline: server data is unavailable. Reconnect to refresh it and save transactions.',
@@ -70,6 +74,10 @@ const messages = {
     loadingGroupCurrency: 'Loading group currency…', changeGroupCurrency: 'Change group currency', currencyBeforeFirst: 'The owner can change it only before the first transaction. It remains locked afterwards.',
     saveGroupCurrency: 'Save currency', currencyChanged: 'Group currency saved.', currencyLocked: 'Currency is permanently locked after a transaction.',
     currencyDisabled: 'Currency changes are disabled in this environment.', currencyChangeFailed: 'Could not change currency.',
+    groupCategories: 'Group categories', categoryIntro: 'Built-in categories are available in every group. Active members can share their own categories here.',
+    customCategory: 'Custom category', newCategory: 'New category', archivedSuffix: ' (archived)', categoryName: 'Name', categoryIcon: 'Icon', categoryColor: 'Color', categoryPreview: 'Preview',
+    saveCategory: 'Save changes', createCategory: 'Create category', reactivateCategory: 'Reactivate', archiveCategory: 'Archive', categoryCountOne: 'custom category, including archived ones.', categoryCountMany: 'custom categories, including archived ones.',
+    categoriesUnavailable: 'Categories unavailable.', categorySaved: 'Category saved.', categorySaveFailed: 'Could not save category.', categoryManagerArchived: 'Category archived.', categoryManagerReactivated: 'Category reactivated.', categoryUpdateFailed: 'Could not update category.',
   },
   ja: {
     testEnvironment: 'テスト環境', offline: 'オフラインです。サーバーのデータを利用できません。再接続して更新・保存してください。',
@@ -100,6 +108,10 @@ const messages = {
     loadingGroupCurrency: 'グループの通貨を読み込んでいます…', changeGroupCurrency: 'グループの通貨を変更', currencyBeforeFirst: '所有者は最初の取引前にのみ変更できます。その後は固定されます。',
     saveGroupCurrency: '通貨を保存', currencyChanged: 'グループの通貨を保存しました。', currencyLocked: '取引後の通貨は変更できません。',
     currencyDisabled: 'この環境では通貨の変更が無効です。', currencyChangeFailed: '通貨を変更できません。',
+    groupCategories: 'グループのカテゴリ', categoryIntro: '基本カテゴリはすべてのグループで利用できます。参加中のメンバーは独自のカテゴリを共有できます。',
+    customCategory: 'カスタムカテゴリ', newCategory: '新しいカテゴリ', archivedSuffix: '（アーカイブ済み）', categoryName: '名前', categoryIcon: 'アイコン', categoryColor: '色', categoryPreview: 'プレビュー',
+    saveCategory: '変更を保存', createCategory: 'カテゴリを作成', reactivateCategory: '再有効化', archiveCategory: 'アーカイブ', categoryCountOne: '件のカスタムカテゴリ（アーカイブを含む）', categoryCountMany: '件のカスタムカテゴリ（アーカイブを含む）',
+    categoriesUnavailable: 'カテゴリを取得できません。', categorySaved: 'カテゴリを保存しました。', categorySaveFailed: 'カテゴリを保存できません。', categoryManagerArchived: 'カテゴリをアーカイブしました。', categoryManagerReactivated: 'カテゴリを再有効化しました。', categoryUpdateFailed: 'カテゴリを更新できません。',
   },
 } as const;
 
