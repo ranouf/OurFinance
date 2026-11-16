@@ -5,6 +5,7 @@ export interface RestoreTargetV2 {
   readonly groupId: string;
   readonly currency: string;
   readonly memberIds: readonly string[];
+  readonly ownerId: string;
 }
 export interface RestorePreflightV2 {
   readonly groupId: string;
@@ -30,6 +31,7 @@ export function preflightGroupRestoreV2(groupJson: string, target: RestoreTarget
   const source = JSON.parse(serializeGroupExportV2(parsed)) as GroupExportV2;
   if (source.group.id !== target.groupId) throw new Error('La sauvegarde appartient à un autre groupe');
   if (source.group.currency !== target.currency) throw new Error('Devise du groupe différente');
+  if (source.members.find(member => member.role === 'owner')?.userId !== target.ownerId) throw new Error('Propriétaire du groupe différent');
   const members = new Set(target.memberIds);
   if (members.size !== target.memberIds.length || members.size !== source.members.length || source.members.some(member => !members.has(member.userId))) {
     throw new Error('Membres du groupe différents');

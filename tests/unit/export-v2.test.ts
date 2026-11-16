@@ -34,6 +34,8 @@ test('V2 rejects missing, foreign or inconsistent preferences', () => {
   throws(() => serializeGroupExportV2({ ...fixture, preferences: [{ ...fixture.preferences[0], modeJson: '{"kind":"equal","users":["outsider"]}' }, fixture.preferences[1]] }));
   throws(() => serializeGroupExportV2({ ...fixture, preferences: [null as unknown as GroupExportV2['preferences'][number], fixture.preferences[1]] }));
   throws(() => serializeGroupExportV2({ ...fixture, preferences: [{ ...fixture.preferences[0], updatedAt: 'tomorrow' }, fixture.preferences[1]] }));
+  throws(() => serializeGroupExportV2({ ...fixture, members: [{ ...fixture.members[0], role: 'member' }, fixture.members[1]] }));
+  throws(() => serializeGroupExportV2({ ...fixture, members: [fixture.members[0], { ...fixture.members[1], role: 'owner', status: 'active' }] }));
 });
 
 test('V2 validates percentages, signed adjustments and removes unexpected preference fields', () => {

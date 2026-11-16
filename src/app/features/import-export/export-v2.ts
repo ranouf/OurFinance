@@ -74,6 +74,8 @@ export function serializeGroupExportV2(value: GroupExportV2): string {
   if (value.version !== 2 || !Array.isArray(value.preferences) || value.preferences.length !== value.members.length) throw new Error('Préférences de groupe incomplètes');
   const group = JSON.parse(serializeGroupExportV1({ ...value, version: 1 })) as GroupExportV1;
   const members = new Set(group.members.map(item => item.userId));
+  if (group.members.filter(item => item.role === 'owner' && item.status === 'active').length !== 1 ||
+      group.members.some(item => item.role === 'owner' && item.status !== 'active')) throw new Error('Propriétaire du groupe invalide');
   if (!Array.isArray(value.expenseAuthors) || value.expenseAuthors.length !== group.expenses.length ||
       value.expenseAuthors.some((row, index) => !row || row.expenseId !== group.expenses[index].id || !members.has(row.userId))) {
     throw new Error('Auteurs des dépenses incomplets');

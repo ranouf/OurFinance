@@ -56,13 +56,14 @@ test('V2 refuses a modified preference, receipt or manifest scope', async () => 
 
 test('restore preflight verifies the archived receipt and original group before any write', async () => {
   const backup = await packageFixture();
-  const target = { groupId: 'g', currency: 'CAD', memberIds: ['alice'] };
+  const target = { groupId: 'g', currency: 'CAD', memberIds: ['alice'], ownerId: 'alice' };
   const result = await preflightBackupRestoreV2(backup, target);
   strictEqual(result.receiptCount, 1);
   strictEqual(result.preferenceCount, 1);
   strictEqual(result.commentCount, 1);
   strictEqual(result.activityCount, 1);
   await rejects(preflightBackupRestoreV2(backup, { ...target, groupId: 'other' }));
+  await rejects(preflightBackupRestoreV2(backup, { ...target, ownerId: 'other' }));
   await rejects(preflightBackupRestoreV2({ ...backup, receipts: [{ ...backup.receipts[0], bytes: new Uint8Array([1]) }] }, target));
 });
 
