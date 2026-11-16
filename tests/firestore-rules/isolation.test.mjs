@@ -11,8 +11,8 @@ before(async () => {
   });
   await env.withSecurityRulesDisabled(async context => {
     const db = context.firestore();
-    await setDoc(doc(db, 'groups/a'), { name: 'A' });
-    await setDoc(doc(db, 'groups/b'), { name: 'B' });
+    await setDoc(doc(db, 'groups/a'), { name: 'A', status: 'active' });
+    await setDoc(doc(db, 'groups/b'), { name: 'B', status: 'active' });
     await setDoc(doc(db, 'groups/a/members/alice'), { role: 'owner', status: 'active' });
     await setDoc(doc(db, 'groups/a/members/bob'), { role: 'member', status: 'revoked' });
     await setDoc(doc(db, 'groups/a/expenses/e1'), { amountMinor: 100 });
@@ -123,4 +123,21 @@ test('les catégories personnalisées sont lisibles uniquement par les membres a
   await assertFails(getDoc(doc(bob, path)));
   await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), path)));
   await assertFails(setDoc(doc(alice, path), { name: 'Falsifiée' }));
+});
+
+test('un groupe en restauration bloque les lectures du membre avant réactivation', async () => {
+  const alice = env.authenticatedContext('alice').firestore();
+  const path = 'groups/a/expenses/e1';
+  await env.withSecurityRulesDisabled(async context => {
+    await setDoc(doc(context.firestore(), 'groups/a'), { name: 'A', status: 'restoring' });
+  });
+  try {
+    await assertFails(getDoc(doc(alice, path)));
+    await assertFails(getDoc(doc(alice, 'users/alice/groupPreferences/a')));
+  } finally {
+    await env.withSecurityRulesDisabled(async context => {
+      await setDoc(doc(context.firestore(), 'groups/a'), { name: 'A', status: 'active' });
+    });
+  }
+  await assertSucceeds(getDoc(doc(alice, path)));
 });
