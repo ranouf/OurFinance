@@ -12,6 +12,7 @@ import { createSettlement, SettlementError } from './settlements';
 import { createImportBatch, undoImportBatch, ImportError } from './import-batches';
 import { writeCategory, CategoryError } from './custom-categories';
 import { createComment, CommentError } from './comments';
+import { collectBackupPreferences, BackupPreferencesError } from './backup-preferences';
 
 export interface Env extends Partial<CloudinaryEnv> {
   FIREBASE_PROJECT_ID: string;
@@ -34,6 +35,8 @@ export interface Env extends Partial<CloudinaryEnv> {
   CATEGORY_POC_GROUP_ID?: string;
   ENABLE_COMMENT_POC?: string;
   COMMENT_POC_GROUP_ID?: string;
+  ENABLE_BACKUP_POC?: string;
+  BACKUP_POC_GROUP_ID?: string;
 }
 
 export async function handleRequest(request: Request, env: Env): Promise<Response> {
@@ -49,6 +52,21 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
   }
   const url = new URL(request.url);
   if (url.pathname === '/health' && request.method === 'GET') return new Response(JSON.stringify({ status: 'ok' }), { headers });
+  const backupPreferencesMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/backup\/preferences$/.exec(url.pathname);
+  if (backupPreferencesMatch && request.method === 'GET') {
+    if (env.ENABLE_BACKUP_POC !== 'true' || env.BACKUP_POC_GROUP_ID !== backupPreferencesMatch[1] || !env.FIREBASE_SERVICE_ACCOUNT_JSON) return new Response(JSON.stringify({ error: 'Sauvegarde non configurée' }), { status: 503, headers });
+    let uid: string;
+    try { uid = await verifyFirebaseVerifiedEmail(bearerToken(request), env.FIREBASE_PROJECT_ID); }
+    catch { return new Response(JSON.stringify({ error: 'Non authentifié' }), { status: 401, headers }); }
+    try {
+      const preferences = await collectBackupPreferences(uid, backupPreferencesMatch[1], { FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT_JSON: env.FIREBASE_SERVICE_ACCOUNT_JSON });
+      return new Response(JSON.stringify({ preferences }), { status: 200, headers });
+    } catch (error) {
+      const status = error instanceof BackupPreferencesError ? error.status : 503;
+      const code = error instanceof BackupPreferencesError ? error.code : 'backup_unavailable';
+      return new Response(JSON.stringify({ error: code }), { status, headers });
+    }
+  }
   const commentMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/expenses\/([A-Za-z0-9_-]{1,128})\/comments$/.exec(url.pathname);
   if (commentMatch && request.method === 'POST') {
     if (env.ENABLE_COMMENT_POC !== 'true' || env.COMMENT_POC_GROUP_ID !== commentMatch[1] || !env.FIREBASE_SERVICE_ACCOUNT_JSON) return new Response(JSON.stringify({ error: 'Commentaires non configurés' }), { status: 503, headers });

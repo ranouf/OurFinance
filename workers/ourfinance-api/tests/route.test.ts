@@ -20,6 +20,10 @@ test('group currency change remains disabled without one explicit test group', a
   const response = await handleRequest(new Request('https://worker.example/groups/g1/currency', { method: 'PATCH' }), { ...env, FIREBASE_SERVICE_ACCOUNT_JSON: 'configured' });
   strictEqual(response.status, 503);
 });
+test('backup preferences remain disabled without one explicit test group', async () => {
+  const response = await handleRequest(new Request('https://worker.example/groups/g1/backup/preferences'), { ...env, FIREBASE_SERVICE_ACCOUNT_JSON: 'configured' });
+  strictEqual(response.status, 503);
+});
 test('expense creation is disabled without an explicit test group', async () => {
   const response = await handleRequest(new Request('https://worker.example/groups/g1/expenses', { method: 'POST', headers: { Origin: env.ALLOWED_ORIGIN } }), { ...env, FIREBASE_SERVICE_ACCOUNT_JSON: 'configured' });
   strictEqual(response.status, 503);
