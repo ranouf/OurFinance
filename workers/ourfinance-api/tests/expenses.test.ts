@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import { deepStrictEqual, strictEqual, rejects, throws } from 'node:assert';
 import { exportPKCS8, generateKeyPair } from 'jose';
-import { createExpense, ExpenseError, parseExpense } from '../src/expenses';
+import { createExpense, ExpenseError, mutateExpense, parseExpense } from '../src/expenses';
 const input = {
   idempotencyKey: '123e4567-e89b-42d3-a456-426614174000', description: 'Épicerie', currency: 'CAD', date: '2026-11-16', amountMinor: 101,
   payments: [{ userId: 'alice', amountMinor: 101 }], splitMode: { kind: 'equal', users: ['alice', 'bob'] },
@@ -103,4 +103,41 @@ test('une catégorie personnalisée active est figée sur la dépense, une archi
   await rejects(createExpense({ ...input, categoryId }, 'alice', 'g1', env, transport as typeof fetch), (error: unknown) => error instanceof ExpenseError && error.code === 'category_unavailable');
   strictEqual(commit, undefined);
   strictEqual(rolledBack, true);
+});
+
+test('l’auteur modifie puis supprime logiquement sa dépense avec révision et activité atomiques', async () => {
+  const { privateKey } = await generateKeyPair('RS256', { extractable: true });
+  const env = { FIREBASE_PROJECT_ID: 'ourfinance-test', FIREBASE_SERVICE_ACCOUNT_JSON: JSON.stringify({ project_id: 'ourfinance-test', client_email: 'test@ourfinance-test.iam.gserviceaccount.com', private_key: await exportPKCS8(privateKey) }) };
+  let revision = 0;
+  let deleted = false;
+  const commits: any[] = [];
+  const transport = async (resource: string | URL | Request, options?: RequestInit) => {
+    const url = String(resource);
+    if (url.includes('oauth2.googleapis.com')) return Response.json({ access_token: 'service-token' });
+    if (url.endsWith(':beginTransaction')) return Response.json({ transaction: 'txn' });
+    if (url.includes('/expenses/') && url.includes('?transaction=')) return Response.json({ fields: { createdBy: { stringValue: 'alice' }, deleted: { booleanValue: deleted }, revision: { integerValue: String(revision) }, categoryId: { stringValue: 'groceries' }, categoryLabel: { stringValue: 'Épicerie' }, categoryIcon: { stringValue: '🛒' }, categoryColor: { stringValue: 'teal' } } });
+    if (url.includes('/members/') && url.includes('?transaction=')) return Response.json({ fields: { status: { stringValue: 'active' } } });
+    if (url.includes('?transaction=')) return Response.json({ fields: { status: { stringValue: 'active' }, currencyCode: { stringValue: 'CAD' } } });
+    if (url.endsWith(':commit')) {
+      const commit = JSON.parse(String(options?.body)); commits.push(commit);
+      revision = Number(commit.writes[0].update.fields.revision.integerValue);
+      deleted = commit.writes[0].update.fields.deleted?.booleanValue ?? false;
+      return Response.json({ writeResults: [{}, {}] });
+    }
+    if (url.endsWith(':rollback')) return Response.json({});
+    throw new Error('Requête inattendue');
+  };
+  const update = { ...input, categoryId: 'groceries', description: 'Courses modifiées', expectedRevision: 0 };
+  await mutateExpense(update, 'alice', 'g1', input.idempotencyKey, 'PATCH', env, transport as typeof fetch);
+  strictEqual(revision, 1);
+  strictEqual(commits[0].writes[0].update.fields.description.stringValue, 'Courses modifiées');
+  strictEqual(commits[0].writes[1].update.fields.action.stringValue, 'expense_updated');
+  await rejects(mutateExpense(update, 'alice', 'g1', input.idempotencyKey, 'PATCH', env, transport as typeof fetch), (error: unknown) => error instanceof ExpenseError && error.code === 'revision_conflict');
+  await rejects(mutateExpense({ expectedRevision: 1 }, 'bob', 'g1', input.idempotencyKey, 'DELETE', env, transport as typeof fetch), (error: unknown) => error instanceof ExpenseError && error.code === 'author_required');
+  strictEqual(commits.length, 1);
+  await mutateExpense({ expectedRevision: 1 }, 'alice', 'g1', input.idempotencyKey, 'DELETE', env, transport as typeof fetch);
+  strictEqual(deleted, true);
+  strictEqual(commits[1].writes[1].update.fields.action.stringValue, 'expense_deleted');
+  await rejects(mutateExpense({ expectedRevision: 2 }, 'alice', 'g1', input.idempotencyKey, 'DELETE', env, transport as typeof fetch), (error: unknown) => error instanceof ExpenseError && error.code === 'expense_deleted');
+  strictEqual(commits.length, 2);
 });

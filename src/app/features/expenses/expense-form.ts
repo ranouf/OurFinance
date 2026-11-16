@@ -4,6 +4,7 @@ import type { FirebaseApp } from 'firebase/app';
 import type { User } from 'firebase/auth';
 import type { Group } from '../../core/firebase/group-model';
 import { ExpenseService } from '../../core/firebase/expense-service';
+import type { ExpenseHistoryEntry } from '../../core/firebase/expense-service';
 import { CategoryService } from '../../core/firebase/category-service';
 import { formatMinor, minorDigits } from '../../shared/utils/currency';
 import { categories, type CustomCategory } from '../../shared/utils/categories';
@@ -16,11 +17,12 @@ import type { SplitMode } from '../../shared/utils/split-engine';
   selector: 'app-expense-form', imports: [FormsModule],
   template: `
     <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-5" aria-label="Nouvelle dépense">
-      <h2 class="text-lg font-semibold">Nouvelle dépense</h2>
+      <h2 class="text-lg font-semibold">{{ editing ? 'Modifier la dépense' : 'Nouvelle dépense' }}</h2>
+      @if (editing) { <p class="mt-1 text-sm text-slate-600">Seul l’auteur peut modifier cette dépense.</p> }
       <p class="mt-1 text-sm text-slate-600">Choisissez une répartition pour cette dépense. La préférence du groupe est proposée seulement après une dépense enregistrée.</p>
       <form class="mt-5 space-y-4" (ngSubmit)="save()">
         <label class="block text-sm font-medium">Groupe
-          <select class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="group" [(ngModel)]="selectedGroupId" (ngModelChange)="loadGroup()" required>
+          <select class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="group" [(ngModel)]="selectedGroupId" (ngModelChange)="loadGroup()" [disabled]="!!editing" required>
             <option value="">Choisir un groupe</option>
             @for (group of groups; track group.id) { <option [value]="group.id">{{ group.name }}</option> }
           </select>
@@ -71,7 +73,8 @@ import type { SplitMode } from '../../shared/utils/split-engine';
                 </ul>
               }
             </fieldset>
-            <button class="w-full rounded-lg bg-teal-700 px-4 py-3 font-semibold text-white disabled:opacity-50" type="submit" [disabled]="busy()">Enregistrer la dépense</button>
+            <button class="w-full rounded-lg bg-teal-700 px-4 py-3 font-semibold text-white disabled:opacity-50" type="submit" [disabled]="busy()">{{ editing ? 'Enregistrer les modifications' : 'Enregistrer la dépense' }}</button>
+            @if (editing) { <button class="w-full rounded-lg border border-slate-300 px-4 py-3" type="button" (click)="editCancelled.emit()">Annuler la modification</button> }
           } @else { <p class="text-sm text-slate-600">Aucun membre actif disponible.</p> }
         }
       </form>
@@ -82,11 +85,13 @@ import type { SplitMode } from '../../shared/utils/split-engine';
 export class ExpenseForm implements OnChanges {
   constructor(private readonly changeDetector: ChangeDetectorRef) {}
   @Output() readonly saved = new EventEmitter<void>();
+  @Output() readonly editCancelled = new EventEmitter<void>();
   @Input({ required: true }) groups: Group[] = [];
   @Input({ required: true }) user?: User;
   @Input({ required: true }) firebaseApp?: FirebaseApp;
   @Input({ required: true }) workerUrl?: string;
   @Input() categoryRevision = 0;
+  @Input() editing?: { groupId: string; entry: ExpenseHistoryEntry };
   readonly categories = categories;
   readonly categoryLabel = categoryLabel;
   readonly language = language;
@@ -110,8 +115,12 @@ export class ExpenseForm implements OnChanges {
       this.categoryService = new CategoryService(this.firebaseApp, this.workerUrl);
     }
     if (changes['categoryRevision'] && !changes['categoryRevision'].firstChange && this.selectedGroupId) void this.loadCategories().catch(() => this.message.set('Catégories indisponibles.'));
+    if (changes['editing']) {
+      if (this.editing) this.selectedGroupId = this.editing.groupId;
+      void this.loadGroup();
+    }
   }
-  availableCategories() { return [...categories, ...this.customCategories().filter(category => category.status === 'active')]; }
+  availableCategories() { return [...categories, ...this.customCategories().filter(category => category.status === 'active' || category.id === this.editing?.entry.categoryId)]; }
   private async loadCategories(): Promise<void> {
     const groupId = this.selectedGroupId;
     if (!groupId || !this.categoryService) return;
@@ -121,6 +130,12 @@ export class ExpenseForm implements OnChanges {
     if (!this.availableCategories().some(category => category.id === this.draft.categoryId)) this.draft.categoryId = 'other';
   }
   private emptyDraft(): ExpenseDraft { return { description: '', amount: '', currency: 'CAD', date: new Date().toISOString().slice(0, 10), categoryId: 'other', payerId: '', kind: 'equal', rows: [] }; }
+  private decimal(amount: number): string {
+    const digits = minorDigits(this.draft.currency);
+    const absolute = Math.abs(amount);
+    const scale = 10 ** digits;
+    return `${amount < 0 ? '-' : ''}${Math.floor(absolute / scale)}${digits ? '.' + String(absolute % scale).padStart(digits, '0') : ''}`;
+  }
   clearValues(): void { this.previewRows.set([]); this.draft.rows.forEach(row => row.value = ''); }
   async loadGroup(): Promise<void> {
     this.members.set([]); this.customCategories.set([]); this.previewRows.set([]); this.message.set(''); this.draft = this.emptyDraft();
@@ -136,8 +151,16 @@ export class ExpenseForm implements OnChanges {
       this.members.set(members);
       this.draft.payerId = members.find(member => member.userId === this.user?.uid)?.userId ?? members[0]?.userId ?? '';
       this.draft.rows = members.map(member => ({ userId: member.userId, selected: false, value: '' }));
-      const preference = await this.service.preference(this.user, groupId, new Set(members.map(member => member.userId)));
+      const preference = this.editing?.groupId === groupId ? this.editing.entry.splitMode : await this.service.preference(this.user, groupId, new Set(members.map(member => member.userId)));
       if (this.selectedGroupId === groupId && preference) {
+        if (this.editing?.groupId === groupId) {
+          const entry = this.editing.entry;
+          this.draft.description = entry.description;
+          this.draft.amount = this.decimal(entry.amountMinor);
+          this.draft.date = entry.date;
+          this.draft.categoryId = entry.categoryId;
+          this.draft.payerId = entry.payments[0]?.userId ?? '';
+        }
         this.applyPreference(preference);
         this.changeDetector.markForCheck();
       }
@@ -146,17 +169,11 @@ export class ExpenseForm implements OnChanges {
   private applyPreference(mode: SplitMode): void {
     this.draft.kind = mode.kind;
     const values = new Map<string, string>();
-    const digits = minorDigits(this.draft.currency);
-    const decimal = (amount: number) => {
-      const absolute = Math.abs(amount);
-      const scale = 10 ** digits;
-      return `${amount < 0 ? '-' : ''}${Math.floor(absolute / scale)}${digits ? '.' + String(absolute % scale).padStart(digits, '0') : ''}`;
-    };
     if (mode.kind === 'equal') mode.users.forEach(id => values.set(id, ''));
-    else if (mode.kind === 'exact') mode.amounts.forEach(item => values.set(item.userId, decimal(item.amountMinor)));
+    else if (mode.kind === 'exact') mode.amounts.forEach(item => values.set(item.userId, this.decimal(item.amountMinor)));
     else if (mode.kind === 'percentage') mode.weightsBasisPoints.forEach(item => values.set(item.userId, String(item.value / 100)));
     else if (mode.kind === 'shares') mode.weights.forEach(item => values.set(item.userId, String(item.value)));
-    else mode.adjustments.forEach(item => values.set(item.userId, decimal(item.amountMinor)));
+    else mode.adjustments.forEach(item => values.set(item.userId, this.decimal(item.amountMinor)));
     this.draft.rows.forEach(row => { row.selected = values.has(row.userId); row.value = values.get(row.userId) ?? ''; });
   }
   preview(): void {
@@ -174,13 +191,18 @@ export class ExpenseForm implements OnChanges {
     try {
       const result = prepareExpense(this.draft, new Set(this.members().map(member => member.userId)));
       const content = { description: this.draft.description.trim(), currency: this.draft.currency, date: this.draft.date, categoryId: this.draft.categoryId, amountMinor: result.amountMinor, payments: result.payments, splitMode: result.splitMode };
-      const serialized = JSON.stringify(content);
-      if (serialized !== this.pendingBody) this.pendingKey = undefined;
-      const idempotencyKey = this.pendingKey ?? crypto.randomUUID();
-      this.pendingKey = idempotencyKey; this.pendingBody = serialized;
-      await this.service.create(this.user, this.selectedGroupId, { idempotencyKey, ...content });
+      if (this.editing) {
+        await this.service.mutate(this.user, this.selectedGroupId, this.editing.entry.id, 'PATCH', { expectedRevision: this.editing.entry.revision, ...content });
+      } else {
+        const serialized = JSON.stringify(content);
+        if (serialized !== this.pendingBody) this.pendingKey = undefined;
+        const idempotencyKey = this.pendingKey ?? crypto.randomUUID();
+        this.pendingKey = idempotencyKey; this.pendingBody = serialized;
+        await this.service.create(this.user, this.selectedGroupId, { idempotencyKey, ...content });
+      }
       this.pendingKey = undefined; this.pendingBody = undefined;
-      this.message.set('Dépense enregistrée.'); this.draft.description = ''; this.draft.amount = ''; this.previewRows.set([]); this.saved.emit();
+      this.message.set(this.editing ? 'Dépense modifiée.' : 'Dépense enregistrée.'); this.draft.description = ''; this.draft.amount = ''; this.previewRows.set([]); this.saved.emit();
+      if (this.editing) this.editCancelled.emit();
     } catch (error) { this.message.set(error instanceof Error ? error.message : 'Enregistrement impossible'); }
     finally { this.busy.set(false); }
   }
