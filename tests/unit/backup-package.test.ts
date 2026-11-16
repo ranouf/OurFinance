@@ -40,3 +40,12 @@ test('does not return a package when a private receipt is denied', async () => {
   const denied = (async () => new Response(null, { status: 403 })) as typeof fetch;
   await rejects(buildBackupPackageV1(reader, user, 'group_test', 'https://worker.example', denied), /403/);
 });
+
+test('does not return a package when the member is revoked after receipt download', async () => {
+  let membershipReads = 0;
+  const revoked: ExportReader = { ...reader, read: async path => {
+    if (path === `${root}/members/member_a` && ++membershipReads === 3) return { id: 'member_a', data: { role: 'owner', status: 'revoked' } };
+    return reader.read(path);
+  } };
+  await rejects(buildBackupPackageV1(revoked, user, 'group_test', 'https://worker.example', transport), /révoqué/);
+});

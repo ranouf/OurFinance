@@ -43,6 +43,9 @@ export async function buildBackupPackageV1(
   for (const row of active) {
     receipts.push(await downloadReceiptForExport(user, workerUrl, groupId, row.expenseId, row.attachmentId, row.format === 'png' ? 'png' : 'jpg', transport));
   }
+  if ((await reader.read(`groups/${groupId}/members/${user.uid}`))?.data['status'] !== 'active') {
+    throw new Error('Membre révoqué pendant l’export des reçus');
+  }
   const groupBytes = new TextEncoder().encode(groupJson);
   const manifest: BackupManifestV1 = {
     format: 'OurFinanceBackupManifest', version: 1, groupId, exportedAt: group.exportedAt,
