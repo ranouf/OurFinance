@@ -27,3 +27,7 @@ test('invitation creation and redemption are disabled without an explicit test g
     strictEqual(response.status, 503);
   }
 });
+test('settlement creation is disabled without an explicit test group', async () => {
+  const response = await handleRequest(new Request('https://worker.example/groups/g1/settlements', { method: 'POST' }), { ...env, FIREBASE_SERVICE_ACCOUNT_JSON: 'configured' });
+  strictEqual(response.status, 503);
+});

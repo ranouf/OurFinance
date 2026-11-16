@@ -7,6 +7,7 @@ import type { CloudinaryEnv } from './cloudinary';
 import { readMember } from './firestore';
 import { readLimitedJson, RequestBodyError } from './request-body';
 import { acceptInvitation, createInvitation, InvitationError } from './invitations';
+import { createSettlement, SettlementError } from './settlements';
 
 export interface Env extends Partial<CloudinaryEnv> {
   FIREBASE_PROJECT_ID: string;
@@ -19,6 +20,8 @@ export interface Env extends Partial<CloudinaryEnv> {
   MEDIA_POC_GROUP_ID?: string;
   ENABLE_INVITATION_POC?: string;
   INVITATION_POC_GROUP_ID?: string;
+  ENABLE_SETTLEMENT_POC?: string;
+  SETTLEMENT_POC_GROUP_ID?: string;
 }
 
 export async function handleRequest(request: Request, env: Env): Promise<Response> {
@@ -34,6 +37,22 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
   }
   const url = new URL(request.url);
   if (url.pathname === '/health' && request.method === 'GET') return new Response(JSON.stringify({ status: 'ok' }), { headers });
+  const settlementMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/settlements$/.exec(url.pathname);
+  if (settlementMatch && request.method === 'POST') {
+    if (env.ENABLE_SETTLEMENT_POC !== 'true' || env.SETTLEMENT_POC_GROUP_ID !== settlementMatch[1] || !env.FIREBASE_SERVICE_ACCOUNT_JSON) return new Response(JSON.stringify({ error: 'Règlements non configurés' }), { status: 503, headers });
+    let uid: string;
+    try { uid = await verifyFirebaseVerifiedEmail(bearerToken(request), env.FIREBASE_PROJECT_ID); }
+    catch { return new Response(JSON.stringify({ error: 'Non authentifié' }), { status: 401, headers }); }
+    try {
+      const body = await readLimitedJson(request, 2048);
+      const settlementId = await createSettlement(body, uid, settlementMatch[1], { FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT_JSON: env.FIREBASE_SERVICE_ACCOUNT_JSON });
+      return new Response(JSON.stringify({ settlementId }), { status: 201, headers });
+    } catch (error) {
+      const status = error instanceof SettlementError ? error.status : error instanceof RequestBodyError ? 400 : 503;
+      const code = error instanceof SettlementError || error instanceof RequestBodyError ? error.code : 'settlement_unavailable';
+      return new Response(JSON.stringify({ error: code }), { status, headers });
+    }
+  }
   const inviteCreate = /^\/groups\/([A-Za-z0-9_-]{1,128})\/invitations$/.exec(url.pathname);
   const inviteAccept = /^\/groups\/([A-Za-z0-9_-]{1,128})\/invitations\/([A-Za-z0-9_-]{1,128})\/accept$/.exec(url.pathname);
   if (request.method === 'POST' && (inviteCreate || inviteAccept)) {
