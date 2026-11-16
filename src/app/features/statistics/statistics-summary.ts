@@ -34,7 +34,7 @@ interface CurrencyStatistics {
         <div class="mt-4 grid grid-cols-2 gap-3">
           <label class="block text-sm font-medium">Période
             <select class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="statisticsPeriod" [(ngModel)]="period" (ngModelChange)="recompute()">
-              <option value="month">Mois</option><option value="year">Année</option><option value="all">Total</option>
+              <option value="month">Mois</option><option value="year">Année</option><option value="all">Total</option><option value="custom">Plage personnalisée</option>
             </select>
           </label>
           @if (period === 'month') {
@@ -44,6 +44,13 @@ interface CurrencyStatistics {
           } @else if (period === 'year') {
             <label class="block text-sm font-medium">Année
               <input class="mt-1 w-full rounded-lg border border-slate-300 p-3" type="number" name="statisticsYear" min="1900" max="2100" [(ngModel)]="year" (ngModelChange)="recompute()" />
+            </label>
+          } @else if (period === 'custom') {
+            <label class="block text-sm font-medium">Du
+              <input class="mt-1 w-full rounded-lg border border-slate-300 p-3" type="date" name="statisticsFrom" [(ngModel)]="customStart" (ngModelChange)="recompute()" />
+            </label>
+            <label class="block text-sm font-medium">Au
+              <input class="mt-1 w-full rounded-lg border border-slate-300 p-3" type="date" name="statisticsTo" [(ngModel)]="customEnd" (ngModelChange)="recompute()" />
             </label>
           }
         </div>
@@ -79,6 +86,8 @@ export class StatisticsSummary implements OnChanges {
   period: StatisticsPeriod = 'month';
   month = new Date().toISOString().slice(0, 7);
   year = new Date().getUTCFullYear();
+  customStart = new Date().toISOString().slice(0, 10);
+  customEnd = this.customStart;
   private service?: BalanceService;
   private expenses: ExpenseLedgerEntry[] = [];
   private settlements: SettlementLedgerEntry[] = [];
@@ -106,8 +115,9 @@ export class StatisticsSummary implements OnChanges {
   }
   recompute(): void {
     if (!this.selectedGroupId) return;
-    const range = periodRange(this.period, this.month, this.year);
-    if (!range) { this.statistics.set([]); return; }
+    const range = periodRange(this.period, this.month, this.year, this.customStart, this.customEnd);
+    if (!range) { this.statistics.set([]); this.message.set('Plage de dates invalide.'); return; }
+    if (this.message() === 'Plage de dates invalide.') this.message.set('');
     const totals = calculateBalances(this.expenses, this.settlements, range.start, range.end, this.fxSettlements);
     const currencies = [...new Set(totals.map(row => row.currency))].sort();
     this.statistics.set(currencies.map(currency => {

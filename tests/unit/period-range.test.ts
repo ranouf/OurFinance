@@ -12,3 +12,10 @@ test('les statistiques annuelles et totales gardent leurs périodes distinctes',
   deepStrictEqual(periodRange('year', '', 2026), { start: '2026-01-01', end: '2026-12-31' });
   deepStrictEqual(periodRange('all', '', 0), {});
 });
+
+test('une plage personnalisée inclut ses deux bornes et refuse les dates inversées ou impossibles', () => {
+  deepStrictEqual(periodRange('custom', '', 2026, '2024-02-29', '2024-03-01'), { start: '2024-02-29', end: '2024-03-01' });
+  strictEqual(periodRange('custom', '', 2026, '2024-03-02', '2024-03-01'), undefined);
+  strictEqual(periodRange('custom', '', 2026, '2025-02-29', '2025-03-01'), undefined);
+  strictEqual(periodRange('custom', '', 2026, '', '2025-03-01'), undefined);
+});
