@@ -30,6 +30,42 @@ export async function deleteReceiptAsset(path: string, publicId: string, already
   if (!cleared.ok) throw new Error('Nettoyage du reçu non acquitté');
 }
 
+/** Read membership and expense in the same transaction as the metadata write. */
+export async function persistUploadedReceipt(groupId: string, expenseId: string, attachmentId: string, uid: string, publicId: string, format: 'jpg' | 'png', accessToken: string, projectId: string, transport: typeof fetch = fetch): Promise<void> {
+  const root = `projects/${projectId}/databases/(default)/documents`;
+  const headers = { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' };
+  const begin = await transport(`https://firestore.googleapis.com/v1/${root}:beginTransaction`, { method: 'POST', headers, body: '{}' });
+  if (!begin.ok) throw new Error('Transaction média indisponible');
+  const transaction = (await begin.json() as { transaction?: string }).transaction;
+  if (!transaction) throw new Error('Transaction média invalide');
+  let committed = false;
+  try {
+    const read = async (path: string): Promise<Record<string, { stringValue?: string; booleanValue?: boolean }> | null> => {
+      const response = await transport(`https://firestore.googleapis.com/v1/${root}/${path}?transaction=${encodeURIComponent(transaction)}`, { headers });
+      if (response.status === 404) return null;
+      if (!response.ok) throw new Error('Lecture transactionnelle refusée');
+      return (await response.json() as { fields?: Record<string, { stringValue?: string; booleanValue?: boolean }> }).fields ?? null;
+    };
+    const group = await read(`groups/${groupId}`);
+    const member = await read(`groups/${groupId}/members/${uid}`);
+    const expense = await read(`groups/${groupId}/expenses/${expenseId}`);
+    if (group?.['status']?.stringValue !== 'active' || member?.['status']?.stringValue !== 'active' || !expense || expense['deleted']?.booleanValue === true) {
+      throw new Error('Groupe, membre ou dépense indisponible');
+    }
+    const response = await transport(`https://firestore.googleapis.com/v1/${root}:commit`, {
+      method: 'POST', headers,
+      body: JSON.stringify({ transaction, writes: [{ update: { name: `${root}/groups/${groupId}/expenses/${expenseId}/attachments/${attachmentId}`, fields: { publicId: string(publicId), format: string(format), type: string('authenticated'), status: string('active'), ownerId: string(uid), createdAt: { timestampValue: new Date().toISOString() } } }, currentDocument: { exists: false } }] }),
+    });
+    if (!response.ok) throw new Error('Écriture de la pièce jointe refusée');
+    committed = true;
+  } finally {
+    if (!committed) {
+      try { await transport(`https://firestore.googleapis.com/v1/${root}:rollback`, { method: 'POST', headers, body: JSON.stringify({ transaction }) }); }
+      catch { /* Preserve the original failure. */ }
+    }
+  }
+}
+
 export async function readLimitedBody(request: Request, limit: number): Promise<Uint8Array> {
   if (!request.body) throw new Error('Corps absent');
   const reader = request.body.getReader();
@@ -87,16 +123,8 @@ export async function handleMedia(request: Request, ids: { groupId: string; expe
     const publicId = `ourfinance-test/${groupId}/${expenseId}/${id}`;
     await uploadAuthenticated(bytes, format, publicId, env);
     try {
-      // Recheck after upload: a member may have been revoked while Cloudinary processed the file.
-      const currentMember = await readMember(env.FIREBASE_PROJECT_ID, groupId, uid, token);
-      if (!currentMember || currentMember.status !== 'active') throw new Error('Membre révoqué');
-      const root = `projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents`;
       const accessToken = await serviceAccessToken(env.FIREBASE_SERVICE_ACCOUNT_JSON, env.FIREBASE_PROJECT_ID);
-      const response = await fetch(`https://firestore.googleapis.com/v1/${root}:commit`, {
-        method: 'POST', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ writes: [{ update: { name: `${root}/${expensePath}/attachments/${id}`, fields: { publicId: string(publicId), format: string(format), type: string('authenticated'), status: string('active'), ownerId: string(uid), createdAt: { timestampValue: new Date().toISOString() } } }, currentDocument: { exists: false } }] }),
-      });
-      if (!response.ok) throw new Error('Écriture de la pièce jointe refusée');
+      await persistUploadedReceipt(groupId, expenseId, id, uid, publicId, format, accessToken, env.FIREBASE_PROJECT_ID);
       return Response.json({ attachmentId: id }, { status: 201, headers });
     } catch (error) {
       await destroyAuthenticated(publicId, env);
