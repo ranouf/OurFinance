@@ -1,35 +1,32 @@
-# M6 — revue de préparation production (16 novembre 2026 UTC)
+# M6 — état de préparation à la production
 
-Statut : **non prêt pour la production**. Aucun déploiement ni fusion automatique n'a eu lieu.
+Mise à jour : 16 novembre 2026 (UTC). **Le projet n’est pas prêt pour la production.** Toutes les PR sont en brouillon ; aucune n’est fusionnée et aucun déploiement de production n’a eu lieu. Le site et le Worker de test sont distincts de la production et leurs routes sensibles restent désactivées hors essais fictifs.
 
-## Vérifications exécutées
+## État des jalons
 
-- `npm run typecheck` : passe.
-- `npm run build` : passe ; PWA produit un manifeste et un service worker.
-- `npm run test:unit` : 27 tests passent (répartitions, devises, préférences, soldes, CSV et parcours récents).
-- `npm run test:rules` : téléchargement du JAR bloqué localement ; la [CI du PR #39](https://github.com/ranouf/OurFinance/actions/runs/43922301872) exécute les règles dans l'émulateur.
-- `npm audit --omit=dev --audit-level=high` : **passe** après résolution explicite de `@grpc/grpc-js` en version 1.14.7. L'ancienne version 1.9.16 arrivait par `firebase` → `@firebase/firestore` et était concernée par `GHSA-m9gg-hp2v-232j` et `GHSA-f596-whhp-79r4`. Une installation propre, le typecheck, 27 tests unitaires, 41 tests Worker et la compilation passent. Le verrouillage force une version plus récente que la plage transitive de Firestore ; surveiller la compatibilité et supprimer cette résolution lorsque Firestore adoptera une version corrigée.
+| Jalon | Réalisé et vérifié | Encore ouvert |
+| --- | --- | --- |
+| M0 | Chaîne Firebase Auth → Worker → Firestore/Cloudinary testée avec membre, tiers et membre révoqué ; reçu `authenticated` privé ; dépense atomique fictive. | Suivi durable des quotas et coûts gratuits. |
+| M1 | Angular, Tailwind, PWA et CI de PR ; Hosting de test utilisé manuellement. | Preview isolée par PR et déploiement automatisé contrôlé vers Hosting, règles et Worker de test. |
+| M2 | Auth email/Google, récupération, création de groupe et invitations essayées avec comptes fictifs. | Profil et association Google du PR #68 à tester sur Firebase ; groupe personnel et groupe à trois membres à inclure dans un E2E consolidé. |
+| M3 | Cinq partages, préférence par utilisateur/groupe, historique, catégories, commentaires et recherche progressive. | Édition et suppression logique par **l’auteur seulement** : décision reçue, code et essai encore ouverts. |
+| M4 | Remboursements ordinaires, soldes et statistiques ; route FX du PR #61 essayée réellement, UI du PR #62 essayée sur ordinateur/mobile. | Statistiques FX du PR #63 en essai ; validation du parcours intégré et historique FX sur plusieurs pages. |
+| M5 | Import CSV fictif avec rapprochement et annulation ; reçus privés ; export CSV/JSON/ZIP V1 partiel. JSON/ZIP V2 avec FX et prévisualisation locale dans #64–#67, CI verte. | Essai réel V2 et **restauration réelle** des données et reçus ; identités, préférences, commentaires et activité absents des archives. Extension Chrome limitée aux exports autorisés à compléter. |
+| M6 | Tests unitaires, Worker, règles et contrôles de sécurité en CI ; essais visuels ciblés et médias de test dans les PR. | E2E complet, couverture de 80 %, essais Safari/iOS et Android sur appareils, accessibilité complète, IAM/quotas/performances, sauvegarde/restauration, automatisation de déploiement et validation utilisateur. |
 
-L'audit complet conserve **14 alertes modérées**, toutes dans la chaîne de développement `firebase-tools`. La correction automatique sans changement majeur n'en retire aucune ; l'outil propose des changements majeurs pour la plupart des avis. Le build signale aussi un dépassement du budget initial (947,59 ko pour 500 ko). Ces points restent à traiter avant la production.
+## Validation du dernier ensemble intégré
 
-- Les POC réels d'accès membre/tiers/révoqué, de reçus privés, de dépense atomique, d'invitations, de remboursement et d'import réversible ont été réalisés sur des données fictives, puis nettoyés. Les PR restent en brouillon ; ces essais ponctuels ne valident pas encore le parcours complet de l'application intégrée.
+La PR #67 combine les piles FX M4 et export V2 M5 sans fusion GitHub. Son typecheck, build, 64 tests unitaires, 50 tests Worker et tests de règles Firestore passent en CI. Le bundle initial fait **442,01 kB** pour un budget de 500 kB. La PR #68 ajoute le profil sur cet ensemble : sa CI est verte et son bundle initial fait **442,91 kB** ; l’association Google n’a pas encore été essayée dans Firebase. Les essais navigateur de #63 et #67 restent à consigner séparément.
 
-## Contrôles bloquants
+Les preuves des essais fictifs déjà exécutés sont dans les descriptions des PR concernées, hors dépôt. Les 27 captures privées de référence ne sont ni versionnées ni publiées. Aucun test avec données financières réelles n’est revendiqué.
 
-- Parcours intégré Auth, groupes, invitations, cinq partages de dépense, historique, remboursements, statistiques et reçus, testé de bout en bout sur ordinateur et mobile.
-- Import avec fichier Splitwise synthétique représentatif, rapprochement comptable et annulation de batch dans le parcours intégré ; format d'export natif et restauration encore absents.
-- Sauvegarde/restauration des données et pièces jointes avec test réel.
-- Contrôle IAM du compte de service, secrets Cloudflare, origines CORS, quotas et facturation des trois fournisseurs.
-- Essais Android/iOS, ergonomie et accessibilité. Les icônes PWA générées par Angular sont provisoires.
+## Blocages de sortie
 
-## Gestion des données privées
+1. Définir puis tester une restauration vérifiée des collections, comptes associés et reçus privés. Les formats V1/V2 actuels sont explicitement partiels et ne constituent pas une sauvegarde complète.
+2. Terminer l’édition/suppression logique M3 avec autorisation serveur de l’auteur uniquement, audit et effets sur reçus/export.
+3. Exécuter un E2E consolidé : compte, groupe personnel et groupe multi-membres, invitation, cinq partages, reçu, remboursement, statistiques, import rapproché/annulé, export et changement de membre.
+4. Vérifier la PWA, l’accessibilité et le responsive sur Chrome Android et Safari iOS réels ; mesurer performances et quotas sur la pile gratuite.
+5. Mettre en place le pipeline de preview/déploiement de test avec une identité minimale et sans secret dans les artefacts, puis auditer IAM et sauvegardes. Le dépôt n’a actuellement que `.github/workflows/pr-validation.yml` : aucun workflow de déploiement automatique n’est activé.
+6. Revoir les PR empilées, les dépendances et les contrôles de branche avant toute fusion. Le déploiement de production et les PR non brouillon demandent une décision distincte de Cédric.
 
-Les 27 captures ont été décompressées seulement dans `/tmp/ourfinance-private-screens`. Le dépôt ne contient que des observations anonymisées. Aucun justificatif ou montant réel n'est utilisé pour les tests. Garder les exports de test synthétiques et les secrets hors Git, des PR et des previews.
-
-## Déploiement
-
-Aucun workflow de déploiement n'est activé. La mise en production nécessite l'accord explicite de l'utilisateur après validation des critères ci-dessus. Les previews doivent viser un projet Firebase de test isolé.
-
-Revue des accès de la pile de test et contraintes de sauvegarde : [M6_SECURITY_REVIEW.md](M6_SECURITY_REVIEW.md).
-
-Essai intégré M3/M4 sur ordinateur et mobile : [M6_E2E_SMOKE.md](M6_E2E_SMOKE.md).
+Voir [M6_SECURITY_REVIEW.md](M6_SECURITY_REVIEW.md) et [M6_E2E_SMOKE.md](M6_E2E_SMOKE.md) pour les essais ponctuels déjà documentés. Les résultats du projet de test ne remplacent pas les critères de production.
