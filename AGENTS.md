@@ -8,4 +8,6 @@ Créer des composants génériques dans `src/app/shared`, minimiser le CSS perso
 
 Travailler par jalon M0 à M6 avec PR petites et vérifiables. Avant de fusionner, exécuter compilation, lint, tests et contrôles de sécurité. Ne pas déclarer une intégration Firebase/Cloudinary/Cloudflare opérationnelle sans test réel. Ne jamais contourner les restrictions de Splitwise.
 
+Pour toute création ou modification d'un PR, commencer son titre par un seul préfixe parmi `[UI]`, `[API]`, `[IA]`, `[ARCH]` et `[CI/CD]`, suivi d'une espace et d'un titre descriptif en français. Choisir le préfixe selon le changement principal : interface et parcours visibles (`[UI]`), routes et logique serveur (`[API]`), fonctionnalités d'intelligence artificielle (`[IA]`), modèle et architecture transversale (`[ARCH]`), ou automatisation, tests et déploiement (`[CI/CD]`). Ne pas employer `[IA]` pour les imports ou l'interface. Conserver les jalons et limites de validation dans la description du PR.
+
 Lors d'une tâche autonome, poursuivre les étapes non bloquantes, documenter les obstacles et ouvrir une PR plutôt que fusionner automatiquement les changements sensibles.
