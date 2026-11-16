@@ -5,6 +5,7 @@ import type { User } from 'firebase/auth';
 import type { Group } from '../../core/firebase/group-model';
 import { ExpenseService } from '../../core/firebase/expense-service';
 import { currencyCodes, formatMinor, minorDigits } from '../../shared/utils/currency';
+import { categories } from '../../shared/utils/categories';
 import { prepareExpense, type ExpenseDraft } from './expense-draft';
 import type { SplitMode } from '../../shared/utils/split-engine';
 
@@ -37,6 +38,11 @@ import type { SplitMode } from '../../shared/utils/split-engine';
           </div>
           <label class="block text-sm font-medium">Date
             <input class="mt-1 w-full rounded-lg border border-slate-300 p-3" type="date" name="date" [(ngModel)]="draft.date" required />
+          </label>
+          <label class="block text-sm font-medium">Catégorie
+            <select class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="category" [(ngModel)]="draft.categoryId">
+              @for (category of categories; track category.id) { <option [value]="category.id">{{ category.icon }} {{ category.label }}</option> }
+            </select>
           </label>
           @if (members().length) {
             <label class="block text-sm font-medium">Payé par
@@ -80,6 +86,7 @@ export class ExpenseForm implements OnChanges {
   @Input({ required: true }) firebaseApp?: FirebaseApp;
   @Input({ required: true }) workerUrl?: string;
   readonly currencies = currencyCodes();
+  readonly categories = categories;
   readonly members = signal<{ userId: string }[]>([]);
   readonly busy = signal(false);
   readonly message = signal('');
@@ -91,7 +98,7 @@ export class ExpenseForm implements OnChanges {
   private pendingBody?: string;
 
   ngOnChanges(): void { if (this.firebaseApp && this.workerUrl) this.service = new ExpenseService(this.firebaseApp, this.workerUrl); }
-  private emptyDraft(): ExpenseDraft { return { description: '', amount: '', currency: 'CAD', date: new Date().toISOString().slice(0, 10), payerId: '', kind: 'equal', rows: [] }; }
+  private emptyDraft(): ExpenseDraft { return { description: '', amount: '', currency: 'CAD', date: new Date().toISOString().slice(0, 10), categoryId: 'other', payerId: '', kind: 'equal', rows: [] }; }
   clearValues(): void { this.previewRows.set([]); this.draft.rows.forEach(row => row.value = ''); }
   async loadGroup(): Promise<void> {
     this.members.set([]); this.previewRows.set([]); this.message.set(''); this.draft = this.emptyDraft();
@@ -143,7 +150,7 @@ export class ExpenseForm implements OnChanges {
     this.busy.set(true);
     try {
       const result = prepareExpense(this.draft, new Set(this.members().map(member => member.userId)));
-      const content = { description: this.draft.description.trim(), currency: this.draft.currency, date: this.draft.date, amountMinor: result.amountMinor, payments: result.payments, splitMode: result.splitMode };
+      const content = { description: this.draft.description.trim(), currency: this.draft.currency, date: this.draft.date, categoryId: this.draft.categoryId, amountMinor: result.amountMinor, payments: result.payments, splitMode: result.splitMode };
       const serialized = JSON.stringify(content);
       if (serialized !== this.pendingBody) this.pendingKey = undefined;
       const idempotencyKey = this.pendingKey ?? crypto.randomUUID();

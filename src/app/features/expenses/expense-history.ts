@@ -6,6 +6,7 @@ import type { DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import type { Group } from '../../core/firebase/group-model';
 import { ExpenseService, type ExpenseHistoryEntry } from '../../core/firebase/expense-service';
 import { formatMinor } from '../../shared/utils/currency';
+import { categoryById } from '../../shared/utils/categories';
 
 @Component({
   selector: 'app-expense-history',
@@ -40,7 +41,7 @@ import { formatMinor } from '../../shared/utils/currency';
                 <details>
                   <summary class="cursor-pointer py-3">
                     <span class="float-right ml-2 font-semibold">{{ amount(entry) }}</span>
-                    <span class="break-words font-medium">{{ entry.description }}</span>
+                    <span class="break-words font-medium">{{ categoryById(entry.categoryId).icon }} {{ entry.description }}</span>
                     <span class="block text-sm text-slate-600">{{ entry.date }} · Voir les parts</span>
                   </summary>
                   <div class="grid gap-4 pb-4 text-sm">
@@ -95,6 +96,7 @@ export class ExpenseHistory implements OnChanges {
   amount(entry: ExpenseHistoryEntry): string { return this.format(entry.amountMinor, entry.currency); }
   format(amountMinor: number, currency: string): string { return formatMinor(amountMinor, currency, 'fr-CA'); }
   memberLabel(userId: string): string { return userId === this.user?.uid ? 'Moi' : userId; }
+  categoryById = categoryById;
   filteredEntries(): ExpenseHistoryEntry[] {
     const term = this.search.trim().toLocaleLowerCase('fr-CA');
     return term ? this.entries().filter(entry => entry.description.toLocaleLowerCase('fr-CA').includes(term)) : this.entries();

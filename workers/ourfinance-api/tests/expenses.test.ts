@@ -10,6 +10,8 @@ test('expense parser rejects malformed and unbalanced inputs', () => {
   throws(() => parseExpense({ ...input, date: '2026-02-31' }), ExpenseError);
   throws(() => parseExpense({ ...input, payments: [{ userId: 'alice', amountMinor: 100 }] }), ExpenseError);
   throws(() => parseExpense({ ...input, splitMode: { kind: 'equal', users: [null] } }), ExpenseError);
+  throws(() => parseExpense({ ...input, categoryId: 'unknown' }), ExpenseError);
+  strictEqual(parseExpense({ ...input, categoryId: 'education' }).categoryId, 'education');
 });
 test('expense transaction reads active group/members and atomically writes expense, preference, activity', async () => {
   const { privateKey } = await generateKeyPair('RS256', { extractable: true });
@@ -29,12 +31,13 @@ test('expense transaction reads active group/members and atomically writes expen
     if (url.endsWith(':commit')) { commit = JSON.parse(String(options?.body)); return Response.json({ writeResults: [{},{},{}] }); }
     throw new Error('Requête inattendue');
   };
-  strictEqual(await createExpense(input, 'alice', 'g1', { FIREBASE_PROJECT_ID: 'ourfinance-test', FIREBASE_SERVICE_ACCOUNT_JSON: service }, transport as typeof fetch), input.idempotencyKey);
+  strictEqual(await createExpense({ ...input, categoryId: 'education' }, 'alice', 'g1', { FIREBASE_PROJECT_ID: 'ourfinance-test', FIREBASE_SERVICE_ACCOUNT_JSON: service }, transport as typeof fetch), input.idempotencyKey);
   strictEqual(readPaths.length, 3);
   strictEqual(commit.transaction, 'txn');
   strictEqual(commit.writes.length, 3);
   strictEqual(commit.writes[0].currentDocument.exists, false);
   deepStrictEqual(commit.writes[0].update.fields.allocations.arrayValue.values.map((item: any) => item.mapValue.fields.amountMinor.integerValue), ['51','50']);
+  strictEqual(commit.writes[0].update.fields.categoryId.stringValue, 'education');
   strictEqual(commit.writes[1].update.name.endsWith('/users/alice/groupPreferences/g1'), true);
   strictEqual(commit.writes[2].update.name.endsWith(`/groups/g1/activity/${input.idempotencyKey}`), true);
 });

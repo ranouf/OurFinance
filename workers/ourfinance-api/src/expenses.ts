@@ -1,10 +1,12 @@
 import { splitAmount, validateExpense, type Allocation, type SplitMode } from '../../../src/app/shared/utils/split-engine';
+import { categories, type CategoryId } from '../../../src/app/shared/utils/categories';
 import { serviceAccessToken } from './service-account';
 
 export interface ExpenseEnv { readonly FIREBASE_PROJECT_ID: string; readonly FIREBASE_SERVICE_ACCOUNT_JSON: string; }
 export interface ExpenseInput {
   readonly idempotencyKey: string;
   readonly description: string;
+  readonly categoryId: CategoryId;
   readonly currency: string;
   readonly date: string;
   readonly amountMinor: number;
@@ -24,6 +26,7 @@ export function parseExpense(value: unknown): ExpenseInput {
   const input = value as Record<string, unknown>;
   if (typeof input['idempotencyKey'] !== 'string' || !/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(input['idempotencyKey']) ||
       typeof input['description'] !== 'string' || !input['description'].trim() || input['description'].length > 160 ||
+      (input['categoryId'] !== undefined && !categories.some(category => category.id === input['categoryId'])) ||
       typeof input['currency'] !== 'string' || !Intl.supportedValuesOf('currency').includes(input['currency']) ||
       typeof input['date'] !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(input['date']) || !validDate(input['date']) ||
       !Number.isSafeInteger(input['amountMinor']) || (input['amountMinor'] as number) <= 0 ||
@@ -41,7 +44,7 @@ export function parseExpense(value: unknown): ExpenseInput {
     const allocations = splitAmount(input['amountMinor'] as number, splitMode);
     validateExpense(input['amountMinor'] as number, payments, allocations, new Set([...payments, ...allocations].map(item => item.userId)));
   } catch { throw new ExpenseError(400, 'unbalanced_expense'); }
-  return { idempotencyKey: input['idempotencyKey'], description: input['description'].trim(), currency: input['currency'], date: input['date'], amountMinor: input['amountMinor'] as number, payments, splitMode };
+  return { idempotencyKey: input['idempotencyKey'], description: input['description'].trim(), categoryId: (input['categoryId'] ?? 'other') as CategoryId, currency: input['currency'], date: input['date'], amountMinor: input['amountMinor'] as number, payments, splitMode };
 }
 
 function validDate(value: string): boolean {
@@ -93,7 +96,7 @@ export async function createExpense(value: unknown, uid: string, groupId: string
   const write = (path: string, fields: Record<string, unknown>, exists?: boolean) => ({ update: { name: `${root}/${path}`, fields }, ...(exists === undefined ? {} : { currentDocument: { exists } }) });
   const writes = [
     write(`groups/${groupId}/expenses/${expenseId}`, {
-      description: string(expense.description), currency: string(expense.currency), date: string(expense.date), amountMinor: integer(expense.amountMinor), createdBy: string(uid), createdAt: { timestampValue: now },
+      description: string(expense.description), categoryId: string(expense.categoryId), currency: string(expense.currency), date: string(expense.date), amountMinor: integer(expense.amountMinor), createdBy: string(uid), createdAt: { timestampValue: now },
       payments: amountEntries(expense.payments), allocations: amountEntries(allocations), splitSnapshotJson: string(JSON.stringify(expense.splitMode)), deleted: { booleanValue: false },
     }, false),
     write(`users/${uid}/groupPreferences/${groupId}`, {
