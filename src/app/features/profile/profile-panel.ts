@@ -4,13 +4,13 @@ import type { FirebaseApp } from 'firebase/app';
 import type { User } from 'firebase/auth';
 import { GoogleAuthProvider, linkWithPopup } from 'firebase/auth';
 import { ProfileService, type ProfilePreferences } from '../../core/firebase/profile-service';
-import { setLanguage, t } from '../../shared/utils/i18n';
+import { setLanguage, t, type MessageKey } from '../../shared/utils/i18n';
 
 @Component({
   selector: 'app-profile-panel',
   imports: [FormsModule],
   template: `
-    <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-5" aria-label="Mon profil">
+    <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-5" [attr.aria-label]="t('myProfile')">
       <h2 class="text-lg font-semibold">{{ t('myProfile') }}</h2>
       <p class="mt-1 text-sm text-slate-600">{{ t('profileIntro') }}</p>
       @if (loading()) { <p class="mt-3 text-sm text-slate-600" role="status">{{ t('loadingProfile') }}</p> }
@@ -39,7 +39,7 @@ import { setLanguage, t } from '../../shared/utils/i18n';
           }
         </div>
       }
-      @if (message()) { <p class="mt-3 text-sm" role="status">{{ message() }}</p> }
+      @if (message(); as key) { <p class="mt-3 text-sm" role="status">{{ t(key) }}</p> }
     </section>
   `,
 })
@@ -50,7 +50,7 @@ export class ProfilePanel implements OnChanges {
   readonly loading = signal(true);
   readonly t = t;
   readonly busy = signal(false);
-  readonly message = signal('');
+  readonly message = signal<MessageKey | null>(null);
   displayName = ''; preferredLanguage: ProfilePreferences['preferredLanguage'] = 'en'; timeZone = 'America/Toronto';
   private service?: ProfileService;
   private loadedUid?: string;
@@ -65,23 +65,23 @@ export class ProfilePanel implements OnChanges {
   }
   private async load(user: User): Promise<void> {
     const requestId = ++this.requestId;
-    this.loading.set(true); this.message.set('');
+    this.loading.set(true); this.message.set(null);
     try {
       const value = await this.service!.load(user);
       if (requestId !== this.requestId || this.user?.uid !== user.uid) return;
       this.displayName = value.displayName; this.preferredLanguage = value.preferredLanguage; this.timeZone = value.timeZone;
       this.applyLanguage();
-    } catch { if (requestId === this.requestId) this.message.set(t('profileUnavailable')); }
+    } catch { if (requestId === this.requestId) this.message.set('profileUnavailable'); }
     finally { if (requestId === this.requestId) { this.loading.set(false); this.changeDetector.markForCheck(); } }
   }
   async save(): Promise<void> {
     const user = this.user;
     if (!user || !this.service || this.busy()) return;
-    this.busy.set(true); this.message.set('');
+    this.busy.set(true); this.message.set(null);
     try {
       await this.service.save(user, { displayName: this.displayName, preferredLanguage: this.preferredLanguage, timeZone: this.timeZone });
-      this.message.set(t('profileSaved'));
-    } catch (error) { this.message.set(error instanceof Error && error.message === 'Préférences de profil invalides' ? error.message : t('profileSaveFailed')); }
+      this.message.set('profileSaved');
+    } catch (error) { this.message.set(error instanceof Error && error.message === 'Préférences de profil invalides' ? 'profileInvalid' : 'profileSaveFailed'); }
     finally { this.busy.set(false); this.changeDetector.markForCheck(); }
   }
   applyLanguage(): void {
@@ -90,13 +90,13 @@ export class ProfilePanel implements OnChanges {
   async linkGoogle(): Promise<void> {
     const user = this.user;
     if (!user?.emailVerified || this.busy() || this.googleLinked()) return;
-    this.busy.set(true); this.message.set('');
+    this.busy.set(true); this.message.set(null);
     try {
       await linkWithPopup(user, new GoogleAuthProvider());
-      this.message.set(t('googleLinkDone'));
+      this.message.set('googleLinkDone');
     } catch (error) {
       const code = typeof error === 'object' && error !== null && 'code' in error ? String(error.code) : '';
-      this.message.set(code === 'auth/credential-already-in-use' ? t('googleInUse') : t('googleLinkFailed'));
+      this.message.set(code === 'auth/credential-already-in-use' ? 'googleInUse' : 'googleLinkFailed');
     } finally { this.busy.set(false); this.changeDetector.markForCheck(); }
   }
 }
