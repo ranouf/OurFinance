@@ -6,6 +6,11 @@ export class BalanceService {
   constructor(private readonly app: FirebaseApp) {}
 
   async load(groupId: string): Promise<{ totals: LedgerTotal[]; incompleteCount: number }> {
+    const { expenses, settlements, incompleteCount } = await this.entries(groupId);
+    return { totals: calculateBalances(expenses, settlements), incompleteCount };
+  }
+
+  async entries(groupId: string): Promise<{ expenses: ExpenseLedgerEntry[]; settlements: SettlementLedgerEntry[]; incompleteCount: number }> {
     const db = getFirestore(this.app);
     const [expenseDocs, settlementDocs] = await Promise.all([
       getDocs(collection(db, 'groups', groupId, 'expenses')),
@@ -23,6 +28,6 @@ export class BalanceService {
       const data = item.data();
       return { groupId, currency: String(data['currency']), date: String(data['date']), amountMinor: Number(data['amountMinor']), fromUserId: String(data['fromUserId']), toUserId: String(data['toUserId']) };
     });
-    return { totals: calculateBalances(expenses, settlements), incompleteCount };
+    return { expenses, settlements, incompleteCount };
   }
 }
