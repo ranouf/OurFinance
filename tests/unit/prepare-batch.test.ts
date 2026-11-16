@@ -26,6 +26,7 @@ test('refuses preview errors, duplicates, missing impacts and mixed source group
   throws(() => prepare({ ...preview, errors: ['ligne invalide'] }));
   throws(() => prepare({ ...preview, duplicateIds: ['synthetic-001'] }));
   throws(() => prepare({ ...preview, records: [{ ...preview.records[0], netImpactsMinor: undefined }] }));
+  throws(() => prepare({ ...preview, records: [{ ...preview.records[0], netImpactsMinor: { alex: 1, camille: 0, sam: 0 } }] }));
   throws(() => prepare({ ...preview, records: [{ ...preview.records[0], groupId: 'autre-groupe' }] }));
   throws(() => prepare({ ...preview, records: Array.from({ length: 11 }, () => preview.records[0]) }));
 });
