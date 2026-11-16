@@ -1,7 +1,7 @@
 # OurFinance — Plan technique V1
 
 Statut : **plan de réalisation**, sans implémentation applicative à ce stade.  
-Dernière mise à jour : 13 novembre 2026.  
+Dernière mise à jour : 15 novembre 2026.  
 Dépôt : `ranouf/OurFinance`.
 
 ## 1. Objectifs et principes
@@ -38,67 +38,64 @@ Les membres et pourcentages des exemples n'imposent aucune règle globale. La de
 
 | Couche | Choix V1 | Raison |
 |---|---|---|
-| Frontend | Angular 22, TypeScript, standalone, Signals | Préférence du projet ; maintenabilité |
+| Frontend | Angular (dernière version stable compatible), TypeScript, standalone, Signals | Préférence du projet ; maintenabilité |
 | UI | Tailwind CSS 4 et Lucide | Peu de CSS, icônes cohérentes |
-| PWA | `@angular/pwa`, manifeste, service worker | Installation Android/iOS, cache applicatif |
-| Hébergement statique | Cloudflare Pages | Déploiements GitHub et previews gratuits sous quotas |
-| Auth | Supabase Auth | Google, email/mot de passe, récupération |
-| Données | Supabase PostgreSQL | Relations, transactions SQL, agrégations comptables |
-| Sécurité | PostgreSQL Row Level Security (RLS) | Isolation par groupes |
-| Fichiers | Supabase Storage, bucket privé | Reçus visibles par les membres autorisés |
-| Email sortant | SMTP externe, domaine `carnould.com` | Flux de confirmation/réinitialisation pour de vrais utilisateurs |
-| CI/CD | GitHub Actions + Cloudflare Pages | Tests, migrations et déploiement |
+| PWA | `@angular/pwa`, manifeste, service worker | Installation Android/iOS et cache applicatif |
+| Hébergement statique | **Firebase Hosting (Spark)** | HTTPS, domaine gratuit fourni, intégration GitHub et previews PR |
+| Auth | **Firebase Authentication** | Google, email/mot de passe, vérification et récupération natives |
+| Données | **Cloud Firestore (Spark)** | Données synchronisées, transactions atomiques, quota gratuit sans pause d'inactivité comparable à Supabase |
+| Sécurité métier | **Firestore Security Rules** + validations financières | Isolation stricte par groupes et contrôle des écritures |
+| Justificatifs | **Cloudinary Free, assets `authenticated`** | Fichiers privés, optimisation d'images et 25 crédits partagés |
+| Passerelle fichiers | **Cloudflare Worker (offre Free)** | Vérification Firebase, appartenance au groupe et signatures Cloudinary tenues secrètes |
+| CI/CD | **GitHub Actions + Firebase Hosting/CLI** | Validation de PR, publication de l'app, des règles et des index |
 | Extension d'import | Chrome Manifest V3, TypeScript | Export initié par l'utilisateur sur Splitwise Web |
 
-**Pourquoi conserver Supabase ?** Le modèle multi-groupes/participants, les répartitions et les statistiques sont naturellement relationnels. **Risque majeur :** la mise en pause du projet gratuit en cas de faible activité, notamment quand les dépenses ne sont saisies que toutes les deux ou trois semaines. La faisabilité d'une réactivation sécurisée doit être validée avant de verrouiller le fournisseur. Si son ergonomie n'est pas satisfaisante, comparer sérieusement Firebase Spark (qui n'a pas cette pause) avec un fournisseur distinct pour les pièces jointes.
+**Décision : Firebase + Cloudinary Free, sans carte bancaire pour ces offres.** Supabase a été écarté de la V1 en raison de la pause automatique potentielle quand l'application reste inutilisée deux à trois semaines. Cloudflare R2 reste une alternative future (10 Go inclus mais activation de facturation et moyen de paiement requis). Le modèle Firestore exige davantage de travail que PostgreSQL pour les agrégats financiers et la validation des répartitions ; cette complexité est explicitement prise en charge dans le modèle, les règles et les tests.
 
-### Quotas gratuits et sauvegardes
+### Gratuité, limites et sauvegardes
 
-- Supabase Free : 500 Mo de base de données, 1 Go de fichiers et quotas de transfert/requêtes ; le service peut évoluer.
-- Cloudflare Pages Free : quotas de builds et de ressources. Le domaine Cloudflare fourni est gratuit ; un sous-domaine de `carnould.com` est envisageable.
-- Les quotas ne garantissent pas une capacité réellement illimitée. Prévoir un écran de santé/quotas et une procédure de migration.
-- Pas de sauvegarde PostgreSQL automatique exploitable comme service de restauration garanti dans l'offre Free : prévoir export périodique, export utilisateur JSON/CSV et sauvegardes des pièces jointes ; documenter la procédure de restauration.
+- Firestore Spark (quota indicatif actuel) : **1 Gio stocké, 50 000 lectures/jour, 20 000 écritures/jour, 20 000 suppressions/jour et 10 Gio de trafic sortant/mois** ; une seule base bénéficiant du quota gratuit par projet.
+- Firebase Hosting Spark : hébergement statique/PWA sous quotas ; site sur sous-domaine `web.app` / `firebaseapp.com`, domaine `carnould.com` facultatif via DNS BookMyName.
+- Cloudinary Free : **25 crédits partagés** ; 1 crédit = 1 Go stocké **ou** 1 Go de bande passante d'images **ou** 1 000 transformations. Les 25 Go annoncés sont un **maximum théorique de stockage** si aucun crédit n'est consommé autrement. Stockage mesuré au volume actuellement conservé ; bande passante et transformations sur 30 jours glissants.
+- Cloudflare Worker Free : quotas d'appels et de temps CPU ; ne pas présumer de capacité illimitée ni d'absence de quotas. À valider avec un prototype de signatures et d'accès privé.
+- Aucun quota fournisseur ne garantit un nombre illimité de dépenses. L'application n'applique **aucune limite métier par jour**, mais elle affiche une erreur explicite si un quota fournisseur est atteint.
+- Firestore Spark ne fournit pas les sauvegardes managées/restaurations avancées sans facturation. Prévoir export JSON/CSV périodique, sauvegarde des pièces jointes Cloudinary hors service, tests de restauration et plan de sortie des fournisseurs.
+- Cloudinary ne doit contenir **aucun justificatif public** ; vérifier avant la production que les fonctions de confidentialité requises sont accessibles dans l'offre Free.
 
-## 3. Gestion de la pause Supabase
+## 3. Conséquences du choix Firebase
 
-Selon la documentation Supabase de septembre 2026, la décision de pause dépend d'une **activité insuffisante sur les sept derniers jours**, pas d'un chronomètre exact sept jours après la dernière dépense. De simples visites sans requêtes ne garantissent pas le maintien actif. Des e-mails d'avertissement et de confirmation sont envoyés au propriétaire. Une application utilisée une fois toutes les deux ou trois semaines a une probabilité réelle d'être régulièrement mise en pause.
+### Avantages retenus
 
-### Réactivation manuelle
+- Pas de mécanisme d'arrêt pour faible activité comme celui de Supabase Free : l'application peut rester sans dépense pendant plusieurs semaines.
+- Firebase Authentication gère nativement les emails de confirmation et de récupération de mot de passe ; **pas de SMTP Gmail, Resend ou Brevo nécessaire en V1** pour ces messages.
+- Firestore permet la synchronisation quasi temps réel entre les participants d'un groupe et un cache local raisonnable pour la PWA.
+- Firebase Hosting publie une application Angular statique depuis GitHub et offre des URLs de prévisualisation pour les PR.
 
-Depuis le tableau de bord Supabase : sélectionner le projet puis **Resume project**. La documentation récente indique une fenêtre normale de restauration pouvant aller jusqu'à un an après la pause ; ne pas s'appuyer sur cette fenêtre pour remplacer les sauvegardes.
+### Limites à concevoir dès le départ
 
-### Réactivation par code : preuve de concept obligatoire en M0
+- Firestore est une base **documentaire** : aucune jointure SQL ni agrégation relationnelle native équivalente à PostgreSQL. Prévoir des vues calculées et, si nécessaire, des documents de statistiques/soldes matérialisés, régénérables depuis les dépenses.
+- Une dépense regroupe les paiements et les parts dans **un document atomique** ; les mises à jour de plusieurs documents utilisent des transactions Firestore et des règles strictes.
+- Les **Security Rules** doivent empêcher la lecture des autres groupes, le changement frauduleux du payeur et les invitations abusives. Pour les écritures financières, privilégier une **route serveur dans le Worker** : elle valide toutes les sommes et appartenances avant d'écrire via une identité de service à permissions minimales ; les règles interdisent alors les écritures directes du client dans ces collections. Ne jamais considérer un résultat navigateur comme fiable.
+- Les **Cloud Functions Firebase** et **Cloud Storage for Firebase** nécessitent le plan de facturation Blaze pour l'usage visé : ne pas les employer dans la V1 Spark. Utiliser un Worker gratuit indépendant uniquement pour les opérations serveur indispensables.
+- Les comptes utilisateurs et les permissions doivent rester exportables ; éviter de lier tout le métier aux particularités des SDK Firebase.
 
-L'API de gestion documente `POST /v1/projects/{ref}/restore`, nécessitant un **Personal Access Token (PAT) d'administration** à portée limitée (`project_admin_write`).
-
-1. Le frontend Cloudflare Pages reste accessible, même si Supabase est suspendu.
-2. Un diagnostic constate l'indisponibilité (notamment le statut `540 project paused`).
-3. Une fonction serveur Cloudflare Pages/Worker dédiée peut, après contrôles anti-abus et de débit, vérifier l'état du projet puis demander sa restauration via l'API de gestion.
-4. Le navigateur affiche « Réactivation en cours » et attend un état sain avant de réessayer l'authentification.
-5. Le PAT reste **exclusivement** dans les secrets côté serveur, jamais dans le code Angular, les logs ou les variables exposées au navigateur.
-
-**Attention :** ce flux est une possibilité technique à tester, pas une garantie de reprise instantanée. Il faut démontrer une reprise réelle d'un projet en pause, vérifier le temps de démarrage et protéger la fonction publique. Éviter de compter sur un simple ping artificiel pour contourner durablement la politique d'inactivité.
-
-**Décision de sortie M0 :** conserver Supabase si la reprise est suffisamment fiable et simple ; sinon réévaluer Firebase avant de créer le schéma de production.
-
-## 4. Authentification et emails
+## 4. Authentification et invitations
 
 ### Parcours
 
-- Inscription par Google OAuth ou email/mot de passe.
-- Confirmation de l'adresse email, connexion, déconnexion.
-- Mot de passe oublié : lien sécurisé par email et écran de renouvellement.
-- Association sûre de plusieurs méthodes de connexion au même compte, sans doublons involontaires.
+- Inscription par Google OAuth ou email/mot de passe via Firebase Auth.
+- Vérification de l'adresse email, connexion, déconnexion et renouvellement de session via SDK Firebase.
+- Mot de passe oublié : email et écran de réinitialisation fournis par Firebase Auth, avec quotas du plan Spark (actuellement 150 emails de réinitialisation/jour).
+- Association explicite et sécurisée de plusieurs fournisseurs d'identité à un compte ; ne pas fusionner automatiquement deux comptes seulement parce qu'ils affichent le même email.
 - Profil : nom d'affichage, avatar, langue, préférences, devise de référence et fuseau horaire.
 - Les utilisateurs sont indépendants de leurs groupes : création, invitation, retrait et changement de groupe actif.
 
-### SMTP avec `carnould.com`
+### Invitations de groupe sans service d'envoi d'emails externe
 
-Option privilégiée : **Resend ou Brevo en formule gratuite** comme SMTP transactionnel de Supabase, avec un expéditeur du type `no-reply@carnould.com`. La gestion DNS de BookMyName peut servir à ajouter les enregistrements exigés par le fournisseur (SPF, DKIM, éventuellement DMARC) sans déplacer le domaine. Confirmer les quotas et la procédure de validation du domaine au moment de l'installation.
-
-Option de secours : un compte Gmail avec vérification en deux étapes et mot de passe d'application peut servir de SMTP à faible volume, mais il n'est pas recommandé de dépendre du Gmail personnel pour les emails d'une application ouverte à d'autres groupes ; restrictions, délivrabilité et gestion des secrets sont moins adaptées.
-
-Le SMTP par défaut de Supabase ne suffit **pas** pour la production : il limite les destinataires aux adresses autorisées de l'équipe et le débit est fortement restreint. Aucun mot de passe SMTP ni secret OAuth dans GitHub ou Angular : secrets chiffrés dans le fournisseur concerné.
+- Générer un **lien d'invitation à usage unique**, expirant et lié à un groupe ; éventuellement limité à une adresse email précise.
+- En V1, l'auteur partage ce lien lui-même (copie, messagerie, bouton `mailto:` ou Web Share API). **Ne pas promettre l'envoi automatique d'emails d'invitation** : Firebase Auth n'est pas une plateforme de mails transactionnels arbitraires.
+- L'acceptation nécessite une connexion Firebase et une vérification serveur de la validité du jeton, du destinataire éventuel, de son expiration, de l'état du groupe et de l'unicité de l'acceptation.
+- Si les Security Rules et transactions Firestore ne permettent pas une acceptation atomique sûre, utiliser une route dédiée du Worker avec autorisation minimale, jamais des secrets d'administration dans Angular.
 
 ## 5. Groupes, participants et autorisations
 
@@ -112,37 +109,40 @@ Le SMTP par défaut de Supabase ne suffit **pas** pour la production : il limite
 
 ### Isolation
 
-Chaque ligne métier est liée à un `group_id` autorisé. Les politiques RLS filtrent en lecture et en écriture selon `auth.uid()` et une appartenance active au groupe. Les références croisées entre groupes sont interdites par contraintes SQL et validations serveur. Tester systématiquement les accès interdits d'un autre groupe et les invitations frauduleuses.
+Chaque document métier est sous un chemin `groups/{groupId}/...` ou porte un `groupId` vérifié. Les Firestore Security Rules utilisent `request.auth.uid`, `get()`/`exists()` sur la présence du membre actif et des règles de rôle distinctes pour `owner` et `member`. Tester les lectures **et écritures** inter-groupes, les références invalides, les membres révoqués, les invitations frauduleuses et les accès par collection group. Ne jamais considérer le filtrage Angular comme un contrôle de sécurité.
 
-## 6. Schéma relationnel V1
+## 6. Modèle documentaire Firestore V1
 
-| Table | Champs principaux / rôle |
+Le découpage **par groupe** constitue la frontière d'isolation et permet des lectures efficaces de l'historique, tout en gardant les préférences propres à chaque utilisateur.
+
+| Collection / document | Champs principaux / rôle |
 |---|---|
-| `profiles` | `id` lié à Auth, nom, langue, avatar, devise de référence |
-| `groups` | `id`, `owner_id`, nom, devise proposée ISO, icône/couleur, archivage |
-| `group_members` | `(group_id,user_id)` unique, rôle, statut, date d'adhésion |
-| `group_invitations` | `group_id`, email invité, hash du jeton, expiration, statut |
-| `user_group_preferences` | `(group_id,user_id)` unique, dernière méthode et paramètres de partage, préférences du formulaire |
-| `categories` | catégories système et personnalisées, libellé, `icon_key`, couleur, portée de groupe ou globale |
-| `expenses` | `id`, `group_id`, description, catégorie, date comptable, devise, montant, notes, audit |
-| `expense_payments` | `expense_id`, `user_id`, montant réellement payé |
-| `expense_allocations` | `expense_id`, `user_id`, montant attribué à chacun, méthode et contexte de calcul |
-| `settlements` | rembourseur, bénéficiaire, groupe, montant/devise/date ; conversion explicite si besoin |
-| `expense_attachments` | chemin privé, format, taille, propriétaire, dépense associée |
-| `expense_comments` | auteur, dépense, texte, dates |
-| `activity_events` | actions immuables (ajout, modification, suppression logique, remboursement) |
-| `exchange_rate_snapshots` | devise source/cible, taux décimal, date, origine, éventuel taux réel de banque |
-| `import_batches` | fichier/source, auteur, état, compteurs, date |
-| `imported_records` | clé de provenance externe, transaction liée, hash anti-doublon, anomalies |
+| `users/{uid}` | Profil Auth, nom, avatar, langue, devise de référence, fuseau horaire |
+| `users/{uid}/groupPreferences/{groupId}` | **Dernier partage réellement enregistré par cet utilisateur dans ce groupe**, et préférences de formulaire |
+| `groups/{groupId}` | Créateur, nom, devise proposée ISO, icône, couleur, état et dates d'audit |
+| `groups/{groupId}/members/{uid}` | Rôle, statut, date d'adhésion ; un seul document par membre |
+| `groups/{groupId}/invitations/{invitationId}` | Hash/identifiant opaque de jeton, email cible éventuel, expiration, état et usage unique |
+| `groups/{groupId}/categories/{categoryId}` | Libellé, icône Lucide, couleur, éventuelle personnalisation ; catalogue système distinct en lecture |
+| `groups/{groupId}/expenses/{expenseId}` | Description, devise, `amountMinor`, catégorie, date, auteur, payeurs et **allocations embarqués**, instantané du split, audit |
+| `groups/{groupId}/expenses/{expenseId}/comments/{commentId}` | Auteur, contenu, dates et modération |
+| `groups/{groupId}/expenses/{expenseId}/attachments/{attachmentId}` | Cloudinary `publicId` non secret, type `authenticated`, taille, format, propriétaire, statut |
+| `groups/{groupId}/settlements/{settlementId}` | Débiteur, créancier, montant/devise, date, références de conversion explicite |
+| `groups/{groupId}/activity/{eventId}` | Événements d'audit immuables, acteur, contexte |
+| `groups/{groupId}/balances/{balanceId}` | Vue matérialisée **dérivable** des opérations, par personne et devise, avec version/source |
+| `groups/{groupId}/statistics/{periodId}` | Totaux matérialisés par période/catégorie/devise, recalculables, versionnés |
+| `users/{uid}/importBatches/{batchId}` | Fichier/source, état, identifiants d'origine et erreurs |
+| `exchangeRateSnapshots/{rateId}` | Devise source/cible, taux décimal exact sous forme de chaîne, date et origine |
 
-### Invariants comptables
+Les identifiants de provenance des transactions importées doivent aussi être indexés pour permettre une détection des doublons **dans un groupe**. Les index Firestore composites sont déclarés dans `firestore.indexes.json`, versionnés avec l'application. Limiter les lectures globales : pagination par curseur, filtres et abonnements seulement aux listes visibles.
 
-- Pour une dépense dans une devise, `sum(expense_payments) = amount` et `sum(expense_allocations) = amount` exactement.
-- Tous les utilisateurs payeurs/bénéficiaires sont des membres valides du groupe à la date appropriée.
-- Les montants sont stockés en unités mineures **entières** (`bigint`), jamais en `float` JavaScript pour les calculs comptables ; les taux de change sont en `numeric` précis.
-- L'exposant ISO propre à la devise est respecté (JPY : 0 décimale ; CAD/EUR : 2 ; certaines devises : 3).
-- Toute mutation complexe utilise une transaction SQL avec contrôle de l'identité (`rpc`, fonction Postgres avec droits minimaux).
-- Les règles d'arrondi sont déterministes et documentées ; aucune unité mineure ne disparaît.
+### Invariants comptables et cohérence
+
+- Une dépense contient dans **le même document** `payments: [{userId, amountMinor}]` et `allocations: [{userId, amountMinor}]` : leurs sommes sont identiques à `amountMinor` et à chaque autre somme, sans fraction perdue.
+- Tous les payeurs et bénéficiaires doivent être membres autorisés à la date appropriée et du **même groupe**. La version persistée de la répartition permet de conserver les faits historiques après une évolution des membres.
+- Les montants sont en **unités mineures entières** (jamais en flottants pour le moteur de calcul), bornés à la plage des entiers sûrs JavaScript pour l'enregistrement ; le `SplitEngine` peut utiliser `BigInt` en mémoire. Les taux de change exacts sont sérialisés en chaînes décimales et calculés avec une bibliothèque décimale adaptée.
+- Respecter l'exposant ISO de chaque devise (JPY : 0 décimale ; CAD/EUR : 2 ; KWD/BHD : 3) et des arrondis déterministes pour chaque mode.
+- Les créations et éditions d'une dépense sont atomiques au niveau de son document. Les mises à jour touchant plusieurs documents (préférence, activité, soldes) utilisent des transactions / écritures groupées **dans une route serveur qui valide tous les invariants**. Le Worker vérifie le jeton Firebase, les permissions et la version du document pour gérer les conflits ; les SDK administrateur et comptes de service contournant les règles Firestore, leurs permissions IAM, leurs clés et leur code sont particulièrement audités.
+- Les soldes et statistiques matérialisés ne sont que des **caches reconstruisibles** depuis les dépenses et remboursements. Prévoir versionnement, invalidation, recalcul et tests de concurrence ; ne jamais faire d'un cache la source comptable de vérité.
 - Les suppressions sont logiques, auditables et récupérables par un membre autorisé.
 
 Solde individuel dans une devise et un groupe : `paid - owed + settlements_sent - settlements_received`. Une valeur positive signifie une créance ; négative, une dette. Les statistiques de dépense sont calculées sur la **date de la dépense** ; les règlements sont suivis séparément sur leur date de transfert.
@@ -221,13 +221,29 @@ Le formulaire propose une icône lors du choix d'une catégorie, affiche l'icôn
 
 Navigation fixe adaptée aux petits écrans (Groupes, Amis, Statistiques/Activité, Compte), grand bouton « Ajouter une dépense ». Sur desktop : navigation latérale et tables/graphiques plus larges. Accessibilité, clavier, focus, contraste, français initialement ; anglais et japonais prévus.
 
-## 11. Photos de reçus
+## 11. Photos de reçus : Cloudinary Free privé
 
 Google Photos Picker permet une **sélection** de photos existantes, mais ses URL de contenu expirent généralement après 60 minutes et requièrent une autorisation OAuth ; ce n'est pas un hébergeur fiable de `<img>` permanent pour les membres d'un groupe.
 
-V1 : sélectionner depuis la galerie ou le fichier de l'appareil, compresser dans le navigateur (WebP/JPEG, orientation EXIF correcte, cible de quelques centaines de Ko), charger dans un **bucket Supabase privé** sous `group-id/expense-id/attachment-id`, puis afficher via accès contrôlé ou URL signée temporaire. Prévoir plusieurs reçus par dépense et suppression logique. Une intégration Google Photos Picker pourra fournir le fichier d'origine, qui sera copié une seule fois vers le stockage privé ; **ne jamais stocker le lien temporaire Google comme lien permanent**.
+### Upload et consultation V1
 
-V2 facultative : Google Drive partagé comme fournisseur de fichiers externe via un adaptateur de stockage, après validation UX et permissions OAuth.
+1. L'utilisateur choisit un justificatif depuis la galerie ou son ordinateur ; le navigateur corrige l'orientation, réduit la taille (WebP/JPEG, quelques centaines de Ko ciblés), enlève les métadonnées sensibles inutiles et contrôle le type réel/poids.
+2. Angular demande à la route `POST /media/upload-signature` du **Cloudflare Worker Free** une autorisation pour un `groupId`, une dépense et une taille/MIME précisés, en envoyant son **Firebase ID token**.
+3. Le Worker vérifie cryptographiquement le jeton, son audience/issuer/expiration, et **l'appartenance actuelle à ce groupe** auprès de Firestore. Il construit lui-même un identifiant d'objet et des paramètres d'upload limités, puis signe la requête Cloudinary. Aucune signature générique réutilisable ni secret Cloudinary n'est exposé dans Angular.
+4. Upload dans Cloudinary avec le type de livraison **`authenticated`** : original et dérivés ne sont pas disponibles sur une URL publique par défaut. Firestore conserve seulement l'identifiant Cloudinary, les dimensions, le format, la taille, le groupe/dépense et les dates.
+5. Pour voir la photo, le Worker **revérifie l'accès au groupe**, puis sert le contenu protégé ou délivre un accès temporaire adapté aux capacités Cloudinary Free. Une simple URL signée permanente ou le fait de connaître `publicId` ne suffit **pas** comme contrôle d'accès durable.
+6. Suppression depuis l'application : retrait logique des métadonnées, suppression sécurisée de l'objet distant par le Worker, et journal d'audit ; prévoir plusieurs justificatifs par dépense et export complet.
+
+Le Worker effectue aussi les validations backend des dépenses lorsque nécessaire. Il reste à déployer sur son domaine gratuit `workers.dev`, avec CORS limité aux origines approuvées, contrôles de taille, anti-abus, limites de fréquence et secrets serveur. **POC M0 indispensable** : prouver que le couple Firebase ID token + vérification Firestore + accès privé Cloudinary fonctionne intégralement avec les offres gratuites.
+
+### Budget et sécurité
+
+- Cloudinary Free : 25 crédits communs au **stockage existant**, à la bande passante sur 30 jours glissants et aux transformations. Exemple : 5 Go stockés + 3 Go consultés + 2 000 transformations = 10 crédits ; **ce n'est pas un quota fixe de 25 Go de stockage en plus de la diffusion**.
+- Suivi des crédits depuis le dashboard Cloudinary, alertes de capacité et compression avant envoi ; prévoir une limite par fichier et une politique de nettoyage des pièces non rattachées.
+- Les fichiers sont des justificatifs financiers privés : **aucun upload `public` ni mode `unsigned` non restreint**, aucune clé d'API ou clé de service Firebase dans le navigateur ou l'extension.
+- Une intégration Google Photos Picker pourra fournir l'image d'origine à copier vers Cloudinary. **Ne jamais enregistrer l'URL temporaire Google comme lien permanent**.
+
+V2 facultative : changement de fournisseur d'images (R2, Google Drive partagé ou autre) via un `AttachmentStorageAdapter`, sans casser les métadonnées d'OurFinance.
 
 ## 12. Extraction et migration depuis Splitwise Desktop
 
@@ -264,7 +280,7 @@ src/app/
   core/
     auth/
     guards/
-    supabase/
+    firebase/
     models/
   shared/
     components/
@@ -292,24 +308,39 @@ src/app/
     activity/
     profile/
     import-export/
-supabase/
-  migrations/
-  tests/
-  seed.sql
+firebase.json
+.firebaserc
+firestore.rules
+firestore.indexes.json
+workers/
+  ourfinance-api/
+    src/
+      auth/
+      expenses/
+      invitations/
+      media/
+      firestore/
+    wrangler.toml
+    tests/
+tests/
+  firestore-rules/
+  firebase-emulators/
 tools/
   splitwise-exporter/
 .github/workflows/
   pr-validation.yml
-  database-deploy.yml
+  firebase-deploy.yml
+  worker-deploy.yml
 ```
 
 - Composants Angular standalone et Signals ; Reactive Forms typés ; RxJS pour les flux asynchrones lorsque nécessaire.
 - UI Tailwind ; classes utilitaires et variantes partagées, CSS global minimal.
 - `SplitEngine` pur, indépendant des services et de la base, avec tests exhaustifs.
 - Services ciblés : `AuthService`, `GroupService`, `ExpenseService`, `SplitPreferenceService`, `BalanceService`, `CurrencyService`, `CategoryService`, `StatisticsService`, `AttachmentService`, `SplitwiseImportService`.
-- Types Supabase générés ; accès SQL sécurisé par RLS et RPC transactionnelles (`create_expense`, `update_expense`, `create_settlement`, `accept_group_invite`, etc.).
-- Fonctions `SECURITY DEFINER` seulement si nécessaire, avec `search_path` fixe, permissions minimales et tests d'abus.
-- Aucune `service_role` ni PAT Supabase dans Angular ou l'extension Chrome.
+- Repositories Firestore typés, **converters** explicites, index composites versionnés, cache de statistiques dérivables, lecture paginée et abonnements désinscrits correctement.
+- `SplitEngine` commun ou tests de conformité croisés entre Angular et Worker ; validations du format des écritures côté Worker (dont la somme des paiements/parts) et transactions cohérentes avant publication dans Firestore.
+- Passerelle Worker limitée aux actions privilégiées : création/édition/suppression de dépenses, remboursements, acceptation sécurisée d'invitations, signatures/accès aux médias. Les vues restent accessibles directement depuis Firebase SDK **sous Security Rules**.
+- Secrets Cloudinary, identité serveur Firestore et éventuelles clés de signature dans les secrets Cloudflare ; compte de service **IAM minimal**, rotation, audit. Jamais de clé de service Firebase ou `CLOUDINARY_API_SECRET` dans Angular, Chrome, GitHub en clair ou les logs.
 
 ## 14. Tests, sécurité et CI/CD
 
@@ -317,8 +348,9 @@ tools/
 
 - Split égalitaire / pourcentage / montant / parts / ajustements ; 1, 2, 3+ participants ; multi-payeurs ; 0/2/3 décimales ; arrondis et conservation des montants.
 - Préférence `(user,group)` : première dépense sans configuration, réutilisation, modification, isolation entre utilisateurs/groupes, changement de membres, non-rétroactivité.
-- Sécurité : lecture/écriture inter-groupes refusées, absence de fuite via vues/RPC ou Storage, invitations non réutilisables, membre retiré sans accès.
-- Transactions atomiques et concurrence, historiques, suppressions logiques.
+- Sécurité : **tests d'intégration Firestore Security Rules dans Emulator Suite** (lecture/écriture inter-groupes refusées, requêtes de collection group, préférences personnelles), API Worker authentifiée, invitations non réutilisables, membre retiré sans accès aux photos ni aux données.
+- Transactions atomiques et concurrence dans les routes Worker, calculs sensibles falsifiés côté client rejetés, historiques et suppressions logiques.
+- Cloudinary : uploads `authenticated`, accès refusé sans groupe, signatures de courte durée, suppression à distance, fichiers hors quota, fuite potentielle de liens, MIME et taille abusifs.
 - Import idempotent, doublons, annulation du batch, données partielles, plusieurs devises, comparaison des soldes.
 - E2E : création du compte, invitation, dépense, remboursement, photo, statistiques, export et navigation PWA ; au minimum Chrome mobile/desktop, vérification Safari/iOS.
 - Extension : tests Jest/Playwright sur des fixtures autorisées, packaging Chrome Manifest V3 et permission minimale.
@@ -326,29 +358,29 @@ tools/
 
 ### Pipeline
 
-1. PR : formatage, lint, typecheck, build Angular, tests unitaires, tests SQL avec Supabase local, tests RLS, E2E critiques, validation d'extension lorsqu'elle change.
-2. Preview Cloudflare Pages reliée à `staging`, jamais à la base de production.
-3. Merge `main` : migration SQL vérifiée et appliquée dans l'environnement cible, déploiement Cloudflare, smoke tests.
-4. Les modifications de schéma sensibles exigent relecture, sauvegarde et migration réversible lorsque possible.
-5. Secrets dans GitHub/Cloudflare/Supabase uniquement ; protections de branche et checks obligatoires avant merge.
+1. PR : formatage, lint, typecheck, build Angular/PWA, tests unitaires, **Firebase Emulator Suite** (règles et transactions), tests du Worker et du stockage privé, E2E critiques, validation de l'extension lorsqu'elle change.
+2. Preview Firebase Hosting créée pour chaque PR. **Une preview n'utilise jamais Firestore/Cloudinary de production** : utiliser des projets et environnements d'essai isolés ; aucune clé de service dans les artefacts de preview.
+3. Merge `main` : validation puis déploiement explicite des `firestore.rules`, des index Firestore, du Worker et de Firebase Hosting ; smoke tests. L'ordre évite qu'un frontend nouveau voie des règles ou routes anciennes.
+4. Migrations documentaires : scripts versionnés et idempotents, sauvegarde/export préalable pour changements importants, compatibilité ascendante puis migration progressive. **Pas de migrations SQL**.
+5. Secrets dans GitHub Actions ou Cloudflare exclusivement selon leur usage ; permissions GitHub minimales, protections de branche et checks obligatoires avant merge.
 
 ## 15. Jalons et livrables
 
 | Jalons | Travaux | Critère de fin |
 |---|---|---|
-| **M0 — faisabilité** | POC reprise Supabase suspendu, SMTP sur `carnould.com`, flux de stockage privé et compatibilité PWA ; évaluation de l'extension/exports officiels | Fournisseurs confirmés et risques tranchés |
-| **M1 — fondation** | Angular/Tailwind/PWA, Supabase local, CI, Cloudflare, architecture de base | Site vide installable, PR validées, preview isolée |
-| **M2 — comptes/groupes** | Google/email, récupération, profil, groupes libres, invitations, RLS | Groupe personnel, groupe à 2 et groupe à 3 ; aucune fuite inter-groupes |
+| **M0 — faisabilité** | POC Firebase Auth/Firestore Spark, Worker Free, Cloudinary `authenticated`, calculs atomiques et règles d'accès, quotas ; évaluation de l'extension/exports officiels | Dépense test sécurisée, image privée accessible au membre autorisé et refusée à un tiers, coût nul démontré |
+| **M1 — fondation** | Angular/Tailwind/PWA, Firebase Hosting, Firestore Emulator, CI GitHub, Worker, environnements séparés | Site vide installable, PR validées, preview isolée |
+| **M2 — comptes/groupes** | Google/email, récupération native, profil, groupes libres, invitations par lien, Security Rules | Groupe personnel, groupe à 2 et groupe à 3 ; aucune fuite inter-groupes |
 | **M3 — dépenses** | Catégories et icônes, toutes devises ISO, paiements/parts, cinq répartitions, mémorisation personnelle par groupe | Dépenses et historiques exacts ; split réutilisé sans imposer 60/40 |
 | **M4 — finances** | Remboursements, multi-devises, conversions explicites, statistiques par période/groupe/personne | Soldes traçables au montant près, périodes cohérentes |
-| **M5 — import/photos** | Reçus privés, export natif OurFinance, import Splitwise CSV/JSON, extension d'aide aux exports, dédoublonnage | Migration rapprochée, erreurs explicitement signalées |
-| **M6 — production** | E2E, audits RLS, sauvegarde/restauration, performances, responsive, Android/iOS, déploiement | Deux groupes réels et un groupe témoin indépendants, validation utilisateur |
+| **M5 — import/photos** | Reçus Cloudinary privés, export natif OurFinance, import Splitwise CSV/JSON, extension d'aide aux exports, dédoublonnage | Migration rapprochée, fichiers privés, erreurs explicitement signalées |
+| **M6 — production** | E2E, audit Firestore Rules/Worker/IAM, sauvegarde/restauration, performances, responsive, Android/iOS, déploiement | Deux groupes réels et un groupe témoin indépendants, validation utilisateur |
 
 ### Definition of Done V1
 
 - [ ] Une personne peut créer un compte et plusieurs groupes, seule ou avec d'autres utilisateurs.
 - [ ] Les autres groupes sont strictement invisibles sans appartenance autorisée.
-- [ ] Les invitations et la récupération de mot de passe fonctionnent avec des adresses externes au projet.
+- [ ] Les invitations **par lien partageable** et la récupération de mot de passe Firebase fonctionnent avec des adresses externes au projet.
 - [ ] Le suivi d'un groupe à un seul membre fonctionne.
 - [ ] Une première dépense ne reçoit aucune répartition personnelle préenregistrée.
 - [ ] Une dépense suivante du même utilisateur/groupe propose sa dernière répartition, modifiable parmi les cinq modes.
@@ -356,27 +388,30 @@ tools/
 - [ ] Les montants et les parts sont exacts pour toutes les devises ISO actives, avec tests sur 0, 2 et 3 décimales.
 - [ ] Chaque catégorie pertinente a une icône visible et les catégories personnalisées fonctionnent.
 - [ ] Les statistiques payées/dûes/soldes couvrent mois, année, total et plage libre.
-- [ ] Photos privées visibles aux membres autorisés et exportables avec leur dépense.
+- [ ] Photos Cloudinary privées (`authenticated`) visibles seulement aux membres autorisés, avec signature/stream protégé et exportables avec leur dépense.
 - [ ] CSV Splitwise importé avec historique, anomalies et rapprochement des soldes.
 - [ ] PWA installable, responsive et sans traitement silencieux de données privées en dehors du groupe.
-- [ ] Pipeline PR et déploiement GitHub validés ; sauvegardes documentées.
-- [ ] L'expérience de reprise après pause Supabase est démontrée ou un fournisseur alternatif a été retenu.
+- [ ] Pipeline PR et déploiement GitHub vers Firebase Hosting/Firestore/Worker validés ; sauvegardes documentées.
+- [ ] La V1 fonctionne sur Firebase Spark + Cloudinary Free + Worker Free **sans carte bancaire ni facturation requise**, et les quotas sont surveillés.
 
 ## 16. Références documentaires
 
-- Supabase — [Project Pausing](https://supabase.com/docs/guides/platform/free-project-pausing) et [Management API Restore](https://supabase.com/docs/reference/api/v1-restore-a-project).
-- Supabase — [SMTP](https://supabase.com/docs/guides/auth/auth-smtp), [RLS](https://supabase.com/docs/guides/database/postgres/row-level-security), [Storage privé](https://supabase.com/docs/guides/storage/buckets/fundamentals), [Environnements](https://supabase.com/docs/guides/deployment/managing-environments).
-- Google — [Mots de passe d'application](https://support.google.com/accounts/answer/185833/sign-in-with-app-passwords).
-- BookMyName — [FAQ services/DNS/SMTP](https://en.faqs.bookmyname.com/enfaqs/services).
+- Firebase — [Tarifs Spark](https://firebase.google.com/pricing), [Quotas Firestore](https://firebase.google.com/docs/firestore/quotas), [Transactions Firestore](https://firebase.google.com/docs/firestore/manage-data/transactions).
+- Firebase — [Authentification](https://firebase.google.com/docs/auth), [Réinitialisation de mot de passe](https://firebase.google.com/docs/auth/web/manage-users), [Règles de sécurité Firestore](https://firebase.google.com/docs/firestore/security/rules-conditions).
+- Firebase — [Déploiement Hosting via GitHub](https://firebase.google.com/docs/hosting/github-integration), [Firebase Emulator Suite](https://firebase.google.com/docs/emulator-suite).
+- Cloudinary — [Facturation et 25 crédits Free](https://cloudinary.com/documentation/billing_and_plans), [Médias protégés](https://cloudinary.com/documentation/control_access_to_media), [Upload authentifié](https://cloudinary.com/documentation/upload_images).
+- Cloudflare — [Workers Free](https://developers.cloudflare.com/workers/platform/pricing/) et [Sécurité des secrets](https://developers.cloudflare.com/workers/configuration/secrets/).
+- BookMyName — [FAQ gestion du domaine](https://en.faqs.bookmyname.com/enfaqs/services).
 - ISO — [Codes de devises ISO 4217](https://www.iso.org/iso-4217-currency-codes.html).
 - Splitwise — [Export de données](https://kb.splitwise.com/account-issues/how-do-i-export-my-splitwise-data) et [conditions API](https://dev.splitwise.com/).
 - Google Photos — [Picker : media items](https://developers.google.com/photos/picker/guides/media-items).
-- Cloudflare — [Pages Git integration](https://developers.cloudflare.com/pages/configuration/git-integration/).
+- Cloudflare R2 — [Tarifs](https://developers.cloudflare.com/r2/pricing/) (alternative future, pas retenue en V1).
 
 ## 17. Décisions à valider avant M1
 
-1. **M0 :** le prototype de reprise Supabase en cas de pause est-il satisfaisant ? Si non, arbitrer Firebase avant de créer la base réelle.
-2. **SMTP :** valider un expéditeur `carnould.com` via DNS BookMyName et une formule gratuite (Resend/Brevo). Ne jamais transmettre ou publier les identifiants personnels Gmail/SMTP.
+1. **M0 :** valider le POC de chaîne de confiance Firebase Auth → Worker Free → Firestore/Cloudinary ; démontrer les droits d'accès par groupe, les contraintes de dépenses et les quotas sans carte bancaire.
+2. **Invitations :** accepter en V1 le partage manuel d'un lien d'invitation sécurisé, sans email automatique personnalisé. Les emails de vérification et de réinitialisation restent ceux de Firebase Auth.
 3. **Splitwise :** disposer d'un échantillon CSV non sensible (et éventuellement JSON de sauvegarde) pour vérifier le degré de fidélité de l'import ; confirmer la portée de l'extension après revue des conditions du service.
 4. **Accès GitHub :** envisager de rendre `OurFinance` privé si des exemples ou fixtures de données personnelles doivent être conservés ; éviter tout jeu de données réel dans un dépôt public.
+5. **Domaine :** garder le domaine Firebase gratuit au démarrage ; sous-domaine `carnould.com` facultatif, via BookMyName, après la mise en production.
 
