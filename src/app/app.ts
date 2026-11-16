@@ -1,4 +1,4 @@
-import { Component, HostListener, OnDestroy, OnInit, effect, signal } from '@angular/core';
+import { Component, HostListener, OnDestroy, OnInit, computed, effect, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { getAuth } from 'firebase/auth';
 import { AppShell } from './shared/components/app-shell/app-shell';
@@ -6,7 +6,7 @@ import { AuthService } from './core/firebase/auth-service';
 import { FirebaseWebConfig, createFirebaseApp } from './core/firebase/firebase-config';
 import type { GroupService } from './core/firebase/group-service';
 import type { FirebaseApp } from 'firebase/app';
-import { currencyCodes } from './shared/utils/currency';
+import { currencyCatalog } from './shared/utils/currency';
 import { Group } from './core/firebase/group-model';
 import { ExpenseForm } from './features/expenses/expense-form';
 import { ExpenseHistory } from './features/expenses/expense-history';
@@ -20,7 +20,7 @@ import { CategoryManager } from './features/categories/category-manager';
 import { InvitationPanel } from './features/groups/invitation-panel';
 import { ExportPanel } from './features/import-export/export-panel';
 import { ProfilePanel } from './features/profile/profile-panel';
-import { language, setLanguage, t } from './shared/utils/i18n';
+import { language, locale, setLanguage, t } from './shared/utils/i18n';
 
 @Component({
   selector: 'app-root',
@@ -55,7 +55,7 @@ import { language, setLanguage, t } from './shared/utils/i18n';
                   </label>
                   <label class="block text-sm">{{ t('groupCurrency') }}
                     <select class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="groupCurrency" [(ngModel)]="groupCurrency">
-                      @for (currency of currencies; track currency) { <option [value]="currency">{{ currency }}</option> }
+                      @for (currency of currencies(); track currency.code) { <option [value]="currency.code">{{ currency.code }} · {{ currency.name }} ({{ currency.symbol }}, {{ currency.minorDigits }})</option> }
                     </select>
                   </label>
                   <button class="rounded-lg bg-teal-700 px-4 py-2 text-white disabled:opacity-50" type="submit" [disabled]="busy() || !online()">{{ t('createGroup') }}</button>
@@ -142,7 +142,7 @@ export class App implements OnInit, OnDestroy {
   private groupService?: GroupService;
   firebaseApp?: FirebaseApp;
   workerUrl?: string;
-  readonly currencies = currencyCodes();
+  readonly currencies = computed(() => currencyCatalog(locale()));
   readonly groups = signal<Group[]>([]);
   readonly expenseRevision = signal(0);
   readonly editingExpense = signal<{ groupId: string; entry: ExpenseHistoryEntry } | undefined>(undefined);

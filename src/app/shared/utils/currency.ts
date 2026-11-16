@@ -2,6 +2,23 @@
 export function currencyCodes(): string[] {
   return Intl.supportedValuesOf('currency');
 }
+export interface CurrencyDefinition { readonly code: string; readonly name: string; readonly symbol: string; readonly minorDigits: number; }
+
+/** Runtime ICU catalogue; codes stay visible when two currencies share a symbol. */
+export function currencyCatalog(locale: string): CurrencyDefinition[] {
+  const names = new Intl.DisplayNames([locale], { type: 'currency' });
+  return currencyCodes().map(code => {
+    const format = new Intl.NumberFormat(locale, { style: 'currency', currency: code });
+    const digits = format.resolvedOptions().maximumFractionDigits;
+    if (digits === undefined) throw new Error('Exposant de devise indisponible');
+    return {
+      code,
+      name: names.of(code) ?? code,
+      symbol: format.formatToParts(0).find(part => part.type === 'currency')?.value ?? code,
+      minorDigits: digits,
+    };
+  });
+}
 export function minorDigits(code: string): number {
   if (!currencyCodes().includes(code)) throw new Error('Devise non prise en charge');
   const digits = new Intl.NumberFormat('en', { style: 'currency', currency: code }).resolvedOptions().maximumFractionDigits;
