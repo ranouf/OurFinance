@@ -12,7 +12,8 @@
     "test:unit": "tsx --test tests/unit/*.test.ts",
     "test:worker": "tsx --test workers/ourfinance-api/tests/*.test.ts",
     "typecheck:worker": "tsc --ignoreConfig --noEmit --target es2022 --module esnext --moduleResolution bundler --strict --skipLibCheck workers/ourfinance-api/src/*.ts",
-    "config:test": "node scripts/write-test-config.mjs"
+    "config:test": "node scripts/write-test-config.mjs",
+    "test:coverage": "node --import tsx --test --experimental-test-coverage --test-coverage-lines=80 --test-coverage-branches=80 --test-coverage-functions=80 tests/unit/*.test.ts workers/ourfinance-api/tests/*.test.ts"
   },
   "private": true,
   "packageManager": "npm@11.9.0",
