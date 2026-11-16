@@ -1,18 +1,11 @@
 import { Component, Input, OnChanges, SimpleChanges, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { FirebaseApp } from 'firebase/app';
+import type { User } from 'firebase/auth';
 import type { DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import type { Group } from '../../core/firebase/group-model';
-import { ExpenseService } from '../../core/firebase/expense-service';
+import { ExpenseService, type ExpenseHistoryEntry } from '../../core/firebase/expense-service';
 import { formatMinor } from '../../shared/utils/currency';
-
-interface HistoryEntry {
-  id: string;
-  description: string;
-  date: string;
-  amountMinor: number;
-  currency: string;
-}
 
 @Component({
   selector: 'app-expense-history',
@@ -31,9 +24,28 @@ interface HistoryEntry {
         @if (entries().length) {
           <ul class="mt-4 divide-y divide-slate-200">
             @for (entry of entries(); track entry.id) {
-              <li class="flex min-w-0 items-start justify-between gap-3 py-3">
-                <div class="min-w-0"><p class="break-words font-medium">{{ entry.description }}</p><p class="text-sm text-slate-600">{{ entry.date }}</p></div>
-                <span class="shrink-0 font-semibold">{{ amount(entry) }}</span>
+              <li>
+                <details>
+                  <summary class="cursor-pointer py-3">
+                    <span class="float-right ml-2 font-semibold">{{ amount(entry) }}</span>
+                    <span class="break-words font-medium">{{ entry.description }}</span>
+                    <span class="block text-sm text-slate-600">{{ entry.date }} · Voir les parts</span>
+                  </summary>
+                  <div class="grid gap-4 pb-4 text-sm">
+                    <div>
+                      <h3 class="font-semibold">Paiements</h3>
+                      @for (payment of entry.payments; track payment.userId) {
+                        <p class="mt-1 flex justify-between gap-2"><span class="min-w-0 break-all">{{ memberLabel(payment.userId) }}</span><span class="shrink-0">{{ format(payment.amountMinor, entry.currency) }}</span></p>
+                      } @empty { <p class="mt-1 text-slate-600">Non disponibles.</p> }
+                    </div>
+                    <div>
+                      <h3 class="font-semibold">Parts dues</h3>
+                      @for (allocation of entry.allocations; track allocation.userId) {
+                        <p class="mt-1 flex justify-between gap-2"><span class="min-w-0 break-all">{{ memberLabel(allocation.userId) }}</span><span class="shrink-0">{{ format(allocation.amountMinor, entry.currency) }}</span></p>
+                      } @empty { <p class="mt-1 text-slate-600">Non disponibles.</p> }
+                    </div>
+                  </div>
+                </details>
               </li>
             }
           </ul>
@@ -47,9 +59,10 @@ interface HistoryEntry {
 export class ExpenseHistory implements OnChanges {
   @Input({ required: true }) groups: Group[] = [];
   @Input({ required: true }) firebaseApp?: FirebaseApp;
+  @Input({ required: true }) user?: User;
   @Input({ required: true }) workerUrl?: string;
   @Input() revision = 0;
-  readonly entries = signal<HistoryEntry[]>([]);
+  readonly entries = signal<ExpenseHistoryEntry[]>([]);
   readonly hasMore = signal(false);
   readonly busy = signal(false);
   readonly message = signal('');
@@ -63,7 +76,9 @@ export class ExpenseHistory implements OnChanges {
     if (changes['revision'] && !changes['revision'].firstChange && this.selectedGroupId) void this.refresh();
   }
 
-  amount(entry: HistoryEntry): string { return formatMinor(entry.amountMinor, entry.currency, 'fr-CA'); }
+  amount(entry: ExpenseHistoryEntry): string { return this.format(entry.amountMinor, entry.currency); }
+  format(amountMinor: number, currency: string): string { return formatMinor(amountMinor, currency, 'fr-CA'); }
+  memberLabel(userId: string): string { return userId === this.user?.uid ? 'Moi' : userId; }
 
   async refresh(): Promise<void> {
     this.entries.set([]);

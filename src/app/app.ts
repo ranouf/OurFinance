@@ -52,7 +52,7 @@ import { ExpenseHistory } from './features/expenses/expense-history';
             </section>
             @if (workerUrl && firebaseApp && groups().length) {
               <app-expense-form [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" (saved)="onExpenseSaved()" />
-              <app-expense-history [groups]="groups()" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" [revision]="expenseRevision()" />
+              <app-expense-history [groups]="groups()" [firebaseApp]="firebaseApp" [user]="user" [workerUrl]="workerUrl" [revision]="expenseRevision()" />
             }
           }
           <button class="mt-6 rounded-lg border border-slate-300 px-4 py-2" type="button" (click)="logout()">Déconnexion</button>
