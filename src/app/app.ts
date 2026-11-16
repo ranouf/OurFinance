@@ -57,7 +57,7 @@ import { ExportPanel } from './features/import-export/export-panel';
               @defer (on viewport) {
                 <app-export-panel [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" />
               } @placeholder {
-                <div class="mt-6" aria-hidden="true"></div>
+                <p class="mt-6 rounded-xl border border-slate-200 p-4 text-sm text-slate-600" role="status">Chargement de l’export de groupe…</p>
               }
             }
           }
