@@ -11,8 +11,18 @@ service cloud.firestore {
       return member(groupId) &&
         get(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)).data.role == 'owner';
     }
+    function validProfile() {
+      return request.resource.data.keys().hasOnly(['displayName', 'locale', 'referenceCurrency', 'timeZone']) &&
+        request.resource.data.keys().hasAll(['displayName', 'locale', 'referenceCurrency', 'timeZone']) &&
+        request.resource.data.displayName is string && request.resource.data.displayName.size() > 0 && request.resource.data.displayName.size() <= 80 &&
+        request.resource.data.locale in ['fr-CA', 'en-CA', 'fr-FR', 'en-US'] &&
+        request.resource.data.referenceCurrency is string && request.resource.data.referenceCurrency.matches('^[A-Z]{3}$') &&
+        request.resource.data.timeZone is string && request.resource.data.timeZone.size() > 0 && request.resource.data.timeZone.size() <= 80;
+    }
     match /users/{uid} {
-      allow read, write: if signedIn() && request.auth.uid == uid;
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create, update: if signedIn() && request.auth.uid == uid && validProfile();
+      allow delete: if false;
       match /groupMemberships/{groupId} {
         allow read: if signedIn() && request.auth.uid == uid;
         allow write: if false;
