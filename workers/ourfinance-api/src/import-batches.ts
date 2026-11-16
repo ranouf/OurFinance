@@ -89,7 +89,10 @@ export async function createImportBatch(value: unknown, uid: string, groupId: st
   const input = parseImportBatch(value, groupId);
   const ids = await Promise.all(input.rows.map(row => sha256(row.sourceId)));
   return withTransaction(env, transport, async ({ root, read, commit }) => {
-    if (field(await read(`groups/${groupId}`), 'status') !== 'active') throw new ImportError(403, 'group_inactive');
+    const group = await read(`groups/${groupId}`);
+    if (field(group, 'status') !== 'active') throw new ImportError(403, 'group_inactive');
+    const currencyCode = field(group, 'currencyCode') ?? field(group, 'currency');
+    if (input.rows.some(row => row.currency !== currencyCode)) throw new ImportError(400, 'currency_mismatch');
     const author = await read(`groups/${groupId}/members/${uid}`);
     if (field(author, 'status') !== 'active' || field(author, 'role') !== 'owner') throw new ImportError(403, 'owner_required');
     for (const memberId of new Set([uid, ...input.memberIds])) {

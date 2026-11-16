@@ -12,7 +12,7 @@ test('settlement parser requires sender identity, distinct recipient and exact m
   ]) throws(() => parseSettlement({ ...input, ...changed }, 'alice'), SettlementError);
 });
 
-async function fixture(revoked = false, conflict = false) {
+async function fixture(revoked = false, conflict = false, groupCurrency = 'CAD') {
   const { privateKey } = await generateKeyPair('RS256', { extractable: true });
   const env = { FIREBASE_PROJECT_ID: 'ourfinance-test', FIREBASE_SERVICE_ACCOUNT_JSON: JSON.stringify({ project_id: 'ourfinance-test', client_email: 'test@ourfinance-test.iam.gserviceaccount.com', private_key: await exportPKCS8(privateKey) }) };
   const reads: string[] = [];
@@ -26,7 +26,7 @@ async function fixture(revoked = false, conflict = false) {
     if (url.endsWith(':rollback')) { rollbacks++; return Response.json({}); }
     if (url.includes('?transaction=')) {
       reads.push(url);
-      return Response.json({ fields: { status: { stringValue: revoked && url.includes('/members/bob') ? 'revoked' : 'active' } } });
+      return Response.json({ fields: { status: { stringValue: revoked && url.includes('/members/bob') ? 'revoked' : 'active' }, currencyCode: { stringValue: groupCurrency } } });
     }
     if (url.endsWith(':commit')) { commit = JSON.parse(String(options?.body)); return conflict ? Response.json({ error: 'conflict' }, { status: 409 }) : Response.json({ writeResults: [{}, {}] }); }
     throw new Error('Requête inattendue');
@@ -58,5 +58,12 @@ test('revoked recipient prevents any settlement write', async () => {
 test('commit conflict is returned and its transaction is rolled back', async () => {
   const f = await fixture(false, true);
   await rejects(createSettlement(input, 'alice', 'g1', f.env, f.transport), (error: unknown) => error instanceof SettlementError && error.status === 409);
+  strictEqual(f.rollbacks(), 1);
+});
+
+test('a settlement in another currency is rejected before any write', async () => {
+  const f = await fixture(false, false, 'JPY');
+  await rejects(createSettlement(input, 'alice', 'g1', f.env, f.transport), (error: unknown) => error instanceof SettlementError && error.code === 'currency_mismatch');
+  strictEqual(f.committed(), undefined);
   strictEqual(f.rollbacks(), 1);
 });

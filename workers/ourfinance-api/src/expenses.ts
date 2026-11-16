@@ -87,6 +87,7 @@ export async function createExpense(value: unknown, uid: string, groupId: string
   const group = await read(`groups/${groupId}`);
   const groupFields = group?.['fields'] as Record<string, { stringValue?: string }> | undefined;
   if (!groupFields || groupFields['status']?.stringValue !== 'active') throw new ExpenseError(403, 'group_inactive');
+  if ((groupFields['currencyCode']?.stringValue ?? groupFields['currency']?.stringValue) !== expense.currency) throw new ExpenseError(400, 'currency_mismatch');
   for (const memberId of members) {
     const record = await read(`groups/${groupId}/members/${memberId}`);
     const fields = record?.['fields'] as Record<string, { stringValue?: string }> | undefined;
