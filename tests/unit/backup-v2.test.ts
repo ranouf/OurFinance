@@ -18,6 +18,7 @@ const group: GroupExportV2 = {
   settlements: [], importedRecords: [], categories: [],
   expenseAuthors: [{ expenseId: 'e', userId: 'alice' }],
   comments: [{ expenseId: 'e', id: 'c', authorId: 'alice', text: 'Commentaire fictif', createdAt: '2026-11-16T18:00:00.000Z' }],
+  activity: [{ id: 'e', actorId: 'alice', action: 'expense_created', at: '2026-11-16T18:00:00.000Z', expenseId: 'e' }],
   receipts: [{ expenseId: 'e', attachmentId: 'a', format: 'png', status: 'active', mediaIncluded: false }],
   preferences: [{ userId: 'alice', modeJson: '{"kind":"equal","users":["alice"]}', memberIds: ['alice'], updatedAt: '2026-11-16T18:00:00.000Z' }],
 };

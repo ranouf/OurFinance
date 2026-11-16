@@ -6,6 +6,8 @@ export interface GroupExportV2 extends Omit<GroupExportV1, 'version'> {
   /** Required to preserve author-only edit and delete rights after restoration. */
   readonly expenseAuthors: readonly { readonly expenseId: string; readonly userId: string }[];
   readonly comments: readonly { readonly expenseId: string; readonly id: string; readonly authorId: string; readonly text: string; readonly createdAt: string }[];
+  readonly activity: readonly { readonly id: string; readonly actorId: string; readonly action: string; readonly at: string;
+    readonly expenseId?: string; readonly commentId?: string; readonly settlementId?: string; readonly batchId?: string; readonly categoryId?: string }[];
   /** One row per member, including members who have never saved a split. */
   readonly preferences: readonly {
     readonly userId: string;
@@ -82,6 +84,28 @@ export function serializeGroupExportV2(value: GroupExportV2): string {
     throw new Error('Commentaires de sauvegarde invalides');
   }
   const comments = value.comments.map(row => ({ expenseId: row.expenseId, id: row.id, authorId: row.authorId, text: row.text, createdAt: row.createdAt }));
+  const actions = new Set(['expense_created', 'expense_updated', 'expense_deleted', 'settlement_recorded', 'comment_created', 'import_created', 'import_undone', 'category_created', 'category_updated', 'category_archived', 'category_reactivated']);
+  const settlementIds = new Set(group.settlements.map(row => row.id));
+  const categoryIds = new Set(group.categories.map(row => row.id));
+  const batchIds = new Set(group.importedRecords.map(row => row.batchId));
+  const commentIds = new Set(comments.map(row => `${row.expenseId}/${row.id}`));
+  if (!Array.isArray(value.activity) || new Set(value.activity.map(row => row?.id)).size !== value.activity.length ||
+      value.activity.some(row => !row || !idPattern.test(row.id) || !members.has(row.actorId) || !actions.has(row.action) || !isoTime(row.at) ||
+        (row.action.startsWith('expense_') && !expenseIds.has(row.expenseId ?? '')) ||
+        (row.action === 'comment_created' && !commentIds.has(`${row.expenseId}/${row.commentId}`)) ||
+        (row.action === 'settlement_recorded' && !settlementIds.has(row.settlementId ?? '')) ||
+        (row.action.startsWith('import_') && !batchIds.has(row.batchId ?? '')) ||
+        (row.action.startsWith('category_') && !categoryIds.has(row.categoryId ?? '')) ||
+        ['expenseId', 'commentId', 'settlementId', 'batchId', 'categoryId'].some(key => {
+          const item = row[key as keyof typeof row];
+          return item !== undefined && (typeof item !== 'string' || !idPattern.test(item));
+        }))) throw new Error('Activité de sauvegarde invalide');
+  const activity = value.activity.map(row => ({ id: row.id, actorId: row.actorId, action: row.action, at: row.at,
+    ...(row.expenseId === undefined ? {} : { expenseId: row.expenseId }),
+    ...(row.commentId === undefined ? {} : { commentId: row.commentId }),
+    ...(row.settlementId === undefined ? {} : { settlementId: row.settlementId }),
+    ...(row.batchId === undefined ? {} : { batchId: row.batchId }),
+    ...(row.categoryId === undefined ? {} : { categoryId: row.categoryId }) }));
   const preferences = value.preferences.map((row: GroupExportV2['preferences'][number], index: number) => {
     if (!row || row.userId !== group.members[index].userId || !Array.isArray(row.memberIds)) throw new Error('Préférences de groupe incohérentes');
     if (row.modeJson === null) {
@@ -93,5 +117,5 @@ export function serializeGroupExportV2(value: GroupExportV2): string {
     if (row.memberIds.length !== mode.memberIds.length || row.memberIds.some((id, i) => id !== mode.memberIds[i])) throw new Error('Participants de préférence incohérents');
     return { userId: row.userId, modeJson: mode.modeJson, memberIds: mode.memberIds, updatedAt: row.updatedAt };
   });
-  return `${JSON.stringify({ ...group, version: 2, expenseAuthors, comments, preferences }, null, 2)}\n`;
+  return `${JSON.stringify({ ...group, version: 2, expenseAuthors, comments, activity, preferences }, null, 2)}\n`;
 }

@@ -3,6 +3,9 @@ import { collectGroupExportV1, type ExportReader } from './export-collector';
 import type { GroupExportV1 } from './export-v1';
 import { serializeGroupExportV2, type GroupExportV2 } from './export-v2';
 
+const timestamp = (value: unknown): string => typeof value === 'object' && value !== null && 'toDate' in value && typeof value.toDate === 'function'
+  ? (value as { toDate(): Date }).toDate().toISOString() : value as string;
+
 /** Collects member preferences through the owner-authorized Worker route. */
 export async function collectGroupExportV2(
   reader: ExportReader,
@@ -21,9 +24,13 @@ export async function collectGroupExportV2(
   const comments = commentPages.flatMap((page, index) => page.map(item => ({
     expenseId: group.expenses[index].id, id: item.id,
     authorId: item.data['authorId'] as string, text: item.data['text'] as string,
-    createdAt: typeof item.data['createdAt'] === 'object' && item.data['createdAt'] !== null && 'toDate' in item.data['createdAt']
-      ? (item.data['createdAt'] as { toDate(): Date }).toDate().toISOString() : item.data['createdAt'] as string,
+    createdAt: timestamp(item.data['createdAt']),
   })));
+  const activity = (await reader.list(`groups/${groupId}/activity`)).map(item => ({ id: item.id,
+    actorId: item.data['actorId'] as string, action: item.data['action'] as string, at: timestamp(item.data['at']),
+    ...Object.fromEntries(['expenseId', 'commentId', 'settlementId', 'batchId', 'categoryId']
+      .filter(key => item.data[key] !== undefined).map(key => [key, item.data[key]])),
+  }));
   const url = new URL(`/groups/${encodeURIComponent(groupId)}/backup/preferences`, workerUrl);
   if (url.protocol !== 'https:') throw new Error('URL de sauvegarde non sécurisée');
   const response = await transport(url, { headers: { Authorization: `Bearer ${await user.getIdToken()}` }, cache: 'no-store' });
@@ -39,5 +46,5 @@ export async function collectGroupExportV2(
     return row;
   });
   if ((await reader.read(`groups/${groupId}/members/${user.uid}`))?.data['status'] !== 'active') throw new Error('Membre révoqué pendant la sauvegarde');
-  return serializeGroupExportV2({ ...group, version: 2, expenseAuthors, comments, preferences });
+  return serializeGroupExportV2({ ...group, version: 2, expenseAuthors, comments, activity, preferences });
 }

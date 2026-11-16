@@ -10,6 +10,7 @@ const fixture: GroupExportV2 = {
   expenses: [], settlements: [], importedRecords: [], categories: [], receipts: [],
   expenseAuthors: [],
   comments: [],
+  activity: [],
   preferences: [
     { userId: 'alice', modeJson: '{"kind":"exact","amounts":[{"userId":"alice","amountMinor":50},{"userId":"bob","amountMinor":51}]}', memberIds: ['alice', 'bob'], updatedAt: exportedAt },
     { userId: 'bob', modeJson: null, memberIds: [], updatedAt: null },
@@ -57,4 +58,10 @@ test('V2 rejects expense authors outside the member set', () => {
 test('V2 rejects comments outside the archived expense or membership', () => {
   throws(() => serializeGroupExportV2({ ...fixture, comments: [{ expenseId: 'missing', id: 'c', authorId: 'alice', text: 'Fictif', createdAt: exportedAt }] }));
   throws(() => serializeGroupExportV2({ ...fixture, comments: [{ expenseId: 'missing', id: 'c', authorId: 'outsider', text: 'Fictif', createdAt: exportedAt }] }));
+});
+
+test('V2 rejects activity from an outsider or an unknown action', () => {
+  const event = { id: 'event', actorId: 'alice', action: 'expense_created', at: exportedAt, expenseId: 'expense' };
+  throws(() => serializeGroupExportV2({ ...fixture, activity: [{ ...event, actorId: 'outsider' }] }));
+  throws(() => serializeGroupExportV2({ ...fixture, activity: [{ ...event, action: 'unknown' }] }));
 });
