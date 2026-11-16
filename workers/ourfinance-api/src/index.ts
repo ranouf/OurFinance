@@ -1,6 +1,7 @@
 import { bearerToken, verifyFirebaseIdToken, verifyFirebaseVerifiedEmail } from './auth';
 import { createGroup } from './groups';
 import { handleMedia } from './media';
+import { MediaDiagnosticError } from './media-diagnostic';
 import type { CloudinaryEnv } from './cloudinary';
 import { readMember } from './firestore';
 
@@ -30,7 +31,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
   if (mediaMatch && ((request.method === 'POST' && !mediaMatch[3]) || ((request.method === 'GET' || request.method === 'DELETE') && !!mediaMatch[3]))) {
     if (env.ENABLE_MEDIA_POC !== 'true' || !env.MEDIA_POC_GROUP_ID || env.MEDIA_POC_GROUP_ID !== mediaMatch[1] || !env.FIREBASE_SERVICE_ACCOUNT_JSON || !env.CLOUDINARY_CLOUD_NAME || !env.CLOUDINARY_API_KEY || !env.CLOUDINARY_API_SECRET) return new Response(JSON.stringify({ error: 'Médias non configurés' }), { status: 503, headers });
     try { return await handleMedia(request, { groupId: mediaMatch[1], expenseId: mediaMatch[2], attachmentId: mediaMatch[3] }, env as Required<Env>, headers); }
-    catch { return new Response(JSON.stringify({ error: 'Média indisponible' }), { status: 502, headers }); }
+    catch (error) { return new Response(JSON.stringify({ error: 'Média indisponible', code: error instanceof MediaDiagnosticError ? error.code : 'internal' }), { status: 502, headers }); }
   }
   if (url.pathname === '/groups' && request.method === 'POST') {
     if (!env.FIREBASE_SERVICE_ACCOUNT_JSON || env.ENABLE_GROUP_CREATION !== 'true') return new Response(JSON.stringify({ error: 'Création non configurée' }), { status: 503, headers });

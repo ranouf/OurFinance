@@ -1,6 +1,7 @@
 import { bearerToken, verifyFirebaseIdToken } from './auth';
 import { readMember } from './firestore';
 import { serviceAccessToken } from './service-account';
+import { fetchCloudinaryPrivate, MediaDiagnosticError } from './media-diagnostic';
 import { authenticatedDownloadUrl, destroyAuthenticated, imageFormat, uploadAuthenticated, type CloudinaryEnv } from './cloudinary';
 
 export interface MediaEnv extends CloudinaryEnv {
@@ -45,10 +46,14 @@ export async function handleMedia(request: Request, ids: { groupId: string; expe
     token = bearerToken(request);
     uid = await verifyFirebaseIdToken(token, env.FIREBASE_PROJECT_ID);
   } catch { return Response.json({ error: 'Non authentifié' }, { status: 401, headers }); }
-  const member = await readMember(env.FIREBASE_PROJECT_ID, groupId, uid, token);
+  let member;
+  try { member = await readMember(env.FIREBASE_PROJECT_ID, groupId, uid, token); }
+  catch { throw new MediaDiagnosticError('member_read'); }
   if (!member || member.status !== 'active') return Response.json({ error: 'Accès refusé' }, { status: 403, headers });
   const expensePath = `groups/${groupId}/expenses/${expenseId}`;
-  const expense = await firestoreDocument(expensePath, token, env);
+  let expense;
+  try { expense = await firestoreDocument(expensePath, token, env); }
+  catch { throw new MediaDiagnosticError('expense_read'); }
   if (!expense || expense['deleted']?.booleanValue === true) return Response.json({ error: 'Dépense absente' }, { status: 404, headers });
 
   if (request.method === 'POST' && !attachmentId) {
@@ -80,7 +85,9 @@ export async function handleMedia(request: Request, ids: { groupId: string; expe
     }
   }
   if ((request.method === 'GET' || request.method === 'DELETE') && attachmentId) {
-    const meta = await firestoreDocument(`${expensePath}/attachments/${attachmentId}`, token, env);
+    let meta;
+    try { meta = await firestoreDocument(`${expensePath}/attachments/${attachmentId}`, token, env); }
+    catch { throw new MediaDiagnosticError('metadata_read'); }
     if (!meta || meta['status']?.stringValue !== 'active' || meta['type']?.stringValue !== 'authenticated') return Response.json({ error: 'Pièce jointe absente' }, { status: 404, headers });
     if (request.method === 'DELETE' && meta['ownerId']?.stringValue !== uid && member.role !== 'owner') return Response.json({ error: 'Suppression refusée' }, { status: 403, headers });
     const publicId = meta['publicId']?.stringValue;
@@ -97,13 +104,16 @@ export async function handleMedia(request: Request, ids: { groupId: string; expe
       await destroyAuthenticated(publicId, env);
       return new Response(null, { status: 204, headers });
     }
-    const url = await authenticatedDownloadUrl(publicId, format, env);
-    const upstream = await fetch(url, { redirect: 'error' });
+    let url: URL;
+    try { url = await authenticatedDownloadUrl(publicId, format, env); }
+    catch { throw new MediaDiagnosticError('download_sign'); }
+    const upstream = await fetchCloudinaryPrivate(url);
     if (!upstream.ok) return Response.json({ error: 'Image indisponible' }, { status: 502, headers });
     headers.set('Content-Type', format === 'jpg' ? 'image/jpeg' : 'image/png');
     headers.set('Content-Disposition', 'inline');
     headers.set('X-Content-Type-Options', 'nosniff');
-    return new Response(upstream.body, { status: 200, headers });
+    try { return new Response(upstream.body, { status: 200, headers }); }
+    catch { throw new MediaDiagnosticError('download_response'); }
   }
   return Response.json({ error: 'Méthode inconnue' }, { status: 405, headers });
 }
