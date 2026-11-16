@@ -6,8 +6,10 @@ import { BalanceService } from '../../core/firebase/balance-service';
 import type { Group } from '../../core/firebase/group-model';
 import { formatMinorExact } from '../../shared/utils/currency';
 import { calculateBalances, type ExpenseLedgerEntry, type SettlementLedgerEntry } from '../../shared/utils/ledger';
+import { chartData, type ChartData } from './chart-data';
 import { PeriodPicker, type AppliedRange } from './period-picker';
 import { selectedRange } from './period-range';
+import { StatisticsCharts } from './statistics-charts';
 
 interface CurrencyStatistics {
   readonly currency: string;
@@ -20,7 +22,7 @@ interface CurrencyStatistics {
 
 @Component({
   selector: 'app-statistics-summary',
-  imports: [FormsModule, PeriodPicker],
+  imports: [FormsModule, PeriodPicker, StatisticsCharts],
   template: `
     <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-5" aria-label="Statistiques du groupe">
       <h2 class="text-lg font-semibold">Statistiques du groupe</h2>
@@ -44,6 +46,7 @@ interface CurrencyStatistics {
               <dt>Ma part due</dt><dd class="text-right font-medium">{{ amount(row.myOwedMinor, row.currency) }}</dd>
               <dt>Mon solde</dt><dd class="text-right font-semibold">{{ amount(row.myBalanceMinor, row.currency) }}</dd>
             </dl>
+            @if (charts()[row.currency]; as chart) { <app-statistics-charts [data]="chart" [currency]="row.currency" [userId]="user?.uid ?? ''" /> }
           </div>
         } @empty { @if (!busy() && !message()) { <p class="mt-4 text-sm text-slate-600">Aucune opération pour cette période.</p> } }
         @if (incompleteCount()) { <p class="mt-3 text-sm text-amber-800">{{ incompleteCount() }} dépense(s) du groupe sans parts connues, exclue(s) du calcul.</p> }
@@ -58,11 +61,12 @@ export class StatisticsSummary implements OnChanges {
   @Input({ required: true }) user?: User;
   @Input() revision = 0;
   readonly statistics = signal<CurrencyStatistics[]>([]);
+  readonly charts = signal<Record<string, ChartData>>({});
   readonly incompleteCount = signal(0);
   readonly busy = signal(false);
   readonly message = signal('');
   selectedGroupId = '';
-  range: AppliedRange = selectedRange('months', new Date().toISOString().slice(0, 7), new Date().toISOString().slice(0, 7))!;
+  range: AppliedRange = { ...selectedRange('months', new Date().toISOString().slice(0, 7), new Date().toISOString().slice(0, 7))!, unit: 'months' };
   private service?: BalanceService;
   private expenses: ExpenseLedgerEntry[] = [];
   private settlements: SettlementLedgerEntry[] = [];
@@ -77,7 +81,7 @@ export class StatisticsSummary implements OnChanges {
   async refresh(): Promise<void> {
     const groupId = this.selectedGroupId;
     const requestId = ++this.requestId;
-    this.statistics.set([]); this.incompleteCount.set(0); this.message.set(''); this.expenses = []; this.settlements = [];
+    this.statistics.set([]); this.charts.set({}); this.incompleteCount.set(0); this.message.set(''); this.expenses = []; this.settlements = [];
     if (!groupId || !this.service) { this.busy.set(false); return; }
     this.busy.set(true);
     try {
@@ -92,6 +96,7 @@ export class StatisticsSummary implements OnChanges {
     if (!this.selectedGroupId) return;
     const totals = calculateBalances(this.expenses, this.settlements, this.range.start, this.range.end);
     const currencies = [...new Set(totals.map(row => row.currency))].sort();
+    this.charts.set(Object.fromEntries(currencies.map(currency => [currency, chartData(this.expenses, this.settlements, currency, this.range.start, this.range.end, this.range.unit ?? 'months')])));
     this.statistics.set(currencies.map(currency => {
       const rows = totals.filter(row => row.currency === currency);
       const mine = rows.find(row => row.userId === this.user?.uid);
