@@ -1,7 +1,7 @@
 import { bearerToken, verifyFirebaseIdToken, verifyFirebaseVerifiedEmail, verifyFirebaseVerifiedIdentity } from './auth';
 import { createGroup } from './groups';
 import { changeGroupCurrency, GroupCurrencyError } from './group-currency';
-import { createExpense, ExpenseError } from './expenses';
+import { createExpense, ExpenseError, mutateExpense } from './expenses';
 import { handleMedia } from './media';
 import { MediaDiagnosticError } from './media-diagnostic';
 import type { CloudinaryEnv } from './cloudinary';
@@ -153,6 +153,22 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     catch (error) { return new Response(JSON.stringify({ error: 'Média indisponible', code: error instanceof MediaDiagnosticError ? error.code : 'internal' }), { status: 502, headers }); }
   }
   const expenseMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/expenses$/.exec(url.pathname);
+  const expenseItemMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/expenses\/([A-Za-z0-9_-]{1,128})$/.exec(url.pathname);
+  if (expenseItemMatch && (request.method === 'PATCH' || request.method === 'DELETE')) {
+    if (env.ENABLE_EXPENSE_POC !== 'true' || env.EXPENSE_POC_GROUP_ID !== expenseItemMatch[1] || !env.FIREBASE_SERVICE_ACCOUNT_JSON) return new Response(JSON.stringify({ error: 'Dépenses non configurées' }), { status: 503, headers });
+    let uid: string;
+    try { uid = await verifyFirebaseVerifiedEmail(bearerToken(request), env.FIREBASE_PROJECT_ID); }
+    catch { return new Response(JSON.stringify({ error: 'Non authentifié' }), { status: 401, headers }); }
+    try {
+      const body = await readLimitedJson(request, request.method === 'PATCH' ? 8192 : 256);
+      await mutateExpense(body, uid, expenseItemMatch[1], expenseItemMatch[2], request.method, { FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT_JSON: env.FIREBASE_SERVICE_ACCOUNT_JSON });
+      return new Response(null, { status: 204, headers });
+    } catch (error) {
+      const status = error instanceof ExpenseError ? error.status : error instanceof RequestBodyError ? 400 : 503;
+      const code = error instanceof ExpenseError || error instanceof RequestBodyError ? error.code : 'expense_unavailable';
+      return new Response(JSON.stringify({ error: code }), { status, headers });
+    }
+  }
   if (expenseMatch && request.method === 'POST') {
     if (env.ENABLE_EXPENSE_POC !== 'true' || env.EXPENSE_POC_GROUP_ID !== expenseMatch[1] || !env.FIREBASE_SERVICE_ACCOUNT_JSON) return new Response(JSON.stringify({ error: 'Dépenses non configurées' }), { status: 503, headers });
     let uid: string;

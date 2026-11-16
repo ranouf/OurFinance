@@ -65,6 +65,19 @@ import { ReceiptPanel } from './receipt-panel';
                   </summary>
                   <div class="grid gap-4 pb-4 text-sm">
                     <p>Catégorie : {{ entry.categoryLabel }}</p>
+                    @if (entry.createdBy === user?.uid) {
+                      <div class="flex flex-wrap gap-2">
+                        @if (entry.splitMode) { <button class="rounded-lg border border-teal-700 px-3 py-2 text-teal-800" type="button" (click)="editRequested.emit({ groupId: selectedGroupId, entry })">Modifier</button> }
+                        <button class="rounded-lg border border-rose-300 px-3 py-2 text-rose-700" type="button" (click)="deleteConfirmId.set(entry.id)">Supprimer</button>
+                      </div>
+                      @if (deleteConfirmId() === entry.id) {
+                        <div class="flex flex-wrap items-center gap-2 rounded-lg bg-rose-50 p-3">
+                          <span>Retirer cette dépense des soldes et de l’historique ?</span>
+                          <button class="rounded-lg bg-rose-700 px-3 py-2 text-white disabled:opacity-50" type="button" [disabled]="deleteBusy()" (click)="deleteExpense(entry)">Confirmer</button>
+                          <button class="rounded-lg border border-slate-300 px-3 py-2" type="button" (click)="deleteConfirmId.set('')">Annuler</button>
+                        </div>
+                      }
+                    }
                     <div>
                       <h3 class="font-semibold">Paiements</h3>
                       @for (payment of entry.payments; track payment.userId) {
@@ -94,6 +107,8 @@ import { ReceiptPanel } from './receipt-panel';
 })
 export class ExpenseHistory implements OnChanges {
   @Output() readonly commented = new EventEmitter<void>();
+  @Output() readonly editRequested = new EventEmitter<{ groupId: string; entry: ExpenseHistoryEntry }>();
+  @Output() readonly deleted = new EventEmitter<void>();
   @Input({ required: true }) groups: Group[] = [];
   @Input({ required: true }) firebaseApp?: FirebaseApp;
   @Input({ required: true }) user?: User;
@@ -108,6 +123,8 @@ export class ExpenseHistory implements OnChanges {
   readonly message = signal('');
   readonly scannedCount = signal(0);
   readonly opened = signal<ReadonlySet<string>>(new Set());
+  readonly deleteConfirmId = signal('');
+  readonly deleteBusy = signal(false);
   selectedGroupId = '';
   from = '';
   to = '';
@@ -140,6 +157,18 @@ export class ExpenseHistory implements OnChanges {
     this.opened.set(next);
   }
   categoryColorClass = categoryColorClass;
+  async deleteExpense(entry: ExpenseHistoryEntry): Promise<void> {
+    if (!this.service || !this.user || this.deleteBusy()) return;
+    this.deleteBusy.set(true);
+    try {
+      await this.service.mutate(this.user, this.selectedGroupId, entry.id, 'DELETE', { expectedRevision: entry.revision });
+      this.deleteConfirmId.set('');
+      await this.refresh();
+      this.message.set('Dépense supprimée de l’historique.');
+      this.deleted.emit();
+    } catch (error) { this.message.set(error instanceof Error ? error.message : 'Suppression impossible'); }
+    finally { this.deleteBusy.set(false); }
+  }
   hasFilter(): boolean { return !!(this.searchTerm || this.selectedCategoryId || this.selectedParticipantId); }
   onGroupChange(): void {
     this.selectedCategoryId = '';

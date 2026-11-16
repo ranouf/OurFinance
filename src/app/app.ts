@@ -10,6 +10,7 @@ import { currencyCodes } from './shared/utils/currency';
 import { Group } from './core/firebase/group-model';
 import { ExpenseForm } from './features/expenses/expense-form';
 import { ExpenseHistory } from './features/expenses/expense-history';
+import type { ExpenseHistoryEntry } from './core/firebase/expense-service';
 import { SettlementForm } from './features/settlements/settlement-form';
 import { SettlementHistory } from './features/settlements/settlement-history';
 import { BalanceSummary } from './features/balances/balance-summary';
@@ -67,11 +68,11 @@ import { ExportPanel } from './features/import-export/export-panel';
               @defer (on viewport) { <app-category-manager [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" (changed)="onCategoryChanged()" /> }
               @placeholder { <p class="mt-6 text-sm text-slate-600" role="status">Chargement des catégories…</p> }
               @defer (on viewport) {
-                <app-expense-form [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" [categoryRevision]="categoryRevision()" (saved)="onExpenseSaved()" />
+                <app-expense-form id="expense-editor" [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" [categoryRevision]="categoryRevision()" [editing]="editingExpense()" (saved)="onExpenseSaved()" (editCancelled)="editingExpense.set(undefined)" />
               } @placeholder {
                 <p class="mt-6 rounded-xl border border-slate-200 p-4 text-sm text-slate-600" role="status">Chargement du formulaire de dépense…</p>
               }
-              @defer (on viewport) { <app-expense-history [groups]="groups()" [firebaseApp]="firebaseApp" [user]="user" [workerUrl]="workerUrl" [revision]="expenseRevision()" [categoryRevision]="categoryRevision()" (commented)="onCommentAdded()" /> }
+              @defer (on viewport) { <app-expense-history [groups]="groups()" [firebaseApp]="firebaseApp" [user]="user" [workerUrl]="workerUrl" [revision]="expenseRevision()" [categoryRevision]="categoryRevision()" (commented)="onCommentAdded()" (editRequested)="onExpenseEdit($event)" (deleted)="onExpenseSaved()" /> }
               @placeholder { <p class="mt-6 text-sm text-slate-600" role="status">Chargement de l’historique des dépenses…</p> }
               @defer (on viewport) { <app-settlement-form [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" (saved)="onSettlementSaved()" /> }
               @placeholder { <p class="mt-6 text-sm text-slate-600" role="status">Chargement des remboursements…</p> }
@@ -137,6 +138,7 @@ export class App implements OnInit, OnDestroy {
   readonly currencies = currencyCodes();
   readonly groups = signal<Group[]>([]);
   readonly expenseRevision = signal(0);
+  readonly editingExpense = signal<{ groupId: string; entry: ExpenseHistoryEntry } | undefined>(undefined);
   readonly categoryRevision = signal(0);
   readonly settlementRevision = signal(0);
   readonly commentRevision = signal(0);
@@ -209,6 +211,10 @@ export class App implements OnInit, OnDestroy {
   }
   async logout(): Promise<void> { this.groups.set([]); await this.auth?.logout(); }
   onExpenseSaved(): void { this.expenseRevision.update(value => value + 1); }
+  onExpenseEdit(target: { groupId: string; entry: ExpenseHistoryEntry }): void {
+    this.editingExpense.set(target);
+    setTimeout(() => document.getElementById('expense-editor')?.scrollIntoView({ behavior: 'smooth' }));
+  }
   onCategoryChanged(): void { this.categoryRevision.update(value => value + 1); }
   onSettlementSaved(): void { this.settlementRevision.update(value => value + 1); }
   onCommentAdded(): void { this.commentRevision.update(value => value + 1); }

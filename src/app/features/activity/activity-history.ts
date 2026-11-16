@@ -8,6 +8,8 @@ import type { Group } from '../../core/firebase/group-model';
 
 const labels: Record<string, string> = {
   expense_created: 'Dépense créée',
+  expense_updated: 'Dépense modifiée',
+  expense_deleted: 'Dépense supprimée',
   settlement_recorded: 'Remboursement déclaré',
   import_created: 'Import créé',
   import_undone: 'Import annulé',

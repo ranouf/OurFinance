@@ -8,6 +8,8 @@ import type { GroupMember } from './group-model';
 
 export interface ExpenseHistoryEntry {
   readonly id: string;
+  readonly createdBy: string;
+  readonly revision: number;
   readonly description: string;
   readonly categoryId: string;
   readonly categoryLabel: string;
@@ -18,6 +20,7 @@ export interface ExpenseHistoryEntry {
   readonly currency: string;
   readonly payments: readonly Allocation[];
   readonly allocations: readonly Allocation[];
+  readonly splitMode?: SplitMode;
 }
 
 export class ExpenseService {
@@ -33,6 +36,8 @@ export class ExpenseService {
         const fallback = categoryById(String(data['categoryId'] ?? 'other'));
         return {
           id: item.id,
+          createdBy: String(data['createdBy'] ?? ''),
+          revision: Number(data['revision'] ?? 0),
           description: String(data['description']),
           categoryId: String(data['categoryId'] ?? 'other'),
           categoryLabel: String(data['categoryLabel'] ?? fallback.label),
@@ -43,6 +48,7 @@ export class ExpenseService {
           currency: String(data['currency']),
           payments: (data['payments'] as Allocation[] | undefined) ?? [],
           allocations: (data['allocations'] as Allocation[] | undefined) ?? [],
+          splitMode: data['splitSnapshotJson'] ? JSON.parse(String(data['splitSnapshotJson'])) as SplitMode : undefined,
         };
       }),
       last: snapshot.docs.at(-1),
@@ -71,5 +77,13 @@ export class ExpenseService {
     const result = await response.json() as { expenseId?: string };
     if (!result.expenseId) throw new Error('Réponse Worker invalide');
     return result.expenseId;
+  }
+
+  async mutate(user: User, groupId: string, expenseId: string, method: 'PATCH' | 'DELETE', body: object): Promise<void> {
+    if (!user.emailVerified) throw new Error('Adresse courriel non confirmée');
+    const url = new URL(`/groups/${encodeURIComponent(groupId)}/expenses/${encodeURIComponent(expenseId)}`, this.workerUrl);
+    if (url.protocol !== 'https:') throw new Error('URL Worker non sécurisée');
+    const response = await fetch(url, { method, headers: { Authorization: `Bearer ${await user.getIdToken()}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    if (!response.ok) throw new Error(response.status === 503 ? 'Modification des dépenses désactivée sur cet environnement' : `Modification refusée (HTTP ${response.status})`);
   }
 }

@@ -108,7 +108,7 @@ export async function createExpense(value: unknown, uid: string, groupId: string
   const writes: unknown[] = [
     write(`groups/${groupId}/expenses/${expenseId}`, {
       description: string(expense.description), categoryId: string(expense.categoryId), categoryLabel: string(category.label), categoryIcon: string(category.icon), categoryColor: string(category.color), currency: string(expense.currency), date: string(expense.date), amountMinor: integer(expense.amountMinor), createdBy: string(uid), createdAt: { timestampValue: now },
-      payments: amountEntries(expense.payments), allocations: amountEntries(allocations), splitSnapshotJson: string(JSON.stringify(expense.splitMode)), deleted: { booleanValue: false },
+      payments: amountEntries(expense.payments), allocations: amountEntries(allocations), splitSnapshotJson: string(JSON.stringify(expense.splitMode)), deleted: { booleanValue: false }, revision: integer(0),
     }, false),
     write(`users/${uid}/groupPreferences/${groupId}`, {
       modeJson: string(JSON.stringify(expense.splitMode)), memberIds: { arrayValue: { values: allocations.map(item => string(item.userId)) } }, updatedAt: { timestampValue: now },
@@ -119,6 +119,76 @@ export async function createExpense(value: unknown, uid: string, groupId: string
   await json(await transport(`https://firestore.googleapis.com/v1/${root}:commit`, { method: 'POST', headers, body: JSON.stringify({ transaction, writes }) }));
   committed = true;
   return expenseId;
+  } finally {
+    if (!committed) {
+      try { await transport(`https://firestore.googleapis.com/v1/${root}:rollback`, { method: 'POST', headers, body: JSON.stringify({ transaction }) }); }
+      catch { /* Preserve the original error. */ }
+    }
+  }
+}
+
+/** Update or logically delete only the author's expense at the expected revision. */
+export async function mutateExpense(value: unknown, uid: string, groupId: string, expenseId: string, method: 'PATCH' | 'DELETE', env: ExpenseEnv, transport: typeof fetch = fetch): Promise<void> {
+  if (!idPattern.test(groupId) || !idPattern.test(uid) || !idPattern.test(expenseId) || !value || typeof value !== 'object') throw new ExpenseError(400, 'invalid_expense');
+  const body = value as Record<string, unknown>;
+  const expectedRevision = body['expectedRevision'];
+  if (!Number.isSafeInteger(expectedRevision) || (expectedRevision as number) < 0) throw new ExpenseError(400, 'invalid_revision');
+  const expense = method === 'PATCH' ? parseExpense({ ...body, idempotencyKey: expenseId }) : undefined;
+  const allocations = expense ? splitAmount(expense.amountMinor, expense.splitMode) : [];
+  const members = expense ? [...new Set([uid, ...expense.payments.map(item => item.userId), ...allocations.map(item => item.userId)])] : [uid];
+  const root = `projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents`;
+  const token = await serviceAccessToken(env.FIREBASE_SERVICE_ACCOUNT_JSON, env.FIREBASE_PROJECT_ID, transport);
+  const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+  const begin = await json(await transport(`https://firestore.googleapis.com/v1/${root}:beginTransaction`, { method: 'POST', headers, body: '{}' }));
+  if (typeof begin['transaction'] !== 'string') throw new ExpenseError(503, 'transaction_unavailable');
+  const transaction = begin['transaction'];
+  let committed = false;
+  try {
+    const read = async (path: string) => {
+      const response = await transport(`https://firestore.googleapis.com/v1/${root}/${path}?transaction=${encodeURIComponent(transaction)}`, { headers });
+      return response.status === 404 ? null : await json(response);
+    };
+    const group = await read(`groups/${groupId}`);
+    const groupFields = group?.['fields'] as Record<string, { stringValue?: string }> | undefined;
+    if (groupFields?.['status']?.stringValue !== 'active') throw new ExpenseError(403, 'group_inactive');
+    if (expense && (groupFields['currencyCode']?.stringValue ?? groupFields['currency']?.stringValue) !== expense.currency) throw new ExpenseError(400, 'currency_mismatch');
+    for (const memberId of members) {
+      const record = await read(`groups/${groupId}/members/${memberId}`);
+      const fields = record?.['fields'] as Record<string, { stringValue?: string }> | undefined;
+      if (fields?.['status']?.stringValue !== 'active') throw new ExpenseError(403, 'member_inactive');
+    }
+    const stored = await read(`groups/${groupId}/expenses/${expenseId}`);
+    const fields = stored?.['fields'] as Record<string, { stringValue?: string; integerValue?: string; booleanValue?: boolean }> | undefined;
+    if (!fields || fields['createdBy']?.stringValue !== uid) throw new ExpenseError(403, 'author_required');
+    if (fields['deleted']?.booleanValue === true) throw new ExpenseError(409, 'expense_deleted');
+    const revision = Number(fields['revision']?.integerValue ?? 0);
+    if (revision !== expectedRevision) throw new ExpenseError(409, 'revision_conflict');
+    const nextRevision = revision + 1;
+    const now = new Date().toISOString();
+    let changes: Record<string, unknown>;
+    if (expense) {
+      let category: CategoryDefinition = categoryById(expense.categoryId);
+      if (expense.categoryId === fields['categoryId']?.stringValue) {
+        category = { id: expense.categoryId, label: fields['categoryLabel']?.stringValue ?? category.label, icon: fields['categoryIcon']?.stringValue ?? category.icon, color: (fields['categoryColor']?.stringValue ?? category.color) as CategoryColor };
+      } else if (isCustomCategoryId(expense.categoryId)) {
+        const categoryDoc = await read(`groups/${groupId}/categories/${expense.categoryId}`);
+        const categoryFields = categoryDoc?.['fields'] as Record<string, { stringValue?: string }> | undefined;
+        const icon = categoryIcons.find(item => item.id === categoryFields?.['iconId']?.stringValue);
+        if (categoryFields?.['status']?.stringValue !== 'active' || !categoryFields['name']?.stringValue || !icon || !categoryFields['color']?.stringValue) throw new ExpenseError(403, 'category_unavailable');
+        category = { id: expense.categoryId, label: categoryFields['name'].stringValue, icon: icon.glyph, color: categoryFields['color'].stringValue as CategoryColor };
+      }
+      validateExpense(expense.amountMinor, expense.payments, allocations, new Set(members));
+      changes = { description: string(expense.description), categoryId: string(expense.categoryId), categoryLabel: string(category.label), categoryIcon: string(category.icon), categoryColor: string(category.color), date: string(expense.date), amountMinor: integer(expense.amountMinor), payments: amountEntries(expense.payments), allocations: amountEntries(allocations), splitSnapshotJson: string(JSON.stringify(expense.splitMode)), revision: integer(nextRevision), updatedAt: { timestampValue: now } };
+    } else {
+      changes = { deleted: { booleanValue: true }, revision: integer(nextRevision), updatedAt: { timestampValue: now }, deletedAt: { timestampValue: now } };
+    }
+    const action = method === 'PATCH' ? 'expense_updated' : 'expense_deleted';
+    const writes = [
+      { update: { name: `${root}/groups/${groupId}/expenses/${expenseId}`, fields: changes }, updateMask: { fieldPaths: Object.keys(changes) } },
+      { update: { name: `${root}/groups/${groupId}/activity/${expenseId}_${method === 'PATCH' ? 'edit' : 'delete'}_${nextRevision}`, fields: { actorId: string(uid), action: string(action), expenseId: string(expenseId), at: { timestampValue: now } } }, currentDocument: { exists: false } },
+    ];
+    await json(await transport(`https://firestore.googleapis.com/v1/${root}:commit`, { method: 'POST', headers, body: JSON.stringify({ transaction, writes }) }));
+    committed = true;
   } finally {
     if (!committed) {
       try { await transport(`https://firestore.googleapis.com/v1/${root}:rollback`, { method: 'POST', headers, body: JSON.stringify({ transaction }) }); }
