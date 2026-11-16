@@ -20,7 +20,7 @@ export interface ExpenseHistoryEntry {
 export class ExpenseService {
   constructor(private readonly app: FirebaseApp, private readonly workerUrl: string) {}
 
-  async history(groupId: string, after?: QueryDocumentSnapshot<DocumentData>, from?: string, to?: string): Promise<{ entries: ExpenseHistoryEntry[]; last?: QueryDocumentSnapshot<DocumentData>; hasMore: boolean }> {
+  async history(groupId: string, after?: QueryDocumentSnapshot<DocumentData>, from?: string, to?: string): Promise<{ entries: ExpenseHistoryEntry[]; last?: QueryDocumentSnapshot<DocumentData>; hasMore: boolean; scanned: number }> {
     const expenses = collection(getFirestore(this.app), 'groups', groupId, 'expenses');
     const ordered = query(expenses, ...(from ? [where('date', '>=', from)] : []), ...(to ? [where('date', '<=', to)] : []), orderBy('date', 'desc'), limit(20), ...(after ? [startAfter(after)] : []));
     const snapshot = await getDocs(ordered);
@@ -40,6 +40,7 @@ export class ExpenseService {
       }),
       last: snapshot.docs.at(-1),
       hasMore: snapshot.size === 20,
+      scanned: snapshot.size,
     };
   }
 
