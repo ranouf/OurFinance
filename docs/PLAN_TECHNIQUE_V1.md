@@ -1,7 +1,7 @@
 # OurFinance — Plan technique V1
 
 Statut : **plan de réalisation**, sans implémentation applicative à ce stade.  
-Dernière mise à jour : 15 novembre 2026.  
+Dernière mise à jour : 16 novembre 2026.  
 Dépôt : `ranouf/OurFinance`.
 
 ## 1. Objectifs et principes
@@ -12,35 +12,37 @@ OurFinance est une application de suivi et de partage de dépenses, accessible s
 
 - Aucune limitation quotidienne artificielle du nombre de dépenses dans OurFinance. Les quotas techniques des fournisseurs gratuits restent applicables.
 - Chaque utilisateur peut créer plusieurs **groupes** et y inviter d'autres comptes, sans notion obligatoire de foyer/couple.
-- Chaque groupe possède ses membres, sa devise proposée, ses catégories/dépenses, ses remboursements et ses permissions.
+- Chaque groupe possède ses membres, **une seule devise ISO 4217 obligatoire et stricte**, ses catégories/dépenses, ses remboursements et ses permissions. Aucune conversion ni dépense dans une autre devise au sein du groupe.
 - Un groupe peut n'avoir **qu'un seul membre** (suivi des frais personnels ou d'un immeuble).
 - Aucun partage 60/40, 50/50 ou autre n'est défini automatiquement à la création d'un groupe.
 - La **dernière répartition utilisée par un utilisateur dans un groupe** est sauvegardée après validation d'une dépense et proposée lors de sa prochaine dépense dans ce même groupe. Chaque utilisateur conserve sa préférence distincte.
 - La répartition reste modifiable à chaque dépense : égalitaire, montants exacts, pourcentages, parts ou ajustements. Modifier la préférence ne change pas l'historique.
 - Authentification Google ou email/mot de passe, vérification d'email, récupération du mot de passe.
-- Statistiques : dépenses réellement payées, parts dues, écarts et soldes par mois, année, totalité et plage personnalisée.
-- Historique, recherche, catégories illustrées, reçus, remboursements, import/export.
-- Code Angular moderne, composants réutilisables dans `shared`, Tailwind et CSS personnalisé minimal.
+- Statistiques interactives par groupe : plage personnalisée **Jours / Mois / Années** dans un seul sélecteur déroulant, graphiques par catégorie, comparaison des paiements et parts dues par membre, évolution temporelle, écarts et soldes.
+- Historique, recherche, catalogue de catégories illustrées, catégories personnalisées collaboratives, reçus, remboursements, import/export.
+- Application disponible **en français, anglais et japonais dès la V1** : langue initiale selon le navigateur, changement immédiat dans les paramètres, préférence sauvegardée.
+- Code Angular moderne, composants réutilisables dans `shared`, Tailwind et CSS personnalisé minimal ; **design system cohérent et UX soignée** sur mobile et ordinateur.
 - Déploiement automatisé à partir de GitHub, environnements isolés et contrôle de sécurité sur PR.
 
 ### Exemples de groupes, non codés en dur
 
-| Groupe | Devise proposée | Membres possibles | Usage |
+| Groupe | Devise unique | Membres possibles | Usage |
 |---|---|---|---|
 | Duplex | CAD | Une personne | Dépenses personnelles d'immeuble |
 | Canada | CAD | Deux personnes | Dépenses quotidiennes |
 | France | EUR | Trois personnes ou plus | Voyage et famille |
-| Japon | JPY | Deux personnes | Voyage au Japon |
+| Voyage Japon 2025 | JPY | Deux personnes | Voyage au Japon |
 
-Les membres et pourcentages des exemples n'imposent aucune règle globale. La devise proposée n'empêche pas une dépense ponctuelle dans une autre devise.
+Les membres et pourcentages des exemples n'imposent aucune règle globale. **La devise choisie est obligatoire pour toutes les transactions du groupe**, sans exception ni conversion. Des groupes différents peuvent utiliser des devises différentes.
 
 ## 2. Architecture cible et arbitrages
 
 | Couche | Choix V1 | Raison |
 |---|---|---|
 | Frontend | Angular (dernière version stable compatible), TypeScript, standalone, Signals | Préférence du projet ; maintenabilité |
-| UI | Tailwind CSS 4 et Lucide | Peu de CSS, icônes cohérentes |
+| UI / UX | Tailwind CSS 4, Lucide, design system et bibliothèque de graphiques à sélectionner (ECharts ou Chart.js après POC Angular) | Interface originale, accessible, responsive et cohérente |
 | PWA | `@angular/pwa`, manifeste, service worker | Installation Android/iOS et cache applicatif |
+| Internationalisation | Transloco (ou équivalent validé en M1), `Intl` | FR/EN/JA, changement à chaud, formats locaux |
 | Hébergement statique | **Firebase Hosting (Spark)** | HTTPS, domaine gratuit fourni, intégration GitHub et previews PR |
 | Auth | **Firebase Authentication** | Google, email/mot de passe, vérification et récupération natives |
 | Données | **Cloud Firestore (Spark)** | Données synchronisées, transactions atomiques, quota gratuit sans pause d'inactivité comparable à Supabase |
@@ -87,7 +89,7 @@ Les membres et pourcentages des exemples n'imposent aucune règle globale. La de
 - Vérification de l'adresse email, connexion, déconnexion et renouvellement de session via SDK Firebase.
 - Mot de passe oublié : email et écran de réinitialisation fournis par Firebase Auth, avec quotas du plan Spark (actuellement 150 emails de réinitialisation/jour).
 - Association explicite et sécurisée de plusieurs fournisseurs d'identité à un compte ; ne pas fusionner automatiquement deux comptes seulement parce qu'ils affichent le même email.
-- Profil : nom d'affichage, avatar, langue, préférences, devise de référence et fuseau horaire.
+- Profil : nom d'affichage, avatar, langue préférée (`fr`/`en`/`ja` ou détection navigateur), préférences et fuseau horaire. La devise est déterminée **par le groupe**, pas par le profil.
 - Les utilisateurs sont indépendants de leurs groupes : création, invitation, retrait et changement de groupe actif.
 
 ### Invitations de groupe sans service d'envoi d'emails externe
@@ -99,10 +101,10 @@ Les membres et pourcentages des exemples n'imposent aucune règle globale. La de
 
 ## 5. Groupes, participants et autorisations
 
-- Un utilisateur crée un groupe avec nom, icône/couleur, devise proposée et description facultative.
+- Un utilisateur crée un groupe avec nom, icône/couleur, **devise ISO 4217 obligatoire et unique** et description facultative. La devise ne peut être modifiée que tant que le groupe n'a enregistré **aucune transaction** (dépense, remboursement ou import), même si ces transactions sont ensuite archivées.
 - Il peut inviter des utilisateurs existants ou nouveaux par email/lien à usage unique, avec expiration et vérification de l'identité invitée.
 - Rôles par groupe : `owner` et `member` pour la V1, avec possibilité d'étendre les permissions.
-- Un utilisateur peut appartenir à plusieurs groupes et voir ses soldes par groupe ou par relation.
+- Un utilisateur peut appartenir à plusieurs groupes, chacun dans sa propre devise, et voir ses soldes par groupe ou par relation. Ne jamais additionner des montants provenant de groupes de devises différentes.
 - Une personne peut suivre seule son groupe « Duplex » ; le moteur produit des dépenses et statistiques mais aucune dette entre membres.
 - Le retrait d'un membre révoque son accès futur, tout en préservant l'intégrité de l'historique comptable. Sa dette historique doit être traitée explicitement avant suppression définitive éventuelle.
 - Aucune table `households`, aucune `household_id`, aucune configuration de couple imposée.
@@ -117,21 +119,20 @@ Le découpage **par groupe** constitue la frontière d'isolation et permet des l
 
 | Collection / document | Champs principaux / rôle |
 |---|---|
-| `users/{uid}` | Profil Auth, nom, avatar, langue, devise de référence, fuseau horaire |
+| `users/{uid}` | Profil Auth, nom, avatar, `preferredLanguage` (`fr`/`en`/`ja` ou absence = navigateur), fuseau horaire |
 | `users/{uid}/groupPreferences/{groupId}` | **Dernier partage réellement enregistré par cet utilisateur dans ce groupe**, et préférences de formulaire |
-| `groups/{groupId}` | Créateur, nom, devise proposée ISO, icône, couleur, état et dates d'audit |
+| `groups/{groupId}` | Créateur, nom, `currencyCode` ISO obligatoire, icône, couleur, état, verrou de devise après première transaction, dates d'audit |
 | `groups/{groupId}/members/{uid}` | Rôle, statut, date d'adhésion ; un seul document par membre |
 | `groups/{groupId}/invitations/{invitationId}` | Hash/identifiant opaque de jeton, email cible éventuel, expiration, état et usage unique |
-| `groups/{groupId}/categories/{categoryId}` | Libellé, icône Lucide, couleur, éventuelle personnalisation ; catalogue système distinct en lecture |
-| `groups/{groupId}/expenses/{expenseId}` | Description, devise, `amountMinor`, catégorie, date, auteur, payeurs et **allocations embarqués**, instantané du split, audit |
+| `groups/{groupId}/categories/{categoryId}` | Catégorie personnalisée au groupe : nom, icône Lucide, couleur, `archivedAt`, audit ; catalogue système global distinct et immuable |
+| `groups/{groupId}/expenses/{expenseId}` | Description, `amountMinor` **dans la devise du groupe**, catégorie, `expenseDate` (`YYYY-MM-DD`), auteur, payeurs et **allocations embarqués**, instantané du split, audit ; pas de devise indépendante |
 | `groups/{groupId}/expenses/{expenseId}/comments/{commentId}` | Auteur, contenu, dates et modération |
 | `groups/{groupId}/expenses/{expenseId}/attachments/{attachmentId}` | Cloudinary `publicId` non secret, type `authenticated`, taille, format, propriétaire, statut |
-| `groups/{groupId}/settlements/{settlementId}` | Débiteur, créancier, montant/devise, date, références de conversion explicite |
+| `groups/{groupId}/settlements/{settlementId}` | Débiteur, créancier, `amountMinor` dans la **devise du groupe**, date ; aucune conversion |
 | `groups/{groupId}/activity/{eventId}` | Événements d'audit immuables, acteur, contexte |
-| `groups/{groupId}/balances/{balanceId}` | Vue matérialisée **dérivable** des opérations, par personne et devise, avec version/source |
-| `groups/{groupId}/statistics/{periodId}` | Totaux matérialisés par période/catégorie/devise, recalculables, versionnés |
+| `groups/{groupId}/balances/{balanceId}` | Vue matérialisée **dérivable** des opérations, par personne dans la devise unique du groupe, avec version/source |
+| `groups/{groupId}/statistics/{periodId}` | Agrégats mensuels ou périodiques par catégorie et membre (`paidMinor`, `owedMinor`, totaux), dans la devise du groupe ; recalculables et versionnés |
 | `users/{uid}/importBatches/{batchId}` | Fichier/source, état, identifiants d'origine et erreurs |
-| `exchangeRateSnapshots/{rateId}` | Devise source/cible, taux décimal exact sous forme de chaîne, date et origine |
 
 Les identifiants de provenance des transactions importées doivent aussi être indexés pour permettre une détection des doublons **dans un groupe**. Les index Firestore composites sont déclarés dans `firestore.indexes.json`, versionnés avec l'application. Limiter les lectures globales : pagination par curseur, filtres et abonnements seulement aux listes visibles.
 
@@ -139,19 +140,19 @@ Les identifiants de provenance des transactions importées doivent aussi être i
 
 - Une dépense contient dans **le même document** `payments: [{userId, amountMinor}]` et `allocations: [{userId, amountMinor}]` : leurs sommes sont identiques à `amountMinor` et à chaque autre somme, sans fraction perdue.
 - Tous les payeurs et bénéficiaires doivent être membres autorisés à la date appropriée et du **même groupe**. La version persistée de la répartition permet de conserver les faits historiques après une évolution des membres.
-- Les montants sont en **unités mineures entières** (jamais en flottants pour le moteur de calcul), bornés à la plage des entiers sûrs JavaScript pour l'enregistrement ; le `SplitEngine` peut utiliser `BigInt` en mémoire. Les taux de change exacts sont sérialisés en chaînes décimales et calculés avec une bibliothèque décimale adaptée.
-- Respecter l'exposant ISO de chaque devise (JPY : 0 décimale ; CAD/EUR : 2 ; KWD/BHD : 3) et des arrondis déterministes pour chaque mode.
+- Les montants sont en **unités mineures entières** (jamais en flottants pour le moteur de calcul), bornés à la plage des entiers sûrs JavaScript pour l'enregistrement ; le `SplitEngine` peut utiliser `BigInt` en mémoire. Aucun taux de change n'est enregistré ou calculé en V1.
+- Respecter l'exposant ISO de **la devise unique du groupe** (JPY : 0 décimale ; CAD/EUR : 2 ; KWD/BHD : 3) et des arrondis déterministes pour chaque mode. Le Worker et les Security Rules refusent toute mutation qui tenterait de changer la devise d'un groupe ayant eu une transaction.
 - Les créations et éditions d'une dépense sont atomiques au niveau de son document. Les mises à jour touchant plusieurs documents (préférence, activité, soldes) utilisent des transactions / écritures groupées **dans une route serveur qui valide tous les invariants**. Le Worker vérifie le jeton Firebase, les permissions et la version du document pour gérer les conflits ; les SDK administrateur et comptes de service contournant les règles Firestore, leurs permissions IAM, leurs clés et leur code sont particulièrement audités.
 - Les soldes et statistiques matérialisés ne sont que des **caches reconstruisibles** depuis les dépenses et remboursements. Prévoir versionnement, invalidation, recalcul et tests de concurrence ; ne jamais faire d'un cache la source comptable de vérité.
 - Les suppressions sont logiques, auditables et récupérables par un membre autorisé.
 
-Solde individuel dans une devise et un groupe : `paid - owed + settlements_sent - settlements_received`. Une valeur positive signifie une créance ; négative, une dette. Les statistiques de dépense sont calculées sur la **date de la dépense** ; les règlements sont suivis séparément sur leur date de transfert.
+Solde individuel **dans la devise du groupe** : `paid - owed + settlements_sent - settlements_received`. Une valeur positive signifie une créance ; négative, une dette. Les statistiques de dépenses utilisent la **date comptable** (`YYYY-MM-DD`) ; les remboursements sont suivis séparément à leur propre date. **La différence entre deux montants payés n'est pas automatiquement le solde à rembourser** : les graphiques distinguent paiement, part attribuée et règlements.
 
 ## 7. Édition des dépenses et préférences personnelles
 
 ### Formulaire rapide
 
-Description, montant, devise, catégorie illustrée, date, groupe, payeur(s), participants, répartition, note et justificatif facultatif. Navigation mobile inspirée des parcours fournis (bouton d'ajout flottant, sélection rapide, détail puis édition), mais identité visuelle originale.
+Description, montant **dans la devise fixe du groupe** (symbole affiché, pas de choix de devise sur la dépense), catégorie illustrée, date, groupe, payeur(s), participants, répartition, note et justificatif facultatif. Navigation mobile inspirée des parcours fournis (bouton d'ajout flottant, sélection rapide, détail puis édition), mais identité visuelle originale.
 
 ### Méthodes de partage V1
 
@@ -173,17 +174,17 @@ La préférence est **personnelle ET limitée au groupe**, clé `(user_id, group
 - Deux utilisateurs d'un même groupe peuvent conserver des répartitions préférées différentes.
 - Une dépense existante garde un **instantané de sa répartition** ; une modification ne change pas les autres transactions.
 - Si les membres ont changé ou qu'un paramètre n'est plus valide, demander une nouvelle confirmation plutôt que réutiliser silencieusement une configuration périmée.
-- Les préférences du dernier groupe, de la dernière devise et du dernier payeur peuvent être mémorisées séparément, toujours modifiables.
+- Les préférences du dernier groupe et du dernier payeur peuvent être mémorisées séparément, toujours modifiables. **Aucune préférence de devise par dépense** : la devise dépend exclusivement du groupe.
 
-## 8. Toutes les devises du monde
+## 8. Toutes les devises du monde — une seule par groupe
 
-- Cataloguer les **devises actives ISO 4217** (code, libellé, symbole, nombre d'unités mineures) à partir d'une source maintenue ; ne pas coder une union `CAD | EUR | JPY`.
-- Utiliser `Intl.NumberFormat` avec la locale de l'utilisateur pour affichage et saisie ; tests sur JPY, KWD/BHD (3 décimales), CAD/EUR et autres exposants.
-- Proposer une devise par groupe et autoriser toute devise prise en charge sur une dépense.
-- Garder des soldes **séparés par devise**, par personne et par groupe. Ne jamais additionner des CAD, EUR et JPY sans conversion explicitée.
-- Conversion manuelle avec taux explicite et instantané immuable ; source de taux automatique facultative si disponible et permise, sans dépendance bloquante pour créer une dépense.
-- Conversion de remboursement interdevises : enregistrer les deux montants, deux devises, taux utilisé, date et participants ; éviter une conversion fictive qui effacerait une dette dans la mauvaise devise.
-- Tableau de bord global converti dans la devise choisie uniquement avec des taux traçables et une mention « valeur indicative » lorsqu'il s'agit d'un taux de référence.
+- Proposer à la création du groupe **toutes les devises actives ISO 4217** (code, libellé, symbole, nombre d'unités mineures) depuis un catalogue maintenu ; ne pas coder une union `CAD | EUR | JPY`.
+- **Une seule devise obligatoire et stricte par groupe** : toutes les dépenses, répartitions, remboursements, soldes, statistiques et exports de ce groupe utilisent cette devise. Pas de sélecteur de devise au niveau d'une dépense et **aucune conversion**, automatique ou manuelle, en V1.
+- La devise est modifiable **uniquement avant la toute première transaction**. Après une dépense, un remboursement ou un import, elle est définitivement verrouillée, même si la transaction est supprimée logiquement.
+- Afficher la devise du groupe sur les formulaires, détails, soldes et graphiques ; utiliser `Intl.NumberFormat` selon la langue de l'utilisateur, sans modifier le montant ni la devise.
+- Conserver des calculs exacts en unités mineures selon l'exposant ISO (JPY : 0 ; CAD/EUR : 2 ; KWD/BHD : 3). Les montants d'un groupe ne doivent jamais être interprétés avec l'exposant d'un autre groupe.
+- Plusieurs groupes peuvent avoir des devises différentes. Les statistiques V1 sont **filtrées par groupe** ; un récapitulatif multi-groupes ne doit jamais additionner des montants de devises différentes. Une vue globale éventuelle regroupe les résultats par devise, sans total fictif.
+- **Import Splitwise** : signaler les transactions d'une devise différente de celle du groupe cible ; permettre leur affectation à un groupe distinct de la bonne devise ou les exclure avec rapport d'anomalies. **Aucune conversion silencieuse**, aucune perte de la devise source.
 
 ## 9. Catégories illustrées
 
@@ -203,23 +204,61 @@ Catalogue initial de catégories avec logo et couleur, par exemple :
 | Cadeaux | `gift` |
 | Autres | `receipt` |
 
-Le formulaire propose une icône lors du choix d'une catégorie, affiche l'icône sur l'historique et le détail, et permet de créer des catégories personnalisées (nom, icône de la liste autorisée, couleur). Le code d'icône, et non du HTML arbitraire, est stocké en base. Prévoir catégories globales et personnalisations par groupe.
+Le formulaire propose une icône lors du choix d'une catégorie, affiche l'icône sur l'historique et le détail, et permet de créer des catégories personnalisées (nom, icône de la liste autorisée, couleur). Le code d'icône, et non du HTML arbitraire, est stocké en base.
+
+- **Catalogue système global**, disponible dans tous les groupes sans duplication de documents ; catégories système non modifiables et non supprimables par les utilisateurs, libellés traduits en FR/EN/JA.
+- **Catégories personnalisées propres à un groupe** : tous les membres **actifs** peuvent les créer, modifier et archiver ; les autres groupes n'y ont pas accès.
+- Une catégorie utilisée dans l'historique est **archivée, jamais supprimée définitivement** ; les dépenses passées conservent leur référence et restent lisibles. Une catégorie archivée ne peut plus être choisie pour une nouvelle dépense, sauf après réactivation.
+- Le nom saisi pour une catégorie personnalisée est affiché tel quel, sans traduction automatique ; vérifier unicité appropriée, permissions Firestore et audit.
 
 ## 10. Écrans V1
 
 1. **Connexion / inscription / mot de passe oublié**.
-2. **Mes groupes** : liste, soldes par devise, groupe personnel ou partagé, invitation, archivage.
-3. **Détail d'un groupe** : membres, filtres, opérations regroupées par date, devise, solde, bouton d'ajout.
+2. **Mes groupes** : liste, devise propre à chaque groupe, soldes, groupe personnel ou partagé, invitation, archivage.
+3. **Détail d'un groupe** : membres, filtres, opérations regroupées par date, devise fixe visible, solde, bouton d'ajout.
 4. **Création / édition** : formulaire rapide, catégories illustrées, pièces jointes.
 5. **Éditeur de partage** : cinq modes, mémorisation personnelle par groupe, validations visuelles.
 6. **Détail d'une dépense** : paiement, parts, historique, commentaires et justificatifs.
 7. **Amis / participants** : dettes entre personnes, regroupement par devise et groupe.
 8. **Activité** : ajouts, modifications, suppressions et règlements.
-9. **Statistiques** : ce mois, année, total, période, groupe, catégorie, part payée/attribuée, avance et solde après règlements.
-10. **Compte / préférences** : nom, langue, devises, sécurité, déconnexion et export.
+9. **Statistiques** : tableau de bord interactif par groupe avec sélecteur de période en dropdown (onglets Jours / Mois / Années), répartition par catégorie, comparaison par membre, évolution temporelle, montants payés/attribués et soldes après règlements.
+10. **Compte / préférences** : nom, langue (FR/EN/JA), sécurité, déconnexion et export.
 11. **Import Splitwise** : sélection de fichier, mapping, aperçu, erreurs et rapprochement final.
 
-Navigation fixe adaptée aux petits écrans (Groupes, Amis, Statistiques/Activité, Compte), grand bouton « Ajouter une dépense ». Sur desktop : navigation latérale et tables/graphiques plus larges. Accessibilité, clavier, focus, contraste, français initialement ; anglais et japonais prévus.
+Navigation fixe adaptée aux petits écrans (Groupes, Amis, Statistiques/Activité, Compte), grand bouton « Ajouter une dépense ». Sur desktop : navigation latérale et tables/graphiques plus larges. **Français, anglais et japonais livrés ensemble en V1**, avec tests de longueur des libellés, navigation clavier, focus, contraste, états vides et chargement.
+
+### Statistiques interactives et sélecteur de période (V1 / M4)
+
+- **Un seul champ déroulant** « Période » dans le tableau de bord, affichant le début et la fin choisis. **Ne pas afficher trois boutons Jours/Mois/Années en permanence dans la page**.
+- À l'ouverture, une grande fenêtre de sélection inspirée des captures de calendrier fournies **privément à Codex** (ne pas committer les captures). Trois **onglets dans le dropdown** : **Jours**, **Mois**, **Années** ; ils remplacent les onglets « Dates précises / Dates flexibles » du modèle de référence.
+- **Jours** : deux calendriers mensuels côte à côte sur desktop, empilés ou adaptés sur mobile ; sélection d'une date de début puis d'une date de fin, avec surlignage continu de l'intervalle.
+- **Mois** : grille de 12 mois par année ; sélectionner le premier puis le dernier mois, avec navigation entre les années. Exemple mai 2020 → juin 2023 = 01/05/2020 au 30/06/2023 inclus.
+- **Années** : grille d'années navigable ; sélectionner première et dernière années. Exemple 2024 → 2025 = 01/01/2024 au 31/12/2025 inclus.
+- Les dates de début et de fin sont **inclusives**, basées sur la date comptable `YYYY-MM-DD` des dépenses, et `dateFrom <= dateTo`. Ne pas introduire de décalage de fuseau horaire sur une date sans heure.
+- Boutons **Appliquer** et **Annuler** : le brouillon de sélection n'affecte pas les graphiques tant que l'utilisateur n'a pas confirmé. Préserver la période choisie lors de la navigation ; raccourcis « Ce mois », « Cette année », « 12 derniers mois », « Depuis le début » possibles sans remplacer les trois onglets.
+- Sélectionner **un groupe** avant d'afficher les statistiques : tous les chiffres sont exprimés dans **sa devise unique**. Ne jamais mélanger les devises de groupes distincts.
+- **Indicateurs** : dépenses totales de la période, total réellement payé par membre, total attribué/dû par membre, différence entre paiements (notamment pour deux membres), soldes et règlements clairement distingués.
+- **Graphique en anneau / camembert** : répartition des dépenses par catégorie (montant, pourcentage, couleur et icône) ; clic sur un segment/légende pour filtrer la liste correspondante.
+- **Barres comparatives** : pour chaque membre, « payé » vs « part attribuée ». Avec deux membres, afficher l'écart entre leurs montants payés ; avec 3+ membres, comparer tous les participants sans supposer un couple.
+- **Évolution temporelle** : courbe ou histogramme des dépenses par jour/mois/année, avec granularité automatique adaptée à la durée et possibilité de la modifier indépendamment de l'onglet du sélecteur.
+- **Sens comptable** : « différence entre ce que deux personnes ont payé » ≠ « dette nette ». Les règlements sont suivis à leur date ; distinguer explicitement les soldes courants (cumulés depuis l'origine) des flux filtrés sur une période, sans les confondre.
+- **UX** : graphiques interactifs, infobulles accessibles, légendes cliquables, affichage des montants exacts, formats locaux, palette cohérente, état vide/chargement/erreur, responsive et clavier. Choisir en M1 une bibliothèque maintenable (ECharts ou Chart.js) après POC Angular.
+- **Performance Firestore** : requêtes par `groupId` et date comptable, index versionnés, pagination et agrégats mensuels recalculables si nécessaires. Les intervalles arbitraires peuvent combiner mois entiers et bornes partielles, sans erreur d'arrondi ni double comptage.
+
+### Internationalisation FR / EN / JA (V1 / M1–M2)
+
+- Locales supportées dès le départ : **`fr`**, **`en`**, **`ja`**. Détecter la langue initiale via `navigator.languages` / `navigator.language` et leurs sous-tags (ex. `fr-CA` → `fr`, `ja-JP` → `ja`) ; **repli sur `en`** si aucune langue compatible.
+- Dans **Paramètres → Langue**, l'utilisateur peut choisir Français, English ou 日本語 ; ce choix **prime sur le navigateur**, est enregistré dans `users/{uid}.preferredLanguage` et se réapplique à la connexion. Pour un visiteur non connecté, conserver localement son choix sans stocker de données financières.
+- Changement de langue **immédiat sans rechargement** de la PWA, avec traduction de la navigation, des validations, erreurs, notifications, catégories système, tableaux, graphiques et sélecteur de dates.
+- Utiliser `Intl.DateTimeFormat`, `Intl.NumberFormat` et des traductions à clés stables ; les formats de date et de nombre suivent la langue, mais **ne changent jamais la devise du groupe ni les valeurs enregistrées**.
+- Prévoir textes longs, polices compatibles japonais, retours à la ligne, accessibilité, pluriels et tests des trois langues. Noms des catégories personnalisées conservés tels que saisis.
+
+### Design system et qualité UI/UX (V1 / M1–M6)
+
+- Définir dès M1 tokens de couleurs, typographie, espacements, rayons, états de composants, grilles et animations discrètes ; Tailwind/Lucide et composants Angular `shared` réutilisables, CSS personnalisé minimal.
+- Expérience **mobile-first**, navigation tactile, sélection de dates confortable, formulaires rapides, graphiques lisibles, feedback explicite des sauvegardes et erreurs, chargement progressif, empty states soignés.
+- Identité visuelle originale ; les captures Splitwise et du sélecteur de vols sont des **références de parcours**, pas des assets à recopier ou à publier dans GitHub.
+- Définir des critères d'acceptation UI/UX pour chaque jalon ; M6 valide notamment les trois langues, les interactions au clavier, les tailles d'écran, les graphiques et les performances.
 
 ## 11. Photos de reçus : Cloudinary Free privé
 
@@ -265,11 +304,11 @@ L'extension pourra aider l'utilisateur à naviguer entre ses groupes, déclenche
 
 ### Format d'import et garantie comptable
 
-- Normalisation locale dans une structure versionnée `OurFinanceImportV1` : utilisateurs, groupes, devises, dépenses, versements, catégories, pièces disponibles, provenance et limitations.
-- Import avec mapping explicite des comptes (dont les membres qui n'ont pas encore de compte OurFinance), groupes et devises.
+- Normalisation locale dans une structure versionnée `OurFinanceImportV1` : utilisateurs, groupes, **devise source de chaque opération**, dépenses, versements, catégories, pièces disponibles, provenance et limitations.
+- Import avec mapping explicite des comptes (dont les membres qui n'ont pas encore de compte OurFinance), groupes et **devise unique du groupe cible**. Une transaction dans une autre devise doit être dirigée vers un autre groupe compatible ou exclue avec explication ; jamais convertie automatiquement.
 - Chaque transaction importée possède un identifiant/fingerprint de provenance pour éviter les doublons sur réimport.
 - CSV Splitwise peut représenter des impacts nets sans détailler exactement les `paid_share` et `owed_share` : ne pas inventer les données manquantes. Préserver le montant d'origine, les impacts et un statut « répartition historique non entièrement déterminable », ou demander confirmation.
-- Comparer **par groupe, personne et devise** les soldes avant/après import ; signaler les différences, permettre d'annuler le batch.
+- Comparer **par groupe et personne, dans la devise unique de chaque groupe**, les soldes avant/après import ; signaler les différences, permettre d'annuler le batch.
 - Import initial réversible et export final JSON/CSV complet depuis OurFinance.
 - Données privées : l'extension ne transmet rien automatiquement à un tiers ; fichier local remis volontairement à l'application lors de l'import.
 
@@ -281,6 +320,7 @@ src/app/
     auth/
     guards/
     firebase/
+    i18n/
     models/
   shared/
     components/
@@ -294,7 +334,11 @@ src/app/
       user-avatar/
       confirmation-dialog/
       date-range-filter/
+      period-range-popover/
       statistics-card/
+      category-donut-chart/
+      member-payment-chart/
+      spending-trend-chart/
     pipes/
     validators/
     utils/
@@ -334,9 +378,10 @@ tools/
 ```
 
 - Composants Angular standalone et Signals ; Reactive Forms typés ; RxJS pour les flux asynchrones lorsque nécessaire.
-- UI Tailwind ; classes utilitaires et variantes partagées, CSS global minimal.
+- UI Tailwind et **design system documenté** ; classes utilitaires et variantes partagées, CSS global minimal ; graphes accessibles et responsive.
+- Internationalisation FR/EN/JA via Transloco (ou équivalent après POC), détection du navigateur, préférence utilisateur persistée et changement de langue à chaud.
 - `SplitEngine` pur, indépendant des services et de la base, avec tests exhaustifs.
-- Services ciblés : `AuthService`, `GroupService`, `ExpenseService`, `SplitPreferenceService`, `BalanceService`, `CurrencyService`, `CategoryService`, `StatisticsService`, `AttachmentService`, `SplitwiseImportService`.
+- Services ciblés : `AuthService`, `GroupService`, `ExpenseService`, `SplitPreferenceService`, `BalanceService`, `CurrencyService` (catalogue ISO + formatage, **pas de conversion**), `CategoryService`, `StatisticsService`, `LocaleService`, `AttachmentService`, `SplitwiseImportService`.
 - Repositories Firestore typés, **converters** explicites, index composites versionnés, cache de statistiques dérivables, lecture paginée et abonnements désinscrits correctement.
 - `SplitEngine` commun ou tests de conformité croisés entre Angular et Worker ; validations du format des écritures côté Worker (dont la somme des paiements/parts) et transactions cohérentes avant publication dans Firestore.
 - Passerelle Worker limitée aux actions privilégiées : création/édition/suppression de dépenses, remboursements, acceptation sécurisée d'invitations, signatures/accès aux médias. Les vues restent accessibles directement depuis Firebase SDK **sous Security Rules**.
@@ -351,8 +396,11 @@ tools/
 - Sécurité : **tests d'intégration Firestore Security Rules dans Emulator Suite** (lecture/écriture inter-groupes refusées, requêtes de collection group, préférences personnelles), API Worker authentifiée, invitations non réutilisables, membre retiré sans accès aux photos ni aux données.
 - Transactions atomiques et concurrence dans les routes Worker, calculs sensibles falsifiés côté client rejetés, historiques et suppressions logiques.
 - Cloudinary : uploads `authenticated`, accès refusé sans groupe, signatures de courte durée, suppression à distance, fichiers hors quota, fuite potentielle de liens, MIME et taille abusifs.
-- Import idempotent, doublons, annulation du batch, données partielles, plusieurs devises, comparaison des soldes.
+- Import idempotent, doublons, annulation du batch, données partielles, **rejet ou répartition explicite des devises incompatibles entre groupes distincts**, comparaison des soldes.
 - E2E : création du compte, invitation, dépense, remboursement, photo, statistiques, export et navigation PWA ; au minimum Chrome mobile/desktop, vérification Safari/iOS.
+- **Devise stricte** : verrou après première transaction (même archivée), impossibilité de saisir ou rembourser dans une autre devise, cas JPY/CAD/KWD, impossibilité d'additionner des groupes de devises différentes.
+- **Statistiques** : sélecteur dropdown et onglets Jours/Mois/Années, début/fin inclusifs, traversée des années, bornes de mois/année, Annuler/Appliquer, graphiques par catégorie/membre/temps, exactitude payé vs dû vs solde, 1/2/3+ membres, périodes sans données.
+- **i18n/UX** : détection `fr-CA`/`en-US`/`ja-JP`, repli anglais, préférence persistée, changement instantané, catégories système traduites, affichage local des dates et montants, composants accessibles, navigation clavier et mobile.
 - Extension : tests Jest/Playwright sur des fixtures autorisées, packaging Chrome Manifest V3 et permission minimale.
 - Objectif de couverture : au moins 80 % global, et couverture renforcée pour le moteur monétaire et les règles de sécurité (scénarios critiques exhaustifs).
 
@@ -369,12 +417,12 @@ tools/
 | Jalons | Travaux | Critère de fin |
 |---|---|---|
 | **M0 — faisabilité** | POC Firebase Auth/Firestore Spark, Worker Free, Cloudinary `authenticated`, calculs atomiques et règles d'accès, quotas ; évaluation de l'extension/exports officiels | Dépense test sécurisée, image privée accessible au membre autorisé et refusée à un tiers, coût nul démontré |
-| **M1 — fondation** | Angular/Tailwind/PWA, Firebase Hosting, Firestore Emulator, CI GitHub, Worker, environnements séparés | Site vide installable, PR validées, preview isolée |
-| **M2 — comptes/groupes** | Google/email, récupération native, profil, groupes libres, invitations par lien, Security Rules | Groupe personnel, groupe à 2 et groupe à 3 ; aucune fuite inter-groupes |
-| **M3 — dépenses** | Catégories et icônes, toutes devises ISO, paiements/parts, cinq répartitions, mémorisation personnelle par groupe | Dépenses et historiques exacts ; split réutilisé sans imposer 60/40 |
-| **M4 — finances** | Remboursements, multi-devises, conversions explicites, statistiques par période/groupe/personne | Soldes traçables au montant près, périodes cohérentes |
-| **M5 — import/photos** | Reçus Cloudinary privés, export natif OurFinance, import Splitwise CSV/JSON, extension d'aide aux exports, dédoublonnage | Migration rapprochée, fichiers privés, erreurs explicitement signalées |
-| **M6 — production** | E2E, audit Firestore Rules/Worker/IAM, sauvegarde/restauration, performances, responsive, Android/iOS, déploiement | Deux groupes réels et un groupe témoin indépendants, validation utilisateur |
+| **M1 — fondation** | Angular/Tailwind/PWA, **design system**, infrastructure **i18n FR/EN/JA**, POC bibliothèque de graphiques, Firebase Hosting, Firestore Emulator, CI GitHub, Worker, environnements séparés | Site installable, composants UI de base, traductions chargées, PR validées, preview isolée |
+| **M2 — comptes/groupes** | Google/email, récupération native, profil, **détection navigateur + préférence de langue modifiable**, groupes libres à **devise unique obligatoire**, invitations par lien, Security Rules | Groupes à 1/2/3 membres ; devise choisie à la création, langue persistée, aucune fuite inter-groupes |
+| **M3 — dépenses** | Catalogue global de catégories traduites, catégories personnalisées collaboratives, catalogue ISO pour **choix de devise par groupe**, montants strictement dans cette devise, paiements/parts, cinq répartitions, mémorisation personnelle | Dépenses exactes sans conversion ; devise verrouillée après première transaction ; split réutilisé sans imposer 60/40 |
+| **M4 — finances** | Remboursements dans la devise du groupe, soldes exacts, **sélecteur dropdown Jours/Mois/Années**, indicateurs, camembert catégories, barres payé vs dû par membre, courbe temporelle, filtres et interactions | Montants exacts, écarts expliqués, graphiques et bornes de période testés, mobile et desktop |
+| **M5 — import/photos** | Reçus Cloudinary privés, export natif OurFinance, import Splitwise CSV/JSON **sans conversion et avec séparation des devises incompatibles**, extension d'aide aux exports, dédoublonnage | Migration rapprochée, fichiers privés, devises source préservées et erreurs signalées |
+| **M6 — production** | E2E, audit Firestore Rules/Worker/IAM, sauvegarde/restauration, **tests UX/i18n FR/EN/JA**, graphiques et sélecteur mobile/desktop, performances, Android/iOS, déploiement | Groupes indépendants, 3 langues, graphiques accessibles, validation utilisateur |
 
 ### Definition of Done V1
 
@@ -385,12 +433,13 @@ tools/
 - [ ] Une première dépense ne reçoit aucune répartition personnelle préenregistrée.
 - [ ] Une dépense suivante du même utilisateur/groupe propose sa dernière répartition, modifiable parmi les cinq modes.
 - [ ] Deux personnes dans le même groupe ont des préférences de partage indépendantes.
-- [ ] Les montants et les parts sont exacts pour toutes les devises ISO actives, avec tests sur 0, 2 et 3 décimales.
-- [ ] Chaque catégorie pertinente a une icône visible et les catégories personnalisées fonctionnent.
-- [ ] Les statistiques payées/dûes/soldes couvrent mois, année, total et plage libre.
+- [ ] Chaque groupe choisit une **seule devise ISO active** ; toutes ses transactions utilisent cette devise, sans conversion, avec tests sur 0, 2 et 3 décimales ; changement interdit après la première transaction.
+- [ ] Le catalogue global de catégories avec icônes/couleurs est traduit en FR/EN/JA ; tous les membres actifs peuvent créer, modifier et archiver les catégories personnalisées de leur groupe, sans altérer l'historique.
+- [ ] Les statistiques sont filtrées **par groupe** et par période choisie via **un dropdown à onglets Jours/Mois/Années** (début/fin inclusifs, Annuler/Appliquer) ; camembert par catégorie, comparaison payé vs dû par membre, évolution temporelle et indicateurs exacts.
 - [ ] Photos Cloudinary privées (`authenticated`) visibles seulement aux membres autorisés, avec signature/stream protégé et exportables avec leur dépense.
 - [ ] CSV Splitwise importé avec historique, anomalies et rapprochement des soldes.
-- [ ] PWA installable, responsive et sans traitement silencieux de données privées en dehors du groupe.
+- [ ] PWA installable et responsive, design system soigné, graphiques et sélection de dates accessibles, sans traitement silencieux de données privées en dehors du groupe.
+- [ ] UI entièrement disponible en **français, anglais et japonais**, avec langue initiale selon le navigateur, choix dans les paramètres, préférence persistée et changement immédiat.
 - [ ] Pipeline PR et déploiement GitHub vers Firebase Hosting/Firestore/Worker validés ; sauvegardes documentées.
 - [ ] La V1 fonctionne sur Firebase Spark + Cloudinary Free + Worker Free **sans carte bancaire ni facturation requise**, et les quotas sont surveillés.
 
@@ -411,7 +460,8 @@ tools/
 
 1. **M0 :** valider le POC de chaîne de confiance Firebase Auth → Worker Free → Firestore/Cloudinary ; démontrer les droits d'accès par groupe, les contraintes de dépenses et les quotas sans carte bancaire.
 2. **Invitations :** accepter en V1 le partage manuel d'un lien d'invitation sécurisé, sans email automatique personnalisé. Les emails de vérification et de réinitialisation restent ceux de Firebase Auth.
-3. **Splitwise :** disposer d'un échantillon CSV non sensible (et éventuellement JSON de sauvegarde) pour vérifier le degré de fidélité de l'import ; confirmer la portée de l'extension après revue des conditions du service.
+3. **Splitwise :** disposer d'un échantillon CSV non sensible (et éventuellement JSON de sauvegarde) pour vérifier le degré de fidélité de l'import ; confirmer la portée de l'extension après revue des conditions du service. Les transactions de devise incompatible sont séparées ou refusées, jamais converties.
 4. **Accès GitHub :** envisager de rendre `OurFinance` privé si des exemples ou fixtures de données personnelles doivent être conservés ; éviter tout jeu de données réel dans un dépôt public.
 5. **Domaine :** garder le domaine Firebase gratuit au démarrage ; sous-domaine `carnould.com` facultatif, via BookMyName, après la mise en production.
+6. **Décisions produit confirmées (16/11/2026) :** une seule devise stricte par groupe, sans conversion ; statistiques avec dropdown Jours/Mois/Années et graphiques interactifs ; FR/EN/JA dès la V1 ; design system et UX mobile-first. Ces décisions **remplacent** les anciennes exigences multidevises par dépense et les anciennes mentions « anglais/japonais prévus plus tard ».
 
