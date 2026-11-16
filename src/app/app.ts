@@ -20,12 +20,13 @@ import { CategoryManager } from './features/categories/category-manager';
 import { InvitationPanel } from './features/groups/invitation-panel';
 import { GroupCurrencyPanel } from './features/groups/group-currency-panel';
 import { ExportPanel } from './features/import-export/export-panel';
+import { RestorePanel } from './features/import-export/restore-panel';
 import { ProfilePanel } from './features/profile/profile-panel';
 import { language, locale, setLanguage, t } from './shared/utils/i18n';
 
 @Component({
   selector: 'app-root',
-  imports: [AppShell, FormsModule, ExpenseForm, ExpenseHistory, SettlementForm, SettlementHistory, BalanceSummary, StatisticsSummary, ActivityHistory, CategoryManager, InvitationPanel, GroupCurrencyPanel, ExportPanel, ProfilePanel],
+  imports: [AppShell, FormsModule, ExpenseForm, ExpenseHistory, SettlementForm, SettlementHistory, BalanceSummary, StatisticsSummary, ActivityHistory, CategoryManager, InvitationPanel, GroupCurrencyPanel, ExportPanel, RestorePanel, ProfilePanel],
   template: `
     <app-shell>
       <div class="mx-auto max-w-md rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">
@@ -95,6 +96,7 @@ import { language, locale, setLanguage, t } from './shared/utils/i18n';
             @if (firebaseApp && groups().length) {
               @defer (on viewport) {
                 <app-export-panel [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" />
+                @if (workerUrl) { <app-restore-panel [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" /> }
               } @placeholder {
                 <p class="mt-6 rounded-xl border border-slate-200 p-4 text-sm text-slate-600" role="status">{{ t('loadingExport') }}</p>
               }
