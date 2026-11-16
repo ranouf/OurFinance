@@ -8,10 +8,11 @@ import type { GroupService } from './core/firebase/group-service';
 import type { FirebaseApp } from 'firebase/app';
 import { currencyCodes } from './shared/utils/currency';
 import { Group } from './core/firebase/group-model';
+import { ExpenseForm } from './features/expenses/expense-form';
 
 @Component({
   selector: 'app-root',
-  imports: [AppShell, FormsModule],
+  imports: [AppShell, FormsModule, ExpenseForm],
   template: `
     <app-shell>
       <div class="mx-auto max-w-md rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">
@@ -48,6 +49,9 @@ import { Group } from './core/firebase/group-model';
                 </form>
               } @else { <p class="mt-4 text-sm text-amber-800">Le service de création de groupes n’est pas encore configuré.</p> }
             </section>
+            @if (workerUrl && firebaseApp && groups().length) {
+              <app-expense-form [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" />
+            }
           }
           <button class="mt-6 rounded-lg border border-slate-300 px-4 py-2" type="button" (click)="logout()">Déconnexion</button>
         } @else {
@@ -86,8 +90,8 @@ export class App implements OnInit, OnDestroy {
   readonly message = signal('');
   auth?: AuthService;
   private groupService?: GroupService;
-  private firebaseApp?: FirebaseApp;
-  private workerUrl?: string;
+  firebaseApp?: FirebaseApp;
+  workerUrl?: string;
   readonly currencies = currencyCodes();
   readonly groups = signal<Group[]>([]);
   readonly groupServiceReady = signal(false);
