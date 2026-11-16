@@ -25,3 +25,12 @@ test('FX settlement clears the CAD debt without creating a JPY debt', () => {
   strictEqual(rows.find(row => row.userId === 'b' && row.currency === 'CAD')?.balanceMinor, 0n);
   strictEqual(rows.some(row => row.currency === 'JPY'), false);
 });
+test('period statistics assign an FX settlement to its transfer month in debt currency', () => {
+  const fx = { groupId: 'g1', date: '2026-12-01', debtCurrency: 'CAD', debtAmountMinor: 51,
+    paymentCurrency: 'JPY', paymentAmountMinor: 1, rate: '2', rateDate: '2026-11-30', fromUserId: 'b', toUserId: 'a' };
+  const november = calculateBalances([expense], [], '2026-11-01', '2026-11-30', [fx]);
+  strictEqual(november.find(row => row.userId === 'b')?.settlementsSentMinor, 0n);
+  const december = calculateBalances([expense], [], '2026-12-01', '2026-12-31', [fx]);
+  strictEqual(december.find(row => row.userId === 'b' && row.currency === 'CAD')?.settlementsSentMinor, 51n);
+  strictEqual(december.some(row => row.currency === 'JPY'), false);
+});
