@@ -28,7 +28,7 @@ export async function authenticatedDownloadUrl(publicId: string, format: 'jpg' |
 }
 
 export async function uploadAuthenticated(bytes: Uint8Array, format: 'jpg' | 'png', publicId: string, env: CloudinaryEnv, transport: typeof fetch = fetch): Promise<void> {
-  const params = { public_id: publicId, timestamp: String(Math.floor(Date.now() / 1000)), type: 'authenticated', overwrite: 'false' };
+  const params = { asset_folder: 'ourfinance-test', public_id: publicId, timestamp: String(Math.floor(Date.now() / 1000)), type: 'authenticated', overwrite: 'false' };
   const form = new FormData();
   for (const [key, value] of Object.entries(params)) form.set(key, value);
   form.set('api_key', env.CLOUDINARY_API_KEY);

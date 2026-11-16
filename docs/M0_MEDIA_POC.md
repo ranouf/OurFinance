@@ -20,3 +20,7 @@ Ces routes sont **désactivées par défaut**. Il faut `ENABLE_MEDIA_POC=true` e
 ## Limites avant M5
 
 Ce POC n'est pas encore exécuté contre Cloudinary Free. L'application Angular ne propose pas encore de sélection, redimensionnement, suppression des métadonnées EXIF, gestion de plusieurs reçus ni export. Le chemin de suppression distante et la compensation doivent être validés avec un vrai asset synthétique. L'usage de l'identité de service exige un audit IAM ; le groupe doit être contrôlé dans le Worker à chaque requête, car cette identité contourne les Firestore Rules. Les scénarios de concurrence, d'abus et de quotas restent ouverts. **Aucun reçu réel ne doit être chargé.**
+
+## Diagnostic du premier essai Cloudinary Free
+
+Le premier upload réel via le Worker a échoué en 502. La clé Cloudinary dédiée a reçu HTTP 403 « Request forbidden due to missing permissions (actions=[create]) » lorsque l'upload n'indiquait pas `asset_folder`. Le cloud de test utilise les dossiers dynamiques. Le dossier `ourfinance-test` existe désormais et la clé dédiée a le rôle de gestionnaire **sur ce seul dossier** ; un upload signé avec `asset_folder=ourfinance-test` suivi d'une suppression a réussi en test direct. L'upload Worker signe et envoie maintenant ce paramètre ; son nouvel essai de bout en bout reste à exécuter. Les essais échoués ont été nettoyés, sans asset résiduel constaté, et les variables d'activation du POC ont été retirées.

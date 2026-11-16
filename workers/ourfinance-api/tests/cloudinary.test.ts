@@ -29,6 +29,9 @@ test('upload requests authenticated delivery type and validates response', async
     const form = init?.body as FormData;
     strictEqual(form.get('type'), 'authenticated');
     strictEqual(form.get('public_id'), 'ourfinance-test/g/e/a');
+    strictEqual(form.get('asset_folder'), 'ourfinance-test');
+    const timestamp = form.get('timestamp');
+    strictEqual(form.get('signature'), createHash('sha1').update(`asset_folder=ourfinance-test&overwrite=false&public_id=ourfinance-test/g/e/a&timestamp=${timestamp}&type=authenticatedsecret`).digest('hex'));
     return Response.json({ public_id: 'ourfinance-test/g/e/a', type: 'authenticated', resource_type: 'image', format: 'png' });
   };
   await uploadAuthenticated(png, 'png', 'ourfinance-test/g/e/a', env, transport as typeof fetch);
