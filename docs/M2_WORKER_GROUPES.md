@@ -1,6 +1,6 @@
 # M2 — création atomique de groupe, état
 
-Le Worker dispose d'une route `POST /groups` qui exige un ID token Firebase vérifié avec courriel confirmé. Il valide le nom et une devise ISO prise en charge par `Intl`, puis prépare une opération Firestore atomique à trois documents : groupe, membre `owner` actif et référence personnelle. Les règles interdisent aux clients d'écrire la référence ; ils peuvent lire uniquement leurs références. La route renvoie 503 si l'identité serveur n'est pas configurée.
+Le Worker dispose d'une route `POST /groups` qui exige un ID token Firebase vérifié avec courriel confirmé. Il valide le nom et une devise ISO prise en charge par `Intl`, puis prépare une opération Firestore atomique à trois documents : groupe, membre `owner` actif et référence personnelle. Les règles interdisent aux clients d'écrire la référence ; ils peuvent lire uniquement leurs références. La route renvoie 503 si l'identité serveur n'est pas configurée **ou** si `ENABLE_GROUP_CREATION` n'est pas explicitement fixé à `true`. Cette désactivation par défaut protège le déploiement de vérification initial.
 
 ## Configuration manquante
 
