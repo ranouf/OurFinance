@@ -35,3 +35,20 @@ test('collector refuses an incomplete or denied preference snapshot', async () =
   const denied = async () => Response.json({}, { status: 403 });
   await rejects(collectGroupExportV2(reader, user, 'g', 'https://worker.example', denied as typeof fetch));
 });
+
+test('collector preserves expense authors and comments from Firestore documents', async () => {
+  const expense = { id: 'expense', data: { date: '2026-11-01', description: 'Fictif', currency: 'CAD', amountMinor: 101,
+    categoryId: 'other', categoryLabel: 'Autre', categoryIcon: 'receipt', categoryColor: 'slate',
+    payments: [{ userId: 'alice', amountMinor: 101 }], allocations: [{ userId: 'alice', amountMinor: 101 }],
+    splitSnapshotJson: '{"kind":"equal","users":["alice"]}', deleted: false, createdBy: 'alice' } };
+  const withExpense: ExportReader = {
+    read: reader.read,
+    list: async path => path === 'groups/g/expenses' ? [expense] :
+      path === 'groups/g/expenses/expense/comments' ? [{ id: 'comment', data: { authorId: 'alice', text: 'Note fictive', createdAt: { toDate: () => new Date('2026-11-16T18:00:00.000Z') } } }] :
+      reader.list(path),
+  };
+  const transport = async () => Response.json({ preferences: rows });
+  const result = JSON.parse(await collectGroupExportV2(withExpense, user, 'g', 'https://worker.example', transport as typeof fetch));
+  deepStrictEqual(result.expenseAuthors, [{ expenseId: 'expense', userId: 'alice' }]);
+  deepStrictEqual(result.comments, [{ expenseId: 'expense', id: 'comment', authorId: 'alice', text: 'Note fictive', createdAt: '2026-11-16T18:00:00.000Z' }]);
+});
