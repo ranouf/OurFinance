@@ -18,6 +18,7 @@ const group: GroupExportV2 = {
     splitSnapshotJson: '{"kind":"equal","users":["alice"]}', deleted: false }],
   settlements: [], importedRecords: [], categories: [],
   expenseAuthors: [{ expenseId: 'e', userId: 'alice' }],
+  receiptOwners: [{ expenseId: 'e', attachmentId: 'a', ownerId: 'alice' }],
   comments: [{ expenseId: 'e', id: 'c', authorId: 'alice', text: 'Commentaire fictif', createdAt: '2026-11-16T18:00:00.000Z' }],
   activity: [{ id: 'e', actorId: 'alice', action: 'expense_created', at: '2026-11-16T18:00:00.000Z', expenseId: 'e' }],
   importBatches: [],
@@ -52,6 +53,8 @@ test('V2 refuses a modified preference, receipt or manifest scope', async () => 
   await rejects(verifyBackupPackageV2({ ...backup, receipts: [{ ...backup.receipts[0], bytes: new Uint8Array([1]) }] }));
   await rejects(verifyBackupPackageV2({ ...backup, manifest: { ...backup.manifest, scope: 'group-v1-partial' as 'group-v2-partial' } }));
   await rejects(verifyBackupPackageV2({ ...backup, groupJson: JSON.stringify({ ...group, expenseAuthors: [] }) }));
+  await rejects(verifyBackupPackageV2({ ...backup, groupJson: JSON.stringify({ ...group, receiptOwners: [] }) }));
+  throws(() => serializeGroupExportV2({ ...group, receiptOwners: [{ ...group.receiptOwners[0], ownerId: 'outsider' }] }));
 });
 
 test('restore preflight verifies the archived receipt and original group before any write', async () => {

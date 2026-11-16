@@ -44,6 +44,7 @@ test('collector preserves expense authors and comments from Firestore documents'
   const withExpense: ExportReader = {
     read: reader.read,
     list: async path => path === 'groups/g/expenses' ? [expense] :
+      path === 'groups/g/expenses/expense/attachments' ? [{ id: 'receipt', data: { format: 'png', status: 'active', ownerId: 'alice' } }] :
       path === 'groups/g/expenses/expense/comments' ? [{ id: 'comment', data: { authorId: 'alice', text: 'Note fictive', createdAt: { toDate: () => new Date('2026-11-16T18:00:00.000Z') } } }] :
       path === 'groups/g/activity' ? [{ id: 'expense', data: { actorId: 'alice', action: 'expense_created', expenseId: 'expense', at: { toDate: () => new Date('2026-11-16T18:00:00.000Z') } } }] :
       reader.list(path),
@@ -51,6 +52,7 @@ test('collector preserves expense authors and comments from Firestore documents'
   const transport = async () => Response.json({ preferences: rows });
   const result = JSON.parse(await collectGroupExportV2(withExpense, user, 'g', 'https://worker.example', transport as typeof fetch));
   deepStrictEqual(result.expenseAuthors, [{ expenseId: 'expense', userId: 'alice' }]);
+  deepStrictEqual(result.receiptOwners, [{ expenseId: 'expense', attachmentId: 'receipt', ownerId: 'alice' }]);
   deepStrictEqual(result.comments, [{ expenseId: 'expense', id: 'comment', authorId: 'alice', text: 'Note fictive', createdAt: '2026-11-16T18:00:00.000Z' }]);
   deepStrictEqual(result.activity, [{ id: 'expense', actorId: 'alice', action: 'expense_created', at: '2026-11-16T18:00:00.000Z', expenseId: 'expense' }]);
 });

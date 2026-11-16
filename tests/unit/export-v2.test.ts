@@ -9,6 +9,7 @@ const fixture: GroupExportV2 = {
   members: [{ userId: 'alice', role: 'owner', status: 'active' }, { userId: 'bob', role: 'member', status: 'revoked' }],
   expenses: [], settlements: [], importedRecords: [], categories: [], receipts: [],
   expenseAuthors: [],
+  receiptOwners: [],
   comments: [],
   activity: [],
   importBatches: [],

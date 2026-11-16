@@ -20,6 +20,14 @@ export async function collectGroupExportV2(
   if (authors.size !== expenses.length || expenses.length !== group.expenses.length ||
       group.expenses.some(row => typeof authors.get(row.id) !== 'string')) throw new Error('Auteurs des dépenses incomplets');
   const expenseAuthors = group.expenses.map(row => ({ expenseId: row.id, userId: authors.get(row.id) as string }));
+  const receiptPages = await Promise.all(group.expenses.map(row => reader.list(`groups/${groupId}/expenses/${row.id}/attachments`)));
+  const receiptOwners = receiptPages.flatMap((page, index) => page.map(item => ({
+    expenseId: group.expenses[index].id, attachmentId: item.id, ownerId: item.data['ownerId'] as string,
+  })));
+  if (receiptOwners.length !== group.receipts.length || receiptOwners.some((row, index) =>
+    row.expenseId !== group.receipts[index].expenseId || row.attachmentId !== group.receipts[index].attachmentId)) {
+    throw new Error('Reçus modifiés pendant la sauvegarde');
+  }
   const commentPages = await Promise.all(group.expenses.map(row => reader.list(`groups/${groupId}/expenses/${row.id}/comments`)));
   const comments = commentPages.flatMap((page, index) => page.map(item => ({
     expenseId: group.expenses[index].id, id: item.id,
@@ -54,5 +62,5 @@ export async function collectGroupExportV2(
     return row;
   });
   if ((await reader.read(`groups/${groupId}/members/${user.uid}`))?.data['status'] !== 'active') throw new Error('Membre révoqué pendant la sauvegarde');
-  return serializeGroupExportV2({ ...group, version: 2, expenseAuthors, comments, activity, importBatches, preferences });
+  return serializeGroupExportV2({ ...group, version: 2, expenseAuthors, receiptOwners, comments, activity, importBatches, preferences });
 }

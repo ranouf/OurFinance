@@ -5,6 +5,7 @@ export interface GroupExportV2 extends Omit<GroupExportV1, 'version'> {
   readonly version: 2;
   /** Required to preserve author-only edit and delete rights after restoration. */
   readonly expenseAuthors: readonly { readonly expenseId: string; readonly userId: string }[];
+  readonly receiptOwners: readonly { readonly expenseId: string; readonly attachmentId: string; readonly ownerId: string }[];
   readonly comments: readonly { readonly expenseId: string; readonly id: string; readonly authorId: string; readonly text: string; readonly createdAt: string }[];
   readonly activity: readonly { readonly id: string; readonly actorId: string; readonly action: string; readonly at: string;
     readonly expenseId?: string; readonly commentId?: string; readonly settlementId?: string; readonly batchId?: string; readonly categoryId?: string }[];
@@ -81,6 +82,12 @@ export function serializeGroupExportV2(value: GroupExportV2): string {
     throw new Error('Auteurs des dépenses incomplets');
   }
   const expenseAuthors = value.expenseAuthors.map(row => ({ expenseId: row.expenseId, userId: row.userId }));
+  if (!Array.isArray(value.receiptOwners) || value.receiptOwners.length !== group.receipts.length ||
+      value.receiptOwners.some((row, index) => !row || row.expenseId !== group.receipts[index].expenseId ||
+        row.attachmentId !== group.receipts[index].attachmentId || !members.has(row.ownerId))) {
+    throw new Error('Propriétaires des reçus incomplets');
+  }
+  const receiptOwners = value.receiptOwners.map(row => ({ expenseId: row.expenseId, attachmentId: row.attachmentId, ownerId: row.ownerId }));
   const expenseIds = new Set(group.expenses.map(row => row.id));
   if (!Array.isArray(value.comments) || new Set(value.comments.map(row => `${row?.expenseId}/${row?.id}`)).size !== value.comments.length ||
       value.comments.some(row => !row || !expenseIds.has(row.expenseId) || !idPattern.test(row.id) ||
@@ -135,5 +142,5 @@ export function serializeGroupExportV2(value: GroupExportV2): string {
     if (row.memberIds.length !== mode.memberIds.length || row.memberIds.some((id, i) => id !== mode.memberIds[i])) throw new Error('Participants de préférence incohérents');
     return { userId: row.userId, modeJson: mode.modeJson, memberIds: mode.memberIds, updatedAt: row.updatedAt };
   });
-  return `${JSON.stringify({ ...group, version: 2, expenseAuthors, comments, activity, importBatches, preferences }, null, 2)}\n`;
+  return `${JSON.stringify({ ...group, version: 2, expenseAuthors, receiptOwners, comments, activity, importBatches, preferences }, null, 2)}\n`;
 }
