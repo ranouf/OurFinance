@@ -7,7 +7,7 @@ Statut : **non prêt pour la production**. Aucun déploiement ni fusion automati
 - `npm run typecheck` : passe.
 - `npm run build` : passe ; PWA produit un manifeste et un service worker.
 - `npm run test:unit` : dix tests passent (répartitions, devises, préférences, soldes, CSV).
-- `npm run test:rules` : non exécuté jusqu'au bout ; le téléchargement du JAR Firestore Emulator échoue dans cet environnement. La suite est dans la CI, mais son succès doit être confirmé.
+- `npm run test:rules` : téléchargement du JAR bloqué localement, mais la CI GitHub [run 43806177443](https://github.com/ranouf/OurFinance/actions/runs/43806177443) a démarré l’émulateur et validé **4 tests sur 4**.
 - `npm audit --omit=dev --audit-level=high` : **échoue**. Quatre alertes élevées concernent la chaîne `firebase` → `@firebase/firestore` → `@grpc/grpc-js` ; npm indique « No fix available » pour deux avis gRPC (`GHSA-m9gg-hp2v-232j`, `GHSA-f596-whhp-79r4`). Suivre une mise à jour des dépendances et réévaluer la portée navigateur/serveur avant tout lancement.
 
 ## Contrôles bloquants
