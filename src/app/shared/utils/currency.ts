@@ -4,7 +4,9 @@ export function currencyCodes(): string[] {
 }
 export function minorDigits(code: string): number {
   if (!currencyCodes().includes(code)) throw new Error('Devise non prise en charge');
-  return new Intl.NumberFormat('en', { style: 'currency', currency: code }).resolvedOptions().maximumFractionDigits;
+  const digits = new Intl.NumberFormat('en', { style: 'currency', currency: code }).resolvedOptions().maximumFractionDigits;
+  if (digits === undefined) throw new Error('Exposant de devise indisponible');
+  return digits;
 }
 export function formatMinor(amountMinor: number, code: string, locale: string): string {
   if (!Number.isSafeInteger(amountMinor)) throw new Error('Montant invalide');
