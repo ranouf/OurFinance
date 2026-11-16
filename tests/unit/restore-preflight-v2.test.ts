@@ -10,6 +10,7 @@ const fixture: GroupExportV2 = {
   expenses: [], settlements: [], importedRecords: [], categories: [], receipts: [],
   expenseAuthors: [],
   receiptOwners: [],
+  receiptAssets: [],
   comments: [],
   activity: [],
   importBatches: [],

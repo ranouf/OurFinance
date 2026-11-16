@@ -31,6 +31,9 @@ async function collectGroupExportV2WithPreferences(
   const receiptOwners = receiptPages.flatMap((page, index) => page.map(item => ({
     expenseId: group.expenses[index].id, attachmentId: item.id, ownerId: item.data['ownerId'] as string,
   })));
+  const receiptAssets = receiptPages.flatMap((page, index) => page.map(item => ({
+    expenseId: group.expenses[index].id, attachmentId: item.id, publicId: item.data['publicId'] as string,
+  })));
   if (receiptOwners.length !== group.receipts.length || receiptOwners.some((row, index) =>
     row.expenseId !== group.receipts[index].expenseId || row.attachmentId !== group.receipts[index].attachmentId)) {
     throw new Error('Reçus modifiés pendant la sauvegarde');
@@ -63,7 +66,7 @@ async function collectGroupExportV2WithPreferences(
     return row;
   });
   if ((await reader.read(`groups/${groupId}/members/${user.uid}`))?.data['status'] !== 'active') throw new Error('Membre révoqué pendant la sauvegarde');
-  return serializeGroupExportV2({ ...group, version: 2, snapshotMode, expenseAuthors, receiptOwners, comments, activity, importBatches, preferences });
+  return serializeGroupExportV2({ ...group, version: 2, snapshotMode, expenseAuthors, receiptOwners, receiptAssets, comments, activity, importBatches, preferences });
 }
 
 /** Client collection remains partial because preferences are fetched in a separate Worker snapshot. */

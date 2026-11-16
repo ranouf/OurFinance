@@ -10,7 +10,7 @@ const at = '2026-11-16T18:00:00.000Z';
 const group: GroupExportV2 = {
   format: 'OurFinanceGroupExport', version: 2, snapshotMode: 'server_transaction', exportedAt: at,
   group: { id: 'g', name: 'Fictif', currency: 'CAD' }, members: [{ userId: 'alice', role: 'owner', status: 'active' }],
-  expenses: [], settlements: [], importedRecords: [], categories: [], receipts: [], expenseAuthors: [], receiptOwners: [],
+  expenses: [], settlements: [], importedRecords: [], categories: [], receipts: [], expenseAuthors: [], receiptOwners: [], receiptAssets: [],
   comments: [], activity: [], importBatches: [], preferences: [{ userId: 'alice', modeJson: null, memberIds: [], updatedAt: null }],
 };
 const env = { FIREBASE_PROJECT_ID: 'ourfinance-test', FIREBASE_SERVICE_ACCOUNT_JSON: 'unused',

@@ -16,6 +16,7 @@ const group: GroupExportV2 = {
   settlements: [], importedRecords: [], categories: [],
   receipts: [{ expenseId: 'e', attachmentId: 'a', format: 'png', status: 'active', mediaIncluded: false }],
   expenseAuthors: [{ expenseId: 'e', userId: 'alice' }], receiptOwners: [{ expenseId: 'e', attachmentId: 'a', ownerId: 'alice' }],
+  receiptAssets: [{ expenseId: 'e', attachmentId: 'a', publicId: 'ourfinance-test/g/e/a' }],
   comments: [], activity: [{ id: 'e', actorId: 'alice', action: 'expense_created', expenseId: 'e', at }], importBatches: [],
   preferences: [{ userId: 'alice', modeJson: '{"kind":"equal","users":["alice"]}', memberIds: ['alice'], updatedAt: at }],
 };

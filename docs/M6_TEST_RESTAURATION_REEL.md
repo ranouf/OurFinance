@@ -6,7 +6,7 @@
 
 1. Réserver `ourfinance-test` et `ourfinance-api-dev` dans l’issue #30. Déployer sur TEST le SHA exact de la PR #102 et ses règles `firestore.rules` ; vérifier que les routes non activées répondent 503.
 2. Créer un groupe fictif CAD avec propriétaire, membre actif, membre révoqué et tiers hors groupe ; utiliser exclusivement des données, images et comptes fictifs. Créer une dépense, un commentaire, une catégorie personnalisée, un règlement, un lot d’import et des préférences personnelles différentes.
-3. Construire et vérifier localement un ZIP V2 de moins de 20 Mo, incluant un PNG privé. Conserver ZIP, jetons et identifiants fictifs hors dépôt, hors PR et hors journaux publics. Le format reste `group-v2-partial` et sa collecte doit être contrôlée avant l’essai : la collecte V1 cliente suivie des préférences serveur n’est pas encore un instantané atomique.
+3. Obtenir `group.json` par `GET /groups/{g}/backup/snapshot` sous `ENABLE_BACKUP_POC=true` et `BACKUP_POC_GROUP_ID=<groupe fictif>`, puis construire et vérifier un ZIP V2 de moins de 20 Mo avec `buildBackupPackageV2FromServerSnapshot`, incluant un PNG privé. Conserver ZIP, jetons et identifiants fictifs hors dépôt, hors PR et hors journaux publics. La collecte client `client_partial` doit être refusée par la route de restauration.
 4. Capturer les documents attendus, le solde et les médias privés. Modifier ensuite des opérations fictives pour créer un écart visible avec la sauvegarde.
 
 ## Contrôles HTTP
@@ -19,4 +19,4 @@
 
 ## Nettoyage et compte rendu
 
-Retirer les deux variables POC, vérifier 503 sur les routes, `/health` 200, supprimer comptes, documents et assets fictifs. Consigner dans la PR le SHA réellement déployé, les codes HTTP observés, les contrôles de données, les limites et les éventuels échecs. Aucune capture privée fournie par le propriétaire ni média de test dans le dépôt.
+Retirer les quatre variables POC (sauvegarde et restauration), vérifier 503 sur les routes, `/health` 200, supprimer comptes, documents et assets fictifs. Consigner dans la PR le SHA réellement déployé, les codes HTTP observés, les contrôles de données, les limites et les éventuels échecs. Aucune capture privée fournie par le propriétaire ni média de test dans le dépôt.

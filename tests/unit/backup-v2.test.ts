@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import { deepStrictEqual, rejects, strictEqual, throws } from 'node:assert';
 import { sha256Hex } from '../../src/app/features/import-export/backup-package';
-import { verifyBackupPackageV2, type BackupPackageV2 } from '../../src/app/features/import-export/backup-package-v2';
+import { buildBackupPackageV2FromServerSnapshot, verifyBackupPackageV2, type BackupPackageV2 } from '../../src/app/features/import-export/backup-package-v2';
 import { encodeBackupZipV2 } from '../../src/app/features/import-export/backup-zip';
 import { decodeBackupZipV2 } from '../../src/app/features/import-export/backup-zip-read';
 import { serializeGroupExportV2, type GroupExportV2 } from '../../src/app/features/import-export/export-v2';
@@ -19,6 +19,7 @@ const group: GroupExportV2 = {
   settlements: [], importedRecords: [], categories: [],
   expenseAuthors: [{ expenseId: 'e', userId: 'alice' }],
   receiptOwners: [{ expenseId: 'e', attachmentId: 'a', ownerId: 'alice' }],
+  receiptAssets: [{ expenseId: 'e', attachmentId: 'a', publicId: 'ourfinance-test/g/e/a' }],
   comments: [{ expenseId: 'e', id: 'c', authorId: 'alice', text: 'Commentaire fictif', createdAt: '2026-11-16T18:00:00.000Z' }],
   activity: [{ id: 'e', actorId: 'alice', action: 'expense_created', at: '2026-11-16T18:00:00.000Z', expenseId: 'e' }],
   importBatches: [],
@@ -55,6 +56,7 @@ test('V2 refuses a modified preference, receipt or manifest scope', async () => 
   await rejects(verifyBackupPackageV2({ ...backup, groupJson: JSON.stringify({ ...group, expenseAuthors: [] }) }));
   await rejects(verifyBackupPackageV2({ ...backup, groupJson: JSON.stringify({ ...group, receiptOwners: [] }) }));
   throws(() => serializeGroupExportV2({ ...group, receiptOwners: [{ ...group.receiptOwners[0], ownerId: 'outsider' }] }));
+  throws(() => serializeGroupExportV2({ ...group, receiptAssets: [{ ...group.receiptAssets[0], publicId: 'ourfinance-test/other/e/a' }] }));
 });
 
 test('restore preflight verifies the archived receipt and original group before any write', async () => {
@@ -91,4 +93,26 @@ test('dry-run marks stale operations and derived documents for deletion', () => 
   deepStrictEqual(absent.deleteUserDocuments, ['users/alice/groupPreferences/g']);
   throws(() => compareRestoreInventoryV2(group, ['groups/other/expenses/e'], []));
   throws(() => compareRestoreInventoryV2(group, ['groups/g/unknown/x'], []));
+});
+
+test('server snapshot builder keeps its transactional provenance', async () => {
+  const withoutReceipts = { ...group, receipts: [], receiptOwners: [], receiptAssets: [] };
+  const reader = { read: async (path: string) => path === 'groups/g/members/alice' ? { id: 'alice', data: { status: 'active' } } : null,
+    list: async () => [] };
+  const user = { uid: 'alice', emailVerified: true, getIdToken: async () => 'synthetic-token' };
+  const transport = async () => new Response(serializeGroupExportV2(withoutReceipts));
+  const built = await buildBackupPackageV2FromServerSnapshot(reader, user, 'g', 'https://worker.example', transport as typeof fetch);
+  strictEqual(JSON.parse(built.groupJson).snapshotMode, 'server_transaction');
+  await verifyBackupPackageV2(built);
+});
+
+test('server snapshot builder refuses a receipt replaced after the JSON snapshot', async () => {
+  const user = { uid: 'alice', emailVerified: true, getIdToken: async () => 'synthetic-token' };
+  const reader = { read: async (path: string) => path.endsWith('/attachments/a')
+    ? { id: 'a', data: { publicId: 'ourfinance-test/g/e/other', status: 'active' } }
+    : { id: 'alice', data: { status: 'active' } }, list: async () => [] };
+  const transport = async (resource: string | URL | Request) => String(resource).endsWith('/backup/snapshot')
+    ? new Response(serializeGroupExportV2(group))
+    : new Response(new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 0, 0, 0, 0, 0]), { headers: { 'Content-Type': 'image/png' } });
+  await rejects(buildBackupPackageV2FromServerSnapshot(reader, user, 'g', 'https://worker.example', transport as typeof fetch));
 });

@@ -7,6 +7,7 @@ export interface GroupExportV2 extends Omit<GroupExportV1, 'version'> {
   /** Required to preserve author-only edit and delete rights after restoration. */
   readonly expenseAuthors: readonly { readonly expenseId: string; readonly userId: string }[];
   readonly receiptOwners: readonly { readonly expenseId: string; readonly attachmentId: string; readonly ownerId: string }[];
+  readonly receiptAssets: readonly { readonly expenseId: string; readonly attachmentId: string; readonly publicId: string }[];
   readonly comments: readonly { readonly expenseId: string; readonly id: string; readonly authorId: string; readonly text: string; readonly createdAt: string }[];
   readonly activity: readonly { readonly id: string; readonly actorId: string; readonly action: string; readonly at: string;
     readonly expenseId?: string; readonly commentId?: string; readonly settlementId?: string; readonly batchId?: string; readonly categoryId?: string }[];
@@ -90,6 +91,15 @@ export function serializeGroupExportV2(value: GroupExportV2): string {
     throw new Error('Propriétaires des reçus incomplets');
   }
   const receiptOwners = value.receiptOwners.map(row => ({ expenseId: row.expenseId, attachmentId: row.attachmentId, ownerId: row.ownerId }));
+  if (!Array.isArray(value.receiptAssets) || value.receiptAssets.length !== group.receipts.length ||
+      value.receiptAssets.some((row, index) => {
+        const receipt = group.receipts[index];
+        if (!row || row.expenseId !== receipt.expenseId || row.attachmentId !== receipt.attachmentId || typeof row.publicId !== 'string') return true;
+        const base = `ourfinance-test/${group.group.id}/${row.expenseId}/`;
+        return row.publicId !== `${base}${row.attachmentId}` &&
+          !new RegExp(`^${base}restore_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/${row.attachmentId}$`, 'i').test(row.publicId);
+      })) throw new Error('Assets des reçus invalides');
+  const receiptAssets = value.receiptAssets.map(row => ({ expenseId: row.expenseId, attachmentId: row.attachmentId, publicId: row.publicId }));
   const expenseIds = new Set(group.expenses.map(row => row.id));
   if (!Array.isArray(value.comments) || new Set(value.comments.map(row => `${row?.expenseId}/${row?.id}`)).size !== value.comments.length ||
       value.comments.some(row => !row || !expenseIds.has(row.expenseId) || !idPattern.test(row.id) ||
@@ -144,5 +154,5 @@ export function serializeGroupExportV2(value: GroupExportV2): string {
     if (row.memberIds.length !== mode.memberIds.length || row.memberIds.some((id, i) => id !== mode.memberIds[i])) throw new Error('Participants de préférence incohérents');
     return { userId: row.userId, modeJson: mode.modeJson, memberIds: mode.memberIds, updatedAt: row.updatedAt };
   });
-  return `${JSON.stringify({ ...group, version: 2, snapshotMode: value.snapshotMode, expenseAuthors, receiptOwners, comments, activity, importBatches, preferences }, null, 2)}\n`;
+  return `${JSON.stringify({ ...group, version: 2, snapshotMode: value.snapshotMode, expenseAuthors, receiptOwners, receiptAssets, comments, activity, importBatches, preferences }, null, 2)}\n`;
 }
