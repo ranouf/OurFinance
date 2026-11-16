@@ -25,17 +25,18 @@ const live = { groupDocuments: ['groups/g', 'groups/g/members/alice', 'groups/g/
   userDocuments: ['users/alice/groupMemberships/g', 'users/alice/groupPreferences/g'], receiptPublicIds: ['ourfinance-test/g/old/a'] };
 
 test('atomic restore plan replaces old expense, keeps authors and points to staged private receipt', () => {
-  const plan = buildRestoreWrites(group, live, staged, 'ourfinance-test', at);
+  const plan = buildRestoreWrites(group, live, staged, 'ourfinance-test', restoreId, at);
   const writes = plan.writes as { delete?: string; update?: { name: string; fields: Record<string, { stringValue?: string }> }; updateMask?: { fieldPaths: string[] } }[];
   strictEqual(writes.some(row => row.delete?.endsWith('/groups/g/expenses/old')), true);
   strictEqual(writes.find(row => row.update?.name.endsWith('/groups/g/expenses/e'))?.update?.fields.createdBy.stringValue, 'alice');
   strictEqual(writes.find(row => row.update?.name.endsWith('/groups/g/expenses/e/attachments/a'))?.update?.fields.publicId.stringValue, publicId);
   strictEqual(writes.find(row => row.update?.name.endsWith('/groups/g'))?.update?.fields.status.stringValue, 'active');
+  strictEqual(writes.find(row => row.update?.name.endsWith('/groups/g'))?.update?.fields.lastRestoreId.stringValue, restoreId);
   strictEqual(writes.find(row => row.update?.name.endsWith('/groups/g'))?.updateMask?.fieldPaths.includes('restoreId'), true);
   strictEqual(plan.previousReceiptPublicIds[0], 'ourfinance-test/g/old/a');
 });
 
 test('restore plan rejects missing or redirected staged media', () => {
-  throws(() => buildRestoreWrites(group, live, [], 'ourfinance-test', at));
-  throws(() => buildRestoreWrites(group, live, [{ ...staged[0], publicId: `ourfinance-test/other/e/restore_${restoreId}/a` }], 'ourfinance-test', at));
+  throws(() => buildRestoreWrites(group, live, [], 'ourfinance-test', restoreId, at));
+  throws(() => buildRestoreWrites(group, live, [{ ...staged[0], publicId: `ourfinance-test/other/e/restore_${restoreId}/a` }], 'ourfinance-test', restoreId, at));
 });

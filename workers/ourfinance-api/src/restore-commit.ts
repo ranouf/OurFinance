@@ -9,12 +9,34 @@ export class RestoreCommitError extends Error {
   constructor(readonly status: 403 | 409 | 503, readonly code: string) { super(code); }
 }
 
+/** Resolve a lost commit response without guessing whether the group was replaced. */
+export async function readRestoreOutcome(uid: string, groupId: string, restoreId: string, env: RestoreCommitEnv, transport: typeof fetch = fetch): Promise<'committed' | 'locked'> {
+  if (![uid, groupId].every(id => /^[A-Za-z0-9_-]{1,128}$/.test(id)) ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(restoreId)) throw new RestoreCommitError(409, 'invalid_restore');
+  const root = `projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents`;
+  const token = await serviceAccessToken(env.FIREBASE_SERVICE_ACCOUNT_JSON, env.FIREBASE_PROJECT_ID, transport);
+  const headers = { Authorization: `Bearer ${token}` };
+  const [groupResponse, memberResponse] = await Promise.all([
+    transport(`https://firestore.googleapis.com/v1/${root}/groups/${groupId}`, { headers }),
+    transport(`https://firestore.googleapis.com/v1/${root}/groups/${groupId}/members/${uid}`, { headers }),
+  ]);
+  if (!groupResponse.ok || !memberResponse.ok) throw new RestoreCommitError(503, 'outcome_unavailable');
+  const group = await groupResponse.json() as { fields?: Record<string, { stringValue?: string }> };
+  const member = await memberResponse.json() as { fields?: Record<string, { stringValue?: string }> };
+  if (member.fields?.['role']?.stringValue !== 'owner' || member.fields['status']?.stringValue !== 'active' ||
+      group.fields?.['ownerId']?.stringValue !== uid) throw new RestoreCommitError(403, 'owner_required');
+  if (group.fields['status']?.stringValue === 'active' && group.fields['lastRestoreId']?.stringValue === restoreId) return 'committed';
+  if (group.fields['status']?.stringValue === 'restoring' && group.fields['restoreId']?.stringValue === restoreId &&
+      group.fields['restoreOwnerId']?.stringValue === uid) return 'locked';
+  throw new RestoreCommitError(409, 'restore_state_changed');
+}
+
 /** Final atomic swap. Group must already be locked; no external media cleanup occurs in this transaction. */
 export async function commitGroupRestoreV2(
   uid: string, groupId: string, restoreId: string, backup: GroupExportV2, live: LiveRestoreInventory,
   staged: readonly StagedRestoreReceipt[], env: RestoreCommitEnv, transport: typeof fetch = fetch,
 ): Promise<readonly string[]> {
-  const plan = buildRestoreWrites(backup, live, staged, env.FIREBASE_PROJECT_ID, new Date().toISOString());
+  const plan = buildRestoreWrites(backup, live, staged, env.FIREBASE_PROJECT_ID, restoreId, new Date().toISOString());
   if (backup.group.id !== groupId || !backup.members.some(row => row.userId === uid && row.role === 'owner' && row.status === 'active')) {
     throw new RestoreCommitError(403, 'owner_required');
   }

@@ -19,9 +19,9 @@ export interface RestoreWrites {
 }
 
 /** Pure atomic-write plan. The caller must recheck owner, currency, members and live paths inside the same transaction. */
-export function buildRestoreWrites(value: GroupExportV2, live: LiveRestoreInventory, staged: readonly StagedRestoreReceipt[], projectId: string, now: string): RestoreWrites {
+export function buildRestoreWrites(value: GroupExportV2, live: LiveRestoreInventory, staged: readonly StagedRestoreReceipt[], projectId: string, restoreId: string, now: string): RestoreWrites {
   const backup = JSON.parse(serializeGroupExportV2(value)) as GroupExportV2;
-  if (!/^[A-Za-z0-9_-]{1,128}$/.test(projectId) || Number.isNaN(Date.parse(now))) throw new Error('Contexte de restauration invalide');
+  if (!/^[A-Za-z0-9_-]{1,128}$/.test(projectId) || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(restoreId) || Number.isNaN(Date.parse(now))) throw new Error('Contexte de restauration invalide');
   const diff = compareRestoreInventoryV2(backup, live.groupDocuments, live.userDocuments);
   const active = backup.receipts.filter(row => row.status === 'active');
   const stagedByReceipt = new Map(staged.map(row => [`${row.expenseId}/${row.attachmentId}`, row]));
@@ -37,8 +37,8 @@ export function buildRestoreWrites(value: GroupExportV2, live: LiveRestoreInvent
   const groupPath = `groups/${backup.group.id}`;
   for (const path of diff.deleteGroupDocuments) remove(path);
   for (const path of diff.deleteUserDocuments) remove(path);
-  writes.push({ update: { name: `${root}/${groupPath}`, fields: { name: string(backup.group.name), status: string('active') } },
-    updateMask: { fieldPaths: ['name', 'status', 'restoreId', 'restoreOwnerId', 'restoringAt'] } });
+  writes.push({ update: { name: `${root}/${groupPath}`, fields: { name: string(backup.group.name), status: string('active'), lastRestoreId: string(restoreId) } },
+    updateMask: { fieldPaths: ['name', 'status', 'lastRestoreId', 'restoreId', 'restoreOwnerId', 'restoringAt'] } });
   const authors = new Map(backup.expenseAuthors.map(row => [row.expenseId, row.userId]));
   for (const row of backup.expenses) update(`${groupPath}/expenses/${row.id}`, {
     date: string(row.date), description: string(row.description), currency: string(row.currency), amountMinor: integer(row.amountMinor),
