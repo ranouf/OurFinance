@@ -12,6 +12,7 @@ export function detectLanguage(languages: readonly string[]): Language {
 
 const messages = {
   fr: {
+    navLabel: 'Navigation principale', navGroups: 'Groupes', navAdd: 'Ajouter', navHistory: 'Historique', navBalances: 'Soldes', navAccount: 'Profil',
     testEnvironment: 'Environnement de test', offline: 'Hors ligne : les données du serveur sont indisponibles. Reconnectez-vous pour les actualiser et enregistrer des opérations.',
     loadingConfig: 'Chargement de la configuration…', missingConfig: 'L’environnement Firebase de test n’est pas configuré sur ce site.',
     connectedAs: 'Connecté en tant que', verifyEmail: 'Confirmez votre adresse courriel avant d’utiliser les groupes.',
@@ -46,6 +47,7 @@ const messages = {
     exportWorkerMissing: 'Worker indisponible', exportSelectionChanged: 'Sélection modifiée', exportReady: 'Export partiel préparé. Vérifiez le téléchargement dans votre navigateur.', exportFailed: 'Export impossible. Vérifiez votre accès au groupe et réessayez.',
   },
   en: {
+    navLabel: 'Main navigation', navGroups: 'Groups', navAdd: 'Add', navHistory: 'History', navBalances: 'Balances', navAccount: 'Profile',
     testEnvironment: 'Test environment', offline: 'Offline: server data is unavailable. Reconnect to refresh it and save transactions.',
     loadingConfig: 'Loading configuration…', missingConfig: 'Firebase test configuration is unavailable on this site.',
     connectedAs: 'Signed in as', verifyEmail: 'Verify your email address before using groups.',
@@ -80,6 +82,7 @@ const messages = {
     exportWorkerMissing: 'Worker unavailable', exportSelectionChanged: 'Selection changed', exportReady: 'Partial export prepared. Check your browser download.', exportFailed: 'Export failed. Check your group access and try again.',
   },
   ja: {
+    navLabel: 'メインナビゲーション', navGroups: 'グループ', navAdd: '追加', navHistory: '履歴', navBalances: '残高', navAccount: '設定',
     testEnvironment: 'テスト環境', offline: 'オフラインです。サーバーのデータを利用できません。再接続して更新・保存してください。',
     loadingConfig: '設定を読み込んでいます…', missingConfig: 'このサイトには Firebase のテスト設定がありません。',
     connectedAs: 'ログイン中:', verifyEmail: 'グループを利用する前にメールアドレスを確認してください。',
