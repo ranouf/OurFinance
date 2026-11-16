@@ -19,6 +19,8 @@ import { restoreGroupFromPackage, RestoreOrchestrationError } from './restore-or
 import { abortRestoreLock, RestoreLockError } from './restore-lock';
 import { retryRestoreCleanup, RestoreCleanupError } from './restore-cleanup';
 import { readLimitedBody } from './media';
+import { collectLiveRestoreInventory, RestoreInventoryError } from './restore-inventory';
+import { summarizeRestorePreviewV2 } from './restore-preview';
 
 export interface Env extends Partial<CloudinaryEnv> {
   FIREBASE_PROJECT_ID: string;
@@ -60,6 +62,35 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
   }
   const url = new URL(request.url);
   if (url.pathname === '/health' && request.method === 'GET') return new Response(JSON.stringify({ status: 'ok' }), { headers });
+  const restorePreviewMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/backup\/preview$/.exec(url.pathname);
+  if (restorePreviewMatch && request.method === 'POST') {
+    const groupId = restorePreviewMatch[1];
+    if (env.ENABLE_RESTORE_POC !== 'true' || env.RESTORE_POC_GROUP_ID !== groupId || !env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+      return new Response(JSON.stringify({ error: 'Restauration non configurée' }), { status: 503, headers });
+    }
+    let uid: string;
+    try { uid = await verifyFirebaseVerifiedEmail(bearerToken(request), env.FIREBASE_PROJECT_ID); }
+    catch { return new Response(JSON.stringify({ error: 'Non authentifié' }), { status: 401, headers }); }
+    if (request.headers.get('Content-Type')?.split(';')[0].trim() !== 'application/zip' ||
+        Number(request.headers.get('Content-Length') ?? 0) > 20_000_000) {
+      return new Response(JSON.stringify({ error: 'Archive invalide ou trop volumineuse' }), { status: 413, headers });
+    }
+    let bytes: Uint8Array;
+    try { bytes = await readLimitedBody(request, 20_000_000); }
+    catch { return new Response(JSON.stringify({ error: 'Archive absente ou trop volumineuse' }), { status: 413, headers }); }
+    let archive;
+    try { archive = await decodeBackupZipV2(bytes); }
+    catch { return new Response(JSON.stringify({ error: 'Archive invalide' }), { status: 400, headers }); }
+    try {
+      const live = await collectLiveRestoreInventory(uid, groupId,
+        { FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT_JSON: env.FIREBASE_SERVICE_ACCOUNT_JSON });
+      const counts = await summarizeRestorePreviewV2(archive, groupId, live);
+      return new Response(JSON.stringify(counts), { status: 200, headers });
+    } catch (error) {
+      const status = error instanceof RestoreInventoryError ? error.status : 400;
+      return new Response(JSON.stringify({ error: error instanceof RestoreInventoryError ? error.code : 'invalid_backup' }), { status, headers });
+    }
+  }
   const restoreMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/backup\/restores\/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})(?:\/(cleanup))?$/.exec(url.pathname);
   if (restoreMatch && (request.method === 'POST' || request.method === 'DELETE')) {
     const [groupId, restoreId, suffix] = restoreMatch.slice(1);

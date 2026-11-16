@@ -36,6 +36,11 @@ test('restoration and cleanup remain disabled without one explicit test group', 
     strictEqual(response.status, 503);
   }
 });
+test('restore preview remains disabled without one explicit test group', async () => {
+  const response = await handleRequest(new Request('https://worker.example/groups/g1/backup/preview', { method: 'POST' }),
+    { ...env, FIREBASE_SERVICE_ACCOUNT_JSON: 'configured' });
+  strictEqual(response.status, 503);
+});
 test('expense creation is disabled without an explicit test group', async () => {
   const response = await handleRequest(new Request('https://worker.example/groups/g1/expenses', { method: 'POST', headers: { Origin: env.ALLOWED_ORIGIN } }), { ...env, FIREBASE_SERVICE_ACCOUNT_JSON: 'configured' });
   strictEqual(response.status, 503);
