@@ -18,3 +18,7 @@ Le build de production génère `dist/ourfinance/browser`. Le manifeste et le se
 Aucun projet Firebase, Cloudflare ou Cloudinary n'est configuré dans le dépôt. Créer des projets de test isolés avant toute preview ; ne jamais connecter une preview à la production. Les identifiants web publics Firebase peuvent être injectés par une configuration d'environnement future. Garder les secrets Worker et comptes de service hors Git et du navigateur. Aucun workflow de déploiement n'est activé tant que l'environnement de test n'est pas fourni et validé.
 
 Voir [M0](docs/FAISABILITE_M0.md) et le [plan technique](docs/PLAN_TECHNIQUE_V1.md).
+
+## Configuration de l'interface de test
+
+Avec les quatre variables `TEST_FIREBASE_*` définies dans l'environnement, lancer `npm run config:test` puis `npm start`. Cela crée `public/app-config.json`, ignoré par Git. Ne pas pointer cet écran de test vers un projet de production.
