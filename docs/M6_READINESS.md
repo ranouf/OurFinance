@@ -1,35 +1,29 @@
-# M6 — revue de préparation production (16 novembre 2026 UTC)
+# M6 — état de préparation V1 (16 novembre 2026)
 
-Statut : **non prêt pour la production**. Aucun déploiement ni fusion automatique n'a eu lieu.
+Statut : **V1 incomplète, production non prête**. Le plan `docs/PLAN_TECHNIQUE_V1.md` de `main` au commit `f75fdc5` impose une seule devise stricte par groupe, sans conversion, et FR/EN/JA dès la V1. Aucun PR n’est fusionné automatiquement et aucun déploiement en production n’est autorisé.
 
-## Vérifications exécutées
+## Pile compatible en brouillon
 
-- `npm run typecheck` : passe.
-- `npm run build` : passe ; PWA produit un manifeste et un service worker.
-- `npm run test:unit` : 27 tests passent (répartitions, devises, préférences, soldes, CSV et parcours récents).
-- `npm run test:rules` : téléchargement du JAR bloqué localement ; la [CI du PR #39](https://github.com/ranouf/OurFinance/actions/runs/43922301872) exécute les règles dans l'émulateur.
-- `npm audit --omit=dev --audit-level=high` : **passe** après résolution explicite de `@grpc/grpc-js` en version 1.14.7. L'ancienne version 1.9.16 arrivait par `firebase` → `@firebase/firestore` et était concernée par `GHSA-m9gg-hp2v-232j` et `GHSA-f596-whhp-79r4`. Une installation propre, le typecheck, 27 tests unitaires, 41 tests Worker et la compilation passent. Le verrouillage force une version plus récente que la plage transitive de Firestore ; surveiller la compatibilité et supprimer cette résolution lorsque Firestore adoptera une version corrigée.
+La nouvelle pile part de la PR #59, avant les ajouts FX : #74 (devise stricte), #76 (verrou après première transaction), #77 (import/export dans la devise du groupe), #78 (profil et langue), #79 (couverture Node en CI), #80 (workflow manuel Hosting de test), #81 (accueil/profil traduits), #82 (catégories système traduites), #83 (formats localisés), puis #85 qui intègre les filtres #75 et l’édition/suppression auteur seul #84. Les bases et SHA exacts sont dans chaque PR. **#60–#67 et #73 restent incompatibles** ; #68–#72 demandent réempilement ou remplacement selon leur portée. Aucune de ces PR incompatibles ne doit être fusionnée telle quelle.
 
-L'audit complet conserve **14 alertes modérées**, toutes dans la chaîne de développement `firebase-tools`. La correction automatique sans changement majeur n'en retire aucune ; l'outil propose des changements majeurs pour la plupart des avis. Le build signale aussi un dépassement du budget initial (947,59 ko pour 500 ko). Ces points restent à traiter avant la production.
+## Preuves disponibles et portée
 
-- Les POC réels d'accès membre/tiers/révoqué, de reçus privés, de dépense atomique, d'invitations, de remboursement et d'import réversible ont été réalisés sur des données fictives, puis nettoyés. Les PR restent en brouillon ; ces essais ponctuels ne valident pas encore le parcours complet de l'application intégrée.
+- Sur la branche combinée #85 : `npm run test:unit` **60/60**, `npm run test:worker` **54/54**, `npm run typecheck`, `npm run typecheck:worker` et `npm run build` réussis localement. Bundle initial **451,10 kB**. CI et essai réel du SHA combiné à confirmer.
+- La PR #74 au SHA `310d2b0f9c82318dbab962b84f48551c8b90b311` a un essai réel sur le projet de test : CAD accepté, JPY refusé sans écriture dans un groupe CAD, groupe JPY accepté, tiers et membre révoqué refusés. Captures/vidéo fictives et nettoyage consignés dans la PR et l’issue #30.
+- La PR #76 au SHA `382bef4f1131bb8c39e89fbc2d8962e7bf6d12cf` a un essai réel : devise modifiable avant la première opération par le propriétaire, verrou après dépense/règlement/import, ancien historique archivé aussi bloquant, membre ordinaire refusé. Fixture nettoyée et route de nouveau désactivée. Ces essais ne valident pas à eux seuls la pile #85.
+- Les filtres #75 ont été examinés sur ordinateur et mobile avec données fictives. L’essai de #84 est en cours à la date de cette revue ; ses résultats ne sont pas encore attribués à #85.
+- `npm run test:coverage` sur la pile V1 a mesuré **93,10 % lignes**, **84,97 % branches**, **95,68 % fonctions** parmi les modules chargés par les tests Node. Les composants/templates Angular non chargés restent exclus ; voir [M6_COVERAGE.md](M6_COVERAGE.md).
+- Le test local des règles Firestore de #78 n’a pas démarré, port 8080 occupé. Sa CI a réussi, mais les scénarios de langue/profil doivent encore être essayés réellement.
 
-## Contrôles bloquants
+## Critères encore ouverts
 
-- Parcours intégré Auth, groupes, invitations, cinq partages de dépense, historique, remboursements, statistiques et reçus, testé de bout en bout sur ordinateur et mobile.
-- Import avec fichier Splitwise synthétique représentatif, rapprochement comptable et annulation de batch dans le parcours intégré ; format d'export natif et restauration encore absents.
-- Sauvegarde/restauration des données et pièces jointes avec test réel.
-- Contrôle IAM du compte de service, secrets Cloudflare, origines CORS, quotas et facturation des trois fournisseurs.
-- Essais Android/iOS, ergonomie et accessibilité. Les icônes PWA générées par Angular sont provisoires.
+- **M1 / UX** : design system mobile soigné, previews isolées par PR, workflow test Hosting #80 non exécuté, déploiement coordonné règles/index/Worker/Hosting non automatisé. Le secret Actions de déploiement Hosting ne peut pas être confirmé dans cette session (liste : HTTP 403).
+- **M2** : profil FR/EN/JA et règles à examiner sur la pile réelle ; interface pour changer la devise d’un groupe avant sa première transaction ; invitations en parcours complet.
+- **M3** : essai réel et visuel de #84 puis du SHA intégré #85 ; catégories personnalisées et tous les cas d’édition/suppression auteur seul. Les autres textes des formulaires restent à traduire.
+- **M4** : sélecteur de période en dropdown avec onglets Jours/Mois/Années, bornes inclusives, Appliquer/Annuler ; graphiques interactifs catégorie, membre et temps ; distinction payé/part due/solde ; essais 1/2/3+ membres et mobile.
+- **M5** : parcours complet d’import CSV/JSON avec séparation guidée des devises incompatibles, rapprochement et annulation ; sauvegarde/restauration de **l’original** du groupe et des préférences de **chaque membre**, reçus privés inclus. Le ZIP actuel annonce explicitement une portée partielle et ne restaure rien.
+- **M6** : traduction complète et immédiate de tous les écrans, erreurs, catégories et graphiques en FR/EN/JA ; tests navigateur E2E, accessibilité clavier/lecteur d’écran, Android/iOS, performance, quotas, audit IAM/Worker/règles, sauvegarde réelle et restauration vérifiée. La couverture globale de 80 % incluant Angular reste ouverte.
 
-## Gestion des données privées
+## Données privées et déploiement
 
-Les 27 captures ont été décompressées seulement dans `/tmp/ourfinance-private-screens`. Le dépôt ne contient que des observations anonymisées. Aucun justificatif ou montant réel n'est utilisé pour les tests. Garder les exports de test synthétiques et les secrets hors Git, des PR et des previews.
-
-## Déploiement
-
-Aucun workflow de déploiement n'est activé. La mise en production nécessite l'accord explicite de l'utilisateur après validation des critères ci-dessus. Les previews doivent viser un projet Firebase de test isolé.
-
-Revue des accès de la pile de test et contraintes de sauvegarde : [M6_SECURITY_REVIEW.md](M6_SECURITY_REVIEW.md).
-
-Essai intégré M3/M4 sur ordinateur et mobile : [M6_E2E_SMOKE.md](M6_E2E_SMOKE.md).
+Les 27 captures Splitwise fournies par le propriétaire sont strictement privées et absentes du dépôt/PR. Les preuves publiques des PR utilisent uniquement des comptes et données fictifs. La pile de test `ourfinance-test` / `ourfinance-api-dev` se réserve et se libère dans l’[issue #30](https://github.com/ranouf/OurFinance/issues/30). Aucune fusion de PR ni production sans décision distincte du propriétaire.
