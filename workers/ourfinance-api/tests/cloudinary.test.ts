@@ -1,5 +1,5 @@
 import { test } from 'node:test';
-import { strictEqual, throws } from 'node:assert';
+import { strictEqual, throws, rejects } from 'node:assert';
 import { createHash } from 'node:crypto';
 import { authenticatedDownloadUrl, imageFormat, signCloudinary, uploadAuthenticated } from '../src/cloudinary';
 import { handleRequest } from '../src/index';
@@ -50,4 +50,40 @@ test('streaming upload refuses a body beyond the limit', async () => {
   const { readLimitedBody } = await import('../src/media');
   const request = new Request('https://worker.example/upload', { method: 'POST', body: new Uint8Array([1,2,3,4]) });
   await import('node:assert').then(({ rejects }) => rejects(readLimitedBody(request, 3)));
+});
+test('receipt deletion can retry Cloudinary after Firestore has hidden the asset', async () => {
+  const { deleteReceiptAsset } = await import('../src/media');
+  const mediaEnv = { ...env, FIREBASE_PROJECT_ID: 'ourfinance-test', FIREBASE_SERVICE_ACCOUNT_JSON: 'unused' };
+  const path = 'groups/g/expenses/e/attachments/a';
+  let commits = 0;
+  let pending = false;
+  let failedOnce = false;
+  const transport = async (resource: string | URL | Request, init?: RequestInit) => {
+    const url = String(resource);
+    if (url.endsWith(':commit')) {
+      commits++;
+      const write = JSON.parse(String(init?.body)).writes[0];
+      strictEqual(write.update.fields.status.stringValue, 'deleted');
+      strictEqual(write.update.fields.cleanupPending.booleanValue, true);
+      pending = true;
+      return Response.json({});
+    }
+    if (url.endsWith('/image/destroy')) {
+      if (!failedOnce) { failedOnce = true; return Response.json({}, { status: 503 }); }
+      return Response.json({ result: 'not found' });
+    }
+    if (url.includes('updateMask.fieldPaths=cleanupPending')) {
+      strictEqual(init?.method, 'PATCH');
+      strictEqual(JSON.parse(String(init?.body)).fields.cleanupPending.booleanValue, false);
+      pending = false;
+      return Response.json({});
+    }
+    throw new Error('Requête inattendue');
+  };
+  await rejects(deleteReceiptAsset(path, 'ourfinance-test/g/e/a', false, 'synthetic-token', mediaEnv, transport as typeof fetch));
+  strictEqual(commits, 1);
+  strictEqual(pending, true);
+  await deleteReceiptAsset(path, 'ourfinance-test/g/e/a', true, 'synthetic-token', mediaEnv, transport as typeof fetch);
+  strictEqual(commits, 1);
+  strictEqual(pending, false);
 });
