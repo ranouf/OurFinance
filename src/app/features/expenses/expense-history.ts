@@ -8,10 +8,11 @@ import { ExpenseService, type ExpenseHistoryEntry } from '../../core/firebase/ex
 import { formatMinor } from '../../shared/utils/currency';
 import { categoryColorClass } from '../../shared/utils/categories';
 import { matchesDescription } from './matches-description';
+import { ReceiptPanel } from './receipt-panel';
 
 @Component({
   selector: 'app-expense-history',
-  imports: [FormsModule],
+  imports: [FormsModule, ReceiptPanel],
   template: `
     <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-5" aria-label="Historique des dépenses">
       <h2 class="text-lg font-semibold">Historique des dépenses</h2>
@@ -40,7 +41,7 @@ import { matchesDescription } from './matches-description';
           <ul class="mt-4 divide-y divide-slate-200">
             @for (entry of entries(); track entry.id) {
               <li>
-                <details>
+                <details (toggle)="onToggle(entry.id, $event)">
                   <summary class="cursor-pointer py-3">
                     <span class="float-right ml-2 font-semibold">{{ amount(entry) }}</span>
                     <span class="break-words font-medium"><span class="rounded-md px-1.5 py-0.5" [class]="categoryColorClass(entry.categoryColor)">{{ entry.categoryIcon }}</span> {{ entry.description }}</span>
@@ -60,6 +61,7 @@ import { matchesDescription } from './matches-description';
                         <p class="mt-1 flex justify-between gap-2"><span class="min-w-0 break-all">{{ memberLabel(allocation.userId) }}</span><span class="shrink-0">{{ format(allocation.amountMinor, entry.currency) }}</span></p>
                       } @empty { <p class="mt-1 text-slate-600">Non disponibles.</p> }
                     </div>
+                    @if (opened().has(entry.id)) { <app-receipt-panel [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" [user]="user" [groupId]="selectedGroupId" [expenseId]="entry.id" [groupOwnerId]="groupOwnerId()" /> }
                   </div>
                 </details>
               </li>
@@ -84,6 +86,7 @@ export class ExpenseHistory implements OnChanges {
   readonly busy = signal(false);
   readonly message = signal('');
   readonly scannedCount = signal(0);
+  readonly opened = signal<ReadonlySet<string>>(new Set());
   selectedGroupId = '';
   from = '';
   to = '';
@@ -101,10 +104,17 @@ export class ExpenseHistory implements OnChanges {
   amount(entry: ExpenseHistoryEntry): string { return this.format(entry.amountMinor, entry.currency); }
   format(amountMinor: number, currency: string): string { return formatMinor(amountMinor, currency, 'fr-CA'); }
   memberLabel(userId: string): string { return userId === this.user?.uid ? 'Moi' : userId; }
+  groupOwnerId(): string { return this.groups.find(group => group.id === this.selectedGroupId)?.ownerId ?? ''; }
+  onToggle(expenseId: string, event: Event): void {
+    const next = new Set(this.opened());
+    if ((event.target as HTMLDetailsElement).open) next.add(expenseId); else next.delete(expenseId);
+    this.opened.set(next);
+  }
   categoryColorClass = categoryColorClass;
   async refresh(): Promise<void> {
     this.searchTerm = this.search.trim();
     this.entries.set([]);
+    this.opened.set(new Set());
     this.scannedCount.set(0);
     this.last = undefined;
     this.hasMore.set(false);
