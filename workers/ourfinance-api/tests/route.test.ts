@@ -35,6 +35,10 @@ test('settlement creation is disabled without an explicit test group', async () 
   const response = await handleRequest(new Request('https://worker.example/groups/g1/settlements', { method: 'POST' }), { ...env, FIREBASE_SERVICE_ACCOUNT_JSON: 'configured' });
   strictEqual(response.status, 503);
 });
+test('FX settlement creation is disabled without an explicit test group', async () => {
+  const response = await handleRequest(new Request('https://worker.example/groups/g1/fx-settlements', { method: 'POST' }), { ...env, FIREBASE_SERVICE_ACCOUNT_JSON: 'configured' });
+  strictEqual(response.status, 503);
+});
 test('import and undo are disabled without an explicit test group', async () => {
   const configured = { ...env, FIREBASE_SERVICE_ACCOUNT_JSON: 'configured' };
   for (const [method, path] of [['POST', '/groups/g1/imports'], ['DELETE', '/groups/g1/imports/b1']]) {

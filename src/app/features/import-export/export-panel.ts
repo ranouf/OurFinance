@@ -17,7 +17,7 @@ type ExportKind = 'csv' | 'json' | 'zip';
   template: `
     <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-5" aria-label="Exporter un groupe">
       <h2 class="text-lg font-semibold">Exporter un groupe</h2>
-      <p class="mt-2 text-sm text-slate-700">Ces exports sont partiels. Ils ne permettent pas encore de restaurer le groupe : comptes, préférences, commentaires et activité sont absents.</p>
+      <p class="mt-2 text-sm text-slate-700">Ces exports sont partiels. Ils ne permettent pas encore de restaurer le groupe : comptes, préférences, commentaires, activité et remboursements interdevises sont absents.</p>
       <div class="mt-4 space-y-3">
         <label class="block text-sm font-medium">Groupe
           <select class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="exportGroup" [(ngModel)]="groupId">

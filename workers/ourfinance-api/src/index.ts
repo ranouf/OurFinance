@@ -8,6 +8,7 @@ import { readMember } from './firestore';
 import { readLimitedJson, RequestBodyError } from './request-body';
 import { acceptInvitation, createInvitation, InvitationError } from './invitations';
 import { createSettlement, SettlementError } from './settlements';
+import { createFxSettlement, FxSettlementError } from './fx-settlements';
 import { createImportBatch, undoImportBatch, ImportError } from './import-batches';
 import { writeCategory, CategoryError } from './custom-categories';
 import { createComment, CommentError } from './comments';
@@ -25,6 +26,8 @@ export interface Env extends Partial<CloudinaryEnv> {
   INVITATION_POC_GROUP_ID?: string;
   ENABLE_SETTLEMENT_POC?: string;
   SETTLEMENT_POC_GROUP_ID?: string;
+  ENABLE_FX_SETTLEMENT_POC?: string;
+  FX_SETTLEMENT_POC_GROUP_ID?: string;
   ENABLE_IMPORT_POC?: string;
   IMPORT_POC_GROUP_ID?: string;
   ENABLE_CATEGORY_POC?: string;
@@ -105,6 +108,22 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     }
   }
   const settlementMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/settlements$/.exec(url.pathname);
+  const fxSettlementMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/fx-settlements$/.exec(url.pathname);
+  if (fxSettlementMatch && request.method === 'POST') {
+    if (env.ENABLE_FX_SETTLEMENT_POC !== 'true' || env.FX_SETTLEMENT_POC_GROUP_ID !== fxSettlementMatch[1] || !env.FIREBASE_SERVICE_ACCOUNT_JSON) return new Response(JSON.stringify({ error: 'Conversions non configurées' }), { status: 503, headers });
+    let uid: string;
+    try { uid = await verifyFirebaseVerifiedEmail(bearerToken(request), env.FIREBASE_PROJECT_ID); }
+    catch { return new Response(JSON.stringify({ error: 'Non authentifié' }), { status: 401, headers }); }
+    try {
+      const body = await readLimitedJson(request, 2048);
+      const fxSettlementId = await createFxSettlement(body, uid, fxSettlementMatch[1], { FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT_JSON: env.FIREBASE_SERVICE_ACCOUNT_JSON });
+      return new Response(JSON.stringify({ fxSettlementId }), { status: 201, headers });
+    } catch (error) {
+      const status = error instanceof FxSettlementError ? error.status : error instanceof RequestBodyError ? 400 : 503;
+      const code = error instanceof FxSettlementError || error instanceof RequestBodyError ? error.code : 'fx_unavailable';
+      return new Response(JSON.stringify({ error: code }), { status, headers });
+    }
+  }
   if (settlementMatch && request.method === 'POST') {
     if (env.ENABLE_SETTLEMENT_POC !== 'true' || env.SETTLEMENT_POC_GROUP_ID !== settlementMatch[1] || !env.FIREBASE_SERVICE_ACCOUNT_JSON) return new Response(JSON.stringify({ error: 'Règlements non configurés' }), { status: 503, headers });
     let uid: string;

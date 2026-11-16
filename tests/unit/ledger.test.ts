@@ -17,3 +17,11 @@ test('group, currency and date remain separate', () => {
   strictEqual(rows.length, 2);
   deepStrictEqual(new Set(rows.map(row => row.currency)), new Set(['CAD']));
 });
+test('FX settlement clears the CAD debt without creating a JPY debt', () => {
+  const rows = calculateBalances([expense], [], undefined, undefined, [{ groupId: 'g1', date: '2026-11-11',
+    debtCurrency: 'CAD', debtAmountMinor: 51, paymentCurrency: 'JPY', paymentAmountMinor: 1,
+    rate: '2', rateDate: '2026-11-11', fromUserId: 'b', toUserId: 'a' }]);
+  strictEqual(rows.find(row => row.userId === 'a' && row.currency === 'CAD')?.balanceMinor, 0n);
+  strictEqual(rows.find(row => row.userId === 'b' && row.currency === 'CAD')?.balanceMinor, 0n);
+  strictEqual(rows.some(row => row.currency === 'JPY'), false);
+});

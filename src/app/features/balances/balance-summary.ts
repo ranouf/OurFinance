@@ -13,7 +13,7 @@ import type { LedgerTotal } from '../../shared/utils/ledger';
   template: `
     <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-5" aria-label="Soldes du groupe">
       <h2 class="text-lg font-semibold">Soldes du groupe</h2>
-      <p class="mt-1 text-sm text-slate-600">Dépenses et remboursements déclarés, séparés par devise. Les imports historiques sans parts restent exclus.</p>
+      <p class="mt-1 text-sm text-slate-600">Dépenses et remboursements déclarés, séparés par devise. Un remboursement interdevises réduit la dette dans sa devise d’origine ; le montant payé reste tracé séparément. Les imports historiques sans parts restent exclus.</p>
       <label class="mt-4 block text-sm font-medium">Groupe
         <select class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="balanceGroup" [(ngModel)]="selectedGroupId" (ngModelChange)="refresh()">
           <option value="">Choisir un groupe</option>

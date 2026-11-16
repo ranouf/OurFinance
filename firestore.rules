@@ -53,6 +53,7 @@ service cloud.firestore {
         }
       }
       match /settlements/{settlementId} { allow read: if member(groupId); allow write: if false; }
+      match /fxSettlements/{fxSettlementId} { allow read: if member(groupId); allow write: if false; }
       match /importedRecords/{recordId} { allow read: if member(groupId); allow write: if false; }
       match /activity/{eventId} { allow read: if member(groupId); allow write: if false; }
       match /balances/{balanceId} { allow read: if member(groupId); allow write: if false; }

@@ -31,6 +31,6 @@ export async function previewBackupRestoreV1(zip: Uint8Array): Promise<BackupRes
       receiptMetadata: group.receipts.length,
       privateReceiptFiles: packageData.receipts.length,
     },
-    omitted: ['comptes et identités Auth', 'préférences personnelles', 'commentaires', 'journal d’activité', 'instantané transactionnel'],
+    omitted: ['comptes et identités Auth', 'préférences personnelles', 'commentaires', 'journal d’activité', 'remboursements interdevises', 'instantané transactionnel'],
   };
 }

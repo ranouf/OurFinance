@@ -4,4 +4,4 @@
 
 Exemples fictifs : 1,01 CAD à 0,5 JPY/CAD donne 1 JPY ; 1 JPY à 0,5 CAD/JPY donne 0,50 CAD ; 1,00 CAD à 1,234 KWD/CAD donne 1,234 KWD. Les devises à 0, 2 et 3 décimales sont prises en charge selon `Intl`.
 
-Cette tranche est un **moteur pur**, sans récupération automatique de taux ni écriture Firestore/Worker. Elle n'autorise pas à compenser automatiquement une dette dans une autre devise. Un remboursement interdevises devra enregistrer les deux montants, les deux devises, le taux, la date et les membres dans une route serveur atomique avec vérification d'accès ; son interface et son essai réel restent ouverts.
+Le moteur de la PR #60 est pur, sans récupération automatique de taux. La PR Worker suivante ajoute une route de test désactivée par défaut qui enregistre les deux montants, les devises, le taux, sa date et les membres dans une transaction autorisée ; elle réduit la dette seulement dans sa devise d'origine. Son interface, l'essai réel, l'export de ces opérations et la restauration restent ouverts. Aucune conversion implicite des autres soldes n'est permise.
