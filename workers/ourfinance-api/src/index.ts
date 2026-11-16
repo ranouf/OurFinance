@@ -74,9 +74,9 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     try {
       if (request.method === 'POST' && !suffix) {
         if (request.headers.get('Content-Type')?.split(';')[0].trim() !== 'application/zip' ||
-            Number(request.headers.get('Content-Length') ?? 0) > 60_000_000) return new Response(JSON.stringify({ error: 'Archive invalide ou trop volumineuse' }), { status: 413, headers });
+            Number(request.headers.get('Content-Length') ?? 0) > 20_000_000) return new Response(JSON.stringify({ error: 'Archive invalide ou trop volumineuse' }), { status: 413, headers });
         let bytes: Uint8Array;
-        try { bytes = await readLimitedBody(request, 60_000_000); }
+        try { bytes = await readLimitedBody(request, 20_000_000); }
         catch { return new Response(JSON.stringify({ error: 'Archive absente ou trop volumineuse' }), { status: 413, headers }); }
         let archive;
         try { archive = await decodeBackupZipV2(bytes); }
