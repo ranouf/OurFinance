@@ -49,7 +49,10 @@ async function transaction(env: InvitationEnv, transport: typeof fetch) {
   const commit = async (writes: unknown[]) => {
     await checked(await transport(`https://firestore.googleapis.com/v1/${root}:commit`, { method: 'POST', headers, body: JSON.stringify({ transaction: transactionId, writes }) }));
   };
-  return { root, read, commit };
+  const rollback = async () => {
+    await transport(`https://firestore.googleapis.com/v1/${root}:rollback`, { method: 'POST', headers, body: JSON.stringify({ transaction: transactionId }) });
+  };
+  return { root, read, commit, rollback };
 }
 
 /** Creates a 256-bit single-use token. Only its SHA-256 digest is stored in Firestore. */
@@ -60,36 +63,46 @@ export async function createInvitation(value: unknown, uid: string, groupId: str
   const token = btoa(String.fromCharCode(...tokenBytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   const invitationId = crypto.randomUUID();
   const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString();
-  const { root, read, commit } = await transaction(env, transport);
-  const group = await read(`groups/${groupId}`);
-  const owner = await read(`groups/${groupId}/members/${uid}`);
-  if (field(group, 'status') !== 'active' || field(owner, 'status') !== 'active' || field(owner, 'role') !== 'owner') throw new InvitationError(403, 'owner_required');
-  const now = new Date().toISOString();
-  const fields: Record<string, unknown> = {
-    tokenHash: string(await hashToken(token)), status: string('active'), createdBy: string(uid), createdAt: { timestampValue: now }, expiresAt: { timestampValue: expiresAt },
-  };
-  if (email) fields['targetEmail'] = string(email);
-  await commit([{ update: { name: `${root}/groups/${groupId}/invitations/${invitationId}`, fields }, currentDocument: { exists: false } }]);
-  return { invitationId, token, expiresAt };
+  const { root, read, commit, rollback } = await transaction(env, transport);
+  try {
+    const group = await read(`groups/${groupId}`);
+    const owner = await read(`groups/${groupId}/members/${uid}`);
+    if (field(group, 'status') !== 'active' || field(owner, 'status') !== 'active' || field(owner, 'role') !== 'owner') throw new InvitationError(403, 'owner_required');
+    const now = new Date().toISOString();
+    const fields: Record<string, unknown> = {
+      tokenHash: string(await hashToken(token)), status: string('active'), createdBy: string(uid), createdAt: { timestampValue: now }, expiresAt: { timestampValue: expiresAt },
+    };
+    if (email) fields['targetEmail'] = string(email);
+    await commit([{ update: { name: `${root}/groups/${groupId}/invitations/${invitationId}`, fields }, currentDocument: { exists: false } }]);
+    return { invitationId, token, expiresAt };
+  } catch (error) {
+    await rollback().catch(() => undefined);
+    throw error;
+  }
 }
 
 /** Transactional redemption rejects expiry, target mismatch, replay and revoked accounts. */
 export async function acceptInvitation(token: unknown, invitationId: string, uid: string, email: string, groupId: string, env: InvitationEnv, transport: typeof fetch = fetch): Promise<void> {
   if (typeof token !== 'string' || !tokenPattern.test(token) || ![invitationId, uid, groupId].every(id => idPattern.test(id))) throw new InvitationError(400, 'invalid_invitation');
-  const { root, read, commit } = await transaction(env, transport);
-  const group = await read(`groups/${groupId}`);
-  const invite = await read(`groups/${groupId}/invitations/${invitationId}`);
-  if (field(group, 'status') !== 'active' || !invite || field(invite, 'status') !== 'active' || !sameHash(field(invite, 'tokenHash') ?? '', await hashToken(token))) throw new InvitationError(403, 'invitation_unavailable');
-  const expiresAt = field(invite, 'expiresAt');
-  if (!expiresAt || !Number.isFinite(Date.parse(expiresAt)) || Date.parse(expiresAt) <= Date.now()) throw new InvitationError(403, 'invitation_expired');
-  const target = field(invite, 'targetEmail');
-  if (target && target !== email.toLowerCase()) throw new InvitationError(403, 'email_mismatch');
-  const member = await read(`groups/${groupId}/members/${uid}`);
-  if (member) throw new InvitationError(field(member, 'status') === 'revoked' ? 403 : 409, 'already_member');
-  const now = new Date().toISOString();
-  await commit([
-    { update: { name: `${root}/groups/${groupId}/invitations/${invitationId}`, fields: { status: string('accepted'), acceptedBy: string(uid), acceptedAt: { timestampValue: now } } }, updateMask: { fieldPaths: ['status', 'acceptedBy', 'acceptedAt'] } },
-    { update: { name: `${root}/groups/${groupId}/members/${uid}`, fields: { role: string('member'), status: string('active'), joinedAt: { timestampValue: now } } }, currentDocument: { exists: false } },
-    { update: { name: `${root}/users/${uid}/groupMemberships/${groupId}`, fields: { groupId: string(groupId), role: string('member'), status: string('active') } }, currentDocument: { exists: false } },
-  ]);
+  const { root, read, commit, rollback } = await transaction(env, transport);
+  try {
+    const group = await read(`groups/${groupId}`);
+    const invite = await read(`groups/${groupId}/invitations/${invitationId}`);
+    if (field(group, 'status') !== 'active' || !invite || field(invite, 'status') !== 'active' || !sameHash(field(invite, 'tokenHash') ?? '', await hashToken(token))) throw new InvitationError(403, 'invitation_unavailable');
+    const expiresAt = field(invite, 'expiresAt');
+    if (!expiresAt || !Number.isFinite(Date.parse(expiresAt)) || Date.parse(expiresAt) <= Date.now()) throw new InvitationError(403, 'invitation_expired');
+    const target = field(invite, 'targetEmail');
+    if (target && target !== email.toLowerCase()) throw new InvitationError(403, 'email_mismatch');
+    const member = await read(`groups/${groupId}/members/${uid}`);
+    if (member) throw new InvitationError(field(member, 'status') === 'revoked' ? 403 : 409, 'already_member');
+    const now = new Date().toISOString();
+    await commit([
+      { update: { name: `${root}/groups/${groupId}/invitations/${invitationId}`, fields: { status: string('accepted'), acceptedBy: string(uid), acceptedAt: { timestampValue: now } } }, updateMask: { fieldPaths: ['status', 'acceptedBy', 'acceptedAt'] } },
+      { update: { name: `${root}/groups/${groupId}/members/${uid}`, fields: { role: string('member'), status: string('active'), joinedAt: { timestampValue: now } } }, currentDocument: { exists: false } },
+      { update: { name: `${root}/users/${uid}/groupMemberships/${groupId}`, fields: { groupId: string(groupId), role: string('member'), status: string('active') } }, currentDocument: { exists: false } },
+    ]);
+  } catch (error) {
+    await rollback().catch(() => undefined);
+    throw error;
+  }
 }
