@@ -19,7 +19,7 @@ type ExportKind = 'csv' | 'json' | 'zip' | 'zip-v2';
   template: `
     <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-5" [attr.aria-label]="t('exportGroup')">
       <h2 class="text-lg font-semibold">{{ t('exportGroup') }}</h2>
-      <p class="mt-2 text-sm text-slate-700">{{ t('exportPartial') }}</p>
+      <p class="mt-2 text-sm text-slate-700">{{ t(kind === 'zip-v2' ? 'exportV2Partial' : 'exportPartial') }}</p>
       <div class="mt-4 space-y-3">
         <label class="block text-sm font-medium">{{ t('group') }}
           <select class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="exportGroup" [(ngModel)]="groupId">
