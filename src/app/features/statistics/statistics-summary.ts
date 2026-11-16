@@ -6,7 +6,8 @@ import { BalanceService } from '../../core/firebase/balance-service';
 import type { Group } from '../../core/firebase/group-model';
 import { formatMinorExact } from '../../shared/utils/currency';
 import { calculateBalances, type ExpenseLedgerEntry, type SettlementLedgerEntry } from '../../shared/utils/ledger';
-import { periodRange, type StatisticsPeriod } from './period-range';
+import { PeriodPicker, type AppliedRange } from './period-picker';
+import { selectedRange } from './period-range';
 
 interface CurrencyStatistics {
   readonly currency: string;
@@ -19,11 +20,11 @@ interface CurrencyStatistics {
 
 @Component({
   selector: 'app-statistics-summary',
-  imports: [FormsModule],
+  imports: [FormsModule, PeriodPicker],
   template: `
     <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-5" aria-label="Statistiques du groupe">
       <h2 class="text-lg font-semibold">Statistiques du groupe</h2>
-      <p class="mt-1 text-sm text-slate-600">Dépenses et remboursements déclarés, sans conversion de devises. Les imports historiques sans parts restent exclus.</p>
+      <p class="mt-1 text-sm text-slate-600">Dépenses et remboursements déclarés dans la devise du groupe. Les imports historiques sans parts restent exclus.</p>
       <label class="mt-4 block text-sm font-medium">Groupe
         <select class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="statisticsGroup" [(ngModel)]="selectedGroupId" (ngModelChange)="refresh()">
           <option value="">Choisir un groupe</option>
@@ -31,22 +32,7 @@ interface CurrencyStatistics {
         </select>
       </label>
       @if (selectedGroupId) {
-        <div class="mt-4 grid grid-cols-2 gap-3">
-          <label class="block text-sm font-medium">Période
-            <select class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="statisticsPeriod" [(ngModel)]="period" (ngModelChange)="recompute()">
-              <option value="month">Mois</option><option value="year">Année</option><option value="all">Total</option>
-            </select>
-          </label>
-          @if (period === 'month') {
-            <label class="block text-sm font-medium">Mois
-              <input class="mt-1 w-full rounded-lg border border-slate-300 p-3" type="month" name="statisticsMonth" [(ngModel)]="month" (ngModelChange)="recompute()" />
-            </label>
-          } @else if (period === 'year') {
-            <label class="block text-sm font-medium">Année
-              <input class="mt-1 w-full rounded-lg border border-slate-300 p-3" type="number" name="statisticsYear" min="1900" max="2100" [(ngModel)]="year" (ngModelChange)="recompute()" />
-            </label>
-          }
-        </div>
+        <app-period-picker [range]="range" (rangeChange)="setRange($event)" />
         <button class="mt-3 rounded-lg border border-teal-700 px-3 py-2 text-sm text-teal-800 disabled:opacity-50" type="button" [disabled]="busy()" (click)="refresh()">Actualiser</button>
         @for (row of statistics(); track row.currency) {
           <div class="mt-4 border-t border-slate-200 pt-3 text-sm">
@@ -76,9 +62,7 @@ export class StatisticsSummary implements OnChanges {
   readonly busy = signal(false);
   readonly message = signal('');
   selectedGroupId = '';
-  period: StatisticsPeriod = 'month';
-  month = new Date().toISOString().slice(0, 7);
-  year = new Date().getUTCFullYear();
+  range: AppliedRange = selectedRange('months', new Date().toISOString().slice(0, 7), new Date().toISOString().slice(0, 7))!;
   private service?: BalanceService;
   private expenses: ExpenseLedgerEntry[] = [];
   private settlements: SettlementLedgerEntry[] = [];
@@ -89,6 +73,7 @@ export class StatisticsSummary implements OnChanges {
     if (changes['revision'] && !changes['revision'].firstChange && this.selectedGroupId) void this.refresh();
   }
   amount(value: bigint, currency: string): string { return formatMinorExact(value, currency, 'fr-CA'); }
+  setRange(range: AppliedRange): void { this.range = range; this.recompute(); }
   async refresh(): Promise<void> {
     const groupId = this.selectedGroupId;
     const requestId = ++this.requestId;
@@ -105,9 +90,7 @@ export class StatisticsSummary implements OnChanges {
   }
   recompute(): void {
     if (!this.selectedGroupId) return;
-    const range = periodRange(this.period, this.month, this.year);
-    if (!range) { this.statistics.set([]); return; }
-    const totals = calculateBalances(this.expenses, this.settlements, range.start, range.end);
+    const totals = calculateBalances(this.expenses, this.settlements, this.range.start, this.range.end);
     const currencies = [...new Set(totals.map(row => row.currency))].sort();
     this.statistics.set(currencies.map(currency => {
       const rows = totals.filter(row => row.currency === currency);
