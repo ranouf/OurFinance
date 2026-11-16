@@ -49,3 +49,6 @@ Thumbs.db
 .env*
 !/.env.example
 *service-account*.json
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
