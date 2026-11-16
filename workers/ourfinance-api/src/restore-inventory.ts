@@ -57,10 +57,27 @@ export async function collectLiveRestoreInventory(uid: string, groupId: string, 
       } while (pageToken);
       return documents;
     };
+    const assertCollections = async (path: string, allowed: ReadonlySet<string>): Promise<void> => {
+      let pageToken: string | undefined;
+      let pages = 0;
+      do {
+        if (++pages > 100) throw new RestoreInventoryError(409, 'inventory_too_large');
+        const body = { pageSize: 100, ...(pageToken ? { pageToken } : {}) };
+        const response = await checked(await transport(`https://firestore.googleapis.com/v1/${root}/${path}:listCollectionIds`, {
+          method: 'POST', headers, body: JSON.stringify(body),
+        }));
+        if (response['collectionIds'] !== undefined && !Array.isArray(response['collectionIds'])) throw new RestoreInventoryError(503, 'invalid_inventory');
+        if (((response['collectionIds'] ?? []) as unknown[]).some(id => typeof id !== 'string' || !allowed.has(id))) {
+          throw new RestoreInventoryError(409, 'unknown_collection');
+        }
+        pageToken = typeof response['nextPageToken'] === 'string' ? response['nextPageToken'] : undefined;
+      } while (pageToken);
+    };
     const group = await read(`groups/${groupId}`);
     const caller = await read(`groups/${groupId}/members/${uid}`);
     if (group?.fields?.['status']?.stringValue !== 'active' || caller?.fields?.['status']?.stringValue !== 'active' || caller.fields['role']?.stringValue !== 'owner') throw new RestoreInventoryError(403, 'owner_required');
     const groupCollections = ['members', 'categories', 'expenses', 'settlements', 'importedRecords', 'activity', 'balances', 'statistics', 'invitations'];
+    await assertCollections(`groups/${groupId}`, new Set(groupCollections));
     const pages = await Promise.all(groupCollections.map(name => list(`groups/${groupId}/${name}`)));
     const groupDocuments = [`groups/${groupId}`, ...pages.flatMap(page => page.map(row => row.name!.slice(`${root}/`.length)))];
     const members = pages[0].map(row => row.name!.slice(row.name!.lastIndexOf('/') + 1));
@@ -68,6 +85,7 @@ export async function collectLiveRestoreInventory(uid: string, groupId: string, 
     const receiptPublicIds: string[] = [];
     for (const expense of pages[2]) {
       const expensePath = expense.name!.slice(`${root}/`.length);
+      await assertCollections(expensePath, new Set(['comments', 'attachments']));
       for (const name of ['comments', 'attachments']) {
         for (const row of await list(`${expensePath}/${name}`)) {
           groupDocuments.push(row.name!.slice(`${root}/`.length));
