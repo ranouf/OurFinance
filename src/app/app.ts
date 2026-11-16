@@ -40,7 +40,7 @@ import { language, locale, setLanguage, t } from './shared/utils/i18n';
           @if (!user.emailVerified) {
             <p class="mt-4 rounded-lg bg-amber-50 p-3 text-amber-900" role="status">{{ t('verifyEmail') }}</p>
           } @else {
-            <section id="groups" class="mt-7" [attr.aria-label]="t('myGroups')">
+            <section id="groups" tabindex="-1" class="mt-7" [attr.aria-label]="t('myGroups')">
               <h2 class="text-xl font-semibold">{{ t('myGroups') }}</h2>
               @if (groups().length) {
                 <ul class="mt-4 grid gap-3 sm:grid-cols-2">
@@ -78,18 +78,18 @@ import { language, locale, setLanguage, t } from './shared/utils/i18n';
             @if (workerUrl && firebaseApp && groups().length) {
               @defer (on viewport) { <app-category-manager [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" (changed)="onCategoryChanged()" /> }
               @placeholder { <p class="mt-6 text-sm text-slate-600" role="status">{{ t('loadingCategories') }}</p> }
-              <div id="new-expense">@defer (on viewport) {
+              <div id="new-expense" tabindex="-1">@defer (on viewport) {
                 <app-expense-form id="expense-editor" [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" [categoryRevision]="categoryRevision()" [editing]="editingExpense()" (saved)="onExpenseSaved()" (editCancelled)="editingExpense.set(undefined)" />
               } @placeholder {
                 <p class="mt-6 rounded-xl border border-slate-200 p-4 text-sm text-slate-600" role="status">{{ t('loadingExpense') }}</p>
               }</div>
-              <div id="history">@defer (on viewport) { <app-expense-history [groups]="groups()" [firebaseApp]="firebaseApp" [user]="user" [workerUrl]="workerUrl" [revision]="expenseRevision()" [categoryRevision]="categoryRevision()" (commented)="onCommentAdded()" (editRequested)="onExpenseEdit($event)" (deleted)="onExpenseSaved()" /> }
+              <div id="history" tabindex="-1">@defer (on viewport) { <app-expense-history [groups]="groups()" [firebaseApp]="firebaseApp" [user]="user" [workerUrl]="workerUrl" [revision]="expenseRevision()" [categoryRevision]="categoryRevision()" (commented)="onCommentAdded()" (editRequested)="onExpenseEdit($event)" (deleted)="onExpenseSaved()" /> }
               @placeholder { <p class="mt-6 text-sm text-slate-600" role="status">{{ t('loadingExpenseHistory') }}</p> }</div>
               @defer (on viewport) { <app-settlement-form [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" (saved)="onSettlementSaved()" /> }
               @placeholder { <p class="mt-6 text-sm text-slate-600" role="status">{{ t('loadingSettlement') }}</p> }
               @defer (on viewport) { <app-settlement-history [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" [revision]="settlementRevision()" /> }
               @placeholder { <p class="mt-6 text-sm text-slate-600" role="status">{{ t('loadingSettlementHistory') }}</p> }
-              <div id="balances">@defer (on viewport) { <app-balance-summary [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [revision]="expenseRevision() + settlementRevision()" /> }
+              <div id="balances" tabindex="-1">@defer (on viewport) { <app-balance-summary [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [revision]="expenseRevision() + settlementRevision()" /> }
               @placeholder { <p class="mt-6 text-sm text-slate-600" role="status">{{ t('loadingBalances') }}</p> }</div>
               @defer (on viewport) { <app-statistics-summary [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [revision]="expenseRevision() + settlementRevision()" /> }
               @placeholder { <p class="mt-6 text-sm text-slate-600" role="status">{{ t('loadingStatistics') }}</p> }
@@ -104,7 +104,7 @@ import { language, locale, setLanguage, t } from './shared/utils/i18n';
               }
             }
             @if (firebaseApp) {
-              <div id="account">@defer (on viewport) { <app-profile-panel [user]="user" [firebaseApp]="firebaseApp" /> }
+              <div id="account" tabindex="-1">@defer (on viewport) { <app-profile-panel [user]="user" [firebaseApp]="firebaseApp" /> }
               @placeholder { <p class="mt-6 text-sm text-slate-600" role="status">{{ t('loadingProfile') }}</p> }</div>
             }
           }
