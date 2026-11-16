@@ -1,4 +1,4 @@
-import { Component, Input, OnChanges, SimpleChanges, signal } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { FirebaseApp } from 'firebase/app';
 import type { User } from 'firebase/auth';
@@ -9,10 +9,11 @@ import { formatMinor } from '../../shared/utils/currency';
 import { categoryColorClass } from '../../shared/utils/categories';
 import { matchesDescription } from './matches-description';
 import { ReceiptPanel } from './receipt-panel';
+import { CommentPanel } from './comment-panel';
 
 @Component({
   selector: 'app-expense-history',
-  imports: [FormsModule, ReceiptPanel],
+  imports: [FormsModule, ReceiptPanel, CommentPanel],
   template: `
     <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-5" aria-label="Historique des dépenses">
       <h2 class="text-lg font-semibold">Historique des dépenses</h2>
@@ -62,6 +63,7 @@ import { ReceiptPanel } from './receipt-panel';
                       } @empty { <p class="mt-1 text-slate-600">Non disponibles.</p> }
                     </div>
                     @if (opened().has(entry.id)) { <app-receipt-panel [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" [user]="user" [groupId]="selectedGroupId" [expenseId]="entry.id" [groupOwnerId]="groupOwnerId()" /> }
+                    @if (opened().has(entry.id)) { <app-comment-panel [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" [user]="user" [groupId]="selectedGroupId" [expenseId]="entry.id" (changed)="commented.emit()" /> }
                   </div>
                 </details>
               </li>
@@ -76,6 +78,7 @@ import { ReceiptPanel } from './receipt-panel';
   `,
 })
 export class ExpenseHistory implements OnChanges {
+  @Output() readonly commented = new EventEmitter<void>();
   @Input({ required: true }) groups: Group[] = [];
   @Input({ required: true }) firebaseApp?: FirebaseApp;
   @Input({ required: true }) user?: User;

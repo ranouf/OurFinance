@@ -62,12 +62,12 @@ import { InvitationPanel } from './features/groups/invitation-panel';
             @if (workerUrl && firebaseApp && groups().length) {
               <app-category-manager [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" (changed)="onCategoryChanged()" />
               <app-expense-form [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" [categoryRevision]="categoryRevision()" (saved)="onExpenseSaved()" />
-              <app-expense-history [groups]="groups()" [firebaseApp]="firebaseApp" [user]="user" [workerUrl]="workerUrl" [revision]="expenseRevision()" />
+              <app-expense-history [groups]="groups()" [firebaseApp]="firebaseApp" [user]="user" [workerUrl]="workerUrl" [revision]="expenseRevision()" (commented)="onCommentAdded()" />
               <app-settlement-form [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" (saved)="onSettlementSaved()" />
               <app-settlement-history [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" [revision]="settlementRevision()" />
               <app-balance-summary [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [revision]="expenseRevision() + settlementRevision()" />
               <app-statistics-summary [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [revision]="expenseRevision() + settlementRevision()" />
-              <app-activity-history [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [revision]="expenseRevision() + settlementRevision() + categoryRevision()" />
+              <app-activity-history [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [revision]="expenseRevision() + settlementRevision() + categoryRevision() + commentRevision()" />
             }
           }
           <button class="mt-6 rounded-lg border border-slate-300 px-4 py-2" type="button" (click)="logout()">Déconnexion</button>
@@ -117,6 +117,7 @@ export class App implements OnInit, OnDestroy {
   readonly expenseRevision = signal(0);
   readonly categoryRevision = signal(0);
   readonly settlementRevision = signal(0);
+  readonly commentRevision = signal(0);
   readonly groupServiceReady = signal(false);
   groupName = '';
   groupCurrency = 'CAD';
@@ -188,5 +189,6 @@ export class App implements OnInit, OnDestroy {
   onExpenseSaved(): void { this.expenseRevision.update(value => value + 1); }
   onCategoryChanged(): void { this.categoryRevision.update(value => value + 1); }
   onSettlementSaved(): void { this.settlementRevision.update(value => value + 1); }
+  onCommentAdded(): void { this.commentRevision.update(value => value + 1); }
   onInvitationJoined(): void { void this.loadGroups(); }
 }

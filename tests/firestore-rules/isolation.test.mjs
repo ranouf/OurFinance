@@ -18,6 +18,7 @@ before(async () => {
     await setDoc(doc(db, 'groups/a/expenses/e1'), { amountMinor: 100 });
     await setDoc(doc(db, 'groups/b/expenses/e2'), { amountMinor: 100 });
     await setDoc(doc(db, 'groups/a/expenses/e1/attachments/receipt'), { publicId: 'synthetic' });
+    await setDoc(doc(db, 'groups/a/expenses/e1/comments/comment1'), { authorId: 'alice', text: 'Fictif' });
     await setDoc(doc(db, 'groups/a/activity/ev1'), { action: 'expense_created' });
     await setDoc(doc(db, 'groups/a/categories/custom_123e4567-e89b-42d3-a456-426614174000'), { name: 'Frais de chalet', status: 'active' });
     await setDoc(doc(db, 'users/alice/groupPreferences/a'), { modeJson: '{"kind":"equal","users":["alice"]}' });
@@ -72,6 +73,16 @@ test('a revoked member loses receipts, activity and personal preference', async 
   }
   await assertFails(getDoc(doc(alice, 'users/alice/groupPreferences/b')));
   await assertFails(setDoc(doc(alice, 'users/alice/groupPreferences/a'), { modeJson: 'forged' }));
+});
+
+test('commentaires lisibles uniquement par membre actif, écriture client interdite', async () => {
+  const path = 'groups/a/expenses/e1/comments/comment1';
+  const alice = env.authenticatedContext('alice').firestore();
+  const bob = env.authenticatedContext('bob').firestore();
+  await assertSucceeds(getDoc(doc(alice, path)));
+  await assertFails(getDoc(doc(bob, path)));
+  await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), path)));
+  await assertFails(setDoc(doc(alice, 'groups/a/expenses/e1/comments/fake'), { text: 'Falsifié' }));
 });
 
 test('collection group queries cannot escape group isolation', async () => {

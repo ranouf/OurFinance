@@ -15,6 +15,7 @@ const labels: Record<string, string> = {
   category_updated: 'Catégorie modifiée',
   category_archived: 'Catégorie archivée',
   category_reactivated: 'Catégorie réactivée',
+  comment_created: 'Commentaire ajouté',
 };
 
 @Component({
