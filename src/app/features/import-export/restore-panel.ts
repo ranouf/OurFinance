@@ -56,6 +56,10 @@ import { preflightBackupRestoreV2, type RestorePreflightV2 } from './restore-pre
           <p class="text-sm" role="status">{{ t(message()!) }}
             @if (message() === 'restoreUncertain') { <span class="break-all">{{ attemptId() }}</span> }
           </p>
+          @if (message() === 'restoreDone' || message() === 'restoreCleanupPending') {
+            <button class="rounded-lg border border-teal-700 px-4 py-2 text-teal-800" type="button"
+              (click)="reload()">{{ t('restoreReload') }}</button>
+          }
         }
       </div>
     </section>
@@ -80,6 +84,7 @@ export class RestorePanel {
   private previewUid?: string;
 
   selectedGroupName(): string { return this.groups.find(group => group.id === this.groupId)?.name ?? ''; }
+  reload(): void { window.location.reload(); }
   clearPreview(): void {
     this.preview.set(null);
     this.archive = undefined;
