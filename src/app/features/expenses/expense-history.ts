@@ -3,13 +3,14 @@ import { FormsModule } from '@angular/forms';
 import type { FirebaseApp } from 'firebase/app';
 import type { User } from 'firebase/auth';
 import type { DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
-import type { Group } from '../../core/firebase/group-model';
+import { CategoryService } from '../../core/firebase/category-service';
 import { ExpenseService, type ExpenseHistoryEntry } from '../../core/firebase/expense-service';
+import type { Group, GroupMember } from '../../core/firebase/group-model';
 import { formatMinor } from '../../shared/utils/currency';
-import { categoryColorClass } from '../../shared/utils/categories';
+import { categories, categoryColorClass, type CategoryDefinition } from '../../shared/utils/categories';
+import { CommentPanel } from './comment-panel';
 import { matchesDescription } from './matches-description';
 import { ReceiptPanel } from './receipt-panel';
-import { CommentPanel } from './comment-panel';
 
 @Component({
   selector: 'app-expense-history',
@@ -18,7 +19,7 @@ import { CommentPanel } from './comment-panel';
     <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-5" aria-label="Historique des dépenses">
       <h2 class="text-lg font-semibold">Historique des dépenses</h2>
       <label class="mt-4 block text-sm font-medium">Groupe
-        <select class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="historyGroup" [(ngModel)]="selectedGroupId" (ngModelChange)="refresh()">
+        <select class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="historyGroup" [(ngModel)]="selectedGroupId" (ngModelChange)="onGroupChange()">
           <option value="">Choisir un groupe</option>
           @for (group of groups; track group.id) { <option [value]="group.id">{{ group.name }}</option> }
         </select>
@@ -32,12 +33,26 @@ import { CommentPanel } from './comment-panel';
             <input class="mt-1 w-full rounded-lg border border-slate-300 p-3" type="date" name="historyTo" [(ngModel)]="to" (ngModelChange)="refresh()" />
           </label>
         </div>
+        <div class="mt-3 grid gap-3 sm:grid-cols-2">
+          <label class="block text-sm font-medium">Catégorie
+            <select class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="historyCategory" [(ngModel)]="selectedCategoryId" (ngModelChange)="refresh()">
+              <option value="">Toutes les catégories</option>
+              @for (category of categoryOptions(); track category.id) { <option [value]="category.id">{{ category.icon }} {{ category.label }}</option> }
+            </select>
+          </label>
+          <label class="block text-sm font-medium">Participant
+            <select class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="historyParticipant" [(ngModel)]="selectedParticipantId" (ngModelChange)="refresh()">
+              <option value="">Tous les participants</option>
+              @for (member of participantOptions(); track member.userId) { <option [value]="member.userId">{{ memberLabel(member.userId) }}</option> }
+            </select>
+          </label>
+        </div>
         <label class="mt-3 block text-sm font-medium">Rechercher dans tout l'historique
           <input class="mt-1 w-full rounded-lg border border-slate-300 p-3" type="search" name="historySearch" [(ngModel)]="search" placeholder="Description" />
         </label>
         @if (from && to && from > to) { <p class="mt-2 text-sm text-rose-700">La date de début doit précéder la date de fin.</p> }
         <button class="mt-3 rounded-lg border border-teal-700 px-3 py-2 text-sm text-teal-800 disabled:opacity-50" type="button" [disabled]="busy()" (click)="refresh()">Rechercher</button>
-        @if (searchTerm) { <p class="mt-2 text-sm text-slate-600">{{ scannedCount() }} dépenses parcourues dans ce groupe.</p> }
+        @if (hasFilter()) { <p class="mt-2 text-sm text-slate-600">{{ scannedCount() }} dépenses parcourues dans ce groupe.</p> }
         @if (entries().length) {
           <ul class="mt-4 divide-y divide-slate-200">
             @for (entry of entries(); track entry.id) {
@@ -70,7 +85,7 @@ import { CommentPanel } from './comment-panel';
             }
           </ul>
         }
-        @if (hasMore()) { <button class="mt-3 rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:opacity-50" type="button" [disabled]="busy()" (click)="loadMore()">{{ searchTerm ? 'Continuer la recherche' : 'Charger 20 dépenses de plus' }}</button> }
+        @if (hasMore()) { <button class="mt-3 rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:opacity-50" type="button" [disabled]="busy()" (click)="loadMore()">{{ hasFilter() ? 'Continuer la recherche' : 'Charger 20 dépenses de plus' }}</button> }
         @if (!entries().length && !busy() && !message() && !(from && to && from > to)) { <p class="mt-4 text-sm text-slate-600">{{ hasMore() ? 'Aucun résultat dans les pages parcourues.' : 'Aucune dépense correspondante.' }}</p> }
       }
       @if (message()) { <p class="mt-4 text-sm text-rose-700" role="status">{{ message() }}</p> }
@@ -84,7 +99,10 @@ export class ExpenseHistory implements OnChanges {
   @Input({ required: true }) user?: User;
   @Input({ required: true }) workerUrl?: string;
   @Input() revision = 0;
+  @Input() categoryRevision = 0;
   readonly entries = signal<ExpenseHistoryEntry[]>([]);
+  readonly categoryOptions = signal<readonly CategoryDefinition[]>(categories);
+  readonly participantOptions = signal<readonly GroupMember[]>([]);
   readonly hasMore = signal(false);
   readonly busy = signal(false);
   readonly message = signal('');
@@ -95,13 +113,21 @@ export class ExpenseHistory implements OnChanges {
   to = '';
   search = '';
   searchTerm = '';
+  selectedCategoryId = '';
+  selectedParticipantId = '';
   private service?: ExpenseService;
+  private categoryService?: CategoryService;
   private last?: QueryDocumentSnapshot<DocumentData>;
   private requestId = 0;
+  private filterRequestId = 0;
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (this.firebaseApp && this.workerUrl) this.service = new ExpenseService(this.firebaseApp, this.workerUrl);
+    if (this.firebaseApp && this.workerUrl) {
+      this.service = new ExpenseService(this.firebaseApp, this.workerUrl);
+      this.categoryService = new CategoryService(this.firebaseApp, this.workerUrl);
+    }
     if (changes['revision'] && !changes['revision'].firstChange && this.selectedGroupId) void this.refresh();
+    if (changes['categoryRevision'] && !changes['categoryRevision'].firstChange && this.selectedGroupId) void this.loadFilters();
   }
 
   amount(entry: ExpenseHistoryEntry): string { return this.format(entry.amountMinor, entry.currency); }
@@ -114,6 +140,29 @@ export class ExpenseHistory implements OnChanges {
     this.opened.set(next);
   }
   categoryColorClass = categoryColorClass;
+  hasFilter(): boolean { return !!(this.searchTerm || this.selectedCategoryId || this.selectedParticipantId); }
+  onGroupChange(): void {
+    this.selectedCategoryId = '';
+    this.selectedParticipantId = '';
+    this.categoryOptions.set(categories);
+    this.participantOptions.set([]);
+    void this.loadFilters();
+    void this.refresh();
+  }
+
+  private async loadFilters(): Promise<void> {
+    const groupId = this.selectedGroupId;
+    const requestId = ++this.filterRequestId;
+    if (!groupId || !this.service || !this.categoryService) return;
+    try {
+      const [customCategories, members] = await Promise.all([this.categoryService.list(groupId), this.service.members(groupId)]);
+      if (requestId !== this.filterRequestId) return;
+      this.categoryOptions.set([...categories, ...customCategories]);
+      this.participantOptions.set(members);
+    } catch {
+      if (requestId === this.filterRequestId) this.message.set('Filtres indisponibles.');
+    }
+  }
   async refresh(): Promise<void> {
     this.searchTerm = this.search.trim();
     this.entries.set([]);
@@ -137,10 +186,13 @@ export class ExpenseHistory implements OnChanges {
       let hasMore = false;
       const matches: ExpenseHistoryEntry[] = [];
       let scanned = 0;
-      for (let pageNumber = 0; pageNumber < (this.searchTerm ? 5 : 1); pageNumber++) {
+      for (let pageNumber = 0; pageNumber < (this.hasFilter() ? 5 : 1); pageNumber++) {
         const page = await this.service.history(groupId, cursor, this.from, this.to);
         if (requestId !== this.requestId) return;
-        matches.push(...(this.searchTerm ? page.entries.filter(entry => matchesDescription(entry.description, this.searchTerm)) : page.entries));
+        matches.push(...page.entries.filter(entry =>
+          (!this.searchTerm || matchesDescription(entry.description, this.searchTerm)) &&
+          (!this.selectedCategoryId || entry.categoryId === this.selectedCategoryId) &&
+          (!this.selectedParticipantId || entry.allocations.some(part => part.userId === this.selectedParticipantId))));
         scanned += page.scanned;
         cursor = page.last;
         hasMore = page.hasMore;

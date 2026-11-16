@@ -71,7 +71,7 @@ import { ExportPanel } from './features/import-export/export-panel';
               } @placeholder {
                 <p class="mt-6 rounded-xl border border-slate-200 p-4 text-sm text-slate-600" role="status">Chargement du formulaire de dépense…</p>
               }
-              @defer (on viewport) { <app-expense-history [groups]="groups()" [firebaseApp]="firebaseApp" [user]="user" [workerUrl]="workerUrl" [revision]="expenseRevision()" (commented)="onCommentAdded()" /> }
+              @defer (on viewport) { <app-expense-history [groups]="groups()" [firebaseApp]="firebaseApp" [user]="user" [workerUrl]="workerUrl" [revision]="expenseRevision()" [categoryRevision]="categoryRevision()" (commented)="onCommentAdded()" /> }
               @placeholder { <p class="mt-6 text-sm text-slate-600" role="status">Chargement de l’historique des dépenses…</p> }
               @defer (on viewport) { <app-settlement-form [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" (saved)="onSettlementSaved()" /> }
               @placeholder { <p class="mt-6 text-sm text-slate-600" role="status">Chargement des remboursements…</p> }
