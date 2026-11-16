@@ -1,7 +1,7 @@
 import type { FirebaseApp } from 'firebase/app';
 import type { User } from 'firebase/auth';
 import { collection, doc, getDoc, getDocs, getFirestore } from 'firebase/firestore';
-import { applicablePreference, type SplitPreference } from '../../shared/utils/split-preference';
+import { decodeStoredPreference } from '../../shared/utils/split-preference';
 import type { SplitMode } from '../../shared/utils/split-engine';
 import type { GroupMember } from './group-model';
 
@@ -16,11 +16,7 @@ export class ExpenseService {
   async preference(user: User, groupId: string, activeIds: ReadonlySet<string>): Promise<SplitMode | undefined> {
     const snapshot = await getDoc(doc(getFirestore(this.app), 'users', user.uid, 'groupPreferences', groupId));
     if (!snapshot.exists()) return undefined;
-    const data = snapshot.data();
-    try {
-      const preference: SplitPreference = { userId: user.uid, groupId, mode: JSON.parse(String(data['modeJson'])) as SplitMode, memberIds: (data['memberIds'] as string[]) ?? [] };
-      return applicablePreference(preference, user.uid, groupId, activeIds);
-    } catch { return undefined; }
+    return decodeStoredPreference(snapshot.data()['modeJson'], activeIds);
   }
 
   async create(user: User, groupId: string, body: object): Promise<string> {
