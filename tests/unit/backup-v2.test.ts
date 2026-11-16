@@ -1,5 +1,5 @@
 import { test } from 'node:test';
-import { deepStrictEqual, rejects, strictEqual } from 'node:assert';
+import { deepStrictEqual, rejects, strictEqual, throws } from 'node:assert';
 import { sha256Hex } from '../../src/app/features/import-export/backup-package';
 import { verifyBackupPackageV2, type BackupPackageV2 } from '../../src/app/features/import-export/backup-package-v2';
 import { encodeBackupZipV2 } from '../../src/app/features/import-export/backup-zip';
@@ -84,4 +84,6 @@ test('dry-run marks stale operations and derived documents for deletion', () => 
   const withoutPreference = { ...group, preferences: [{ userId: 'alice', modeJson: null, memberIds: [], updatedAt: null }] };
   const absent = compareRestoreInventoryV2(withoutPreference, ['groups/g'], ['users/alice/groupPreferences/g']);
   deepStrictEqual(absent.deleteUserDocuments, ['users/alice/groupPreferences/g']);
+  throws(() => compareRestoreInventoryV2(group, ['groups/other/expenses/e'], []));
+  throws(() => compareRestoreInventoryV2(group, ['groups/g/unknown/x'], []));
 });
