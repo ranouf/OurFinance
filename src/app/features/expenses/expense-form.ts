@@ -1,4 +1,4 @@
-import { Component, Input, OnChanges, signal } from '@angular/core';
+import { ChangeDetectorRef, Component, Input, OnChanges, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { FirebaseApp } from 'firebase/app';
 import type { User } from 'firebase/auth';
@@ -51,7 +51,7 @@ import type { SplitMode } from '../../shared/utils/split-engine';
               </select>
               @for (row of draft.rows; track row.userId; let i = $index) {
                 <div class="mt-3 flex items-center gap-3">
-                  <label class="flex flex-1 items-center gap-2 text-sm"><input type="checkbox" [name]="'selected-' + i" [(ngModel)]="row.selected" />{{ row.userId === user?.uid ? 'Moi' : row.userId }}</label>
+                  <label class="flex min-w-0 flex-1 items-center gap-2 text-sm"><input class="shrink-0" type="checkbox" [name]="'selected-' + i" [(ngModel)]="row.selected" /><span class="min-w-0 break-all">{{ row.userId === user?.uid ? 'Moi' : row.userId }}</span></label>
                   @if (draft.kind !== 'equal' && row.selected) {
                     <input class="w-24 rounded-lg border border-slate-300 p-2 text-right" [name]="'value-' + i" [(ngModel)]="row.value" inputmode="decimal" [attr.aria-label]="'Valeur pour ' + row.userId" [placeholder]="draft.kind === 'percentage' ? '%' : draft.kind === 'shares' ? 'parts' : draft.currency" />
                   }
@@ -73,6 +73,7 @@ import type { SplitMode } from '../../shared/utils/split-engine';
   `,
 })
 export class ExpenseForm implements OnChanges {
+  constructor(private readonly changeDetector: ChangeDetectorRef) {}
   @Input({ required: true }) groups: Group[] = [];
   @Input({ required: true }) user?: User;
   @Input({ required: true }) firebaseApp?: FirebaseApp;
@@ -105,7 +106,10 @@ export class ExpenseForm implements OnChanges {
       this.draft.payerId = members.find(member => member.userId === this.user?.uid)?.userId ?? members[0]?.userId ?? '';
       this.draft.rows = members.map(member => ({ userId: member.userId, selected: false, value: '' }));
       const preference = await this.service.preference(this.user, groupId, new Set(members.map(member => member.userId)));
-      if (this.selectedGroupId === groupId && preference) this.applyPreference(preference);
+      if (this.selectedGroupId === groupId && preference) {
+        this.applyPreference(preference);
+        this.changeDetector.markForCheck();
+      }
     } catch { this.message.set('Membres ou préférence indisponibles.'); }
   }
   private applyPreference(mode: SplitMode): void {
