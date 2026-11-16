@@ -27,12 +27,19 @@ export function previewMappedCsv(csv: string, mapping: Record<'sourceId' | 'grou
   if (Object.values(index).some(value => value < 0)) throw new Error('Colonne manquante');
   const impactIndexes = impactColumns && Object.entries(impactColumns).map(([userId, header]) => [userId, headers.indexOf(header)] as const);
   if (impactIndexes?.some(([, column]) => column < 0)) throw new Error('Colonne de participant manquante');
+  if (impactIndexes && (!impactIndexes.length || new Set(impactIndexes.map(([, column]) => column)).size !== impactIndexes.length)) throw new Error('Colonnes de participant dupliquées');
   const records: ImportRecordV1[] = [], duplicateIds: string[] = [], errors: string[] = [];
   const seen = new Set(existingIds);
   rows.forEach((row, position) => {
     const read = (key: keyof typeof index) => row[index[key]]?.trim() ?? '';
     const sourceId = read('sourceId');
-    if (!sourceId || !read('groupId') || !/^\d{4}-\d{2}-\d{2}$/.test(read('date')) || !read('currency') || !Number.isSafeInteger(Number(read('amountMinor'))) || Number(read('amountMinor')) < 0) {
+    const date = read('date');
+    const parsedDate = /^\d{4}-\d{2}-\d{2}$/.test(date) ? new Date(`${date}T00:00:00.000Z`) : null;
+    const amount = read('amountMinor');
+    const currency = read('currency');
+    if (row.length !== headers.length || !sourceId || !read('groupId') || !read('description') ||
+        !parsedDate || Number.isNaN(parsedDate.getTime()) || parsedDate.toISOString().slice(0, 10) !== date ||
+        !Intl.supportedValuesOf('currency').includes(currency) || !/^\d+$/.test(amount) || !Number.isSafeInteger(Number(amount)) || Number(amount) <= 0) {
       errors.push(`Ligne ${position + 2} : champs requis ou montant invalide`); return;
     }
     const provenanceKey = JSON.stringify([read('groupId'), sourceId]);
@@ -46,7 +53,7 @@ export function previewMappedCsv(csv: string, mapping: Record<'sourceId' | 'grou
       } catch { errors.push(`Ligne ${position + 2} : impacts invalides ou non équilibrés`); return; }
     }
     seen.add(provenanceKey);
-    records.push({ sourceId, groupId: read('groupId'), date: read('date'), description: read('description'), amountMinor: Number(read('amountMinor')), currency: read('currency'), splitStatus: 'undetermined', netImpactsMinor });
+    records.push({ sourceId, groupId: read('groupId'), date, description: read('description'), amountMinor: Number(amount), currency, splitStatus: 'undetermined', netImpactsMinor });
   });
   return { version: 1, records, duplicateIds, errors };
 }
