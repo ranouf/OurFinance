@@ -9,7 +9,9 @@
     "test": "ng test",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "test:rules": "firebase emulators:exec --only firestore --project ourfinance-rules-test \"node --test tests/firestore-rules/*.test.mjs\"",
-    "test:unit": "tsx --test tests/unit/*.test.ts"
+    "test:unit": "tsx --test tests/unit/*.test.ts",
+    "test:worker": "tsx --test workers/ourfinance-api/tests/*.test.ts",
+    "typecheck:worker": "tsc --ignoreConfig --noEmit --target es2022 --module esnext --moduleResolution bundler --strict --skipLibCheck workers/ourfinance-api/src/*.ts"
   },
   "private": true,
   "packageManager": "npm@11.9.0",
@@ -22,6 +24,7 @@
     "@angular/router": "^22.2.0",
     "@angular/service-worker": "^22.2.0",
     "firebase": "^13.3.0",
+    "jose": "^6.2.17",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"
   },
