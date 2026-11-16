@@ -8,6 +8,7 @@
 2. Créer un groupe fictif CAD avec propriétaire, membre actif, membre révoqué et tiers hors groupe ; utiliser exclusivement des données, images et comptes fictifs. Créer une dépense, un commentaire, une catégorie personnalisée, un règlement, un lot d’import et des préférences personnelles différentes.
 3. Obtenir `group.json` par `GET /groups/{g}/backup/snapshot` sous `ENABLE_BACKUP_POC=true` et `BACKUP_POC_GROUP_ID=<groupe fictif>`, puis construire et vérifier un ZIP V2 de moins de 20 Mo avec `buildBackupPackageV2FromServerSnapshot`, incluant un PNG privé. Conserver ZIP, jetons et identifiants fictifs hors dépôt, hors PR et hors journaux publics. La collecte client `client_partial` doit être refusée par la route de restauration.
 4. Capturer les documents attendus, le solde et les médias privés. Modifier ensuite des opérations fictives pour créer un écart visible avec la sauvegarde.
+5. Sur le SHA qui inclut la prévisualisation serveur, envoyer le même ZIP à `POST /groups/{g}/backup/preview` et comparer les comptes de créations, remplacements et suppressions à l’inventaire fictif. Cette route ne doit produire aucune écriture ; répéter avec tiers, membre ordinaire et archive altérée.
 
 ## Contrôles HTTP
 

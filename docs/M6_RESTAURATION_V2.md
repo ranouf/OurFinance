@@ -15,6 +15,7 @@
 2. Vérifier le manifeste ZIP, le hachage et la taille de `group.json`, puis le hachage et le type de chaque reçu. Refuser un groupe, une devise ou un ensemble de membres différents.
 3. Obtenir le JSON V2 par `GET /groups/{g}/backup/snapshot` : toutes ses lectures Firestore, dont les préférences des membres, partagent une transaction serveur. La collecte cliente V1 suivie d’une lecture serveur des préférences reste marquée `client_partial` et est refusée par la restauration. Vérifier aussi après chaque téléchargement privé que le `publicId` du reçu est celui de l’instantané, ou refuser le ZIP.
 4. Comparer l’inventaire du paquet aux documents réellement présents, y compris les préférences absentes et les lots d’import personnels. Montrer le nombre de créations, remplacements et suppressions avant confirmation.
+   `POST /groups/{g}/backup/preview` reçoit le ZIP vérifié et renvoie ces trois nombres à partir d’un inventaire serveur autorisé ; le résultat est indicatif, puisque le groupe peut changer avant le verrou. La transaction finale refait ses contrôles.
 
 ## Séquence sûre recherchée
 
