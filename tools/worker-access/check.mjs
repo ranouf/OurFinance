@@ -12,7 +12,7 @@ const expected = process.env.TEST_STAGE === 'revoked'
     ];
 let failures = 0;
 for (const [label, token, wanted] of expected) {
-  if (!token) { console.log(`${label}: NON TESTÉ (jeton absent)`); continue; }
+  if (!token) throw new Error(`Jeton de test absent pour ${label}`);
   const response = await fetch(new URL(`/groups/${groupId}/access`, base), {
     headers: { Authorization: `Bearer ${token}`, Origin: 'https://ourfinance-test.web.app' },
     redirect: 'error',
