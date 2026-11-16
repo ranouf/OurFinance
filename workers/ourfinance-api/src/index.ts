@@ -54,16 +54,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     try {
       const body = await readLimitedJson(request, 2048) as Record<string, unknown>;
       const categoryId = categoryCreate ? body['categoryId'] : categoryUpdate![2];
-      let id = '';
-      for (let attempt = 0; attempt < 3; attempt++) {
-        try {
-          id = await writeCategory(body, uid, groupId, String(categoryId), categoryCreate ? 'create' : 'update', { FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT_JSON: env.FIREBASE_SERVICE_ACCOUNT_JSON });
-          break;
-        } catch (error) {
-          if (!categoryUpdate || !(error instanceof CategoryError) || error.status !== 409 || attempt === 2) throw error;
-          await new Promise(resolve => setTimeout(resolve, 250 * (attempt + 1)));
-        }
-      }
+      const id = await writeCategory(body, uid, groupId, String(categoryId), categoryCreate ? 'create' : 'update', { FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT_JSON: env.FIREBASE_SERVICE_ACCOUNT_JSON });
       return new Response(JSON.stringify({ categoryId: id }), { status: categoryCreate ? 201 : 200, headers });
     } catch (error) {
       const status = error instanceof CategoryError ? error.status : error instanceof RequestBodyError ? 400 : 503;
@@ -179,3 +170,4 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
 }
 
 export default { fetch: handleRequest };
+
