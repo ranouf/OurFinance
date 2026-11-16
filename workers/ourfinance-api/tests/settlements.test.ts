@@ -40,11 +40,12 @@ test('transaction checks both active members and atomically records transfer plu
   strictEqual(f.reads.length, 3);
   const commit = f.committed();
   strictEqual(commit.transaction, 'txn');
-  strictEqual(commit.writes.length, 2);
-  strictEqual(commit.writes.every((write: any) => write.currentDocument.exists === false), true);
+  strictEqual(commit.writes.length, 3);
+  strictEqual(commit.writes.slice(0, 2).every((write: any) => write.currentDocument.exists === false), true);
   strictEqual(commit.writes[0].update.fields.amountMinor.integerValue, '51');
   strictEqual(commit.writes[0].update.fields.currency.stringValue, 'CAD');
   strictEqual(commit.writes[1].update.name.endsWith(`/groups/g1/activity/settlement_${input.idempotencyKey}`), true);
+  strictEqual(commit.writes[2].updateMask.fieldPaths[0], 'currencyLockedAt');
   strictEqual(f.rollbacks(), 0);
 });
 

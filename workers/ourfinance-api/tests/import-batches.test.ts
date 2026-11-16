@@ -54,6 +54,7 @@ test('synthetic batch persists impacts without inferred payments and can be undo
   strictEqual(records.length, 2);
   strictEqual(records.every(([, data]) => data.splitStatus.stringValue === 'undetermined' && !data.payments && !data.allocations), true);
   strictEqual(f.docs.get(`users/alex/importBatches/${batchId}`)?.status.stringValue, 'active');
+  strictEqual(typeof f.docs.get(`groups/${groupId}`)?.currencyLockedAt?.timestampValue, 'string');
   await undoImportBatch(batchId, 'alex', groupId, f.env, f.transport);
   strictEqual(f.commits(), 2);
   strictEqual(records.every(([path]) => f.docs.get(path)?.status.stringValue === 'undone'), true);

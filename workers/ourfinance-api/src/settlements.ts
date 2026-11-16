@@ -64,13 +64,14 @@ export async function createSettlement(value: unknown, uid: string, groupId: str
     const now = new Date().toISOString();
     const settlementId = input.idempotencyKey;
     const create = (path: string, fields: Record<string, unknown>) => ({ update: { name: `${root}/${path}`, fields }, currentDocument: { exists: false } });
-    const writes = [
+    const writes: unknown[] = [
       create(`groups/${groupId}/settlements/${settlementId}`, {
         date: string(input.date), currency: string(input.currency), amountMinor: { integerValue: String(input.amountMinor) }, fromUserId: string(uid), toUserId: string(input.toUserId),
         status: string('recorded'), createdBy: string(uid), createdAt: { timestampValue: now }, deleted: { booleanValue: false },
       }),
       create(`groups/${groupId}/activity/settlement_${settlementId}`, { actorId: string(uid), action: string('settlement_recorded'), settlementId: string(settlementId), at: { timestampValue: now } }),
     ];
+    if (!groupFields?.['currencyLockedAt']) writes.push({ update: { name: `${root}/groups/${groupId}`, fields: { currencyLockedAt: { timestampValue: now } } }, updateMask: { fieldPaths: ['currencyLockedAt'] } });
     await checked(await transport(`https://firestore.googleapis.com/v1/${root}:commit`, { method: 'POST', headers, body: JSON.stringify({ transaction, writes }) }));
     committed = true;
     return settlementId;

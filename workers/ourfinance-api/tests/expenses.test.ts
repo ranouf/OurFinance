@@ -34,12 +34,13 @@ test('expense transaction reads active group/members and atomically writes expen
   strictEqual(await createExpense({ ...input, categoryId: 'education' }, 'alice', 'g1', { FIREBASE_PROJECT_ID: 'ourfinance-test', FIREBASE_SERVICE_ACCOUNT_JSON: service }, transport as typeof fetch), input.idempotencyKey);
   strictEqual(readPaths.length, 3);
   strictEqual(commit.transaction, 'txn');
-  strictEqual(commit.writes.length, 3);
+  strictEqual(commit.writes.length, 4);
   strictEqual(commit.writes[0].currentDocument.exists, false);
   deepStrictEqual(commit.writes[0].update.fields.allocations.arrayValue.values.map((item: any) => item.mapValue.fields.amountMinor.integerValue), ['51','50']);
   strictEqual(commit.writes[0].update.fields.categoryId.stringValue, 'education');
   strictEqual(commit.writes[1].update.name.endsWith('/users/alice/groupPreferences/g1'), true);
   strictEqual(commit.writes[2].update.name.endsWith(`/groups/g1/activity/${input.idempotencyKey}`), true);
+  strictEqual(commit.writes[3].updateMask.fieldPaths[0], 'currencyLockedAt');
 });
 test('revoked participant prevents a commit', async () => {
   const { privateKey } = await generateKeyPair('RS256', { extractable: true });

@@ -105,7 +105,7 @@ export async function createExpense(value: unknown, uid: string, groupId: string
   const expenseId = expense.idempotencyKey;
   const now = new Date().toISOString();
   const write = (path: string, fields: Record<string, unknown>, exists?: boolean) => ({ update: { name: `${root}/${path}`, fields }, ...(exists === undefined ? {} : { currentDocument: { exists } }) });
-  const writes = [
+  const writes: unknown[] = [
     write(`groups/${groupId}/expenses/${expenseId}`, {
       description: string(expense.description), categoryId: string(expense.categoryId), categoryLabel: string(category.label), categoryIcon: string(category.icon), categoryColor: string(category.color), currency: string(expense.currency), date: string(expense.date), amountMinor: integer(expense.amountMinor), createdBy: string(uid), createdAt: { timestampValue: now },
       payments: amountEntries(expense.payments), allocations: amountEntries(allocations), splitSnapshotJson: string(JSON.stringify(expense.splitMode)), deleted: { booleanValue: false },
@@ -115,6 +115,7 @@ export async function createExpense(value: unknown, uid: string, groupId: string
     }),
     write(`groups/${groupId}/activity/${expenseId}`, { actorId: string(uid), action: string('expense_created'), expenseId: string(expenseId), at: { timestampValue: now } }, false),
   ];
+  if (!groupFields['currencyLockedAt']) writes.push({ update: { name: `${root}/groups/${groupId}`, fields: { currencyLockedAt: { timestampValue: now } } }, updateMask: { fieldPaths: ['currencyLockedAt'] } });
   await json(await transport(`https://firestore.googleapis.com/v1/${root}:commit`, { method: 'POST', headers, body: JSON.stringify({ transaction, writes }) }));
   committed = true;
   return expenseId;

@@ -101,7 +101,7 @@ export async function createImportBatch(value: unknown, uid: string, groupId: st
     for (const id of ids) if (await read(`groups/${groupId}/importedRecords/${id}`)) throw new ImportError(409, 'duplicate_source');
     const now = new Date().toISOString();
     const create = (path: string, data: Record<string, unknown>) => ({ update: { name: `${root}/${path}`, fields: data }, currentDocument: { exists: false } });
-    const writes = input.rows.map((row, index) => create(`groups/${groupId}/importedRecords/${ids[index]}`, {
+    const writes: unknown[] = input.rows.map((row, index) => create(`groups/${groupId}/importedRecords/${ids[index]}`, {
       sourceId: string(row.sourceId), batchId: string(input.batchId), date: string(row.date), description: string(row.description), currency: string(row.currency), amountMinor: integer(row.amountMinor),
       splitStatus: string('undetermined'), status: string('active'), netImpactsMinor: { mapValue: { fields: Object.fromEntries(Object.entries(row.netImpactsMinor).map(([id, amount]) => [id, integer(amount)])) } }, createdAt: { timestampValue: now },
     }));
@@ -109,6 +109,7 @@ export async function createImportBatch(value: unknown, uid: string, groupId: st
       groupId: string(groupId), status: string('active'), source: string('splitwise_csv'), recordIds: { arrayValue: { values: ids.map(string) } }, createdAt: { timestampValue: now },
     }));
     writes.push(create(`groups/${groupId}/activity/import_${input.batchId}`, { actorId: string(uid), action: string('import_created'), batchId: string(input.batchId), at: { timestampValue: now } }));
+    if (!fields(group)?.['currencyLockedAt']) writes.push({ update: { name: `${root}/groups/${groupId}`, fields: { currencyLockedAt: { timestampValue: now } } }, updateMask: { fieldPaths: ['currencyLockedAt'] } });
     await commit(writes);
     return { batchId: input.batchId, recordCount: input.rows.length };
   });

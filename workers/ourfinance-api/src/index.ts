@@ -1,5 +1,6 @@
 import { bearerToken, verifyFirebaseIdToken, verifyFirebaseVerifiedEmail, verifyFirebaseVerifiedIdentity } from './auth';
 import { createGroup } from './groups';
+import { changeGroupCurrency, GroupCurrencyError } from './group-currency';
 import { createExpense, ExpenseError } from './expenses';
 import { handleMedia } from './media';
 import { MediaDiagnosticError } from './media-diagnostic';
@@ -17,6 +18,8 @@ export interface Env extends Partial<CloudinaryEnv> {
   ALLOWED_ORIGIN: string;
   FIREBASE_SERVICE_ACCOUNT_JSON?: string;
   ENABLE_GROUP_CREATION?: string;
+  ENABLE_GROUP_CURRENCY_POC?: string;
+  GROUP_CURRENCY_POC_GROUP_ID?: string;
   ENABLE_MEDIA_POC?: string;
   ENABLE_EXPENSE_POC?: string;
   EXPENSE_POC_GROUP_ID?: string;
@@ -174,6 +177,22 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const groupId = await createGroup(body, uid, { FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT_JSON: env.FIREBASE_SERVICE_ACCOUNT_JSON });
       return new Response(JSON.stringify({ groupId }), { status: 201, headers });
     } catch { return new Response(JSON.stringify({ error: 'Création impossible' }), { status: 400, headers }); }
+  }
+  const currencyMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/currency$/.exec(url.pathname);
+  if (currencyMatch && request.method === 'PATCH') {
+    if (env.ENABLE_GROUP_CURRENCY_POC !== 'true' || env.GROUP_CURRENCY_POC_GROUP_ID !== currencyMatch[1] || !env.FIREBASE_SERVICE_ACCOUNT_JSON) return new Response(JSON.stringify({ error: 'Modification non configurée' }), { status: 503, headers });
+    let uid: string;
+    try { uid = await verifyFirebaseVerifiedEmail(bearerToken(request), env.FIREBASE_PROJECT_ID); }
+    catch { return new Response(JSON.stringify({ error: 'Non authentifié' }), { status: 401, headers }); }
+    try {
+      const body = await readLimitedJson(request, 256);
+      await changeGroupCurrency(body, uid, currencyMatch[1], { FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT_JSON: env.FIREBASE_SERVICE_ACCOUNT_JSON });
+      return new Response(null, { status: 204, headers });
+    } catch (error) {
+      const status = error instanceof GroupCurrencyError ? error.status : error instanceof RequestBodyError ? 400 : 503;
+      const code = error instanceof GroupCurrencyError || error instanceof RequestBodyError ? error.code : 'currency_unavailable';
+      return new Response(JSON.stringify({ error: code }), { status, headers });
+    }
   }
   const match = /^\/groups\/([A-Za-z0-9_-]{1,128})\/access$/.exec(url.pathname);
   if (!match || request.method !== 'GET') return new Response(JSON.stringify({ error: 'Route inconnue' }), { status: 404, headers });
