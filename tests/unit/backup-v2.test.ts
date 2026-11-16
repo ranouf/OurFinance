@@ -5,6 +5,7 @@ import { verifyBackupPackageV2, type BackupPackageV2 } from '../../src/app/featu
 import { encodeBackupZipV2 } from '../../src/app/features/import-export/backup-zip';
 import { decodeBackupZipV2 } from '../../src/app/features/import-export/backup-zip-read';
 import { serializeGroupExportV2, type GroupExportV2 } from '../../src/app/features/import-export/export-v2';
+import { preflightBackupRestoreV2 } from '../../src/app/features/import-export/restore-preflight-v2';
 
 const group: GroupExportV2 = {
   format: 'OurFinanceGroupExport', version: 2, exportedAt: '2026-11-16T18:00:00.000Z',
@@ -44,4 +45,14 @@ test('V2 refuses a modified preference, receipt or manifest scope', async () => 
   await rejects(verifyBackupPackageV2({ ...backup, groupJson: backup.groupJson.replace('alice', 'other') }));
   await rejects(verifyBackupPackageV2({ ...backup, receipts: [{ ...backup.receipts[0], bytes: new Uint8Array([1]) }] }));
   await rejects(verifyBackupPackageV2({ ...backup, manifest: { ...backup.manifest, scope: 'group-v1-partial' as 'group-v2-partial' } }));
+});
+
+test('restore preflight verifies the archived receipt and original group before any write', async () => {
+  const backup = await packageFixture();
+  const target = { groupId: 'g', currency: 'CAD', memberIds: ['alice'] };
+  const result = await preflightBackupRestoreV2(backup, target);
+  strictEqual(result.receiptCount, 1);
+  strictEqual(result.preferenceCount, 1);
+  await rejects(preflightBackupRestoreV2(backup, { ...target, groupId: 'other' }));
+  await rejects(preflightBackupRestoreV2({ ...backup, receipts: [{ ...backup.receipts[0], bytes: new Uint8Array([1]) }] }, target));
 });

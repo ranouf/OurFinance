@@ -1,4 +1,5 @@
 import { serializeGroupExportV2, type GroupExportV2 } from './export-v2';
+import { verifyBackupPackageV2, type BackupPackageV2 } from './backup-package-v2';
 
 export interface RestoreTargetV2 {
   readonly groupId: string;
@@ -40,4 +41,10 @@ export function preflightGroupRestoreV2(groupJson: string, target: RestoreTarget
     preferenceCount: source.preferences.filter(row => row.modeJson !== null).length,
     absentPreferenceCount: source.preferences.filter(row => row.modeJson === null).length,
   };
+}
+
+/** Verify every archived receipt before presenting a restore against the original group. */
+export async function preflightBackupRestoreV2(backup: BackupPackageV2, target: RestoreTargetV2): Promise<RestorePreflightV2> {
+  await verifyBackupPackageV2(backup);
+  return preflightGroupRestoreV2(backup.groupJson, target);
 }
