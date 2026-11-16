@@ -40,6 +40,10 @@ const messages = {
     loadingGroupCurrency: 'Chargement de la devise du groupe…', changeGroupCurrency: 'Modifier la devise du groupe', currencyBeforeFirst: 'Le propriétaire peut la modifier seulement avant la toute première opération. Elle restera ensuite verrouillée.',
     saveGroupCurrency: 'Enregistrer la devise', currencyChanged: 'Devise du groupe enregistrée.', currencyLocked: 'Devise définitivement verrouillée après une opération.',
     currencyDisabled: 'Modification de devise désactivée dans cet environnement.', currencyChangeFailed: 'Modification de devise impossible.',
+    exportGroup: 'Exporter un groupe', exportPartial: 'Ces exports sont partiels. Ils ne permettent pas encore de restaurer le groupe : comptes, préférences, commentaires et activité sont absents.',
+    exportFormat: 'Format', exportCsv: 'CSV de consultation', exportJson: 'JSON du groupe, partiel', exportZip: 'ZIP du groupe avec reçus privés, partiel',
+    exportPrivate: 'Le ZIP contient des reçus privés. Conservez le fichier dans un emplacement sûr.', exportPreparing: 'Préparation…', exportDownload: 'Télécharger l’export',
+    exportWorkerMissing: 'Worker indisponible', exportSelectionChanged: 'Sélection modifiée', exportReady: 'Export partiel préparé. Vérifiez le téléchargement dans votre navigateur.', exportFailed: 'Export impossible. Vérifiez votre accès au groupe et réessayez.',
   },
   en: {
     testEnvironment: 'Test environment', offline: 'Offline: server data is unavailable. Reconnect to refresh it and save transactions.',
@@ -70,6 +74,10 @@ const messages = {
     loadingGroupCurrency: 'Loading group currency…', changeGroupCurrency: 'Change group currency', currencyBeforeFirst: 'The owner can change it only before the first transaction. It remains locked afterwards.',
     saveGroupCurrency: 'Save currency', currencyChanged: 'Group currency saved.', currencyLocked: 'Currency is permanently locked after a transaction.',
     currencyDisabled: 'Currency changes are disabled in this environment.', currencyChangeFailed: 'Could not change currency.',
+    exportGroup: 'Export a group', exportPartial: 'These exports are partial. They cannot restore a group yet: accounts, preferences, comments and activity are missing.',
+    exportFormat: 'Format', exportCsv: 'CSV report', exportJson: 'Group JSON, partial', exportZip: 'Group ZIP with private receipts, partial',
+    exportPrivate: 'The ZIP contains private receipts. Keep the file in a safe place.', exportPreparing: 'Preparing…', exportDownload: 'Download export',
+    exportWorkerMissing: 'Worker unavailable', exportSelectionChanged: 'Selection changed', exportReady: 'Partial export prepared. Check your browser download.', exportFailed: 'Export failed. Check your group access and try again.',
   },
   ja: {
     testEnvironment: 'テスト環境', offline: 'オフラインです。サーバーのデータを利用できません。再接続して更新・保存してください。',
@@ -100,6 +108,10 @@ const messages = {
     loadingGroupCurrency: 'グループの通貨を読み込んでいます…', changeGroupCurrency: 'グループの通貨を変更', currencyBeforeFirst: '所有者は最初の取引前にのみ変更できます。その後は固定されます。',
     saveGroupCurrency: '通貨を保存', currencyChanged: 'グループの通貨を保存しました。', currencyLocked: '取引後の通貨は変更できません。',
     currencyDisabled: 'この環境では通貨の変更が無効です。', currencyChangeFailed: '通貨を変更できません。',
+    exportGroup: 'グループをエクスポート', exportPartial: 'このエクスポートは一部のデータのみです。アカウント、設定、コメント、履歴が含まれないため、グループを復元することはできません。',
+    exportFormat: '形式', exportCsv: '閲覧用 CSV', exportJson: 'グループ JSON（一部）', exportZip: '非公開の領収書を含むグループ ZIP（一部）',
+    exportPrivate: 'ZIP には非公開の領収書が含まれます。安全な場所に保管してください。', exportPreparing: '準備中…', exportDownload: 'エクスポートをダウンロード',
+    exportWorkerMissing: 'Worker を利用できません', exportSelectionChanged: '選択が変更されました', exportReady: '部分エクスポートを準備しました。ブラウザーのダウンロードを確認してください。', exportFailed: 'エクスポートできません。グループへのアクセスを確認して再試行してください。',
   },
 } as const;
 
