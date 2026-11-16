@@ -6,10 +6,10 @@ const fixture: GroupExportV1 = {
   format: 'OurFinanceGroupExport', version: 1, exportedAt: '2026-11-16T18:00:00.000Z',
   group: { id: 'group_test', name: 'Groupe fictif', currency: 'CAD' },
   members: [{ userId: 'member_a', role: 'owner', status: 'active' }, { userId: 'member_b', role: 'member', status: 'active' }],
-  expenses: [{ id: 'expense_1', date: '2026-11-01', description: 'Fictif', currency: 'CAD', amountMinor: 101, payments: [{ userId: 'member_a', amountMinor: 101 }], allocations: [{ userId: 'member_a', amountMinor: 50 }, { userId: 'member_b', amountMinor: 51 }], splitSnapshotJson: '{"kind":"exact"}', deleted: false }],
+  expenses: [{ id: 'expense_1', date: '2026-11-01', description: 'Fictif', currency: 'CAD', amountMinor: 101, categoryId: 'custom_1', categoryLabel: 'Transport fictif', categoryIcon: '🚆', categoryColor: 'teal', payments: [{ userId: 'member_a', amountMinor: 101 }], allocations: [{ userId: 'member_a', amountMinor: 50 }, { userId: 'member_b', amountMinor: 51 }], splitSnapshotJson: '{"kind":"exact"}', deleted: false }],
   settlements: [{ id: 'settlement_1', date: '2026-11-02', currency: 'CAD', amountMinor: 51, fromUserId: 'member_b', toUserId: 'member_a', status: 'recorded', deleted: false }],
   importedRecords: [{ id: 'hash_1', sourceId: 'synthetic-1', batchId: 'batch_1', date: '2026-10-01', description: 'Historique fictif', currency: 'CAD', amountMinor: 100, netImpactsMinor: { member_a: 50, member_b: -50 }, splitStatus: 'undetermined', status: 'active' }],
-  categories: [{ id: 'category_1', name: 'Transport fictif', icon: 'train', status: 'active' }],
+  categories: [{ id: 'custom_1', name: 'Transport fictif', iconId: 'train', color: 'teal', status: 'active' }],
   receipts: [{ expenseId: 'expense_1', attachmentId: 'receipt_1', format: 'png', status: 'active', mediaIncluded: false }],
 };
 

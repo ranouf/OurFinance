@@ -9,6 +9,7 @@ export interface GroupExportV1 {
   readonly members: readonly { readonly userId: string; readonly role: 'owner' | 'member'; readonly status: 'active' | 'revoked' }[];
   readonly expenses: readonly {
     readonly id: string; readonly date: string; readonly description: string; readonly currency: string; readonly amountMinor: number;
+    readonly categoryId: string; readonly categoryLabel: string; readonly categoryIcon: string; readonly categoryColor: string;
     readonly payments: readonly Allocation[]; readonly allocations: readonly Allocation[]; readonly splitSnapshotJson: string;
     readonly deleted: boolean;
   }[];
@@ -21,7 +22,7 @@ export interface GroupExportV1 {
     readonly currency: string; readonly amountMinor: number; readonly netImpactsMinor: Readonly<Record<string, number>>;
     readonly splitStatus: 'undetermined'; readonly status: 'active' | 'undone';
   }[];
-  readonly categories: readonly { readonly id: string; readonly name: string; readonly icon: string; readonly status: string }[];
+  readonly categories: readonly { readonly id: string; readonly name: string; readonly iconId: string; readonly color: string; readonly status: string }[];
   readonly receipts: readonly {
     readonly expenseId: string; readonly attachmentId: string; readonly format: 'jpg' | 'png'; readonly status: string;
     /** Metadata only: a separate authorized binary export is required. */
@@ -52,6 +53,7 @@ export function validateGroupExportV1(value: GroupExportV1): void {
   for (const row of value.expenses) {
     const entries = [...row.payments, ...row.allocations];
     if (!date(row.date) || !row.description.trim() || !currency(row.currency) || !amount(row.amountMinor) ||
+        !id.test(row.categoryId) || !row.categoryLabel.trim() || !row.categoryIcon.trim() || !row.categoryColor.trim() ||
         !row.payments.length || !row.allocations.length || !row.splitSnapshotJson ||
         entries.some(entry => !memberIds.has(entry.userId) || !Number.isSafeInteger(entry.amountMinor)) ||
         sum(row.payments.map(entry => entry.amountMinor)) !== BigInt(row.amountMinor) ||
@@ -68,7 +70,7 @@ export function validateGroupExportV1(value: GroupExportV1): void {
         !impacts.length || impacts.some(([userId, impact]) => !memberIds.has(userId) || !Number.isSafeInteger(impact)) ||
         sum(impacts.map(([, impact]) => impact)) !== 0n) throw new Error(`Import ${row.id} incohérent`);
   }
-  if (value.categories.some(row => !row.name.trim() || !row.icon.trim())) throw new Error('Catégorie invalide');
+  if (value.categories.some(row => !row.name.trim() || !row.iconId.trim() || !row.color.trim())) throw new Error('Catégorie invalide');
   const expenseIds = new Set(value.expenses.map(row => row.id));
   if (!unique(value.receipts.map(row => `${row.expenseId}/${row.attachmentId}`)) ||
       value.receipts.some(row => !expenseIds.has(row.expenseId) || !id.test(row.attachmentId) || !['jpg', 'png'].includes(row.format) || row.mediaIncluded !== false)) {
@@ -84,6 +86,7 @@ export function serializeGroupExportV1(value: GroupExportV1): string {
     members: value.members.map(row => ({ userId: row.userId, role: row.role, status: row.status })),
     expenses: value.expenses.map(row => ({
       id: row.id, date: row.date, description: row.description, currency: row.currency, amountMinor: row.amountMinor,
+      categoryId: row.categoryId, categoryLabel: row.categoryLabel, categoryIcon: row.categoryIcon, categoryColor: row.categoryColor,
       payments: row.payments.map(item => ({ userId: item.userId, amountMinor: item.amountMinor })),
       allocations: row.allocations.map(item => ({ userId: item.userId, amountMinor: item.amountMinor })),
       splitSnapshotJson: row.splitSnapshotJson, deleted: row.deleted,
@@ -97,7 +100,7 @@ export function serializeGroupExportV1(value: GroupExportV1): string {
       currency: row.currency, amountMinor: row.amountMinor, netImpactsMinor: Object.fromEntries(Object.entries(row.netImpactsMinor)),
       splitStatus: row.splitStatus, status: row.status,
     })),
-    categories: value.categories.map(row => ({ id: row.id, name: row.name, icon: row.icon, status: row.status })),
+    categories: value.categories.map(row => ({ id: row.id, name: row.name, iconId: row.iconId, color: row.color, status: row.status })),
     receipts: value.receipts.map(row => ({
       expenseId: row.expenseId, attachmentId: row.attachmentId, format: row.format, status: row.status, mediaIncluded: false,
     })),
