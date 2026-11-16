@@ -5,6 +5,7 @@ import { handleMedia } from './media';
 import { MediaDiagnosticError } from './media-diagnostic';
 import type { CloudinaryEnv } from './cloudinary';
 import { readMember } from './firestore';
+import { readLimitedJson, RequestBodyError } from './request-body';
 
 export interface Env extends Partial<CloudinaryEnv> {
   FIREBASE_PROJECT_ID: string;
@@ -43,14 +44,12 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     try { uid = await verifyFirebaseVerifiedEmail(bearerToken(request), env.FIREBASE_PROJECT_ID); }
     catch { return new Response(JSON.stringify({ error: 'Non authentifié' }), { status: 401, headers }); }
     try {
-      if (Number(request.headers.get('Content-Length') ?? 0) > 8192) throw new ExpenseError(400, 'body_too_large');
-      const raw = await request.text();
-      if (raw.length > 8192) throw new ExpenseError(400, 'body_too_large');
-      const expenseId = await createExpense(JSON.parse(raw), uid, expenseMatch[1], { FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT_JSON: env.FIREBASE_SERVICE_ACCOUNT_JSON });
+      const body = await readLimitedJson(request, 8192);
+      const expenseId = await createExpense(body, uid, expenseMatch[1], { FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT_JSON: env.FIREBASE_SERVICE_ACCOUNT_JSON });
       return new Response(JSON.stringify({ expenseId }), { status: 201, headers });
     } catch (error) {
-      const status = error instanceof ExpenseError ? error.status : 503;
-      const code = error instanceof ExpenseError ? error.code : 'expense_unavailable';
+      const status = error instanceof ExpenseError ? error.status : error instanceof RequestBodyError ? 400 : 503;
+      const code = error instanceof ExpenseError || error instanceof RequestBodyError ? error.code : 'expense_unavailable';
       return new Response(JSON.stringify({ error: code }), { status, headers });
     }
   }
@@ -59,10 +58,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     try {
       const token = bearerToken(request);
       const uid = await verifyFirebaseVerifiedEmail(token, env.FIREBASE_PROJECT_ID);
-      if (Number(request.headers.get('Content-Length') ?? 0) > 4096) throw new Error('Corps trop volumineux');
-      const raw = await request.text();
-      if (raw.length > 4096) throw new Error('Corps trop volumineux');
-      const body: unknown = JSON.parse(raw);
+      const body = await readLimitedJson(request, 4096);
       const groupId = await createGroup(body, uid, { FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT_JSON: env.FIREBASE_SERVICE_ACCOUNT_JSON });
       return new Response(JSON.stringify({ groupId }), { status: 201, headers });
     } catch { return new Response(JSON.stringify({ error: 'Création impossible' }), { status: 400, headers }); }
