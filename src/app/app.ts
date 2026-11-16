@@ -78,7 +78,7 @@ import { ExportPanel } from './features/import-export/export-panel';
               @placeholder { <p class="mt-6 text-sm text-slate-600" role="status">Chargement des remboursements…</p> }
               @defer (on viewport) { <app-settlement-history [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" [revision]="settlementRevision()" /> }
               @placeholder { <p class="mt-6 text-sm text-slate-600" role="status">Chargement de l’historique des remboursements…</p> }
-              @defer (on viewport) { <app-fx-settlement-panel [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" /> }
+              @defer (on viewport) { <app-fx-settlement-panel [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" (saved)="onSettlementSaved()" /> }
               @placeholder { <p class="mt-6 text-sm text-slate-600" role="status">Chargement des remboursements multidevises…</p> }
               @defer (on viewport) { <app-balance-summary [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [revision]="expenseRevision() + settlementRevision()" /> }
               @placeholder { <p class="mt-6 text-sm text-slate-600" role="status">Chargement des soldes…</p> }

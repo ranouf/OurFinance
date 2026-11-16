@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, Input, OnChanges, signal } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, Output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { FirebaseApp } from 'firebase/app';
 import type { User } from 'firebase/auth';
@@ -84,6 +84,7 @@ import { parseMinor } from '../expenses/expense-draft';
   `,
 })
 export class FxSettlementPanel implements OnChanges {
+  @Output() readonly saved = new EventEmitter<void>();
   @Input({ required: true }) groups: Group[] = [];
   @Input({ required: true }) user?: User;
   @Input({ required: true }) firebaseApp?: FirebaseApp;
@@ -171,6 +172,7 @@ export class FxSettlementPanel implements OnChanges {
       await this.service.create(this.user, this.groupId, { idempotencyKey, ...content } satisfies FxSettlementRequest);
       this.pendingKey = undefined; this.pendingBody = undefined; this.debtAmount = ''; this.paymentAmount = '';
       this.message.set('Remboursement multidevise enregistré.');
+      this.saved.emit();
       await this.refresh();
     } catch (error) { this.message.set(error instanceof Error ? error.message : 'Enregistrement impossible.'); }
     finally { this.busy.set(false); this.changeDetector.markForCheck(); }
