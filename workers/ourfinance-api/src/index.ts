@@ -1,10 +1,14 @@
-import { bearerToken, verifyFirebaseIdToken, verifyFirebaseVerifiedEmail } from './auth';
+import { bearerToken, verifyFirebaseIdToken, verifyFirebaseVerifiedEmail, verifyFirebaseVerifiedIdentity } from './auth';
 import { createGroup } from './groups';
 import { createExpense, ExpenseError } from './expenses';
 import { handleMedia } from './media';
 import { MediaDiagnosticError } from './media-diagnostic';
 import type { CloudinaryEnv } from './cloudinary';
 import { readMember } from './firestore';
+import { readLimitedJson, RequestBodyError } from './request-body';
+import { acceptInvitation, createInvitation, InvitationError } from './invitations';
+import { createSettlement, SettlementError } from './settlements';
+import { createImportBatch, undoImportBatch, ImportError } from './import-batches';
 
 export interface Env extends Partial<CloudinaryEnv> {
   FIREBASE_PROJECT_ID: string;
@@ -15,6 +19,12 @@ export interface Env extends Partial<CloudinaryEnv> {
   ENABLE_EXPENSE_POC?: string;
   EXPENSE_POC_GROUP_ID?: string;
   MEDIA_POC_GROUP_ID?: string;
+  ENABLE_INVITATION_POC?: string;
+  INVITATION_POC_GROUP_ID?: string;
+  ENABLE_SETTLEMENT_POC?: string;
+  SETTLEMENT_POC_GROUP_ID?: string;
+  ENABLE_IMPORT_POC?: string;
+  IMPORT_POC_GROUP_ID?: string;
 }
 
 export async function handleRequest(request: Request, env: Env): Promise<Response> {
@@ -30,6 +40,68 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
   }
   const url = new URL(request.url);
   if (url.pathname === '/health' && request.method === 'GET') return new Response(JSON.stringify({ status: 'ok' }), { headers });
+  const importCreate = /^\/groups\/([A-Za-z0-9_-]{1,128})\/imports$/.exec(url.pathname);
+  const importUndo = /^\/groups\/([A-Za-z0-9_-]{1,128})\/imports\/([A-Za-z0-9_-]{1,128})$/.exec(url.pathname);
+  if ((importCreate && request.method === 'POST') || (importUndo && request.method === 'DELETE')) {
+    const groupId = (importCreate ?? importUndo)![1];
+    if (env.ENABLE_IMPORT_POC !== 'true' || env.IMPORT_POC_GROUP_ID !== groupId || !env.FIREBASE_SERVICE_ACCOUNT_JSON) return new Response(JSON.stringify({ error: 'Import non configuré' }), { status: 503, headers });
+    let uid: string;
+    try { uid = await verifyFirebaseVerifiedEmail(bearerToken(request), env.FIREBASE_PROJECT_ID); }
+    catch { return new Response(JSON.stringify({ error: 'Non authentifié' }), { status: 401, headers }); }
+    try {
+      const importEnv = { FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT_JSON: env.FIREBASE_SERVICE_ACCOUNT_JSON };
+      if (importCreate) {
+        const body = await readLimitedJson(request, 16384);
+        const result = await createImportBatch(body, uid, groupId, importEnv);
+        return new Response(JSON.stringify(result), { status: 201, headers });
+      }
+      await undoImportBatch(importUndo![2], uid, groupId, importEnv);
+      return new Response(null, { status: 204, headers });
+    } catch (error) {
+      const status = error instanceof ImportError ? error.status : error instanceof RequestBodyError ? 400 : 503;
+      const code = error instanceof ImportError || error instanceof RequestBodyError ? error.code : 'import_unavailable';
+      return new Response(JSON.stringify({ error: code }), { status, headers });
+    }
+  }
+  const settlementMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/settlements$/.exec(url.pathname);
+  if (settlementMatch && request.method === 'POST') {
+    if (env.ENABLE_SETTLEMENT_POC !== 'true' || env.SETTLEMENT_POC_GROUP_ID !== settlementMatch[1] || !env.FIREBASE_SERVICE_ACCOUNT_JSON) return new Response(JSON.stringify({ error: 'Règlements non configurés' }), { status: 503, headers });
+    let uid: string;
+    try { uid = await verifyFirebaseVerifiedEmail(bearerToken(request), env.FIREBASE_PROJECT_ID); }
+    catch { return new Response(JSON.stringify({ error: 'Non authentifié' }), { status: 401, headers }); }
+    try {
+      const body = await readLimitedJson(request, 2048);
+      const settlementId = await createSettlement(body, uid, settlementMatch[1], { FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT_JSON: env.FIREBASE_SERVICE_ACCOUNT_JSON });
+      return new Response(JSON.stringify({ settlementId }), { status: 201, headers });
+    } catch (error) {
+      const status = error instanceof SettlementError ? error.status : error instanceof RequestBodyError ? 400 : 503;
+      const code = error instanceof SettlementError || error instanceof RequestBodyError ? error.code : 'settlement_unavailable';
+      return new Response(JSON.stringify({ error: code }), { status, headers });
+    }
+  }
+  const inviteCreate = /^\/groups\/([A-Za-z0-9_-]{1,128})\/invitations$/.exec(url.pathname);
+  const inviteAccept = /^\/groups\/([A-Za-z0-9_-]{1,128})\/invitations\/([A-Za-z0-9_-]{1,128})\/accept$/.exec(url.pathname);
+  if (request.method === 'POST' && (inviteCreate || inviteAccept)) {
+    const groupId = (inviteCreate ?? inviteAccept)![1];
+    if (env.ENABLE_INVITATION_POC !== 'true' || env.INVITATION_POC_GROUP_ID !== groupId || !env.FIREBASE_SERVICE_ACCOUNT_JSON) return new Response(JSON.stringify({ error: 'Invitations non configurées' }), { status: 503, headers });
+    let identity: { uid: string; email: string };
+    try { identity = await verifyFirebaseVerifiedIdentity(bearerToken(request), env.FIREBASE_PROJECT_ID); }
+    catch { return new Response(JSON.stringify({ error: 'Non authentifié' }), { status: 401, headers }); }
+    try {
+      const body = await readLimitedJson(request, 1024);
+      if (!body || typeof body !== 'object') throw new InvitationError(400, 'invalid_invitation');
+      if (inviteCreate) {
+        const result = await createInvitation(body, identity.uid, groupId, { FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT_JSON: env.FIREBASE_SERVICE_ACCOUNT_JSON });
+        return new Response(JSON.stringify(result), { status: 201, headers });
+      }
+      await acceptInvitation((body as Record<string, unknown>)['token'], inviteAccept![2], identity.uid, identity.email, groupId, { FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT_JSON: env.FIREBASE_SERVICE_ACCOUNT_JSON });
+      return new Response(null, { status: 204, headers });
+    } catch (error) {
+      const status = error instanceof InvitationError ? error.status : error instanceof RequestBodyError ? 400 : 503;
+      const code = error instanceof InvitationError || error instanceof RequestBodyError ? error.code : 'invitation_unavailable';
+      return new Response(JSON.stringify({ error: code }), { status, headers });
+    }
+  }
   const mediaMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/expenses\/([A-Za-z0-9_-]{1,128})\/attachments(?:\/([A-Za-z0-9_-]{1,128}))?$/.exec(url.pathname);
   if (mediaMatch && ((request.method === 'POST' && !mediaMatch[3]) || ((request.method === 'GET' || request.method === 'DELETE') && !!mediaMatch[3]))) {
     if (env.ENABLE_MEDIA_POC !== 'true' || !env.MEDIA_POC_GROUP_ID || env.MEDIA_POC_GROUP_ID !== mediaMatch[1] || !env.FIREBASE_SERVICE_ACCOUNT_JSON || !env.CLOUDINARY_CLOUD_NAME || !env.CLOUDINARY_API_KEY || !env.CLOUDINARY_API_SECRET) return new Response(JSON.stringify({ error: 'Médias non configurés' }), { status: 503, headers });
@@ -43,14 +115,12 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     try { uid = await verifyFirebaseVerifiedEmail(bearerToken(request), env.FIREBASE_PROJECT_ID); }
     catch { return new Response(JSON.stringify({ error: 'Non authentifié' }), { status: 401, headers }); }
     try {
-      if (Number(request.headers.get('Content-Length') ?? 0) > 8192) throw new ExpenseError(400, 'body_too_large');
-      const raw = await request.text();
-      if (raw.length > 8192) throw new ExpenseError(400, 'body_too_large');
-      const expenseId = await createExpense(JSON.parse(raw), uid, expenseMatch[1], { FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT_JSON: env.FIREBASE_SERVICE_ACCOUNT_JSON });
+      const body = await readLimitedJson(request, 8192);
+      const expenseId = await createExpense(body, uid, expenseMatch[1], { FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT_JSON: env.FIREBASE_SERVICE_ACCOUNT_JSON });
       return new Response(JSON.stringify({ expenseId }), { status: 201, headers });
     } catch (error) {
-      const status = error instanceof ExpenseError ? error.status : 503;
-      const code = error instanceof ExpenseError ? error.code : 'expense_unavailable';
+      const status = error instanceof ExpenseError ? error.status : error instanceof RequestBodyError ? 400 : 503;
+      const code = error instanceof ExpenseError || error instanceof RequestBodyError ? error.code : 'expense_unavailable';
       return new Response(JSON.stringify({ error: code }), { status, headers });
     }
   }
@@ -59,10 +129,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     try {
       const token = bearerToken(request);
       const uid = await verifyFirebaseVerifiedEmail(token, env.FIREBASE_PROJECT_ID);
-      if (Number(request.headers.get('Content-Length') ?? 0) > 4096) throw new Error('Corps trop volumineux');
-      const raw = await request.text();
-      if (raw.length > 4096) throw new Error('Corps trop volumineux');
-      const body: unknown = JSON.parse(raw);
+      const body = await readLimitedJson(request, 4096);
       const groupId = await createGroup(body, uid, { FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT_JSON: env.FIREBASE_SERVICE_ACCOUNT_JSON });
       return new Response(JSON.stringify({ groupId }), { status: 201, headers });
     } catch { return new Response(JSON.stringify({ error: 'Création impossible' }), { status: 400, headers }); }

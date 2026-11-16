@@ -1,13 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { after, before, test } from 'node:test';
 import { initializeTestEnvironment, assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc, collection, getDocs } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, collectionGroup, getDocs, query, where } from 'firebase/firestore';
 
 let env;
 before(async () => {
   env = await initializeTestEnvironment({
     projectId: 'ourfinance-rules-test',
-    firestore: { rules: readFileSync('firestore.rules', 'utf8'), host: '127.0.0.1', port: 8080 },
+    firestore: { rules: readFileSync('firestore.rules', 'utf8'), host: '127.0.0.1', port: Number(process.env.FIRESTORE_EMULATOR_PORT ?? 8080) },
   });
   await env.withSecurityRulesDisabled(async context => {
     const db = context.firestore();
@@ -17,6 +17,12 @@ before(async () => {
     await setDoc(doc(db, 'groups/a/members/bob'), { role: 'member', status: 'revoked' });
     await setDoc(doc(db, 'groups/a/expenses/e1'), { amountMinor: 100 });
     await setDoc(doc(db, 'groups/b/expenses/e2'), { amountMinor: 100 });
+    await setDoc(doc(db, 'groups/a/expenses/e1/attachments/receipt'), { publicId: 'synthetic' });
+    await setDoc(doc(db, 'groups/a/activity/ev1'), { action: 'expense_created' });
+    await setDoc(doc(db, 'users/alice/groupPreferences/a'), { modeJson: '{"kind":"equal","users":["alice"]}' });
+    await setDoc(doc(db, 'users/alice/groupPreferences/b'), { modeJson: '{"kind":"equal","users":["alice"]}' });
+    await setDoc(doc(db, 'users/alice/importBatches/b1'), { groupId: 'a', status: 'active' });
+    await setDoc(doc(db, 'groups/a/importedRecords/r1'), { sourceId: 'synthetic', status: 'active' });
   });
 });
 after(async () => { await env?.cleanup(); });
@@ -54,4 +60,39 @@ test('profile cannot be read or changed by another user', async () => {
   await assertFails(getDoc(doc(db, 'users/bob')));
   await assertFails(setDoc(doc(db, 'users/bob'), { displayName: 'X' }));
   await assertSucceeds(setDoc(doc(db, 'users/alice'), { displayName: 'A' }));
+});
+
+test('a revoked member loses receipts, activity and personal preference', async () => {
+  const alice = env.authenticatedContext('alice').firestore();
+  const bob = env.authenticatedContext('bob').firestore();
+  for (const path of ['groups/a/expenses/e1/attachments/receipt', 'groups/a/activity/ev1', 'users/alice/groupPreferences/a']) {
+    await assertSucceeds(getDoc(doc(alice, path)));
+    await assertFails(getDoc(doc(bob, path)));
+  }
+  await assertFails(getDoc(doc(alice, 'users/alice/groupPreferences/b')));
+  await assertFails(setDoc(doc(alice, 'users/alice/groupPreferences/a'), { modeJson: 'forged' }));
+});
+
+test('collection group queries cannot escape group isolation', async () => {
+  const alice = env.authenticatedContext('alice').firestore();
+  await assertFails(getDocs(collectionGroup(alice, 'expenses')));
+  await assertFails(getDocs(query(collectionGroup(alice, 'expenses'), where('amountMinor', '==', 100))));
+});
+
+test('client cannot forge membership or invitation', async () => {
+  const alice = env.authenticatedContext('alice').firestore();
+  await assertFails(setDoc(doc(alice, 'groups/b/members/alice'), { role: 'owner', status: 'active' }));
+  await assertFails(setDoc(doc(alice, 'groups/a/invitations/fake'), { token: 'fake' }));
+  await assertFails(setDoc(doc(alice, 'groups/a/expenses/e1/attachments/fake'), { publicId: 'fake' }));
+});
+
+test('imported records and batch metadata follow active membership', async () => {
+  const alice = env.authenticatedContext('alice').firestore();
+  const bob = env.authenticatedContext('bob').firestore();
+  await assertSucceeds(getDoc(doc(alice, 'groups/a/importedRecords/r1')));
+  await assertSucceeds(getDoc(doc(alice, 'users/alice/importBatches/b1')));
+  await assertFails(getDoc(doc(bob, 'groups/a/importedRecords/r1')));
+  await assertFails(getDoc(doc(bob, 'users/alice/importBatches/b1')));
+  await assertFails(setDoc(doc(alice, 'groups/a/importedRecords/fake'), { sourceId: 'fake' }));
+  await assertFails(setDoc(doc(alice, 'users/alice/importBatches/fake'), { groupId: 'a' }));
 });

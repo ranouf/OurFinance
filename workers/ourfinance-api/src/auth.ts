@@ -20,13 +20,18 @@ export function bearerToken(request: Request): string {
 }
 
 export async function verifyFirebaseVerifiedEmail(token: string, projectId: string, keySet: JWTVerifyGetKey = googleKeys): Promise<string> {
+  return (await verifyFirebaseVerifiedIdentity(token, projectId, keySet)).uid;
+}
+
+export async function verifyFirebaseVerifiedIdentity(token: string, projectId: string, keySet: JWTVerifyGetKey = googleKeys): Promise<{ uid: string; email: string }> {
   const { payload } = await jwtVerify(token, keySet, {
     issuer: `https://securetoken.google.com/${projectId}`,
     audience: projectId,
     algorithms: ['RS256'],
   });
-  if (payload.email_verified !== true || typeof payload.sub !== 'string' || !payload.sub || payload.sub.length > 128) {
+  if (payload.email_verified !== true || typeof payload.sub !== 'string' || !payload.sub || payload.sub.length > 128 ||
+      typeof payload.email !== 'string' || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(payload.email) || payload.email.length > 254) {
     throw new Error('Adresse courriel non vérifiée');
   }
-  return payload.sub;
+  return { uid: payload.sub, email: payload.email.toLowerCase() };
 }

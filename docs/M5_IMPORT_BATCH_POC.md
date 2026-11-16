@@ -1,0 +1,17 @@
+# M5 — POC d'import historique réversible
+
+Le Worker prépare `POST /groups/{g}/imports` et `DELETE /groups/{g}/imports/{batchId}`. Les routes sont **désactivées par défaut** et limitées à un seul groupe fictif par `ENABLE_IMPORT_POC=true` et `IMPORT_POC_GROUP_ID`. Le Worker exige un ID token Firebase vérifié avec courriel confirmé. Les écritures directes Firestore du navigateur restent interdites.
+
+Seul le propriétaire actif du groupe peut créer ou annuler ce batch POC. L'API accepte au plus dix enregistrements **déjà normalisés** par batch. Elle valide les identifiants de provenance, les dates, les devises ISO, les montants entiers et les impacts nets signés dont la somme est zéro. Tous les comptes référencés doivent être membres actifs du même groupe. Le Worker n'invente jamais `payments` ou `allocations` : chaque document conserve `splitStatus=undetermined` et les seuls impacts nets fournis. Un hash du `sourceId` forme la clé de provenance dans le groupe pour refuser un import répété, même sous un autre batch.
+
+La création écrit dans une transaction les documents historiques, les métadonnées du batch personnel et un événement d'activité. L'annulation vérifie l'auteur, le groupe et chaque document, puis marque le batch et tous ses enregistrements `undone` dans une transaction, avec un événement d'audit. Les documents restent conservés pour l'audit et leurs identifiants de source ne peuvent pas être réimportés automatiquement après annulation. La lecture cliente n'est ouverte qu'aux membres actifs par les règles Firestore.
+
+## Essai réel depuis la session laptop
+
+1. **Réserver d'abord** `ourfinance-api-dev` et `ourfinance-test` dans un commentaire « Coordination » de la PR, après la fin des autres essais. Déployer le SHA exact de la PR uniquement sur le Worker de test. Préparer trois comptes fictifs vérifiés et membres actifs d'un groupe fictif ; l'auteur de l'import doit être propriétaire.
+2. Activer temporairement `ENABLE_IMPORT_POC=true` et `IMPORT_POC_GROUP_ID` pour ce groupe seulement. Garder les autres routes POC désactivées.
+3. Exécuter `tools/import-poc/check.mjs` avec `TEST_WORKER_URL`, `TEST_GROUP_ID`, `TEST_AUTHOR_UID`, `TEST_OTHER_UID`, `TEST_THIRD_UID` et `TEST_AUTHOR_ID_TOKEN` dans l'environnement local. Le script n'imprime pas le jeton. Attendus : création 201, sources dupliquées 409, annulation 204, nouvelle annulation 403.
+4. Vérifier dans Firestore les trois enregistrements `undetermined`, sans paiements ni parts, puis leurs statuts `undone`, le batch personnel et les deux événements d'activité. Vérifier le refus des écritures directes du client, de la lecture par un tiers ou membre révoqué, de l'import par un membre révoqué et d'une route pour un autre groupe. Rapprocher les impacts **par groupe, devise et compte** avec les valeurs synthétiques attendues : +15,00 CAD, −15,00 CAD, zéro.
+5. Supprimer tous les documents historiques, batch, activité, membres, groupe et comptes fictifs ; vérifier l'absence de résidus. Retirer `ENABLE_IMPORT_POC` et `IMPORT_POC_GROUP_ID`, puis confirmer `/health=200` et route d'import `503`.
+
+Ce POC ne lit pas directement un fichier CSV dans le Worker : le CSV est analysé localement puis mappé explicitement. Le format Splitwise réel, les imports de plus de dix lignes, la reprise après conflit, les corrections de provenance, l'interface, l'export natif et les quotas restent ouverts. **Ne jamais utiliser de données personnelles ou les 27 captures privées pour ce test.**
