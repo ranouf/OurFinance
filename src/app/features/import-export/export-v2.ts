@@ -3,6 +3,8 @@ import { serializeGroupExportV1, type GroupExportV1 } from './export-v1';
 /** Schema only: collection and restoration require privileged, separately tested routes. */
 export interface GroupExportV2 extends Omit<GroupExportV1, 'version'> {
   readonly version: 2;
+  /** Required to preserve author-only edit and delete rights after restoration. */
+  readonly expenseAuthors: readonly { readonly expenseId: string; readonly userId: string }[];
   /** One row per member, including members who have never saved a split. */
   readonly preferences: readonly {
     readonly userId: string;
@@ -67,6 +69,11 @@ export function serializeGroupExportV2(value: GroupExportV2): string {
   if (value.version !== 2 || !Array.isArray(value.preferences) || value.preferences.length !== value.members.length) throw new Error('Préférences de groupe incomplètes');
   const group = JSON.parse(serializeGroupExportV1({ ...value, version: 1 })) as GroupExportV1;
   const members = new Set(group.members.map(item => item.userId));
+  if (!Array.isArray(value.expenseAuthors) || value.expenseAuthors.length !== group.expenses.length ||
+      value.expenseAuthors.some((row, index) => !row || row.expenseId !== group.expenses[index].id || !members.has(row.userId))) {
+    throw new Error('Auteurs des dépenses incomplets');
+  }
+  const expenseAuthors = value.expenseAuthors.map(row => ({ expenseId: row.expenseId, userId: row.userId }));
   const preferences = value.preferences.map((row: GroupExportV2['preferences'][number], index: number) => {
     if (!row || row.userId !== group.members[index].userId || !Array.isArray(row.memberIds)) throw new Error('Préférences de groupe incohérentes');
     if (row.modeJson === null) {
@@ -78,5 +85,5 @@ export function serializeGroupExportV2(value: GroupExportV2): string {
     if (row.memberIds.length !== mode.memberIds.length || row.memberIds.some((id, i) => id !== mode.memberIds[i])) throw new Error('Participants de préférence incohérents');
     return { userId: row.userId, modeJson: mode.modeJson, memberIds: mode.memberIds, updatedAt: row.updatedAt };
   });
-  return `${JSON.stringify({ ...group, version: 2, preferences }, null, 2)}\n`;
+  return `${JSON.stringify({ ...group, version: 2, expenseAuthors, preferences }, null, 2)}\n`;
 }

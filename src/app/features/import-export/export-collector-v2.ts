@@ -12,6 +12,11 @@ export async function collectGroupExportV2(
   transport: typeof fetch = fetch,
 ): Promise<string> {
   const group = JSON.parse(await collectGroupExportV1(reader, user, groupId)) as GroupExportV1;
+  const expenses = await reader.list(`groups/${groupId}/expenses`);
+  const authors = new Map(expenses.map(row => [row.id, row.data['createdBy']]));
+  if (authors.size !== expenses.length || expenses.length !== group.expenses.length ||
+      group.expenses.some(row => typeof authors.get(row.id) !== 'string')) throw new Error('Auteurs des dépenses incomplets');
+  const expenseAuthors = group.expenses.map(row => ({ expenseId: row.id, userId: authors.get(row.id) as string }));
   const url = new URL(`/groups/${encodeURIComponent(groupId)}/backup/preferences`, workerUrl);
   if (url.protocol !== 'https:') throw new Error('URL de sauvegarde non sécurisée');
   const response = await transport(url, { headers: { Authorization: `Bearer ${await user.getIdToken()}` }, cache: 'no-store' });
@@ -27,5 +32,5 @@ export async function collectGroupExportV2(
     return row;
   });
   if ((await reader.read(`groups/${groupId}/members/${user.uid}`))?.data['status'] !== 'active') throw new Error('Membre révoqué pendant la sauvegarde');
-  return serializeGroupExportV2({ ...group, version: 2, preferences });
+  return serializeGroupExportV2({ ...group, version: 2, expenseAuthors, preferences });
 }

@@ -8,6 +8,7 @@ const fixture: GroupExportV2 = {
   group: { id: 'g', name: 'Groupe fictif', currency: 'CAD' },
   members: [{ userId: 'alice', role: 'owner', status: 'active' }, { userId: 'bob', role: 'member', status: 'revoked' }],
   expenses: [], settlements: [], importedRecords: [], categories: [], receipts: [],
+  expenseAuthors: [],
   preferences: [
     { userId: 'alice', modeJson: '{"kind":"exact","amounts":[{"userId":"alice","amountMinor":50},{"userId":"bob","amountMinor":51}]}', memberIds: ['alice', 'bob'], updatedAt: exportedAt },
     { userId: 'bob', modeJson: null, memberIds: [], updatedAt: null },
@@ -39,4 +40,15 @@ test('V2 validates percentages, signed adjustments and removes unexpected prefer
   throws(() => serializeGroupExportV2({ ...fixture, preferences: [{ ...percentage, modeJson: '{"kind":"percentage","weightsBasisPoints":[{"userId":"alice","value":5000}]}' }, fixture.preferences[1]] }));
   const adjustment = { ...fixture.preferences[0], modeJson: '{"kind":"adjustment","adjustments":[{"userId":"alice","amountMinor":-10},{"userId":"bob","amountMinor":10}]}' };
   strictEqual(JSON.parse(serializeGroupExportV2({ ...fixture, preferences: [adjustment, fixture.preferences[1]] })).preferences[0].modeJson, adjustment.modeJson);
+});
+
+test('V2 rejects expense authors outside the member set', () => {
+  const expense = { id: 'e', date: '2026-11-01', description: 'Fictif', currency: 'CAD', amountMinor: 101,
+    categoryId: 'other', categoryLabel: 'Autre', categoryIcon: 'receipt', categoryColor: 'slate',
+    payments: [{ userId: 'alice', amountMinor: 101 }], allocations: [{ userId: 'alice', amountMinor: 101 }],
+    splitSnapshotJson: '{"kind":"equal","users":["alice"]}', deleted: false };
+  const withExpense = { ...fixture, expenses: [expense], expenseAuthors: [{ expenseId: 'e', userId: 'alice' }] };
+  strictEqual(JSON.parse(serializeGroupExportV2(withExpense)).expenseAuthors[0].userId, 'alice');
+  throws(() => serializeGroupExportV2({ ...withExpense, expenseAuthors: [] }));
+  throws(() => serializeGroupExportV2({ ...withExpense, expenseAuthors: [{ expenseId: 'e', userId: 'outsider' }] }));
 });

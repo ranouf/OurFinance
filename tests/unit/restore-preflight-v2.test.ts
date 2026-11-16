@@ -8,6 +8,7 @@ const fixture: GroupExportV2 = {
   group: { id: 'original_group', name: 'Groupe fictif', currency: 'CAD' },
   members: [{ userId: 'alice', role: 'owner', status: 'active' }, { userId: 'bob', role: 'member', status: 'revoked' }],
   expenses: [], settlements: [], importedRecords: [], categories: [], receipts: [],
+  expenseAuthors: [],
   preferences: [
     { userId: 'alice', modeJson: '{"kind":"equal","users":["alice","bob"]}', memberIds: ['alice', 'bob'], updatedAt: '2026-11-16T18:00:00.000Z' },
     { userId: 'bob', modeJson: null, memberIds: [], updatedAt: null },
