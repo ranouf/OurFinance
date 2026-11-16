@@ -18,6 +18,5 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
       - run: npm run typecheck:worker
-      - run: npm run test:unit
-      - run: npm run test:worker
+      - run: npm run test:coverage
       - run: npm run test:rules
