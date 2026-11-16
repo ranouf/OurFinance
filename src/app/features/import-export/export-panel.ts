@@ -4,13 +4,15 @@ import type { FirebaseApp } from 'firebase/app';
 import type { User } from 'firebase/auth';
 import type { Group } from '../../core/firebase/group-model';
 import { buildBackupPackageV1 } from './backup-package';
+import { buildBackupPackageV2 } from './backup-package-v2';
 import { encodeBackupZipV1 } from './backup-zip';
+import { encodeBackupZipV2 } from './backup-zip-v2';
 import { collectGroupExportV1, FirebaseExportReader } from './export-collector';
 import { collectGroupExportV2 } from './export-collector-v2';
 import { serializeGroupLedgerCsvV1 } from './group-csv';
 import type { GroupExportV1 } from './export-v1';
 
-type ExportKind = 'csv' | 'json' | 'json-v2' | 'zip';
+type ExportKind = 'csv' | 'json' | 'json-v2' | 'zip' | 'zip-v2';
 
 @Component({
   selector: 'app-export-panel',
@@ -18,7 +20,7 @@ type ExportKind = 'csv' | 'json' | 'json-v2' | 'zip';
   template: `
     <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-5" aria-label="Exporter un groupe">
       <h2 class="text-lg font-semibold">Exporter un groupe</h2>
-      <p class="mt-2 text-sm text-slate-700">Ces exports sont partiels et ne restaurent pas encore le groupe. Le JSON V2 inclut les remboursements interdevises ; les formats V1 les omettent. Comptes, préférences, commentaires et activité restent absents.</p>
+      <p class="mt-2 text-sm text-slate-700">Ces exports sont partiels et ne restaurent pas encore le groupe. JSON et ZIP V2 incluent les remboursements interdevises ; les formats V1 les omettent. Comptes, préférences, commentaires et activité restent absents.</p>
       <div class="mt-4 space-y-3">
         <label class="block text-sm font-medium">Groupe
           <select class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="exportGroup" [(ngModel)]="groupId">
@@ -32,9 +34,10 @@ type ExportKind = 'csv' | 'json' | 'json-v2' | 'zip';
             <option value="json">JSON du groupe, partiel</option>
             <option value="json-v2">JSON V2 avec remboursements multidevises, partiel</option>
             <option value="zip">ZIP du groupe avec reçus privés, partiel</option>
+            <option value="zip-v2">ZIP V2 avec reçus privés et remboursements multidevises, partiel</option>
           </select>
         </label>
-        @if (kind === 'zip') { <p class="text-sm text-amber-800">Le ZIP contient des reçus privés. Conservez le fichier dans un emplacement sûr.</p> }
+        @if (kind === 'zip' || kind === 'zip-v2') { <p class="text-sm text-amber-800">Le ZIP contient des reçus privés. Conservez le fichier dans un emplacement sûr.</p> }
         <button class="rounded-lg bg-teal-700 px-4 py-2 text-white disabled:opacity-50" type="button"
           [disabled]="busy() || !groupId || !user?.emailVerified" (click)="download()">
           {{ busy() ? 'Préparation…' : 'Télécharger l’export' }}
@@ -68,10 +71,10 @@ export class ExportPanel {
       let bytes: Uint8Array;
       let extension: string;
       let contentType: string;
-      if (kind === 'zip') {
+      if (kind === 'zip' || kind === 'zip-v2') {
         if (!this.workerUrl) throw new Error('Worker indisponible');
-        const backup = await buildBackupPackageV1(reader, user, groupId, this.workerUrl);
-        bytes = await encodeBackupZipV1(backup);
+        bytes = kind === 'zip-v2' ? await encodeBackupZipV2(await buildBackupPackageV2(reader, user, groupId, this.workerUrl)) :
+          await encodeBackupZipV1(await buildBackupPackageV1(reader, user, groupId, this.workerUrl));
         extension = 'zip'; contentType = 'application/zip';
       } else {
         const json = kind === 'json-v2' ? await collectGroupExportV2(reader, user, groupId) : await collectGroupExportV1(reader, user, groupId);
@@ -86,7 +89,7 @@ export class ExportPanel {
       const url = URL.createObjectURL(new Blob([copy.buffer], { type: contentType }));
       const anchor = document.createElement('a');
       anchor.href = url;
-      anchor.download = `ourfinance-${groupId}-${kind === 'json-v2' ? 'v2-' : ''}partiel-${new Date().toISOString().slice(0, 10)}.${extension}`;
+      anchor.download = `ourfinance-${groupId}-${kind.endsWith('-v2') ? 'v2-' : ''}partiel-${new Date().toISOString().slice(0, 10)}.${extension}`;
       anchor.hidden = true;
       document.body.append(anchor);
       anchor.click();

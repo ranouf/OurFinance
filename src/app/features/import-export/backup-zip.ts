@@ -1,4 +1,5 @@
 import { verifyBackupPackageV1, type BackupPackageV1 } from './backup-package';
+import type { ExportedReceipt } from './receipt-export';
 
 const encoder = new TextEncoder();
 const signature = { local: 0x04034b50, central: 0x02014b50, end: 0x06054b50 };
@@ -17,10 +18,15 @@ interface FileEntry { readonly name: string; readonly nameBytes: Uint8Array; rea
 /** Portable uncompressed ZIP; caller must keep the resulting partial backup private. */
 export async function encodeBackupZipV1(value: BackupPackageV1): Promise<Uint8Array> {
   await verifyBackupPackageV1(value);
+  return encodeBackupZipFiles(value.manifest, value.groupJson, value.receipts);
+}
+
+/** Shared byte encoder; callers must verify their versioned package first. */
+export function encodeBackupZipFiles(manifest: object, groupJson: string, receipts: readonly ExportedReceipt[]): Uint8Array {
   const files = [
-    { name: 'manifest.json', bytes: encoder.encode(`${JSON.stringify(value.manifest, null, 2)}\n`) },
-    { name: 'group.json', bytes: encoder.encode(value.groupJson) },
-    ...value.receipts.map(receipt => ({ name: receipt.filename, bytes: receipt.bytes })),
+    { name: 'manifest.json', bytes: encoder.encode(`${JSON.stringify(manifest, null, 2)}\n`) },
+    { name: 'group.json', bytes: encoder.encode(groupJson) },
+    ...receipts.map(receipt => ({ name: receipt.filename, bytes: receipt.bytes })),
   ];
   if (files.length > 27 || files.some(file => file.name.includes('..') || file.name.startsWith('/') || file.name.includes('\\'))) {
     throw new Error('Fichiers de sauvegarde invalides');
