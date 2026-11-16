@@ -4,7 +4,7 @@ import { splitAmount, validateExpense, type Allocation, type SplitMode } from '.
 export type ModeKind = SplitMode['kind'];
 export interface SplitRow { userId: string; selected: boolean; value: string; }
 export interface ExpenseDraft {
-  description: string; amount: string; currency: string; date: string;
+  description: string; amount: string; currency: string; date: string; categoryId: string;
   payerId: string; kind: ModeKind; rows: SplitRow[];
 }
 

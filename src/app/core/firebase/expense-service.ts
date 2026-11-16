@@ -1,12 +1,55 @@
 import type { FirebaseApp } from 'firebase/app';
 import type { User } from 'firebase/auth';
-import { collection, doc, getDoc, getDocs, getFirestore } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, getFirestore, limit, orderBy, query, startAfter, where, type DocumentData, type QueryDocumentSnapshot } from 'firebase/firestore';
 import { decodeStoredPreference } from '../../shared/utils/split-preference';
-import type { SplitMode } from '../../shared/utils/split-engine';
+import { categoryById, type CategoryColor } from '../../shared/utils/categories';
+import type { Allocation, SplitMode } from '../../shared/utils/split-engine';
 import type { GroupMember } from './group-model';
+
+export interface ExpenseHistoryEntry {
+  readonly id: string;
+  readonly description: string;
+  readonly categoryId: string;
+  readonly categoryLabel: string;
+  readonly categoryIcon: string;
+  readonly categoryColor: CategoryColor;
+  readonly date: string;
+  readonly amountMinor: number;
+  readonly currency: string;
+  readonly payments: readonly Allocation[];
+  readonly allocations: readonly Allocation[];
+}
 
 export class ExpenseService {
   constructor(private readonly app: FirebaseApp, private readonly workerUrl: string) {}
+
+  async history(groupId: string, after?: QueryDocumentSnapshot<DocumentData>, from?: string, to?: string): Promise<{ entries: ExpenseHistoryEntry[]; last?: QueryDocumentSnapshot<DocumentData>; hasMore: boolean; scanned: number }> {
+    const expenses = collection(getFirestore(this.app), 'groups', groupId, 'expenses');
+    const ordered = query(expenses, ...(from ? [where('date', '>=', from)] : []), ...(to ? [where('date', '<=', to)] : []), orderBy('date', 'desc'), limit(20), ...(after ? [startAfter(after)] : []));
+    const snapshot = await getDocs(ordered);
+    return {
+      entries: snapshot.docs.filter(item => item.data()['deleted'] !== true).map(item => {
+        const data = item.data();
+        const fallback = categoryById(String(data['categoryId'] ?? 'other'));
+        return {
+          id: item.id,
+          description: String(data['description']),
+          categoryId: String(data['categoryId'] ?? 'other'),
+          categoryLabel: String(data['categoryLabel'] ?? fallback.label),
+          categoryIcon: String(data['categoryIcon'] ?? fallback.icon),
+          categoryColor: (data['categoryColor'] ?? fallback.color) as CategoryColor,
+          date: String(data['date']),
+          amountMinor: Number(data['amountMinor']),
+          currency: String(data['currency']),
+          payments: (data['payments'] as Allocation[] | undefined) ?? [],
+          allocations: (data['allocations'] as Allocation[] | undefined) ?? [],
+        };
+      }),
+      last: snapshot.docs.at(-1),
+      hasMore: snapshot.size === 20,
+      scanned: snapshot.size,
+    };
+  }
 
   async members(groupId: string): Promise<GroupMember[]> {
     const snapshot = await getDocs(collection(getFirestore(this.app), 'groups', groupId, 'members'));

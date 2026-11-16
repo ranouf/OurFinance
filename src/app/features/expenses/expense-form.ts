@@ -1,10 +1,12 @@
-import { ChangeDetectorRef, Component, Input, OnChanges, signal } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { FirebaseApp } from 'firebase/app';
 import type { User } from 'firebase/auth';
 import type { Group } from '../../core/firebase/group-model';
 import { ExpenseService } from '../../core/firebase/expense-service';
+import { CategoryService } from '../../core/firebase/category-service';
 import { currencyCodes, formatMinor, minorDigits } from '../../shared/utils/currency';
+import { categories, type CustomCategory } from '../../shared/utils/categories';
 import { prepareExpense, type ExpenseDraft } from './expense-draft';
 import type { SplitMode } from '../../shared/utils/split-engine';
 
@@ -37,6 +39,11 @@ import type { SplitMode } from '../../shared/utils/split-engine';
           </div>
           <label class="block text-sm font-medium">Date
             <input class="mt-1 w-full rounded-lg border border-slate-300 p-3" type="date" name="date" [(ngModel)]="draft.date" required />
+          </label>
+          <label class="block text-sm font-medium">Catégorie
+            <select class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="category" [(ngModel)]="draft.categoryId">
+                @for (category of availableCategories(); track category.id) { <option [value]="category.id">{{ category.icon }} {{ category.label }}</option> }
+            </select>
           </label>
           @if (members().length) {
             <label class="block text-sm font-medium">Payé par
@@ -74,32 +81,53 @@ import type { SplitMode } from '../../shared/utils/split-engine';
 })
 export class ExpenseForm implements OnChanges {
   constructor(private readonly changeDetector: ChangeDetectorRef) {}
+  @Output() readonly saved = new EventEmitter<void>();
   @Input({ required: true }) groups: Group[] = [];
   @Input({ required: true }) user?: User;
   @Input({ required: true }) firebaseApp?: FirebaseApp;
   @Input({ required: true }) workerUrl?: string;
+  @Input() categoryRevision = 0;
   readonly currencies = currencyCodes();
+  readonly categories = categories;
   readonly members = signal<{ userId: string }[]>([]);
+  readonly customCategories = signal<CustomCategory[]>([]);
   readonly busy = signal(false);
   readonly message = signal('');
   readonly previewRows = signal<{ userId: string; amount: string }[]>([]);
   selectedGroupId = '';
   draft: ExpenseDraft = this.emptyDraft();
   private service?: ExpenseService;
+  private categoryService?: CategoryService;
   private pendingKey?: string;
   private pendingBody?: string;
 
-  ngOnChanges(): void { if (this.firebaseApp && this.workerUrl) this.service = new ExpenseService(this.firebaseApp, this.workerUrl); }
-  private emptyDraft(): ExpenseDraft { return { description: '', amount: '', currency: 'CAD', date: new Date().toISOString().slice(0, 10), payerId: '', kind: 'equal', rows: [] }; }
+  ngOnChanges(changes: SimpleChanges): void {
+    if (this.firebaseApp && this.workerUrl) {
+      this.service = new ExpenseService(this.firebaseApp, this.workerUrl);
+      this.categoryService = new CategoryService(this.firebaseApp, this.workerUrl);
+    }
+    if (changes['categoryRevision'] && !changes['categoryRevision'].firstChange && this.selectedGroupId) void this.loadCategories().catch(() => this.message.set('Catégories indisponibles.'));
+  }
+  availableCategories() { return [...categories, ...this.customCategories().filter(category => category.status === 'active')]; }
+  private async loadCategories(): Promise<void> {
+    const groupId = this.selectedGroupId;
+    if (!groupId || !this.categoryService) return;
+    const items = await this.categoryService.list(groupId);
+    if (this.selectedGroupId !== groupId) return;
+    this.customCategories.set(items);
+    if (!this.availableCategories().some(category => category.id === this.draft.categoryId)) this.draft.categoryId = 'other';
+  }
+  private emptyDraft(): ExpenseDraft { return { description: '', amount: '', currency: 'CAD', date: new Date().toISOString().slice(0, 10), categoryId: 'other', payerId: '', kind: 'equal', rows: [] }; }
   clearValues(): void { this.previewRows.set([]); this.draft.rows.forEach(row => row.value = ''); }
   async loadGroup(): Promise<void> {
-    this.members.set([]); this.previewRows.set([]); this.message.set(''); this.draft = this.emptyDraft();
+    this.members.set([]); this.customCategories.set([]); this.previewRows.set([]); this.message.set(''); this.draft = this.emptyDraft();
     this.pendingKey = undefined; this.pendingBody = undefined;
     const groupId = this.selectedGroupId;
     const group = this.groups.find(item => item.id === groupId);
     if (!group || !this.service || !this.user) return;
     this.draft.currency = group.currency;
     try {
+      await this.loadCategories();
       const members = (await this.service.members(groupId)).filter(member => member.status === 'active');
       if (this.selectedGroupId !== groupId) return;
       this.members.set(members);
@@ -142,14 +170,14 @@ export class ExpenseForm implements OnChanges {
     this.busy.set(true);
     try {
       const result = prepareExpense(this.draft, new Set(this.members().map(member => member.userId)));
-      const content = { description: this.draft.description.trim(), currency: this.draft.currency, date: this.draft.date, amountMinor: result.amountMinor, payments: result.payments, splitMode: result.splitMode };
+      const content = { description: this.draft.description.trim(), currency: this.draft.currency, date: this.draft.date, categoryId: this.draft.categoryId, amountMinor: result.amountMinor, payments: result.payments, splitMode: result.splitMode };
       const serialized = JSON.stringify(content);
       if (serialized !== this.pendingBody) this.pendingKey = undefined;
       const idempotencyKey = this.pendingKey ?? crypto.randomUUID();
       this.pendingKey = idempotencyKey; this.pendingBody = serialized;
       await this.service.create(this.user, this.selectedGroupId, { idempotencyKey, ...content });
       this.pendingKey = undefined; this.pendingBody = undefined;
-      this.message.set('Dépense enregistrée.'); this.draft.description = ''; this.draft.amount = ''; this.previewRows.set([]);
+      this.message.set('Dépense enregistrée.'); this.draft.description = ''; this.draft.amount = ''; this.previewRows.set([]); this.saved.emit();
     } catch (error) { this.message.set(error instanceof Error ? error.message : 'Enregistrement impossible'); }
     finally { this.busy.set(false); }
   }

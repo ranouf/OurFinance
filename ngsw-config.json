@@ -8,6 +8,7 @@
       "resources": {
         "files": [
           "/favicon.ico",
+          "/app-config.json",
           "/index.csr.html",
           "/index.html",
           "/manifest.webmanifest",

@@ -20,6 +20,10 @@ test('expense creation is disabled without an explicit test group', async () => 
   const response = await handleRequest(new Request('https://worker.example/groups/g1/expenses', { method: 'POST', headers: { Origin: env.ALLOWED_ORIGIN } }), { ...env, FIREBASE_SERVICE_ACCOUNT_JSON: 'configured' });
   strictEqual(response.status, 503);
 });
+test('comment creation is disabled without an explicit test group', async () => {
+  const response = await handleRequest(new Request('https://worker.example/groups/g1/expenses/e1/comments', { method: 'POST' }), { ...env, FIREBASE_SERVICE_ACCOUNT_JSON: 'configured' });
+  strictEqual(response.status, 503);
+});
 test('invitation creation and redemption are disabled without an explicit test group', async () => {
   const configured = { ...env, FIREBASE_SERVICE_ACCOUNT_JSON: 'configured' };
   for (const path of ['/groups/g1/invitations', '/groups/g1/invitations/i1/accept']) {
@@ -37,4 +41,13 @@ test('import and undo are disabled without an explicit test group', async () => 
     const response = await handleRequest(new Request(`https://worker.example${path}`, { method }), configured);
     strictEqual(response.status, 503);
   }
+});
+test('custom categories stay disabled without an explicit test group', async () => {
+  const configured = { ...env, FIREBASE_SERVICE_ACCOUNT_JSON: 'configured' };
+  for (const [method, path] of [['POST', '/groups/g1/categories'], ['PATCH', '/groups/g1/categories/custom_123e4567-e89b-42d3-a456-426614174000']]) {
+    const response = await handleRequest(new Request(`https://worker.example${path}`, { method }), configured);
+    strictEqual(response.status, 503);
+  }
+  const preflight = await handleRequest(new Request('https://worker.example/groups/g1/categories', { method: 'OPTIONS', headers: { Origin: env.ALLOWED_ORIGIN } }), configured);
+  strictEqual(preflight.headers.get('Access-Control-Allow-Methods')?.includes('PATCH'), true);
 });

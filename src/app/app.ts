@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, effect, signal } from '@angular/core';
+import { Component, HostListener, OnDestroy, OnInit, effect, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { getAuth } from 'firebase/auth';
 import { AppShell } from './shared/components/app-shell/app-shell';
@@ -9,15 +9,24 @@ import type { FirebaseApp } from 'firebase/app';
 import { currencyCodes } from './shared/utils/currency';
 import { Group } from './core/firebase/group-model';
 import { ExpenseForm } from './features/expenses/expense-form';
+import { ExpenseHistory } from './features/expenses/expense-history';
+import { SettlementForm } from './features/settlements/settlement-form';
+import { SettlementHistory } from './features/settlements/settlement-history';
+import { BalanceSummary } from './features/balances/balance-summary';
+import { StatisticsSummary } from './features/statistics/statistics-summary';
+import { ActivityHistory } from './features/activity/activity-history';
+import { CategoryManager } from './features/categories/category-manager';
+import { InvitationPanel } from './features/groups/invitation-panel';
 import { ExportPanel } from './features/import-export/export-panel';
 
 @Component({
   selector: 'app-root',
-  imports: [AppShell, FormsModule, ExpenseForm, ExportPanel],
+  imports: [AppShell, FormsModule, ExpenseForm, ExpenseHistory, SettlementForm, SettlementHistory, BalanceSummary, StatisticsSummary, ActivityHistory, CategoryManager, InvitationPanel, ExportPanel],
   template: `
     <app-shell>
       <div class="mx-auto max-w-md rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">
         <h1 class="text-2xl font-bold">{{ heading() }}</h1>
+        @if (!online()) { <p class="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900" role="status">Hors ligne : les données du serveur sont indisponibles. Reconnectez-vous pour les actualiser et enregistrer des opérations.</p> }
         @if (state() === 'loading') {
           <p class="mt-4 text-slate-600" role="status">Chargement de la configuration…</p>
         } @else if (state() === 'unconfigured') {
@@ -46,16 +55,24 @@ import { ExportPanel } from './features/import-export/export-panel';
                       @for (currency of currencies; track currency) { <option [value]="currency">{{ currency }}</option> }
                     </select>
                   </label>
-                  <button class="rounded-lg bg-teal-700 px-4 py-2 text-white disabled:opacity-50" type="submit" [disabled]="busy()">Créer un groupe</button>
+                  <button class="rounded-lg bg-teal-700 px-4 py-2 text-white disabled:opacity-50" type="submit" [disabled]="busy() || !online()">Créer un groupe</button>
                 </form>
               } @else { <p class="mt-4 text-sm text-amber-800">Le service de création de groupes n’est pas encore configuré.</p> }
             </section>
+            @if (workerUrl) { <app-invitation-panel [groups]="groups()" [user]="user" [workerUrl]="workerUrl" (joined)="onInvitationJoined()" /> }
             @if (workerUrl && firebaseApp && groups().length) {
+              <app-category-manager [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" (changed)="onCategoryChanged()" />
               @defer (on viewport) {
-                <app-expense-form [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" />
+                <app-expense-form [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" [categoryRevision]="categoryRevision()" (saved)="onExpenseSaved()" />
               } @placeholder {
                 <p class="mt-6 rounded-xl border border-slate-200 p-4 text-sm text-slate-600" role="status">Chargement du formulaire de dépense…</p>
               }
+              <app-expense-history [groups]="groups()" [firebaseApp]="firebaseApp" [user]="user" [workerUrl]="workerUrl" [revision]="expenseRevision()" (commented)="onCommentAdded()" />
+              <app-settlement-form [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" (saved)="onSettlementSaved()" />
+              <app-settlement-history [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" [revision]="settlementRevision()" />
+              <app-balance-summary [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [revision]="expenseRevision() + settlementRevision()" />
+              <app-statistics-summary [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [revision]="expenseRevision() + settlementRevision()" />
+              <app-activity-history [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [revision]="expenseRevision() + settlementRevision() + categoryRevision() + commentRevision()" />
             }
             @if (firebaseApp && groups().length) {
               @defer (on viewport) {
@@ -77,12 +94,12 @@ import { ExportPanel } from './features/import-export/export-panel';
                 <input class="mt-1 w-full rounded-lg border border-slate-300 p-3" type="password" name="password" autocomplete="current-password" [(ngModel)]="password" required />
               </label>
             }
-            <button class="w-full rounded-lg bg-teal-700 px-4 py-3 font-semibold text-white disabled:opacity-50" [disabled]="busy()" type="submit">
+            <button class="w-full rounded-lg bg-teal-700 px-4 py-3 font-semibold text-white disabled:opacity-50" [disabled]="busy() || !online()" type="submit">
               {{ mode() === 'register' ? 'Créer un compte' : mode() === 'reset' ? 'Envoyer le lien' : 'Se connecter' }}
             </button>
           </form>
           @if (mode() === 'login') {
-            <button class="mt-3 w-full rounded-lg border border-slate-300 px-4 py-3" type="button" [disabled]="busy()" (click)="google()">Continuer avec Google</button>
+            <button class="mt-3 w-full rounded-lg border border-slate-300 px-4 py-3 disabled:opacity-50" type="button" [disabled]="busy() || !online()" (click)="google()">Continuer avec Google</button>
           }
           <div class="mt-5 flex gap-4 text-sm text-teal-700">
             <button type="button" (click)="mode.set('login')">Connexion</button>
@@ -100,12 +117,19 @@ export class App implements OnInit, OnDestroy {
   readonly mode = signal<'login' | 'register' | 'reset'>('login');
   readonly busy = signal(false);
   readonly message = signal('');
+  readonly online = signal(typeof navigator === 'undefined' ? true : navigator.onLine);
+  @HostListener('window:online') onOnline(): void { this.online.set(true); }
+  @HostListener('window:offline') onOffline(): void { this.online.set(false); }
   auth?: AuthService;
   private groupService?: GroupService;
   firebaseApp?: FirebaseApp;
   workerUrl?: string;
   readonly currencies = currencyCodes();
   readonly groups = signal<Group[]>([]);
+  readonly expenseRevision = signal(0);
+  readonly categoryRevision = signal(0);
+  readonly settlementRevision = signal(0);
+  readonly commentRevision = signal(0);
   readonly groupServiceReady = signal(false);
   groupName = '';
   groupCurrency = 'CAD';
@@ -174,4 +198,9 @@ export class App implements OnInit, OnDestroy {
     finally { this.busy.set(false); }
   }
   async logout(): Promise<void> { this.groups.set([]); await this.auth?.logout(); }
+  onExpenseSaved(): void { this.expenseRevision.update(value => value + 1); }
+  onCategoryChanged(): void { this.categoryRevision.update(value => value + 1); }
+  onSettlementSaved(): void { this.settlementRevision.update(value => value + 1); }
+  onCommentAdded(): void { this.commentRevision.update(value => value + 1); }
+  onInvitationJoined(): void { void this.loadGroups(); }
 }

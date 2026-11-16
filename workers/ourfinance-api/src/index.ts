@@ -9,6 +9,8 @@ import { readLimitedJson, RequestBodyError } from './request-body';
 import { acceptInvitation, createInvitation, InvitationError } from './invitations';
 import { createSettlement, SettlementError } from './settlements';
 import { createImportBatch, undoImportBatch, ImportError } from './import-batches';
+import { writeCategory, CategoryError } from './custom-categories';
+import { createComment, CommentError } from './comments';
 
 export interface Env extends Partial<CloudinaryEnv> {
   FIREBASE_PROJECT_ID: string;
@@ -25,6 +27,10 @@ export interface Env extends Partial<CloudinaryEnv> {
   SETTLEMENT_POC_GROUP_ID?: string;
   ENABLE_IMPORT_POC?: string;
   IMPORT_POC_GROUP_ID?: string;
+  ENABLE_CATEGORY_POC?: string;
+  CATEGORY_POC_GROUP_ID?: string;
+  ENABLE_COMMENT_POC?: string;
+  COMMENT_POC_GROUP_ID?: string;
 }
 
 export async function handleRequest(request: Request, env: Env): Promise<Response> {
@@ -34,12 +40,47 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
   if (origin) headers.set('Access-Control-Allow-Origin', origin);
   headers.set('Vary', 'Origin');
   if (request.method === 'OPTIONS') {
-    headers.set('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+    headers.set('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
     headers.set('Access-Control-Allow-Headers', 'Authorization, Content-Type');
     return new Response(null, { status: 204, headers });
   }
   const url = new URL(request.url);
   if (url.pathname === '/health' && request.method === 'GET') return new Response(JSON.stringify({ status: 'ok' }), { headers });
+  const commentMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/expenses\/([A-Za-z0-9_-]{1,128})\/comments$/.exec(url.pathname);
+  if (commentMatch && request.method === 'POST') {
+    if (env.ENABLE_COMMENT_POC !== 'true' || env.COMMENT_POC_GROUP_ID !== commentMatch[1] || !env.FIREBASE_SERVICE_ACCOUNT_JSON) return new Response(JSON.stringify({ error: 'Commentaires non configurés' }), { status: 503, headers });
+    let uid: string;
+    try { uid = await verifyFirebaseVerifiedEmail(bearerToken(request), env.FIREBASE_PROJECT_ID); }
+    catch { return new Response(JSON.stringify({ error: 'Non authentifié' }), { status: 401, headers }); }
+    try {
+      const body = await readLimitedJson(request, 2048);
+      const commentId = await createComment(body, uid, commentMatch[1], commentMatch[2], { FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT_JSON: env.FIREBASE_SERVICE_ACCOUNT_JSON });
+      return new Response(JSON.stringify({ commentId }), { status: 201, headers });
+    } catch (error) {
+      const status = error instanceof CommentError ? error.status : error instanceof RequestBodyError ? 400 : 503;
+      const code = error instanceof CommentError || error instanceof RequestBodyError ? error.code : 'comment_unavailable';
+      return new Response(JSON.stringify({ error: code }), { status, headers });
+    }
+  }
+  const categoryCreate = /^\/groups\/([A-Za-z0-9_-]{1,128})\/categories$/.exec(url.pathname);
+  const categoryUpdate = /^\/groups\/([A-Za-z0-9_-]{1,128})\/categories\/(custom_[0-9a-f-]{36})$/.exec(url.pathname);
+  if ((categoryCreate && request.method === 'POST') || (categoryUpdate && request.method === 'PATCH')) {
+    const groupId = (categoryCreate ?? categoryUpdate)![1];
+    if (env.ENABLE_CATEGORY_POC !== 'true' || env.CATEGORY_POC_GROUP_ID !== groupId || !env.FIREBASE_SERVICE_ACCOUNT_JSON) return new Response(JSON.stringify({ error: 'Catégories non configurées' }), { status: 503, headers });
+    let uid: string;
+    try { uid = await verifyFirebaseVerifiedEmail(bearerToken(request), env.FIREBASE_PROJECT_ID); }
+    catch { return new Response(JSON.stringify({ error: 'Non authentifié' }), { status: 401, headers }); }
+    try {
+      const body = await readLimitedJson(request, 2048) as Record<string, unknown>;
+      const categoryId = categoryCreate ? body['categoryId'] : categoryUpdate![2];
+      const id = await writeCategory(body, uid, groupId, String(categoryId), categoryCreate ? 'create' : 'update', { FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT_JSON: env.FIREBASE_SERVICE_ACCOUNT_JSON });
+      return new Response(JSON.stringify({ categoryId: id }), { status: categoryCreate ? 201 : 200, headers });
+    } catch (error) {
+      const status = error instanceof CategoryError ? error.status : error instanceof RequestBodyError ? 400 : 503;
+      const code = error instanceof CategoryError || error instanceof RequestBodyError ? error.code : 'category_unavailable';
+      return new Response(JSON.stringify({ error: code }), { status, headers });
+    }
+  }
   const importCreate = /^\/groups\/([A-Za-z0-9_-]{1,128})\/imports$/.exec(url.pathname);
   const importUndo = /^\/groups\/([A-Za-z0-9_-]{1,128})\/imports\/([A-Za-z0-9_-]{1,128})$/.exec(url.pathname);
   if ((importCreate && request.method === 'POST') || (importUndo && request.method === 'DELETE')) {
