@@ -6,6 +6,7 @@ import { encodeBackupZipV2 } from '../../src/app/features/import-export/backup-z
 import { decodeBackupZipV2 } from '../../src/app/features/import-export/backup-zip-read';
 import { serializeGroupExportV2, type GroupExportV2 } from '../../src/app/features/import-export/export-v2';
 import { preflightBackupRestoreV2 } from '../../src/app/features/import-export/restore-preflight-v2';
+import { restoreInventoryV2 } from '../../src/app/features/import-export/restore-inventory-v2';
 
 const group: GroupExportV2 = {
   format: 'OurFinanceGroupExport', version: 2, exportedAt: '2026-11-16T18:00:00.000Z',
@@ -63,4 +64,12 @@ test('restore preflight verifies the archived receipt and original group before 
   strictEqual(result.activityCount, 1);
   await rejects(preflightBackupRestoreV2(backup, { ...target, groupId: 'other' }));
   await rejects(preflightBackupRestoreV2({ ...backup, receipts: [{ ...backup.receipts[0], bytes: new Uint8Array([1]) }] }, target));
+});
+
+test('restore inventory includes private receipt, comments and personal preference paths', () => {
+  const inventory = restoreInventoryV2(group);
+  strictEqual(inventory.groupDocuments.includes('groups/g/expenses/e/comments/c'), true);
+  strictEqual(inventory.receiptDocuments[0], 'groups/g/expenses/e/attachments/a');
+  strictEqual(inventory.userDocuments.includes('users/alice/groupPreferences/g'), true);
+  strictEqual(inventory.groupDocuments.includes('groups/g/activity/e'), true);
 });
