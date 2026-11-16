@@ -12,7 +12,7 @@ const batchId = '01234567-89ab-4def-8abc-0123456789ab';
 const memberMapping = { alex: 'member_a', camille: 'member_b', sam: 'member_c' };
 
 test('maps a complete synthetic CSV preview to the Worker payload without inventing shares', () => {
-  const result = prepareImportBatch(preview, 'groupe-test', 'target_group', memberMapping, batchId);
+  const result = prepareImportBatch(preview, 'groupe-test', 'target_group', 'CAD', memberMapping, batchId);
   strictEqual(result.groupId, 'target_group');
   strictEqual(result.body.records.length, 3);
   deepStrictEqual(result.body.records[0].netImpactsMinor, { member_a: 4000, member_b: -2000, member_c: -2000 });
@@ -22,7 +22,7 @@ test('maps a complete synthetic CSV preview to the Worker payload without invent
 });
 
 test('refuses preview errors, duplicates, missing impacts and mixed source groups', () => {
-  const prepare = (value: typeof preview) => prepareImportBatch(value, 'groupe-test', 'target_group', memberMapping, batchId);
+  const prepare = (value: typeof preview) => prepareImportBatch(value, 'groupe-test', 'target_group', 'CAD', memberMapping, batchId);
   throws(() => prepare({ ...preview, errors: ['ligne invalide'] }));
   throws(() => prepare({ ...preview, duplicateIds: ['synthetic-001'] }));
   throws(() => prepare({ ...preview, records: [{ ...preview.records[0], netImpactsMinor: undefined }] }));
@@ -32,10 +32,16 @@ test('refuses preview errors, duplicates, missing impacts and mixed source group
 });
 
 test('refuses missing, duplicate or malformed member mapping', () => {
-  throws(() => prepareImportBatch(preview, 'groupe-test', 'target_group', { alex: 'member_a' }, batchId));
-  throws(() => prepareImportBatch(preview, 'groupe-test', 'target_group', { ...memberMapping, sam: 'member_a' }, batchId));
-  throws(() => prepareImportBatch(preview, 'groupe-test', 'target_group', { ...memberMapping, sam: 'bad/id' }, batchId));
-  throws(() => prepareImportBatch(preview, 'groupe-test', 'target_group', memberMapping, 'not-a-uuid'));
+  throws(() => prepareImportBatch(preview, 'groupe-test', 'target_group', 'CAD', { alex: 'member_a' }, batchId));
+  throws(() => prepareImportBatch(preview, 'groupe-test', 'target_group', 'CAD', { ...memberMapping, sam: 'member_a' }, batchId));
+  throws(() => prepareImportBatch(preview, 'groupe-test', 'target_group', 'CAD', { ...memberMapping, sam: 'bad/id' }, batchId));
+  throws(() => prepareImportBatch(preview, 'groupe-test', 'target_group', 'CAD', memberMapping, 'not-a-uuid'));
   const inheritedName = { ...preview, records: [{ ...preview.records[0], netImpactsMinor: Object.fromEntries([['toString', 0], ['alex', 0]]) }] };
-  throws(() => prepareImportBatch(inheritedName, 'groupe-test', 'target_group', memberMapping, batchId));
+  throws(() => prepareImportBatch(inheritedName, 'groupe-test', 'target_group', 'CAD', memberMapping, batchId));
+});
+
+test('reports source currencies that do not match the target group without converting', () => {
+  const mixed = { ...preview, records: [preview.records[0], { ...preview.records[1], currency: 'JPY' }] };
+  throws(() => prepareImportBatch(mixed, 'groupe-test', 'target_group', 'CAD', memberMapping, batchId), /JPY.*groupe/);
+  throws(() => prepareImportBatch(preview, 'groupe-test', 'target_group', 'JPY', memberMapping, batchId), /CAD.*groupe/);
 });

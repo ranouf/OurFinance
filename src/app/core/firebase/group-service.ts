@@ -13,8 +13,9 @@ export class GroupService {
       const snapshot = await getDoc(doc(db, 'groups', reference.id));
       if (!snapshot.exists()) return null;
       const data = snapshot.data();
-      if (typeof data['name'] !== 'string' || typeof data['currency'] !== 'string') return null;
-      return { id: snapshot.id, name: data['name'], currency: data['currency'], ownerId: String(data['ownerId'] ?? ''), status: data['status'] === 'archived' ? 'archived' : 'active' } satisfies Group;
+      const currency = data['currencyCode'] ?? data['currency'];
+      if (typeof data['name'] !== 'string' || typeof currency !== 'string') return null;
+      return { id: snapshot.id, name: data['name'], currency, ownerId: String(data['ownerId'] ?? ''), status: data['status'] === 'archived' ? 'archived' : 'active' } satisfies Group;
     }));
     return groups.filter((group): group is Group => group !== null);
   }

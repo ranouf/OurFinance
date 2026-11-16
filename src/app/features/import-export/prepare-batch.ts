@@ -23,6 +23,7 @@ export function prepareImportBatch(
   preview: ImportPreviewV1,
   sourceGroupId: string,
   targetGroupId: string,
+  targetCurrency: string,
   memberMapping: Readonly<Record<string, string>>,
   batchId: string,
 ): PreparedImportBatch {
@@ -30,6 +31,9 @@ export function prepareImportBatch(
       !documentId.test(sourceGroupId) || !documentId.test(targetGroupId) || !batchIdPattern.test(batchId) ||
       preview.records.length < 1 || preview.records.length > 10 ||
       preview.records.some(record => record.groupId !== sourceGroupId)) throw new Error('Aperçu incomplet ou groupe ambigu');
+  if (!Intl.supportedValuesOf('currency').includes(targetCurrency)) throw new Error('Devise du groupe cible invalide');
+  const incompatible = [...new Set(preview.records.filter(record => record.currency !== targetCurrency).map(record => record.currency))];
+  if (incompatible.length) throw new Error(`Devise incompatible avec le groupe cible (${targetCurrency}) : ${incompatible.join(', ')}. Choisir un groupe de la bonne devise ou exclure ces lignes.`);
 
   const mappedIds = Object.values(memberMapping);
   if (!mappedIds.length || mappedIds.some(id => !documentId.test(id)) || new Set(mappedIds).size !== mappedIds.length) {

@@ -53,19 +53,19 @@ export function validateGroupExportV1(value: GroupExportV1): void {
   for (const row of value.expenses) {
     const validEntries = (entries: readonly Allocation[]) => entries.length > 0 && unique(entries.map(entry => entry.userId)) &&
       entries.every(entry => memberIds.has(entry.userId) && Number.isSafeInteger(entry.amountMinor) && entry.amountMinor >= 0);
-    if (!date(row.date) || !row.description.trim() || !currency(row.currency) || !amount(row.amountMinor) ||
+    if (!date(row.date) || !row.description.trim() || row.currency !== value.group.currency || !amount(row.amountMinor) ||
         !id.test(row.categoryId) || !row.categoryLabel.trim() || !row.categoryIcon.trim() || !row.categoryColor.trim() ||
         !validEntries(row.payments) || !validEntries(row.allocations) || !row.splitSnapshotJson || typeof row.deleted !== 'boolean' ||
         sum(row.payments.map(entry => entry.amountMinor)) !== BigInt(row.amountMinor) ||
         sum(row.allocations.map(entry => entry.amountMinor)) !== BigInt(row.amountMinor)) throw new Error(`Dépense ${row.id} incohérente`);
   }
   for (const row of value.settlements) {
-    if (!date(row.date) || !currency(row.currency) || !amount(row.amountMinor) || row.status !== 'recorded' || typeof row.deleted !== 'boolean' ||
+    if (!date(row.date) || row.currency !== value.group.currency || !amount(row.amountMinor) || row.status !== 'recorded' || typeof row.deleted !== 'boolean' ||
         !memberIds.has(row.fromUserId) || !memberIds.has(row.toUserId) || row.fromUserId === row.toUserId) throw new Error(`Règlement ${row.id} incohérent`);
   }
   for (const row of value.importedRecords) {
     const impacts = Object.entries(row.netImpactsMinor);
-    if (!row.sourceId || !id.test(row.batchId) || !date(row.date) || !row.description.trim() || !currency(row.currency) ||
+    if (!row.sourceId || !id.test(row.batchId) || !date(row.date) || !row.description.trim() || row.currency !== value.group.currency ||
         !amount(row.amountMinor) || row.splitStatus !== 'undetermined' || !['active', 'undone'].includes(row.status) ||
         !impacts.length || impacts.some(([userId, impact]) => !memberIds.has(userId) || !Number.isSafeInteger(impact)) ||
         sum(impacts.map(([, impact]) => impact)) !== 0n) throw new Error(`Import ${row.id} incohérent`);

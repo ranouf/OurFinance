@@ -27,6 +27,12 @@ test('refuses inconsistent money, members and receipt references', () => {
   throws(() => serializeGroupExportV1({ ...fixture, receipts: [{ ...fixture.receipts[0], expenseId: 'other' }] }));
 });
 
+test('refuses a snapshot containing any transaction outside the group currency', () => {
+  throws(() => serializeGroupExportV1({ ...fixture, expenses: [{ ...fixture.expenses[0], currency: 'JPY' }] }));
+  throws(() => serializeGroupExportV1({ ...fixture, settlements: [{ ...fixture.settlements[0], currency: 'JPY' }] }));
+  throws(() => serializeGroupExportV1({ ...fixture, importedRecords: [{ ...fixture.importedRecords[0], currency: 'JPY' }] }));
+});
+
 test('exports only declared fields even when a source object carries an extra secret', () => {
   const source = { ...fixture, group: { ...fixture.group, accidentalSecret: 'never-export' } };
   strictEqual(serializeGroupExportV1(source).includes('never-export'), false);

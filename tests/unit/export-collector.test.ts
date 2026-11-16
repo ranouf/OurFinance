@@ -56,3 +56,13 @@ test('refuses unknown receipt states and an active receipt on a deleted expense'
     [{ ...collections[path][0], data: { ...collections[path][0].data, deleted: true } }] : reader.list(path) };
   await rejects(collectGroupExportV1(deleted, user, 'group_test'), /reçu/i);
 });
+
+test('uses currencyCode and refuses an old transaction in another currency', async () => {
+  const current: ExportReader = { ...reader, read: async path => path === root ?
+    { id: 'group_test', data: { name: 'Groupe fictif', currency: 'JPY', currencyCode: 'CAD', status: 'active' } } : reader.read(path) };
+  const value = JSON.parse(await collectGroupExportV1(current, user, 'group_test'));
+  strictEqual(value.group.currency, 'CAD');
+  const mixed: ExportReader = { ...current, list: async path => path === `${root}/settlements` ?
+    [{ ...collections[path][0], data: { ...collections[path][0].data, currency: 'JPY' } }] : reader.list(path) };
+  await rejects(collectGroupExportV1(mixed, user, 'group_test'), /Règlement/);
+});
