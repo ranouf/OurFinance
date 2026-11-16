@@ -12,6 +12,7 @@ import { ExpenseForm } from './features/expenses/expense-form';
 import { ExpenseHistory } from './features/expenses/expense-history';
 import { SettlementForm } from './features/settlements/settlement-form';
 import { SettlementHistory } from './features/settlements/settlement-history';
+import { FxSettlementPanel } from './features/settlements/fx-settlement-panel';
 import { BalanceSummary } from './features/balances/balance-summary';
 import { StatisticsSummary } from './features/statistics/statistics-summary';
 import { ActivityHistory } from './features/activity/activity-history';
@@ -21,7 +22,7 @@ import { ExportPanel } from './features/import-export/export-panel';
 
 @Component({
   selector: 'app-root',
-  imports: [AppShell, FormsModule, ExpenseForm, ExpenseHistory, SettlementForm, SettlementHistory, BalanceSummary, StatisticsSummary, ActivityHistory, CategoryManager, InvitationPanel, ExportPanel],
+  imports: [AppShell, FormsModule, ExpenseForm, ExpenseHistory, FxSettlementPanel, SettlementForm, SettlementHistory, BalanceSummary, StatisticsSummary, ActivityHistory, CategoryManager, InvitationPanel, ExportPanel],
   template: `
     <app-shell>
       <div class="mx-auto max-w-md rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">
@@ -77,6 +78,8 @@ import { ExportPanel } from './features/import-export/export-panel';
               @placeholder { <p class="mt-6 text-sm text-slate-600" role="status">Chargement des remboursements…</p> }
               @defer (on viewport) { <app-settlement-history [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" [revision]="settlementRevision()" /> }
               @placeholder { <p class="mt-6 text-sm text-slate-600" role="status">Chargement de l’historique des remboursements…</p> }
+              @defer (on viewport) { <app-fx-settlement-panel [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" /> }
+              @placeholder { <p class="mt-6 text-sm text-slate-600" role="status">Chargement des remboursements multidevises…</p> }
               @defer (on viewport) { <app-balance-summary [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [revision]="expenseRevision() + settlementRevision()" /> }
               @placeholder { <p class="mt-6 text-sm text-slate-600" role="status">Chargement des soldes…</p> }
               @defer (on viewport) { <app-statistics-summary [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [revision]="expenseRevision() + settlementRevision()" /> }
