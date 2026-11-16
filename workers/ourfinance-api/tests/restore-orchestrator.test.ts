@@ -78,3 +78,29 @@ test('post-commit media cleanup failure is reported as retryable', async () => {
   const result = await restoreGroupFromPackage('alice', 'g', restoreId, await archive(), env, fetch, ops);
   strictEqual(result.cleanupPending, true);
 });
+
+test('media staging failure aborts the lock and retries asset cleanup', async () => {
+  const events: string[] = [];
+  const ops = operations(events);
+  ops.stage = async () => { events.push('stage'); throw new Error('cloudinary'); };
+  await rejects(restoreGroupFromPackage('alice', 'g', restoreId, await archive(), env, fetch, ops));
+  deepStrictEqual(events, ['begin', 'stage', 'abort', 'cleanup']);
+});
+
+test('lost lock response leaves the group locked for explicit recovery', async () => {
+  const events: string[] = [];
+  const ops = operations(events);
+  ops.begin = async () => { events.push('begin'); throw new Error('network'); };
+  await rejects(restoreGroupFromPackage('alice', 'g', restoreId, await archive(), env, fetch, ops),
+    (error: unknown) => error instanceof RestoreOrchestrationError && error.code === 'recovery_required');
+  deepStrictEqual(events, ['begin', 'outcome']);
+});
+
+test('lost commit response with durable marker continues only to cleanup', async () => {
+  const events: string[] = [];
+  const ops = operations(events, 'committed');
+  ops.commit = async () => { events.push('commit'); throw new Error('network'); };
+  const result = await restoreGroupFromPackage('alice', 'g', restoreId, await archive(), env, fetch, ops);
+  deepStrictEqual(events, ['begin', 'stage', 'inventory', 'commit', 'outcome', 'cleanup']);
+  strictEqual(result.cleanupPending, false);
+});
