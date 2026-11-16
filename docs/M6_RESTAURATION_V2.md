@@ -18,8 +18,8 @@
 
 ## Séquence sûre recherchée
 
-1. Préparer chaque reçu sous un `publicId` Cloudinary **versionné**, sans écraser l’asset actif. Garder une liste de nettoyage des assets préparés.
-2. Verrouiller le groupe avec un statut `restoring`. Les règles Firestore doivent refuser les lectures membres pendant ce statut ; toutes les routes Worker doivent aussi le vérifier. Un échec avant le verrou supprime les assets préparés.
+1. Verrouiller le groupe avec un statut `restoring` et créer atomiquement un journal serveur contenant les `publicId` versionnés attendus. Les règles Firestore doivent refuser les lectures membres pendant ce statut ; toutes les routes Worker doivent aussi le vérifier.
+2. Préparer chaque reçu sous son `publicId` Cloudinary **versionné**, sans écraser l’asset actif. Une interruption laisse le journal et le verrou récupérables ; l’annulation déplace ces IDs dans une file de nettoyage durable avant de rouvrir le groupe.
 3. Écrire l’état cible et retirer l’état ancien avec un protocole qui ne rend jamais visible un mélange de versions. Une transaction unique doit respecter la taille Firestore de 10 MiB ; au-delà, prévoir une reprise durable avec journal de progression, compensation et contrôle du verrou.
 4. Vérifier côté serveur les nombres de documents, les références, les préférences et les médias. Réactiver le groupe seulement après succès. Un échec laisse le groupe verrouillé et une reprise ou un retour arrière documenté ; ne jamais réactiver un état partiel.
 5. Après réactivation, supprimer les anciens assets Cloudinary devenus orphelins. Une erreur de suppression doit être enregistrée et relançable sans rendre les médias accessibles à un membre révoqué.

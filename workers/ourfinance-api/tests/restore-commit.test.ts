@@ -28,6 +28,7 @@ async function fixture(memberStatus = 'active', committed = false) {
     if (url.endsWith(':beginTransaction')) return Response.json({ transaction: 'txn' });
     if (url.endsWith(':rollback')) { rollbacks++; return Response.json({}); }
     if (url.includes('/groups/g/members/alice')) return Response.json({ fields: { role: { stringValue: 'owner' }, status: { stringValue: memberStatus } } });
+    if (url.includes(`/groups/g/restoreJobs/${restoreId}?`)) return Response.json({ fields: { ownerId: { stringValue: 'alice' }, status: { stringValue: 'staging' }, newPublicIds: { arrayValue: { values: [] } } } });
     if (url.endsWith('/groups/g') || url.includes('/groups/g?')) return Response.json({ fields: {
       status: { stringValue: committed ? 'active' : 'restoring' },
       ...(committed ? { lastRestoreId: { stringValue: restoreId } } : { restoreId: { stringValue: restoreId }, restoreOwnerId: { stringValue: 'alice' } }),

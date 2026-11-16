@@ -19,11 +19,14 @@ async function fixture(role: 'owner' | 'member' = 'owner') {
     if (url.endsWith(':beginTransaction')) return Response.json({ transaction: 'txn' });
     if (url.endsWith(':rollback')) { rollbacks++; return Response.json({}); }
     if (url.includes('/groups/g/members/alice?')) return Response.json({ fields: { status: { stringValue: 'active' }, role: { stringValue: role } } });
+    if (url.includes(`/groups/g/restoreJobs/${restoreId}?`)) return Response.json({ fields: { ownerId: { stringValue: 'alice' }, status: { stringValue: 'staging' }, newPublicIds: { arrayValue: { values: [] } } } });
     if (url.includes('/groups/g?')) return Response.json({ fields: { status: { stringValue: status }, currencyCode: { stringValue: 'CAD' },
       ...(status === 'restoring' ? { restoreId: { stringValue: restoreId }, restoreOwnerId: { stringValue: 'alice' } } : {}) } });
     if (url.endsWith(':commit')) {
       commits++;
       const body = JSON.parse(String(init?.body));
+      strictEqual(body.writes.length, 2);
+      strictEqual(body.writes[1].update.name.endsWith(`/groups/g/restoreJobs/${restoreId}`), true);
       status = body.writes[0].update.fields.status.stringValue;
       return Response.json({});
     }
@@ -34,7 +37,7 @@ async function fixture(role: 'owner' | 'member' = 'owner') {
 
 test('owner locks original group and can abort before replacing documents', async () => {
   const state = await fixture();
-  await beginRestoreLock('alice', 'g', restoreId, 'CAD', state.env, state.transport);
+  await beginRestoreLock('alice', 'g', restoreId, 'CAD', [], state.env, state.transport);
   strictEqual(state.status, 'restoring');
   await abortRestoreLock('alice', 'g', restoreId, state.env, state.transport);
   strictEqual(state.status, 'active');
@@ -43,7 +46,7 @@ test('owner locks original group and can abort before replacing documents', asyn
 
 test('ordinary member cannot lock a group and transaction rolls back', async () => {
   const state = await fixture('member');
-  await rejects(beginRestoreLock('alice', 'g', restoreId, 'CAD', state.env, state.transport),
+  await rejects(beginRestoreLock('alice', 'g', restoreId, 'CAD', [], state.env, state.transport),
     (error: unknown) => error instanceof RestoreLockError && error.status === 403);
   strictEqual(state.commits, 0);
   strictEqual(state.rollbacks, 1);

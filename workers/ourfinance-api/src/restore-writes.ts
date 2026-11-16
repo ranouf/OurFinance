@@ -89,9 +89,9 @@ export function buildRestoreWrites(value: GroupExportV2, live: LiveRestoreInvent
     createdAt: time(row.createdAt), ...(row.undoneAt ? { undoneAt: time(row.undoneAt) } : {}),
   });
   writes.push({ update: { name: `${root}/${groupPath}/restoreJobs/${restoreId}`, fields: {
-    ownerId: string(ownerId), status: string('cleanup_pending'), createdAt: time(now),
+    status: string('cleanup_pending'),
     oldPublicIds: array(live.receiptPublicIds.map(string)), newPublicIds: array(staged.map(row => string(row.publicId))),
-  } }, currentDocument: { exists: false } });
+  } }, updateMask: { fieldPaths: ['status', 'oldPublicIds', 'newPublicIds'] }, currentDocument: { exists: true } });
   if (new TextEncoder().encode(JSON.stringify({ writes })).byteLength > 8_000_000) throw new Error('Restauration trop volumineuse pour une transaction');
   return { writes, previousReceiptPublicIds: live.receiptPublicIds };
 }

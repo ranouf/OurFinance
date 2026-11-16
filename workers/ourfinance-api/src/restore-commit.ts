@@ -57,11 +57,18 @@ export async function commitGroupRestoreV2(
       return response.status === 404 ? null : await checked(response);
     };
     const group = await read(`groups/${groupId}`);
+    const job = await read(`groups/${groupId}/restoreJobs/${restoreId}`);
     const groupFields = group?.['fields'] as Record<string, { stringValue?: string }> | undefined;
+    const jobFields = job?.['fields'] as Record<string, { stringValue?: string; arrayValue?: { values?: { stringValue?: string }[] } }> | undefined;
     if (groupFields?.['status']?.stringValue !== 'restoring' || groupFields['restoreId']?.stringValue !== restoreId ||
         groupFields['restoreOwnerId']?.stringValue !== uid || groupFields['ownerId']?.stringValue !== uid ||
         (groupFields['currencyCode']?.stringValue ?? groupFields['currency']?.stringValue) !== backup.group.currency) {
       throw new RestoreCommitError(409, 'group_changed');
+    }
+    const expectedAssets = jobFields?.['newPublicIds']?.arrayValue?.values?.map(value => value.stringValue) ?? [];
+    if (jobFields?.['ownerId']?.stringValue !== uid || jobFields['status']?.stringValue !== 'staging' ||
+        expectedAssets.length !== staged.length || expectedAssets.some((id, index) => id !== staged[index].publicId)) {
+      throw new RestoreCommitError(409, 'restore_job_changed');
     }
     const liveMemberPaths = live.groupDocuments.filter(path => path.startsWith(`groups/${groupId}/members/`));
     if (liveMemberPaths.length !== backup.members.length || backup.members.some(row => !liveMemberPaths.includes(`groups/${groupId}/members/${row.userId}`))) {
