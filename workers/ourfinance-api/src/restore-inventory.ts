@@ -15,8 +15,8 @@ type Field = { stringValue?: string };
 type Document = { name?: string; fields?: Record<string, Field> };
 
 /** Owner-only read transaction; no restoration write is issued here. */
-export async function collectLiveRestoreInventory(uid: string, groupId: string, env: RestoreInventoryEnv, transport: typeof fetch = fetch): Promise<LiveRestoreInventory> {
-  if (!idPattern.test(uid) || !idPattern.test(groupId)) throw new RestoreInventoryError(400, 'invalid_path');
+export async function collectLiveRestoreInventory(uid: string, groupId: string, env: RestoreInventoryEnv, transport: typeof fetch = fetch, restoreId?: string): Promise<LiveRestoreInventory> {
+  if (!idPattern.test(uid) || !idPattern.test(groupId) || (restoreId !== undefined && !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(restoreId))) throw new RestoreInventoryError(400, 'invalid_path');
   const root = `projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents`;
   const token = await serviceAccessToken(env.FIREBASE_SERVICE_ACCOUNT_JSON, env.FIREBASE_PROJECT_ID, transport);
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
@@ -75,7 +75,10 @@ export async function collectLiveRestoreInventory(uid: string, groupId: string, 
     };
     const group = await read(`groups/${groupId}`);
     const caller = await read(`groups/${groupId}/members/${uid}`);
-    if (group?.fields?.['status']?.stringValue !== 'active' || caller?.fields?.['status']?.stringValue !== 'active' || caller.fields['role']?.stringValue !== 'owner') throw new RestoreInventoryError(403, 'owner_required');
+    const expectedStatus = restoreId ? 'restoring' : 'active';
+    if (group?.fields?.['status']?.stringValue !== expectedStatus ||
+        (restoreId && group.fields['restoreId']?.stringValue !== restoreId) ||
+        caller?.fields?.['status']?.stringValue !== 'active' || caller.fields['role']?.stringValue !== 'owner') throw new RestoreInventoryError(403, 'owner_required');
     const groupCollections = ['members', 'categories', 'expenses', 'settlements', 'importedRecords', 'activity', 'balances', 'statistics', 'invitations'];
     await assertCollections(`groups/${groupId}`, new Set(groupCollections));
     const pages = await Promise.all(groupCollections.map(name => list(`groups/${groupId}/${name}`)));

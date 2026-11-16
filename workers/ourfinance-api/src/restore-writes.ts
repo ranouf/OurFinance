@@ -37,7 +37,8 @@ export function buildRestoreWrites(value: GroupExportV2, live: LiveRestoreInvent
   const groupPath = `groups/${backup.group.id}`;
   for (const path of diff.deleteGroupDocuments) remove(path);
   for (const path of diff.deleteUserDocuments) remove(path);
-  writes.push({ update: { name: `${root}/${groupPath}`, fields: { name: string(backup.group.name), status: string('active') } }, updateMask: { fieldPaths: ['name', 'status'] } });
+  writes.push({ update: { name: `${root}/${groupPath}`, fields: { name: string(backup.group.name), status: string('active') } },
+    updateMask: { fieldPaths: ['name', 'status', 'restoreId', 'restoreOwnerId', 'restoringAt'] } });
   const authors = new Map(backup.expenseAuthors.map(row => [row.expenseId, row.userId]));
   for (const row of backup.expenses) update(`${groupPath}/expenses/${row.id}`, {
     date: string(row.date), description: string(row.description), currency: string(row.currency), amountMinor: integer(row.amountMinor),

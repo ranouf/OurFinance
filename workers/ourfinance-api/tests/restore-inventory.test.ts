@@ -3,7 +3,7 @@ import { deepStrictEqual, rejects, strictEqual } from 'node:assert';
 import { generateKeyPair, exportPKCS8 } from 'jose';
 import { collectLiveRestoreInventory, RestoreInventoryError } from '../src/restore-inventory';
 
-async function fixture(role: 'owner' | 'member' = 'owner', unknownCollection = false) {
+async function fixture(role: 'owner' | 'member' = 'owner', unknownCollection = false, restoring = false) {
   const { privateKey } = await generateKeyPair('RS256', { extractable: true });
   const env = { FIREBASE_PROJECT_ID: 'ourfinance-test', FIREBASE_SERVICE_ACCOUNT_JSON: JSON.stringify({
     project_id: 'ourfinance-test', client_email: 'test@ourfinance-test.iam.gserviceaccount.com', private_key: await exportPKCS8(privateKey),
@@ -18,7 +18,8 @@ async function fixture(role: 'owner' | 'member' = 'owner', unknownCollection = f
     const path = url.pathname.slice(`/v1/${root}/`.length);
     if (path === 'groups/g:listCollectionIds') return Response.json({ collectionIds: unknownCollection ? ['expenses', 'unexpected'] : ['members', 'expenses'] });
     if (path === 'groups/g/expenses/e:listCollectionIds') return Response.json({ collectionIds: ['attachments'] });
-    if (path === 'groups/g') return Response.json({ fields: { status: { stringValue: 'active' } } });
+    if (path === 'groups/g') return Response.json({ fields: { status: { stringValue: restoring ? 'restoring' : 'active' },
+      ...(restoring ? { restoreId: { stringValue: '123e4567-e89b-42d3-a456-426614174000' } } : {}) } });
     if (path === 'groups/g/members/alice') return Response.json({ fields: { status: { stringValue: 'active' }, role: { stringValue: role } } });
     if (path === 'groups/g/members') return Response.json({ documents: [{ name: `${root}/groups/g/members/alice` }] });
     if (path === 'groups/g/expenses') return Response.json({ documents: [{ name: `${root}/groups/g/expenses/e` }] });
@@ -51,4 +52,12 @@ test('unknown group subcollection blocks a destructive restore inventory', async
   await rejects(collectLiveRestoreInventory('alice', 'g', state.env, state.transport),
     (error: unknown) => error instanceof RestoreInventoryError && error.code === 'unknown_collection');
   strictEqual(state.rollbacks, 1);
+});
+
+test('locked inventory requires the exact restore ID', async () => {
+  const state = await fixture('owner', false, true);
+  await rejects(collectLiveRestoreInventory('alice', 'g', state.env, state.transport),
+    (error: unknown) => error instanceof RestoreInventoryError && error.status === 403);
+  const result = await collectLiveRestoreInventory('alice', 'g', state.env, state.transport, '123e4567-e89b-42d3-a456-426614174000');
+  strictEqual(result.groupDocuments.includes('groups/g'), true);
 });
