@@ -1,0 +1,7 @@
+# M6 — format de préférences de sauvegarde V2
+
+`serializeGroupExportV2` prépare un schéma JSON distinct de l’export V1 existant. Il reprend les données du groupe à devise unique validées par V1 et exige **une ligne de préférence pour chaque membre**, dans le même ordre, y compris une ligne `null` quand ce membre n’a jamais enregistré de répartition. Les membres révoqués restent dans l’instantané historique ; leur préférence ne leur redonne aucun accès.
+
+Une préférence conserve `modeJson`, `memberIds` et `updatedAt`. Le sérialiseur vérifie les cinq modes de partage, les membres référencés, les montants ou poids entiers et les pourcentages totalisant 100 %. Il ne sérialise que les champs déclarés. Ce format ne contient aucun compte Auth, secret ni média ; les reçus sont toujours des métadonnées dans le JSON.
+
+**Ce code ne produit pas encore un téléchargement V2.** Les règles Firestore limitent la lecture des préférences personnelles à leur propriétaire : le navigateur ne peut pas collecter celles des autres membres. Une future route Worker autorisée et transactionnelle doit collecter chaque document, puis assembler le paquet et son manifeste avec les octets des reçus. Il faudra ensuite un parcours de restauration avec confirmation explicite, remplacement du groupe d’origine, restauration des préférences de chaque membre, contrôle de l’appartenance et essai fictif complet. L’export V1 actuel reste clairement partiel et ne doit pas être présenté comme une sauvegarde restaurable.
