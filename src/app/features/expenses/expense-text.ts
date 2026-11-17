@@ -25,6 +25,8 @@ const messages = {
     addReceipt: 'Ajouter un reçu', refresh: 'Actualiser', receipt: 'Reçu', view: 'Voir', noReceipts: 'Aucun reçu.',
     closeReceipt: 'Fermer le reçu', receiptsUnavailable: 'Reçus indisponibles.', receiptAdded: 'Reçu ajouté.',
     receiptAddFailed: 'Ajout impossible.', receiptReadFailed: 'Lecture impossible.', receiptRemoved: 'Reçu supprimé.', receiptRemoveFailed: 'Suppression impossible.',
+    invalidCurrencyAmount: 'Montant invalide pour cette devise', amountTooHigh: 'Montant trop élevé', invalidPayer: 'Montant ou payeur invalide',
+    chooseActiveMembers: 'Choisissez des membres actifs', positiveInteger: 'Entrez un entier positif', valueTooHigh: 'Valeur trop élevée', invalidPercentage: 'Pourcentage invalide',
   },
   en: {
     newExpense: 'New expense', editExpense: 'Edit expense', authorOnly: 'Only the author can edit this expense.',
@@ -50,6 +52,8 @@ const messages = {
     addReceipt: 'Add receipt', refresh: 'Refresh', receipt: 'Receipt', view: 'View', noReceipts: 'No receipts.',
     closeReceipt: 'Close receipt', receiptsUnavailable: 'Receipts unavailable.', receiptAdded: 'Receipt added.',
     receiptAddFailed: 'Could not add receipt.', receiptReadFailed: 'Could not open receipt.', receiptRemoved: 'Receipt removed.', receiptRemoveFailed: 'Could not delete receipt.',
+    invalidCurrencyAmount: 'Invalid amount for this currency', amountTooHigh: 'Amount is too high', invalidPayer: 'Invalid amount or payer',
+    chooseActiveMembers: 'Choose active members', positiveInteger: 'Enter a positive whole number', valueTooHigh: 'Value is too high', invalidPercentage: 'Invalid percentage',
   },
   ja: {
     newExpense: '新しい支出', editExpense: '支出を編集', authorOnly: 'この支出を編集できるのは作成者のみです。',
@@ -75,11 +79,22 @@ const messages = {
     addReceipt: '領収書を追加', refresh: '更新', receipt: '領収書', view: '表示', noReceipts: '領収書はありません。',
     closeReceipt: '領収書を閉じる', receiptsUnavailable: '領収書を取得できません。', receiptAdded: '領収書を追加しました。',
     receiptAddFailed: '領収書を追加できません。', receiptReadFailed: '領収書を開けません。', receiptRemoved: '領収書を削除しました。', receiptRemoveFailed: '領収書を削除できません。',
+    invalidCurrencyAmount: 'この通貨の金額が無効です', amountTooHigh: '金額が大きすぎます', invalidPayer: '金額または支払った人が無効です',
+    chooseActiveMembers: '有効なメンバーを選んでください', positiveInteger: '正の整数を入力してください', valueTooHigh: '値が大きすぎます', invalidPercentage: '割合が無効です',
   },
 } as const;
 
 export type ExpenseTextKey = keyof typeof messages.fr;
 export function expenseText(key: ExpenseTextKey): string { return messages[language()][key]; }
+const sourceErrors: Readonly<Record<string, ExpenseTextKey>> = {
+  'Montant invalide pour cette devise': 'invalidCurrencyAmount',
+  'Montant trop élevé': 'amountTooHigh',
+  'Montant ou payeur invalide': 'invalidPayer',
+  'Choisissez des membres actifs': 'chooseActiveMembers',
+  'Entrez un entier positif': 'positiveInteger',
+  'Valeur trop élevée': 'valueTooHigh',
+  'Pourcentage invalide': 'invalidPercentage',
+};
 export function expenseMessage(value: string): string {
-  return value in messages.fr ? expenseText(value as ExpenseTextKey) : value;
+  return value in messages.fr ? expenseText(value as ExpenseTextKey) : sourceErrors[value] ? expenseText(sourceErrors[value]) : value;
 }
