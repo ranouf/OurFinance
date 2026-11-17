@@ -1,17 +1,17 @@
 import { validateGroupExportV1, type GroupExportV1 } from './export-v1';
 
-type CsvRow = readonly [string, string, string, string, string, number, string, number, number, number, string, string, string, string];
+type CsvRow = readonly [string, string, string, string, string, number | string, string, number | string, number | string, number | string, string, string, string, string, string, string, string];
 
 const header = [
   'Type', 'ID', 'Date', 'Description', 'Devise', 'Montant mineur', 'Membre ID',
   'Payé mineur', 'Dû mineur', 'Impact net mineur', 'Répartition', 'Statut',
-  'Catégorie ID', 'Catégorie',
+  'Catégorie ID', 'Catégorie', 'Coût source exact', 'Précision source', 'Impact net exact',
 ];
 
 /** Quotes CSV cells and neutralizes spreadsheet formulas in text fields. */
 const cell = (value: string | number): string => {
   const raw = String(value);
-  const safe = typeof value === 'string' && /^\s*[=+\-@]/.test(raw) ? `'${raw}` : raw;
+  const safe = typeof value === 'string' && /^\s*[=+\-@]/.test(raw) && !/^-?\d{1,30}(?:\.\d{1,12})?$/.test(raw) ? `'${raw}` : raw;
   return `"${safe.replaceAll('"', '""')}"`;
 };
 
@@ -40,20 +40,25 @@ export function serializeGroupLedgerCsvV1(group: GroupExportV1): string {
       const owedMinor = owed.get(userId) ?? 0;
       rows.push(['expense', expense.id, expense.date, expense.description, expense.currency, expense.amountMinor,
         userId, paidMinor, owedMinor, difference(paidMinor, owedMinor), 'determined', expense.deleted ? 'deleted' : 'active',
-        expense.categoryId, expense.categoryLabel]);
+        expense.categoryId, expense.categoryLabel, '', '', '']);
     }
   }
   for (const settlement of group.settlements) {
     const status = settlement.deleted ? 'deleted' : settlement.status;
     rows.push(['settlement', settlement.id, settlement.date, '', settlement.currency, settlement.amountMinor,
-      settlement.fromUserId, 0, 0, settlement.amountMinor, '', status, '', '']);
+      settlement.fromUserId, 0, 0, settlement.amountMinor, '', status, '', '', '', '', '']);
     rows.push(['settlement', settlement.id, settlement.date, '', settlement.currency, settlement.amountMinor,
-      settlement.toUserId, 0, 0, -settlement.amountMinor, '', status, '', '']);
+      settlement.toUserId, 0, 0, -settlement.amountMinor, '', status, '', '', '', '', '']);
   }
   for (const imported of group.importedRecords) {
-    for (const [userId, impact] of Object.entries(imported.netImpactsMinor)) {
-      rows.push(['import', imported.id, imported.date, imported.description, imported.currency, imported.amountMinor,
-        userId, 0, 0, impact, 'undetermined', imported.status, '', '']);
+    if ('sourceCostExact' in imported) {
+      for (const [userId, impact] of Object.entries(imported.netImpactsExact!)) {
+        rows.push(['import', imported.id, imported.date, imported.description, imported.currency, '',
+          userId, '', '', '', 'undetermined', imported.status, '', '', imported.sourceCostExact!, String(imported.sourcePrecision!), impact]);
+      }
+    } else for (const [userId, impact] of Object.entries(imported.netImpactsMinor!)) {
+      rows.push(['import', imported.id, imported.date, imported.description, imported.currency, imported.amountMinor!,
+        userId, 0, 0, impact, 'undetermined', imported.status, '', '', '', '', '']);
     }
   }
   rows.sort((left, right) => left[2].localeCompare(right[2]) || left[0].localeCompare(right[0]) ||

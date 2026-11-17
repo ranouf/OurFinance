@@ -81,3 +81,15 @@ test('V2 requires each import batch and its exact archived record IDs', () => {
   throws(() => serializeGroupExportV2({ ...withImport, importBatches: [] }));
   throws(() => serializeGroupExportV2({ ...withImport, importBatches: [{ ...batch, recordIds: ['other'] }] }));
 });
+
+test('V2 retains exact historical fractions in a zero-decimal currency', () => {
+  const record = { id: 'native_record', sourceId: 'synthetic-exact-001', batchId: 'batch', date: '2026-11-01',
+    description: 'Trajet fictif', currency: 'JPY', sourceCostExact: '101.50', sourcePrecision: 2,
+    netImpactsExact: { alice: '50.75', bob: '-50.75' }, splitStatus: 'undetermined' as const, status: 'active' as const };
+  const batch = { id: 'batch', ownerId: 'alice', status: 'active' as const, source: 'splitwise_csv' as const,
+    recordIds: ['native_record'], createdAt: exportedAt, undoneAt: null };
+  const value = { ...fixture, group: { ...fixture.group, currency: 'JPY' }, importedRecords: [record], importBatches: [batch] };
+  const serialized = JSON.parse(serializeGroupExportV2(value)) as GroupExportV2;
+  deepStrictEqual(serialized.importedRecords[0], record);
+  strictEqual('amountMinor' in serialized.importedRecords[0], false);
+});

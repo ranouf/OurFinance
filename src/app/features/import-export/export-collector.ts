@@ -65,6 +65,14 @@ const impacts = (data: Record<string, unknown>): Record<string, number> => {
     return [userId, amount as number];
   }));
 };
+const exactImpacts = (data: Record<string, unknown>): Record<string, string> => {
+  const value = data['netImpactsExact'];
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Impacts exacts absents de l’export');
+  return Object.fromEntries(Object.entries(value).map(([userId, amount]) => {
+    if (typeof amount !== 'string') throw new Error('Impact exact invalide');
+    return [userId, amount];
+  }));
+};
 
 /** Produces a metadata-only group JSON; rejects missing pages or inconsistent records. */
 export async function collectGroupExportV1(reader: ExportReader, user: Pick<User, 'uid' | 'emailVerified'>, groupId: string, exportedAt = new Date().toISOString()): Promise<string> {
@@ -93,11 +101,22 @@ export async function collectGroupExportV1(reader: ExportReader, user: Pick<User
       id: item.id, date: text(item.data, 'date'), currency: text(item.data, 'currency'), amountMinor: integer(item.data, 'amountMinor'),
       fromUserId: text(item.data, 'fromUserId'), toUserId: text(item.data, 'toUserId'), status: oneOf(item.data, 'status', ['recorded'] as const), deleted: boolean(item.data, 'deleted'),
     })),
-    importedRecords: importedRecords.map(item => ({
+    importedRecords: importedRecords.map(item => {
+      const hasExactField = ['sourceCostExact', 'sourcePrecision', 'netImpactsExact']
+        .some(field => item.data[field] !== undefined);
+      if (hasExactField && (item.data['sourceCostExact'] === undefined || item.data['sourcePrecision'] === undefined ||
+          item.data['netImpactsExact'] === undefined || item.data['amountMinor'] !== undefined || item.data['netImpactsMinor'] !== undefined)) {
+        throw new Error('Enregistrement historique ambigu');
+      }
+      return {
       id: item.id, sourceId: text(item.data, 'sourceId'), batchId: text(item.data, 'batchId'), date: text(item.data, 'date'),
-      description: text(item.data, 'description'), currency: text(item.data, 'currency'), amountMinor: integer(item.data, 'amountMinor'),
-      netImpactsMinor: impacts(item.data), splitStatus: text(item.data, 'splitStatus') as 'undetermined', status: text(item.data, 'status') as 'active' | 'undone',
-    })),
+      description: text(item.data, 'description'), currency: text(item.data, 'currency'),
+      ...(hasExactField
+        ? { sourceCostExact: text(item.data, 'sourceCostExact'), sourcePrecision: integer(item.data, 'sourcePrecision'), netImpactsExact: exactImpacts(item.data) }
+        : { amountMinor: integer(item.data, 'amountMinor'), netImpactsMinor: impacts(item.data) }),
+      splitStatus: text(item.data, 'splitStatus') as 'undetermined', status: text(item.data, 'status') as 'active' | 'undone',
+      };
+    }),
     categories: categories.map(item => ({ id: item.id, name: text(item.data, 'name'), iconId: text(item.data, 'iconId'), color: text(item.data, 'color'), status: oneOf(item.data, 'status', ['active', 'archived'] as const) })),
     receipts: receiptPages.flatMap((page, index) => page.map(item => ({
       expenseId: expenses[index].id, attachmentId: item.id, format: oneOf(item.data, 'format', ['jpg', 'png'] as const), status: oneOf(item.data, 'status', ['active', 'deleted'] as const), mediaIncluded: false as const,

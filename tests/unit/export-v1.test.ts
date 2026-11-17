@@ -20,6 +20,21 @@ test('versioned group export preserves exact minor units and declares media abse
   strictEqual(json.includes('"amountMinor": 101'), true);
 });
 
+test('preserves historical source decimals without minor-unit rounding', () => {
+  const exact = { ...fixture, group: { ...fixture.group, currency: 'JPY' }, expenses: [], settlements: [], receipts: [],
+    importedRecords: [{ id: 'native_1', sourceId: 'native-example-1', batchId: 'batch_1', date: '2026-11-01',
+      description: 'Trajet fictif', currency: 'JPY', sourceCostExact: '101.50', sourcePrecision: 2,
+      netImpactsExact: { member_a: '50.75', member_b: '-50.75' }, splitStatus: 'undetermined', status: 'active' }],
+  } as const satisfies GroupExportV1;
+  const record = JSON.parse(serializeGroupExportV1(exact)).importedRecords[0];
+  deepStrictEqual(record.netImpactsExact, { member_a: '50.75', member_b: '-50.75' });
+  strictEqual(record.sourceCostExact, '101.50');
+  strictEqual('amountMinor' in record, false);
+  throws(() => serializeGroupExportV1({ ...exact, importedRecords: [{ ...exact.importedRecords[0], sourcePrecision: 0 }] }));
+  throws(() => serializeGroupExportV1({ ...exact, importedRecords: [{ ...exact.importedRecords[0], netImpactsExact: { member_a: '50.75', member_b: '-50.74' } }] }));
+  throws(() => serializeGroupExportV1({ ...exact, importedRecords: [{ ...exact.importedRecords[0], amountMinor: 102 } as never] }));
+});
+
 test('refuses inconsistent money, members and receipt references', () => {
   throws(() => serializeGroupExportV1({ ...fixture, expenses: [{ ...fixture.expenses[0], allocations: [{ userId: 'member_b', amountMinor: 100 }] }] }));
   throws(() => serializeGroupExportV1({ ...fixture, settlements: [{ ...fixture.settlements[0], toUserId: 'outsider' }] }));

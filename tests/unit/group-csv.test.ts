@@ -29,6 +29,16 @@ test('CSV report keeps exact minor units, settlement direction and historical un
   strictEqual(csv.includes('publicId'), false);
 });
 
+test('CSV report puts exact historical decimals in separate columns without rounding', () => {
+  const exact: GroupExportV1 = { ...fixture, importedRecords: [{ id: 'native_1', sourceId: 'native-example-1', batchId: 'batch_1',
+    date: '2026-11-01', description: 'Trajet fictif', currency: 'CAD', sourceCostExact: '101.50', sourcePrecision: 2,
+    netImpactsExact: { alex: '50.75', camille: '-50.75' }, splitStatus: 'undetermined', status: 'active' }] };
+  const csv = serializeGroupLedgerCsvV1(exact);
+  strictEqual(csv.includes('"Coût source exact","Précision source","Impact net exact"'), true);
+  strictEqual(csv.includes('"import","native_1","2026-11-01","Trajet fictif","CAD","","alex","","","","undetermined","active","","","101.50","2","50.75"'), true);
+  strictEqual(csv.includes('"-50.75"'), true);
+});
+
 test('CSV report refuses an unbalanced source and marks logical deletion', () => {
   throws(() => serializeGroupLedgerCsvV1({ ...fixture, expenses: [{ ...fixture.expenses[0], amountMinor: 102 }] }));
   const deleted = serializeGroupLedgerCsvV1({ ...fixture, expenses: [{ ...fixture.expenses[0], deleted: true }] });

@@ -17,11 +17,7 @@ export interface GroupExportV1 {
     readonly id: string; readonly date: string; readonly currency: string; readonly amountMinor: number;
     readonly fromUserId: string; readonly toUserId: string; readonly status: 'recorded'; readonly deleted: boolean;
   }[];
-  readonly importedRecords: readonly {
-    readonly id: string; readonly sourceId: string; readonly batchId: string; readonly date: string; readonly description: string;
-    readonly currency: string; readonly amountMinor: number; readonly netImpactsMinor: Readonly<Record<string, number>>;
-    readonly splitStatus: 'undetermined'; readonly status: 'active' | 'undone';
-  }[];
+  readonly importedRecords: readonly ImportedRecordExport[];
   readonly categories: readonly { readonly id: string; readonly name: string; readonly iconId: string; readonly color: string; readonly status: 'active' | 'archived' }[];
   readonly receipts: readonly {
     readonly expenseId: string; readonly attachmentId: string; readonly format: 'jpg' | 'png'; readonly status: 'active' | 'deleted';
@@ -30,12 +26,28 @@ export interface GroupExportV1 {
   }[];
 }
 
+interface ImportedRecordBase {
+  readonly id: string; readonly sourceId: string; readonly batchId: string; readonly date: string; readonly description: string;
+  readonly currency: string; readonly splitStatus: 'undetermined'; readonly status: 'active' | 'undone';
+}
+export type ImportedRecordExport = ImportedRecordBase & (
+  { readonly amountMinor: number; readonly netImpactsMinor: Readonly<Record<string, number>>; readonly sourceCostExact?: never; readonly sourcePrecision?: never; readonly netImpactsExact?: never } |
+  { readonly sourceCostExact: string; readonly sourcePrecision: number; readonly netImpactsExact: Readonly<Record<string, string>>; readonly amountMinor?: never; readonly netImpactsMinor?: never }
+);
+
 const id = /^[A-Za-z0-9_-]{1,128}$/;
 const currency = (value: string) => Intl.supportedValuesOf('currency').includes(value);
 const date = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value) && new Date(`${value}T00:00:00.000Z`).toISOString().slice(0, 10) === value;
 const unique = (values: readonly string[]) => new Set(values).size === values.length;
 const amount = (value: number) => Number.isSafeInteger(value) && value > 0;
 const sum = (values: readonly number[]) => values.reduce((total, value) => total + BigInt(value), 0n);
+const exactDecimal = /^-?\d{1,30}(?:\.\d{1,12})?$/;
+const exactUnits = (value: string, precision: number): bigint => {
+  const [whole, fraction = ''] = value.replace(/^-/, '').split('.');
+  if (fraction.length > precision) throw new Error('Précision historique incohérente');
+  const units = BigInt(whole) * 10n ** BigInt(precision) + BigInt(fraction.padEnd(precision, '0') || '0');
+  return value.startsWith('-') ? -units : units;
+};
 
 /** Refuses an incomplete or inconsistent snapshot before a JSON file can be offered. */
 export function validateGroupExportV1(value: GroupExportV1): void {
@@ -64,11 +76,23 @@ export function validateGroupExportV1(value: GroupExportV1): void {
         !memberIds.has(row.fromUserId) || !memberIds.has(row.toUserId) || row.fromUserId === row.toUserId) throw new Error(`Règlement ${row.id} incohérent`);
   }
   for (const row of value.importedRecords) {
-    const impacts = Object.entries(row.netImpactsMinor);
     if (!row.sourceId || !id.test(row.batchId) || !date(row.date) || !row.description.trim() || row.currency !== value.group.currency ||
-        !amount(row.amountMinor) || row.splitStatus !== 'undetermined' || !['active', 'undone'].includes(row.status) ||
-        !impacts.length || impacts.some(([userId, impact]) => !memberIds.has(userId) || !Number.isSafeInteger(impact)) ||
-        sum(impacts.map(([, impact]) => impact)) !== 0n) throw new Error(`Import ${row.id} incohérent`);
+        row.splitStatus !== 'undetermined' || !['active', 'undone'].includes(row.status)) throw new Error(`Import ${row.id} incohérent`);
+    if ('sourceCostExact' in row) {
+      const { sourceCostExact, sourcePrecision, netImpactsExact } = row;
+      if ('amountMinor' in row || 'netImpactsMinor' in row || typeof sourceCostExact !== 'string' || !exactDecimal.test(sourceCostExact) ||
+          !Number.isInteger(sourcePrecision) || sourcePrecision! < 0 || sourcePrecision! > 12 ||
+          !netImpactsExact || typeof netImpactsExact !== 'object' || Array.isArray(netImpactsExact)) throw new Error(`Import ${row.id} incohérent`);
+      const impacts = Object.entries(netImpactsExact);
+      if (!impacts.length || impacts.length > 20 || impacts.some(([userId, impact]) => !memberIds.has(userId) || typeof impact !== 'string' || !exactDecimal.test(impact)) ||
+          Math.max((sourceCostExact.split('.')[1] ?? '').length, ...impacts.map(([, impact]) => (impact.split('.')[1] ?? '').length)) !== sourcePrecision ||
+          exactUnits(sourceCostExact, sourcePrecision!) <= 0n || impacts.reduce((total, [, impact]) => total + exactUnits(impact, sourcePrecision!), 0n) !== 0n) throw new Error(`Import ${row.id} incohérent`);
+    } else {
+      const impacts = Object.entries(row.netImpactsMinor ?? {});
+      if ('netImpactsExact' in row || 'sourcePrecision' in row || !amount(row.amountMinor) ||
+          !impacts.length || impacts.some(([userId, impact]) => !memberIds.has(userId) || !Number.isSafeInteger(impact)) ||
+          sum(impacts.map(([, impact]) => impact)) !== 0n) throw new Error(`Import ${row.id} incohérent`);
+    }
   }
   if (value.categories.some(row => !row.name.trim() || !row.iconId.trim() || !row.color.trim() || !['active', 'archived'].includes(row.status))) throw new Error('Catégorie invalide');
   const expensesById = new Map(value.expenses.map(row => [row.id, row]));
@@ -98,8 +122,10 @@ export function serializeGroupExportV1(value: GroupExportV1): string {
       fromUserId: row.fromUserId, toUserId: row.toUserId, status: row.status, deleted: row.deleted,
     })),
     importedRecords: value.importedRecords.map(row => ({
-      id: row.id, sourceId: row.sourceId, batchId: row.batchId, date: row.date, description: row.description,
-      currency: row.currency, amountMinor: row.amountMinor, netImpactsMinor: Object.fromEntries(Object.entries(row.netImpactsMinor)),
+      id: row.id, sourceId: row.sourceId, batchId: row.batchId, date: row.date, description: row.description, currency: row.currency,
+      ...('sourceCostExact' in row
+        ? { sourceCostExact: row.sourceCostExact!, sourcePrecision: row.sourcePrecision!, netImpactsExact: Object.fromEntries(Object.entries(row.netImpactsExact!)) }
+        : { amountMinor: row.amountMinor!, netImpactsMinor: Object.fromEntries(Object.entries(row.netImpactsMinor!)) }),
       splitStatus: row.splitStatus, status: row.status,
     })),
     categories: value.categories.map(row => ({ id: row.id, name: row.name, iconId: row.iconId, color: row.color, status: row.status })),
