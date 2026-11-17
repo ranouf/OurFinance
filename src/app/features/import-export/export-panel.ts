@@ -16,29 +16,30 @@ type ExportKind = 'csv' | 'json' | 'zip';
   selector: 'app-export-panel',
   imports: [FormsModule],
   template: `
-    <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-5" [attr.aria-label]="t('exportGroup')">
-      <h2 class="text-lg font-semibold">{{ t('exportGroup') }}</h2>
-      <p class="mt-2 text-sm text-slate-700">{{ t('exportPartial') }}</p>
-      <div class="mt-4 space-y-3">
-        <label class="block text-sm font-medium">{{ t('group') }}
-          <select class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="exportGroup" [(ngModel)]="groupId">
+    <section class="mt-6 rounded-3xl border border-pop-border bg-pop-surface p-5 text-pop-text shadow-sm md:p-7" [attr.aria-label]="t('exportGroup')">
+      <div class="mb-5 h-1.5 w-14 rounded-full bg-pop-sun" aria-hidden="true"></div>
+      <h2 class="text-2xl font-extrabold tracking-tight">{{ t('exportGroup') }}</h2>
+      <p class="mt-1 text-sm text-pop-muted">{{ t('exportPartial') }}</p>
+      <div class="mt-5 space-y-4">
+        <label class="block text-sm font-bold">{{ t('group') }}
+          <select class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="exportGroup" [(ngModel)]="groupId">
             <option value="">{{ t('chooseGroup') }}</option>
             @for (group of groups; track group.id) { <option [value]="group.id">{{ group.name }}</option> }
           </select>
         </label>
-        <label class="block text-sm font-medium">{{ t('exportFormat') }}
-          <select class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="exportKind" [(ngModel)]="kind">
+        <label class="block text-sm font-bold">{{ t('exportFormat') }}
+          <select class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="exportKind" [(ngModel)]="kind">
             <option value="csv">{{ t('exportCsv') }}</option>
             <option value="json">{{ t('exportJson') }}</option>
             <option value="zip">{{ t('exportZip') }}</option>
           </select>
         </label>
-        @if (kind === 'zip') { <p class="text-sm text-amber-800">{{ t('exportPrivate') }}</p> }
-        <button class="rounded-lg bg-teal-700 px-4 py-2 text-white disabled:opacity-50" type="button"
+        @if (kind === 'zip') { <p class="rounded-xl bg-pop-peach p-3 text-sm text-pop-text">{{ t('exportPrivate') }}</p> }
+        <button class="min-h-11 rounded-xl bg-pop-primary px-5 py-2 font-bold text-white hover:bg-pop-primary-dark focus-visible:outline-2 focus-visible:outline-pop-primary disabled:opacity-50" type="button"
           [disabled]="busy() || !groupId || !user?.emailVerified" (click)="download()">
           {{ busy() ? t('exportPreparing') : t('exportDownload') }}
         </button>
-        @if (message(); as key) { <p class="text-sm" role="status">{{ t(key) }}</p> }
+        @if (message(); as key) { <p class="rounded-xl bg-pop-lavender p-3 text-sm" role="status">{{ t(key) }}</p> }
       </div>
     </section>
   `,
