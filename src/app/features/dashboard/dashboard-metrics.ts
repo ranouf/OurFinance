@@ -2,6 +2,7 @@ import { calculateBalances, type ExpenseLedgerEntry, type SettlementLedgerEntry 
 
 export interface DashboardMetrics {
   readonly balanceMinor: bigint;
+  readonly groupSpentMinor: bigint;
   readonly monthlySpentMinor: bigint;
   readonly monthlyPaidMinor: bigint;
 }
@@ -19,6 +20,7 @@ export function dashboardMetrics(
   const monthly = groupExpenses.filter(row => row.date.startsWith(`${month}-`));
   return {
     balanceMinor,
+    groupSpentMinor: groupExpenses.reduce((total, row) => total + BigInt(row.amountMinor), 0n),
     monthlySpentMinor: monthly.reduce((total, row) => total + BigInt(row.amountMinor), 0n),
     monthlyPaidMinor: monthly.reduce((total, row) => total + row.payments
       .filter(payment => payment.userId === userId)

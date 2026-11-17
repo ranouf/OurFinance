@@ -59,12 +59,16 @@ export class App implements OnInit, OnDestroy {
   readonly balanceBusy = signal(false);
   readonly balanceError = signal(false);
   readonly selectedBalanceMinor = signal<bigint>(0n);
+  readonly groupSpentMinor = signal<bigint>(0n);
   readonly monthlySpentMinor = signal<bigint>(0n);
   readonly monthlyPaidMinor = signal<bigint>(0n);
   readonly recentExpenses = signal<ExpenseHistoryEntry[]>([]);
   readonly recentExpensesBusy = signal(false);
   readonly recentExpensesError = signal(false);
   readonly selectedBalance = computed(() => this.selectedGroup() ? formatMinorExact(this.selectedBalanceMinor(), this.selectedGroup()!.currency, locale()) : '');
+  readonly groupSpent = computed(() => this.selectedGroup() ? formatMinorExact(this.groupSpentMinor(), this.selectedGroup()!.currency, locale()) : '');
+  readonly receivableAmount = computed(() => this.selectedGroup() ? formatMinorExact(this.selectedBalanceMinor() > 0n ? this.selectedBalanceMinor() : 0n, this.selectedGroup()!.currency, locale()) : '');
+  readonly payableAmount = computed(() => this.selectedGroup() ? formatMinorExact(this.selectedBalanceMinor() < 0n ? -this.selectedBalanceMinor() : 0n, this.selectedGroup()!.currency, locale()) : '');
   readonly monthlySpent = computed(() => this.selectedGroup() ? formatMinorExact(this.monthlySpentMinor(), this.selectedGroup()!.currency, locale()) : '');
   readonly monthlyPaid = computed(() => this.selectedGroup() ? formatMinorExact(this.monthlyPaidMinor(), this.selectedGroup()!.currency, locale()) : '');
   formatRecentExpense(entry: ExpenseHistoryEntry): string { return formatMinorExact(BigInt(entry.amountMinor), entry.currency, locale()); }
@@ -170,6 +174,7 @@ export class App implements OnInit, OnDestroy {
       const month = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
       const metrics = dashboardMetrics(entries.expenses, entries.settlements, group.id, group.currency, this.auth?.user()?.uid ?? '', month);
       this.selectedBalanceMinor.set(metrics.balanceMinor);
+      this.groupSpentMinor.set(metrics.groupSpentMinor);
       this.monthlySpentMinor.set(metrics.monthlySpentMinor);
       this.monthlyPaidMinor.set(metrics.monthlyPaidMinor);
     } catch {
