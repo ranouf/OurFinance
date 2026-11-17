@@ -112,7 +112,7 @@ export async function previewQrInvitation(token: unknown, uid: string, email: st
   const db = await store(env, transport);
   const { groupId, group, invitation, expiresAt } = await resolvedInvitation(db, token);
   const target = value(invitation, 'targetEmail');
-  if (target && target !== email.toLowerCase()) throw new QrInvitationError(403, 'invitation_unavailable');
+  if (target && target !== email.toLowerCase()) throw new QrInvitationError(403, 'email_mismatch');
   const member = await db.read(`groups/${groupId}/members/${uid}`);
   if (member) throw new QrInvitationError(value(member, 'status') === 'revoked' ? 403 : 409, 'already_member');
   return { groupName: value(group, 'name') ?? '', currency: value(group, 'currency') ?? value(group, 'currencyCode') ?? '', expiresAt };
@@ -124,7 +124,7 @@ export async function acceptQrInvitation(token: unknown, uid: string, email: str
   return withTransaction(db, async transaction => {
     const { groupId, invitationId, invitation, hash } = await resolvedInvitation(db, token, transaction);
     const target = value(invitation, 'targetEmail');
-    if (target && target !== email.toLowerCase()) throw new QrInvitationError(403, 'invitation_unavailable');
+    if (target && target !== email.toLowerCase()) throw new QrInvitationError(403, 'email_mismatch');
     const member = await db.read(`groups/${groupId}/members/${uid}`, transaction);
     if (member) throw new QrInvitationError(value(member, 'status') === 'revoked' ? 403 : 409, 'already_member');
     const now = new Date().toISOString();
