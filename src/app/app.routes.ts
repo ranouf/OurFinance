@@ -9,5 +9,6 @@ export const routes: Routes = [
   { path: 'expenses', loadComponent: () => import('./app-pages').then(m => m.ExpensesPage) },
   { path: 'statistics', loadComponent: () => import('./app-pages').then(m => m.StatisticsPage) },
   { path: 'account', loadComponent: () => import('./app-pages').then(m => m.AccountPage) },
+  { path: 'ui/components', loadComponent: () => import('./features/ui-components/ui-components-page').then(m => m.UiComponentsPage) },
   { path: '**', redirectTo: 'dashboard' },
 ];

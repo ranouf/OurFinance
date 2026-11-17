@@ -22,6 +22,8 @@ html { scroll-behavior: smooth; }
 :where(button:not(:disabled), a[href], select:not(:disabled)) { cursor: pointer; }
 button:disabled { cursor: not-allowed; }
 .login-page button:focus-visible { outline: 3px solid var(--color-pop-primary); outline-offset: 3px; }
+:where(input, select, textarea):focus { outline: 2px solid var(--color-pop-primary-dark); outline-offset: 2px; }
+:where(input, select, textarea)[aria-invalid="true"]:focus { outline-color: #b91c1c; }
 .dashboard-action { position: relative; display: flex; min-width: 0; min-height: 6.25rem; align-items: center; gap: .9rem; overflow: hidden; border: 2px solid #fff; border-radius: 1.8rem; padding: .85rem 1.1rem; box-shadow: 0 9px 22px #6a52ca29, inset 0 1px 0 #ffffffb8; transition: transform .15s ease, box-shadow .15s ease; }
 .dashboard-action:hover { transform: translateY(-3px); box-shadow: 0 13px 26px #6a52ca38, inset 0 1px 0 #ffffffb8; }
 .dashboard-action:focus-visible { outline: 3px solid var(--color-pop-primary-dark); outline-offset: 3px; }

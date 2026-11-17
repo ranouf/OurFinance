@@ -1,0 +1,66 @@
+<main class="mx-auto max-w-5xl space-y-6 px-4 py-8 text-pop-text sm:px-6">
+  <header>
+    <p class="text-sm font-extrabold uppercase tracking-widest text-pop-primary-dark">Everyday Pop</p>
+    <h1 class="mt-2 text-3xl font-black">{{ text[language()].title }}</h1>
+    <p class="mt-2 text-pop-muted">{{ text[language()].intro }}</p>
+  </header>
+
+  <section class="rounded-3xl border border-pop-border bg-white p-5 shadow-sm" [attr.aria-label]="text[language()].buttons">
+    <h2 class="text-xl font-extrabold">{{ text[language()].buttons }}</h2>
+    <div class="mt-4 flex flex-wrap items-center gap-3">
+      <app-ui-button>{{ text[language()].primary }}</app-ui-button>
+      <app-ui-button variant="secondary">{{ text[language()].secondary }}</app-ui-button>
+      <app-ui-button variant="danger">{{ text[language()].danger }}</app-ui-button>
+      <app-ui-button [disabled]="true">{{ text[language()].disabled }}</app-ui-button>
+      <app-ui-button [loading]="true">{{ text[language()].loading }}</app-ui-button>
+    </div>
+  </section>
+
+  <section class="rounded-3xl border border-pop-border bg-white p-5 shadow-sm" [attr.aria-label]="text[language()].fields">
+    <h2 class="text-xl font-extrabold">{{ text[language()].fields }}</h2>
+    <div class="mt-4 grid gap-5 sm:grid-cols-2">
+      <app-ui-field controlId="gallery-name" [label]="text[language()].name" [hint]="text[language()].nameHint">
+        <input id="gallery-name" class="min-h-11 w-full rounded-xl bg-transparent px-3 outline-none" type="text" autocomplete="off" aria-describedby="gallery-name-hint" />
+      </app-ui-field>
+      <app-ui-field controlId="gallery-error" [label]="text[language()].email" [error]="text[language()].emailError">
+        <input id="gallery-error" class="min-h-11 w-full rounded-xl bg-transparent px-3 outline-none" type="email" autocomplete="email" aria-invalid="true" aria-describedby="gallery-error-error" value="incorrect" />
+      </app-ui-field>
+      <app-ui-field controlId="gallery-currency" [label]="text[language()].currency">
+        <select id="gallery-currency" class="min-h-11 w-full rounded-xl bg-transparent px-3 outline-none"><option>CAD</option><option>EUR</option><option>JPY</option></select>
+      </app-ui-field>
+      <app-ui-field controlId="gallery-details" [label]="text[language()].details">
+        <textarea id="gallery-details" class="min-h-20 w-full resize-y rounded-xl bg-transparent px-3 py-2 outline-none"></textarea>
+      </app-ui-field>
+    </div>
+  </section>
+
+  <section class="rounded-3xl border border-pop-border bg-white p-5 shadow-sm" [attr.aria-label]="text[language()].alerts">
+    <h2 class="text-xl font-extrabold">{{ text[language()].alerts }}</h2>
+    <div class="mt-4 grid gap-3 sm:grid-cols-3">
+      <app-ui-alert>{{ text[language()].info }}</app-ui-alert>
+      <app-ui-alert variant="success">{{ text[language()].success }}</app-ui-alert>
+      <app-ui-alert variant="error">{{ text[language()].error }}</app-ui-alert>
+    </div>
+  </section>
+
+  <section class="rounded-3xl border border-pop-border bg-white p-5 shadow-sm" [attr.aria-label]="text[language()].badges">
+    <h2 class="text-xl font-extrabold">{{ text[language()].badges }}</h2>
+    <div class="mt-4 flex flex-wrap gap-3">
+      <app-ui-badge>{{ text[language()].active }}</app-ui-badge>
+      <app-ui-badge tone="positive">{{ text[language()].receivable }}</app-ui-badge>
+      <app-ui-badge tone="negative">{{ text[language()].payable }}</app-ui-badge>
+    </div>
+  </section>
+
+  <section class="rounded-3xl border border-pop-border bg-white p-5 shadow-sm" [attr.aria-label]="text[language()].qr">
+    <h2 class="text-xl font-extrabold">{{ text[language()].qr }}</h2>
+    <div class="mt-4">
+      <app-invite-qr-code link="https://example.invalid/invitation/fictive" [width]="160" [label]="text[language()].qrLabel" [copyLabel]="text[language()].copy" [shareLabel]="text[language()].share" [copiedLabel]="text[language()].copied" [failedLabel]="text[language()].copyFailed" />
+    </div>
+  </section>
+
+  <section class="rounded-3xl border border-pop-border bg-white p-5 shadow-sm">
+    <h2 class="text-xl font-extrabold">{{ text[language()].patterns }}</h2>
+    <p class="mt-2 text-sm text-pop-muted">{{ text[language()].patternsText }}</p>
+  </section>
+</main>

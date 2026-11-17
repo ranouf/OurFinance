@@ -1,0 +1,17 @@
+<button
+  class="inline-flex min-h-11 items-center justify-center rounded-xl border px-5 py-2.5 text-sm font-extrabold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pop-primary-dark disabled:cursor-not-allowed disabled:opacity-50"
+  [class.border-pop-primary]="variant === 'primary'"
+  [class.bg-pop-primary]="variant === 'primary'"
+  [class.text-white]="variant === 'primary' || variant === 'danger'"
+  [class.hover:bg-pop-primary-dark]="variant === 'primary'"
+  [class.border-pop-border]="variant === 'secondary'"
+  [class.bg-white]="variant === 'secondary'"
+  [class.text-pop-primary-dark]="variant === 'secondary'"
+  [class.hover:bg-pop-lavender]="variant === 'secondary'"
+  [class.border-red-700]="variant === 'danger'"
+  [class.bg-red-700]="variant === 'danger'"
+  [class.hover:bg-red-800]="variant === 'danger'"
+  [type]="type"
+  [disabled]="disabled || loading"
+  [attr.aria-busy]="loading || null"
+><ng-content /></button>

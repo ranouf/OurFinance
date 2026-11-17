@@ -1,0 +1,13 @@
+<div
+  class="rounded-xl border p-4 text-sm"
+  [class.border-red-300]="variant === 'error'"
+  [class.bg-red-50]="variant === 'error'"
+  [class.text-red-900]="variant === 'error'"
+  [class.border-emerald-300]="variant === 'success'"
+  [class.bg-emerald-50]="variant === 'success'"
+  [class.text-emerald-900]="variant === 'success'"
+  [class.border-pop-border]="variant === 'info'"
+  [class.bg-pop-lavender]="variant === 'info'"
+  [class.text-pop-text]="variant === 'info'"
+  [attr.role]="variant === 'error' ? 'alert' : 'status'"
+><ng-content /></div>
