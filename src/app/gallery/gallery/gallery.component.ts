@@ -19,11 +19,11 @@ const galleryText = {
 } as const;
 
 @Component({
-  selector: 'app-ui-components-page',
+  selector: 'app-gallery',
   imports: [InviteQrCode, UiAlert, UiBadge, UiButton, UiField],
-  templateUrl: './ui-components-page.html',
+  templateUrl: './gallery.component.html',
 })
-export class UiComponentsPage {
+export class GalleryComponent {
   readonly language = language;
   readonly text = galleryText;
 }

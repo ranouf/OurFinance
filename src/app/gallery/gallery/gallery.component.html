@@ -5,7 +5,7 @@
     <p class="mt-2 text-pop-muted">{{ text[language()].intro }}</p>
   </header>
 
-  <section class="rounded-3xl border border-pop-border bg-white p-5 shadow-sm" [attr.aria-label]="text[language()].buttons">
+  <section id="buttons" class="scroll-mt-6 rounded-3xl border border-pop-border bg-white p-5 shadow-sm" [attr.aria-label]="text[language()].buttons">
     <h2 class="text-xl font-extrabold">{{ text[language()].buttons }}</h2>
     <div class="mt-4 flex flex-wrap items-center gap-3">
       <app-ui-button>{{ text[language()].primary }}</app-ui-button>
@@ -16,7 +16,7 @@
     </div>
   </section>
 
-  <section class="rounded-3xl border border-pop-border bg-white p-5 shadow-sm" [attr.aria-label]="text[language()].fields">
+  <section id="fields" class="scroll-mt-6 rounded-3xl border border-pop-border bg-white p-5 shadow-sm" [attr.aria-label]="text[language()].fields">
     <h2 class="text-xl font-extrabold">{{ text[language()].fields }}</h2>
     <div class="mt-4 grid gap-5 sm:grid-cols-2">
       <app-ui-field controlId="gallery-name" [label]="text[language()].name" [hint]="text[language()].nameHint">
@@ -34,7 +34,7 @@
     </div>
   </section>
 
-  <section class="rounded-3xl border border-pop-border bg-white p-5 shadow-sm" [attr.aria-label]="text[language()].alerts">
+  <section id="alerts" class="scroll-mt-6 rounded-3xl border border-pop-border bg-white p-5 shadow-sm" [attr.aria-label]="text[language()].alerts">
     <h2 class="text-xl font-extrabold">{{ text[language()].alerts }}</h2>
     <div class="mt-4 grid gap-3 sm:grid-cols-3">
       <app-ui-alert>{{ text[language()].info }}</app-ui-alert>
@@ -43,7 +43,7 @@
     </div>
   </section>
 
-  <section class="rounded-3xl border border-pop-border bg-white p-5 shadow-sm" [attr.aria-label]="text[language()].badges">
+  <section id="badges" class="scroll-mt-6 rounded-3xl border border-pop-border bg-white p-5 shadow-sm" [attr.aria-label]="text[language()].badges">
     <h2 class="text-xl font-extrabold">{{ text[language()].badges }}</h2>
     <div class="mt-4 flex flex-wrap gap-3">
       <app-ui-badge>{{ text[language()].active }}</app-ui-badge>
@@ -52,14 +52,14 @@
     </div>
   </section>
 
-  <section class="rounded-3xl border border-pop-border bg-white p-5 shadow-sm" [attr.aria-label]="text[language()].qr">
+  <section id="qr" class="scroll-mt-6 rounded-3xl border border-pop-border bg-white p-5 shadow-sm" [attr.aria-label]="text[language()].qr">
     <h2 class="text-xl font-extrabold">{{ text[language()].qr }}</h2>
     <div class="mt-4">
       <app-invite-qr-code link="https://example.invalid/invitation/fictive" [width]="160" [label]="text[language()].qrLabel" [copyLabel]="text[language()].copy" [shareLabel]="text[language()].share" [copiedLabel]="text[language()].copied" [failedLabel]="text[language()].copyFailed" />
     </div>
   </section>
 
-  <section class="rounded-3xl border border-pop-border bg-white p-5 shadow-sm">
+  <section id="navigation" class="scroll-mt-6 rounded-3xl border border-pop-border bg-white p-5 shadow-sm">
     <h2 class="text-xl font-extrabold">{{ text[language()].patterns }}</h2>
     <p class="mt-2 text-sm text-pop-muted">{{ text[language()].patternsText }}</p>
   </section>
