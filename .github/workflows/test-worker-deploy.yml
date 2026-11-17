@@ -104,14 +104,31 @@ jobs:
           test -n "$CLOUDFLARE_API_TOKEN"
           test -n "$CLOUDFLARE_ACCOUNT_ID"
           npx --yes wrangler@4.164.0 deploy --config workers/ourfinance-api/wrangler.ci.toml
-      - name: Verify health and disabled restore route
+      - name: Verify health and privileged routes disabled by default
         run: |
           base='https://ourfinance-api-dev.ur-inance.workers.dev'
+          routes=(
+            'POST /groups/ci-disabled/expenses'
+            'POST /groups/ci-disabled/settlements'
+            'POST /groups/ci-disabled/imports'
+            'POST /groups/ci-disabled/categories'
+            'POST /groups/ci-disabled/qr-invitations'
+            'POST /qr-invitations/preview'
+            'POST /groups/ci-disabled/expenses/e/attachments'
+            'GET /groups/ci-disabled/member-profiles'
+            'GET /groups/ci-disabled/backup/snapshot'
+            'GET /groups/ci-disabled/backup/restores/current'
+          )
           for attempt in 1 2 3 4 5 6; do
             health="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' "$base/health")"
-            disabled="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' "$base/groups/ci-disabled/backup/restores/current")"
-            if [[ "$health" == 200 && "$disabled" == 503 ]]; then exit 0; fi
+            failed=''
+            for route in "${routes[@]}"; do
+              read -r method path <<< "$route"
+              status="$(curl --silent --show-error --request "$method" --output /dev/null --write-out '%{http_code}' "$base$path")"
+              if [[ "$status" != 503 ]]; then failed="$method $path: $status"; break; fi
+            done
+            if [[ "$health" == 200 && -z "$failed" ]]; then exit 0; fi
             sleep 5
           done
-          echo "TEST Worker smoke failed: health=$health, restore=$disabled" >&2
+          echo "TEST Worker smoke failed: health=$health, route=$failed" >&2
           exit 1
