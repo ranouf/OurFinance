@@ -22,7 +22,7 @@ import { expenseMessage, expenseText } from './expense-text';
       <h2 class="text-2xl font-extrabold tracking-tight">{{ editing ? text('editExpense') : text('newExpense') }}</h2>
       @if (editing) { <p class="mt-1 text-sm text-pop-muted">{{ text('authorOnly') }}</p> }
       <p class="mt-2 text-sm leading-6 text-pop-muted">{{ text('splitHelp') }}</p>
-      <form class="mt-6 grid gap-4 md:grid-cols-2" (ngSubmit)="save()">
+      <form class="mt-6 grid gap-4" (ngSubmit)="save()">
         <label class="block text-sm font-bold">{{ text('group') }}
           <select class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 text-pop-text focus-visible:outline-2 focus-visible:outline-pop-primary" name="group" [(ngModel)]="selectedGroupId" (ngModelChange)="loadGroup()" [disabled]="!!editing" required>
             <option value="">{{ text('chooseGroup') }}</option>
@@ -30,10 +30,10 @@ import { expenseMessage, expenseText } from './expense-text';
           </select>
         </label>
         @if (selectedGroupId) {
-          <label class="block text-sm font-bold md:col-span-2">{{ text('description') }}
+          <label class="block text-sm font-bold">{{ text('description') }}
             <input class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 text-pop-text focus-visible:outline-2 focus-visible:outline-pop-primary" name="description" [(ngModel)]="draft.description" maxlength="160" required />
           </label>
-          <div class="grid gap-3 sm:grid-cols-2 md:col-span-2">
+          <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
             <label class="block text-sm font-bold">{{ text('amount') }}
               <input class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 text-lg font-extrabold text-pop-text focus-visible:outline-2 focus-visible:outline-pop-primary" name="amount" [(ngModel)]="draft.amount" inputmode="decimal" placeholder="0,00" required />
             </label>
@@ -55,7 +55,7 @@ import { expenseMessage, expenseText } from './expense-text';
                 @for (member of members(); track member.userId) { <option [value]="member.userId">{{ member.userId === user?.uid ? text('me') : member.userId }}</option> }
               </select>
             </label>
-            <fieldset class="rounded-2xl border border-pop-border bg-pop-lavender p-4 md:col-span-2">
+            <fieldset class="rounded-2xl border border-pop-border bg-pop-lavender p-4">
               <legend class="px-2 text-sm font-extrabold text-pop-primary-dark">{{ text('split') }}</legend>
               <select class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 text-pop-text focus-visible:outline-2 focus-visible:outline-pop-primary" name="mode" [(ngModel)]="draft.kind" (ngModelChange)="clearValues()" [attr.aria-label]="text('splitMethod')">
                 <option value="equal">{{ text('equal') }}</option><option value="exact">{{ text('exact') }}</option><option value="percentage">{{ text('percentage') }}</option><option value="shares">{{ text('shares') }}</option><option value="adjustment">{{ text('adjustment') }}</option>
@@ -75,9 +75,9 @@ import { expenseMessage, expenseText } from './expense-text';
                 </ul>
               }
             </fieldset>
-            <button class="min-h-11 w-full rounded-xl bg-pop-primary px-5 py-3 font-extrabold text-white shadow-sm hover:bg-pop-primary-dark focus-visible:outline-2 focus-visible:outline-pop-primary disabled:opacity-50 md:col-span-2" type="submit" [disabled]="busy()">{{ editing ? text('saveEdit') : text('save') }}</button>
-            @if (editing) { <button class="min-h-11 w-full rounded-xl border border-pop-border px-4 py-3 font-bold text-pop-text md:col-span-2" type="button" (click)="editCancelled.emit()">{{ text('cancelEdit') }}</button> }
-          } @else { <p class="text-sm text-pop-muted md:col-span-2">{{ text('noMembers') }}</p> }
+            <button class="min-h-11 w-full rounded-xl bg-pop-primary px-5 py-3 font-extrabold text-white shadow-sm hover:bg-pop-primary-dark focus-visible:outline-2 focus-visible:outline-pop-primary disabled:opacity-50" type="submit" [disabled]="busy()">{{ editing ? text('saveEdit') : text('save') }}</button>
+            @if (editing) { <button class="min-h-11 w-full rounded-xl border border-pop-border px-4 py-3 font-bold text-pop-text" type="button" (click)="editCancelled.emit()">{{ text('cancelEdit') }}</button> }
+          } @else { <p class="text-sm text-pop-muted">{{ text('noMembers') }}</p> }
         }
       </form>
       @if (message()) { <p class="mt-4 rounded-xl bg-pop-lavender p-3 text-sm text-pop-text" role="status">{{ displayMessage(message()) }}</p> }
@@ -89,6 +89,7 @@ export class ExpenseForm implements OnChanges {
   @Output() readonly saved = new EventEmitter<void>();
   @Output() readonly editCancelled = new EventEmitter<void>();
   @Input({ required: true }) groups: Group[] = [];
+  @Input() preferredGroupId = '';
   @Input({ required: true }) user?: User;
   @Input({ required: true }) firebaseApp?: FirebaseApp;
   @Input({ required: true }) workerUrl?: string;
@@ -117,6 +118,10 @@ export class ExpenseForm implements OnChanges {
     if (this.firebaseApp && this.workerUrl) {
       this.service = new ExpenseService(this.firebaseApp, this.workerUrl);
       this.categoryService = new CategoryService(this.firebaseApp, this.workerUrl);
+    }
+    if (!this.editing && !this.selectedGroupId && this.groups.some(group => group.id === this.preferredGroupId)) {
+      this.selectedGroupId = this.preferredGroupId;
+      void this.loadGroup();
     }
     if (changes['categoryRevision'] && !changes['categoryRevision'].firstChange && this.selectedGroupId) void this.loadCategories().catch(() => this.message.set('categoriesUnavailable'));
     if (changes['editing']) {
