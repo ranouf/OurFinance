@@ -77,7 +77,11 @@ import { language, locale, setLanguage, t } from './shared/utils/i18n';
                       }
                     </div>
                   }
-                  <a class="relative mt-5 flex min-h-11 w-fit items-center rounded-xl bg-pop-coral px-4 font-extrabold text-pop-text focus-visible:outline-2 focus-visible:outline-white" href="#new-expense">{{ t('navAdd') }}</a>
+                  @if (selectedGroup()) {
+                    <a class="relative mt-5 flex min-h-11 w-fit items-center rounded-xl bg-pop-coral px-4 font-extrabold text-pop-text focus-visible:outline-2 focus-visible:outline-white" href="#new-expense">{{ t('navAdd') }}</a>
+                  } @else if (groupServiceReady()) {
+                    <a class="relative mt-5 flex min-h-11 w-fit items-center rounded-xl bg-pop-coral px-4 font-extrabold text-pop-text focus-visible:outline-2 focus-visible:outline-white" href="#create-group">{{ t('createGroup') }}</a>
+                  }
                 </div>
               </div>
               <div class="mt-7 flex flex-wrap items-center justify-between gap-3">
@@ -113,7 +117,7 @@ import { language, locale, setLanguage, t } from './shared/utils/i18n';
                 }
               }
               @if (groupServiceReady()) {
-                <form class="mt-6 space-y-3 rounded-2xl border border-pop-border bg-white p-5" (ngSubmit)="createGroup()">
+                <form id="create-group" class="mt-6 space-y-3 rounded-2xl border border-pop-border bg-white p-5" (ngSubmit)="createGroup()">
                   <label class="block text-sm">{{ t('groupName') }}
                     <input class="mt-1 min-h-11 w-full rounded-xl border border-pop-border p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="groupName" [(ngModel)]="groupName" maxlength="80" required />
                   </label>
