@@ -11,6 +11,7 @@ export interface NativeSplitwiseRow {
 }
 
 export interface NativeSplitwiseCsv {
+  readonly currency: string;
   readonly participants: readonly string[];
   readonly rows: readonly NativeSplitwiseRow[];
   readonly balances: Readonly<Record<string, string>>;
@@ -45,13 +46,14 @@ export function parseNativeSplitwiseCsv(input: string): NativeSplitwiseCsv {
   if (participants.some(value => !value) || new Set(participants).size !== participants.length) throw new Error('Participants invalides');
   const rows: NativeSplitwiseRow[] = [];
   let balances: Readonly<Record<string, string>> = {};
+  let currency = '';
   const body = lines.slice(headerIndex + 1);
   for (const [index, raw] of body.entries()) {
     if (raw.length !== header.length) throw new Error(`Ligne ${headerIndex + index + 2} : nombre de colonnes invalide`);
     const values = raw.map(value => value.trim());
     const impacts = Object.fromEntries(participants.map((person, position) => [person, values[position + 5]]));
     if (index === body.length - 1 && !values[3] && validDate(values[0])) {
-      if (Object.values(impacts).some(value => !decimal.test(value))) throw new Error('Soldes Splitwise invalides');
+      if (values[4] !== currency || Object.values(impacts).some(value => !decimal.test(value))) throw new Error('Soldes Splitwise invalides');
       balances = impacts;
       continue;
     }
@@ -63,9 +65,12 @@ export function parseNativeSplitwiseCsv(input: string): NativeSplitwiseCsv {
     if (Object.values(impacts).reduce((sum, value) => sum + scaled(value, digits), 0n) !== 0n) {
       throw new Error(`Ligne ${headerIndex + index + 2} : impacts non équilibrés`);
     }
+    if (currency && values[4] !== currency) throw new Error(`Ligne ${headerIndex + index + 2} : devise incohérente`);
+    currency = values[4];
     rows.push({ date: values[0], description: values[1], category: values[2], cost: values[3], currency: values[4], impacts });
   }
-  return { participants, rows, balances };
+  if (!rows.length || !Object.keys(balances).length) throw new Error('Transactions ou solde final absents');
+  return { currency, participants, rows, balances };
 }
 
 /** Compares the native final balance with transaction impacts at source precision. */

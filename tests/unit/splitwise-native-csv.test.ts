@@ -28,3 +28,8 @@ test('refuse une transaction dont les impacts exacts ne sont pas équilibrés', 
   const csv = 'Date,Description,Catégorie,Coût,Devise,Alice,Bob\n2026-11-01,Trajet fictif,Transport,101.50,JPY,50.75,-50.74';
   throws(() => parseNativeSplitwiseCsv(csv), /impacts non équilibrés/);
 });
+
+test('refuse un fichier mélangeant plusieurs devises', () => {
+  const csv = 'Date,Description,Catégorie,Coût,Devise,Alice,Bob\n2026-11-01,Trajet fictif,Transport,10.00,CAD,5.00,-5.00\n2026-11-02,Repas fictif,Restaurant,10.00,EUR,5.00,-5.00\n2026-11-16,Solde total,Total, ,CAD,10.00,-10.00';
+  throws(() => parseNativeSplitwiseCsv(csv), /devise incohérente/);
+});
