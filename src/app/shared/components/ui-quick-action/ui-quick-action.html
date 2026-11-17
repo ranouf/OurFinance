@@ -1,11 +1,11 @@
-<button type="button" class="gallery-quick-action" [class.gallery-quick-action-coral]="kind === 'add'" (click)="activated.emit()">
+<button type="button" class="gallery-quick-action" [class.gallery-quick-action-coral]="kind === 'add'" [disabled]="disabled" (click)="activated.emit()">
   <span class="gallery-quick-action-icon" aria-hidden="true">
     @switch (kind) {
-      @case ('add') { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><path d="M12 4v16M4 12h16" /></svg> }
-      @case ('invite') { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2M19 8v7m-3.5-3.5h7"/></svg> }
-      @case ('balance') { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h4l3 4h4l3-4h4m0 0-3-3m3 3-3 3M3 17h4l3-4h4l3 4h4m0 0-3-3m3 3-3 3"/></svg> }
+      @case ('add') { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><use href="/illustrations/lucide-actions.svg#plus" /></svg> }
+      @case ('invite') { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="/illustrations/lucide-actions.svg#user-round-plus" /></svg> }
+      @case ('balance') { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="/illustrations/lucide-actions.svg#shuffle" /></svg> }
     }
   </span>
   <strong>{{ label }}</strong>
-  @if (kind === 'invite') { <span class="ml-auto text-xl" aria-hidden="true">▦</span> }
+  @if (kind === 'invite') { <svg class="gallery-quick-action-qr ml-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="/illustrations/lucide-actions.svg#qr-code" /></svg> }
 </button>

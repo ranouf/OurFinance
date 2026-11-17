@@ -17,16 +17,26 @@
         <section class="dashboard-cloud relative mt-3 overflow-hidden rounded-[1.8rem] bg-pop-primary text-white shadow-[0_12px_30px_#6455ec30] sm:mt-5" [attr.aria-label]="t('myBalance')">
           <div class="relative min-h-44 px-5 pb-20 pt-5 sm:hidden">
             <div class="relative z-10 max-w-[54%]"><p class="text-xl font-black leading-tight">{{ t('dashboardHello') }}{{ app.firstName() ? ' ' + app.firstName() : '' }} ! 👋</p><p class="mt-2 text-xs text-white/90">{{ t('dashboardIntro') }}</p><p class="mt-3 text-xs font-bold">{{ group.name }} · {{ group.currency }}</p></div>
-            <img class="pointer-events-none absolute inset-0 h-full w-full origin-left scale-[1.38] object-cover object-left opacity-90" src="/illustrations/cafe-hero-mobile.webp" alt="" />
-            <div class="pointer-events-none absolute inset-0 bg-gradient-to-r from-pop-primary via-pop-primary/85 to-transparent"></div>
+            <img class="pointer-events-none absolute inset-0 h-full w-full origin-right scale-[1.6] object-cover object-right opacity-95" src="/illustrations/cafe-hero-mobile.webp" alt="" />
+            <div class="pointer-events-none absolute inset-0 bg-gradient-to-r from-pop-primary via-pop-primary/50 to-transparent"></div>
           </div>
           <div class="hidden min-h-64 grid-cols-[52%_48%] sm:grid">
             <div class="relative overflow-hidden"><img class="absolute inset-0 h-full w-full object-cover object-[16%_45%]" src="/illustrations/cafe-hero-mobile.webp" alt="" /><div class="absolute inset-y-0 right-0 w-20 bg-gradient-to-r from-transparent to-pop-primary"></div></div>
             <div class="flex min-w-0 flex-col justify-center px-5 py-6 lg:px-8"><p class="text-xs font-bold uppercase tracking-wider text-white/75">{{ t('myGroups') }} · {{ group.currency }}</p><h1 class="mt-1 break-words text-2xl font-black lg:text-4xl">{{ group.name }}</h1><p class="mt-2 text-sm text-white/80">{{ group.memberCount ?? 1 }} {{ t('membersCount') }}</p>
+              <div class="mt-2 flex -space-x-2" [attr.aria-label]="t('whoOwes')">
+                @for (item of app.dashboardMemberBalances(); track item.userId) {
+                  @if (app.dashboardMemberName(item.userId); as name) {
+                    <span class="group relative flex size-9 items-center justify-center rounded-full border-2 border-white bg-pop-peach text-sm font-black text-pop-primary-dark shadow-md outline-none focus-visible:ring-2 focus-visible:ring-pop-sun" tabindex="0" [attr.aria-label]="name + ' · ' + memberBalanceLabel(item.balanceMinor) + ' ' + app.formatDashboardMinor(item.balanceMinor)">
+                      {{ name.slice(0, 1).toLocaleUpperCase() }}
+                      <span class="pointer-events-none absolute bottom-full left-0 mb-2 hidden min-w-max rounded-xl bg-pop-text px-3 py-2 text-xs font-bold text-white shadow-lg group-hover:block group-focus:block">{{ name }} · {{ memberBalanceLabel(item.balanceMinor) }} {{ app.formatDashboardMinor(item.balanceMinor) }}</span>
+                    </span>
+                  }
+                }
+              </div>
               @if (app.balanceBusy()) { <p class="mt-5" role="status">{{ t('loadingBalances') }}</p> } @else if (app.balanceError()) { <p class="mt-5" role="status">{{ t('balancesUnavailable') }}</p> } @else { <div class="mt-5 grid grid-cols-2 gap-3"><div><span class="block text-xs text-white/80">{{ t('myBalance') }}</span><strong class="text-xl lg:text-2xl">{{ app.selectedBalance() }}</strong></div><div><span class="block text-xs text-white/80">{{ t('groupTotal') }}</span><strong class="text-xl lg:text-2xl">{{ app.groupSpent() }}</strong></div><div><span class="block text-xs text-white/80">{{ t('totalRepayments') }}</span><strong class="text-xl lg:text-2xl">{{ app.settlementTotal() }}</strong></div></div> }
             </div>
           </div>
-          <div class="absolute bottom-3 right-3 z-10 flex -space-x-2 sm:bottom-4 sm:right-4" [attr.aria-label]="t('whoOwes')">
+          <div class="absolute bottom-3 right-3 z-10 flex -space-x-2 sm:hidden" [attr.aria-label]="t('whoOwes')">
             @for (item of app.dashboardMemberBalances(); track item.userId) {
               @if (app.dashboardMemberName(item.userId); as name) {
                 <span class="group relative flex size-9 items-center justify-center rounded-full border-2 border-white bg-pop-peach text-sm font-black text-pop-primary-dark shadow-md outline-none focus-visible:ring-2 focus-visible:ring-pop-sun" tabindex="0" [attr.aria-label]="name + ' · ' + memberBalanceLabel(item.balanceMinor) + ' ' + app.formatDashboardMinor(item.balanceMinor)">
@@ -43,9 +53,9 @@
         <a class="mt-2 flex min-h-11 items-center justify-center rounded-2xl bg-pop-lavender text-sm font-extrabold text-pop-primary-dark sm:hidden" routerLink="/groups">+ {{ t('createGroup') }}</a>
         <div class="flex flex-col">
         <nav class="mt-5 grid gap-3 sm:grid-cols-3" [attr.aria-label]="t('quickActions')">
-          <a class="dashboard-action dashboard-action-coral" routerLink="/expenses"><span class="dashboard-action-icon dashboard-action-icon-coral" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none"><path d="M24 10v28M10 24h28" stroke="currentColor" stroke-width="5" stroke-linecap="round" /></svg></span><strong>{{ t('addExpenseAction') }}</strong></a>
-          <a class="dashboard-action dashboard-action-lavender" routerLink="/groups"><span class="dashboard-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 21a8 8 0 0 1 13.292-6"/><circle cx="10" cy="8" r="5"/><path d="M19 16v6"/><path d="M22 19h-6"/></svg></span><strong>{{ t('inviteQrAction') }}</strong><svg class="dashboard-action-qr" viewBox="0 0 36 36" fill="none" aria-hidden="true"><path d="M2 2h12v12H2zM22 2h12v12H22zM2 22h12v12H2z" stroke="currentColor" stroke-width="3"/><path d="M22 22h4v4h-4zM30 22h4v4h-4zM22 30h4v4h-4zM30 30h4v4h-4z" fill="currentColor"/></svg></a>
-          <a class="dashboard-action dashboard-action-lavender" routerLink="/statistics"><span class="dashboard-action-icon" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none"><path d="M11 16h25l-6-6m6 6-6 6M37 32H12l6-6m-6 6 6 6" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span><strong>{{ t('settleAction') }}</strong></a>
+          <a class="dashboard-action dashboard-action-coral" routerLink="/expenses"><span class="dashboard-action-icon dashboard-action-icon-coral" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><use href="/illustrations/lucide-actions.svg#plus" /></svg></span><strong>{{ t('addExpenseAction') }}</strong></a>
+          <a class="dashboard-action dashboard-action-lavender" routerLink="/groups"><span class="dashboard-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="/illustrations/lucide-actions.svg#user-round-plus" /></svg></span><strong>{{ t('inviteQrAction') }}</strong><svg class="dashboard-action-qr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="/illustrations/lucide-actions.svg#qr-code" /></svg></a>
+          <a class="dashboard-action dashboard-action-lavender" routerLink="/statistics"><span class="dashboard-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="/illustrations/lucide-actions.svg#shuffle" /></svg></span><strong>{{ t('settleAction') }}</strong></a>
         </nav>
         <div class="order-1 mt-5 grid gap-4 sm:order-2 lg:grid-cols-3">
           <section class="order-2 min-w-0 rounded-[1.7rem] border border-pop-border bg-white p-4 shadow-[0_9px_25px_#6455ec12] lg:order-1" [attr.aria-label]="t('whoOwes')">
@@ -101,4 +111,5 @@
           </div>
         </section>
       }
+      <img class="pointer-events-none mt-5 w-full" src="/illustrations/paris-footer.svg" alt="" aria-hidden="true" />
     </div>

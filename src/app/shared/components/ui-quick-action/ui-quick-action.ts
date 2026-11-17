@@ -4,5 +4,6 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
 export class UiQuickAction {
   @Input({ required: true }) label = '';
   @Input() kind: 'add' | 'invite' | 'balance' = 'add';
+  @Input() disabled = false;
   @Output() activated = new EventEmitter<void>();
 }
