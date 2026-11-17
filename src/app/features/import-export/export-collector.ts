@@ -102,13 +102,16 @@ export async function collectGroupExportV1(reader: ExportReader, user: Pick<User
       fromUserId: text(item.data, 'fromUserId'), toUserId: text(item.data, 'toUserId'), status: oneOf(item.data, 'status', ['recorded'] as const), deleted: boolean(item.data, 'deleted'),
     })),
     importedRecords: importedRecords.map(item => {
-      if (item.data['sourceCostExact'] !== undefined && (item.data['amountMinor'] !== undefined || item.data['netImpactsMinor'] !== undefined)) {
+      const hasExactField = ['sourceCostExact', 'sourcePrecision', 'netImpactsExact']
+        .some(field => item.data[field] !== undefined);
+      if (hasExactField && (item.data['sourceCostExact'] === undefined || item.data['sourcePrecision'] === undefined ||
+          item.data['netImpactsExact'] === undefined || item.data['amountMinor'] !== undefined || item.data['netImpactsMinor'] !== undefined)) {
         throw new Error('Enregistrement historique ambigu');
       }
       return {
       id: item.id, sourceId: text(item.data, 'sourceId'), batchId: text(item.data, 'batchId'), date: text(item.data, 'date'),
       description: text(item.data, 'description'), currency: text(item.data, 'currency'),
-      ...(item.data['sourceCostExact'] !== undefined
+      ...(hasExactField
         ? { sourceCostExact: text(item.data, 'sourceCostExact'), sourcePrecision: integer(item.data, 'sourcePrecision'), netImpactsExact: exactImpacts(item.data) }
         : { amountMinor: integer(item.data, 'amountMinor'), netImpactsMinor: impacts(item.data) }),
       splitStatus: text(item.data, 'splitStatus') as 'undetermined', status: text(item.data, 'status') as 'active' | 'undone',

@@ -55,6 +55,13 @@ test('refuses an imported document with both exact and legacy money fields', asy
   await rejects(collectGroupExportV1(ambiguous, user, 'group_test'), /ambigu/);
 });
 
+test('refuses a partial exact variant rather than exporting it as legacy money', async () => {
+  const partial: ExportReader = { ...reader, list: async path => path === `${root}/importedRecords` ? [
+    { ...collections[path][0], data: { ...collections[path][0].data, sourcePrecision: 2 } },
+  ] : reader.list(path) };
+  await rejects(collectGroupExportV1(partial, user, 'group_test'), /ambigu/);
+});
+
 test('refuses unverified users, missing category snapshot and membership revoked during collection', async () => {
   await rejects(collectGroupExportV1(reader, { ...user, emailVerified: false }, 'group_test'));
   const invalid: ExportReader = { ...reader, list: async path => path === `${root}/expenses` ? [{ ...collections[path][0], data: { ...collections[path][0].data, categoryLabel: undefined } }] : reader.list(path) };
