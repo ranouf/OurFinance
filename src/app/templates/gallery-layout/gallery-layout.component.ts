@@ -1,5 +1,5 @@
 import { Component } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { RouterLink, RouterOutlet } from '@angular/router';
 import { language } from '../../shared/utils/i18n';
 
 const labels = {
@@ -10,7 +10,7 @@ const labels = {
 
 @Component({
   selector: 'app-gallery-layout',
-  imports: [RouterOutlet],
+  imports: [RouterLink, RouterOutlet],
   templateUrl: './gallery-layout.component.html',
 })
 export class GalleryLayoutComponent {
