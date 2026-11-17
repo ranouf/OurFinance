@@ -14,3 +14,11 @@ const messages = {
 
 export type ImportTextKey = keyof typeof messages.fr;
 export function importText(key: ImportTextKey): string { return messages[language()][key]; }
+
+const errors = {
+  fr: { file: 'Fichier CSV invalide.', row: 'Champs requis ou montant invalide.', impacts: 'Impacts invalides ou non équilibrés.' },
+  en: { file: 'Invalid CSV file.', row: 'Required fields or amount are invalid.', impacts: 'Impacts are invalid or unbalanced.' },
+  ja: { file: 'CSVファイルが無効です。', row: '必須項目または金額が無効です。', impacts: '純増減が無効か、合計がゼロではありません。' },
+} as const;
+
+export function importErrorText(key: keyof typeof errors.fr): string { return errors[language()][key]; }

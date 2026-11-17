@@ -12,7 +12,7 @@ import { parseCsv } from './csv';
 import { FirebaseExportReader } from './export-collector';
 import { previewMappedCsv, type ImportPreviewV1, type ImportRecordV1 } from './import-v1';
 import { ImportService } from './import-service';
-import { importText, type ImportTextKey } from './import-text';
+import { importErrorText, importText, type ImportTextKey } from './import-text';
 import { prepareImportBatch } from './prepare-batch';
 import { reconcileImpacts, type Reconciliation } from './reconcile';
 
@@ -97,7 +97,7 @@ interface ActiveBatch { readonly id: string; readonly recordCount: number; }
           }
           @if (result.errors.length || result.duplicateIds.length) {
             <ul class="mt-4 list-inside list-disc text-sm text-rose-700">
-              @for (error of result.errors; track $index) { <li>{{ error }}</li> }
+              @for (error of result.errors; track $index) { <li>{{ rowError(error) }}</li> }
               @for (id of result.duplicateIds; track $index) { <li>{{ text('duplicates') }} : {{ id }}</li> }
             </ul>
           }
@@ -175,14 +175,19 @@ export class ImportPanel {
   otherGroupCount(): number { return this.preview()?.records.filter(record => record.groupId !== this.sourceGroupId).length ?? 0; }
   amount(value: number): string { return formatMinorExact(BigInt(value), this.selectedGroup()?.currency ?? 'CAD', locale()); }
   minor(value: string): string { return formatMinorExact(BigInt(value), this.selectedGroup()?.currency ?? 'CAD', locale()); }
-  displayMessage(): string { return this.message() in { importedOk: true, importFailed: true, undone: true, undoFailed: true, unavailable: true } ? this.text(this.message() as ImportTextKey) : this.message(); }
+  displayMessage(): string { return this.message() === 'invalidFile' ? importErrorText('file') : this.text(this.message() as ImportTextKey); }
+  rowError(error: string): string {
+    const row = /^Ligne (\d+) :/.exec(error);
+    return row ? `${this.text('row')} ${row[1]} : ${importErrorText(error.includes('impacts') ? 'impacts' : 'row')}` : importErrorText('file');
+  }
   clearPreview(): void { this.preview.set(null); this.reconciliation.set(null); this.impactHeaders.set(this.impactHeaders().filter(header => this.impactCandidates().includes(header))); }
 
   async loadFile(event: Event): Promise<void> {
     this.clearPreview(); this.headers.set([]); this.csv = ''; this.message.set('');
     const file = (event.target as HTMLInputElement).files?.[0];
     if (!file) return;
-    if (file.size > 10_000_000) { this.message.set(this.text('fileTooLarge')); return; }
+    if (!file.name.toLowerCase().endsWith('.csv')) { this.message.set('invalidFile'); return; }
+    if (file.size > 10_000_000) { this.message.set('fileTooLarge'); return; }
     try {
       this.csv = await file.text();
       const headers = parseCsv(this.csv)[0];
@@ -190,7 +195,7 @@ export class ImportPanel {
       this.headers.set(headers);
       const defaults: Record<ColumnKey, string> = { sourceId: 'Source ID', groupId: 'Group ID', date: 'Date', description: 'Description', amountMinor: 'Amount Minor', currency: 'Currency' };
       for (const key of Object.keys(defaults) as ColumnKey[]) this.mapping[key] = headers.find(header => header.toLowerCase() === defaults[key].toLowerCase()) ?? '';
-    } catch (error) { this.message.set(error instanceof Error ? error.message : this.text('fileMissing')); }
+    } catch { this.message.set('invalidFile'); }
   }
 
   async loadGroup(): Promise<void> {
@@ -219,8 +224,8 @@ export class ImportPanel {
 
   preparePreview(): void {
     this.clearPreview(); this.message.set('');
-    if (!this.csv) { this.message.set(this.text('fileMissing')); return; }
-    if (Object.values(this.mapping).some(value => !value) || new Set(Object.values(this.mapping)).size !== this.fields.length || this.impactHeaders().length < 2) { this.message.set(this.text('mappingMissing')); return; }
+    if (!this.csv) { this.message.set('fileMissing'); return; }
+    if (Object.values(this.mapping).some(value => !value) || new Set(Object.values(this.mapping)).size !== this.fields.length || this.impactHeaders().length < 2) { this.message.set('mappingMissing'); return; }
     try {
       const rows = parseCsv(this.csv);
       const groupColumn = rows[0].indexOf(this.mapping.groupId);
@@ -232,7 +237,7 @@ export class ImportPanel {
       this.sourceGroupId = this.sourceGroups()[0] ?? '';
       this.excludeForeign = false;
       this.recompute();
-    } catch (error) { this.message.set(error instanceof Error ? error.message : this.text('unavailable')); }
+    } catch { this.message.set('invalidFile'); }
   }
 
   recompute(): void {
@@ -241,7 +246,7 @@ export class ImportPanel {
     try {
       const expected = this.impactHeaders().map(header => ({ groupId: this.sourceGroupId, currency: this.selectedGroup()!.currency, userId: header, balanceMinor: String(parseMinor(this.expected[header], this.selectedGroup()!.currency, true)) }));
       this.reconciliation.set(reconcileImpacts(this.compatibleRecords(), expected));
-    } catch { this.message.set(this.text('missingExpected')); }
+    } catch { this.message.set('missingExpected'); }
   }
 
   canImport(): boolean {
