@@ -97,7 +97,7 @@ export class LoginPage { readonly app = inject(App); readonly t = t; }
         <p class="mt-6 rounded-2xl border border-pop-border bg-white p-6" role="alert">{{ t('groupsUnavailable') }}</p>
       } @else if (app.selectedGroup(); as group) {
         <section class="relative mt-2 min-h-44 overflow-hidden rounded-[1.5rem] bg-pop-primary p-5 text-white shadow-[0_12px_30px_#6455ec30] sm:mt-5 sm:min-h-48 sm:p-8" [attr.aria-label]="t('myBalance')">
-          <img class="pointer-events-none absolute bottom-0 right-0 w-48 opacity-95 sm:bottom-[-70px] sm:w-[370px]" src="/illustrations/couple-cafe.webp" alt="" />
+          <img class="pointer-events-none absolute bottom-0 right-0 w-36 opacity-95 min-[375px]:w-48 sm:bottom-[-70px] sm:w-[370px]" src="/illustrations/couple-cafe.webp" alt="" />
           <div class="relative max-w-[65%]"><p class="text-xl font-black sm:hidden">{{ t('dashboardHello') }}{{ app.firstName() ? ' ' + app.firstName() : '' }} ! 👋</p><p class="mt-2 text-sm font-bold sm:mt-0">{{ group.name }} · {{ group.currency }}</p><p class="mt-4 text-sm">{{ app.balanceLabel() }}</p>
             @if (app.balanceBusy()) { <p role="status">{{ t('loadingBalances') }}</p> }
             @else if (app.balanceError()) { <p role="status">{{ t('balancesUnavailable') }}</p> }
