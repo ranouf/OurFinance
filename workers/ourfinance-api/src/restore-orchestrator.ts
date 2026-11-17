@@ -40,7 +40,7 @@ export async function restoreGroupFromPackage(
     expenseId: archive.manifest.receipts[index].expenseId, attachmentId: archive.manifest.receipts[index].attachmentId,
     format: item.contentType === 'image/png' ? 'png' as const : 'jpg' as const, bytes: item.bytes,
   }));
-  const expectedPublicIds = receipts.map(row => `ourfinance-test/${groupId}/${row.expenseId}/restore_${restoreId}/${row.attachmentId}`);
+  const expectedPublicIds = receipts.map(row => `${env.FIREBASE_PROJECT_ID}/${groupId}/${row.expenseId}/restore_${restoreId}/${row.attachmentId}`);
   const operations: RestoreOperations = override ?? {
     begin: (user, group, id, currency, ids) => beginRestoreLock(user, group, id, currency, ids, env, transport),
     abort: (user, group, id) => abortRestoreLock(user, group, id, env, transport),

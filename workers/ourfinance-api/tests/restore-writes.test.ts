@@ -43,6 +43,15 @@ test('restore plan rejects missing or redirected staged media', () => {
   throws(() => buildRestoreWrites(group, live, [{ ...staged[0], publicId: `ourfinance-test/other/e/restore_${restoreId}/a` }], 'ourfinance-test', restoreId, at));
 });
 
+test('restore plan keeps receipt assets inside the target Firebase project', () => {
+  const productionId = `ourfinance-prod/g/e/restore_${restoreId}/a`;
+  const productionGroup = { ...group, receiptAssets: [{ ...group.receiptAssets[0], publicId: 'ourfinance-prod/g/e/a' }] };
+  const productionLive = { ...live, receiptPublicIds: ['ourfinance-prod/g/old/a'] };
+  const plan = buildRestoreWrites(productionGroup, productionLive, [{ ...staged[0], publicId: productionId }], 'ourfinance-prod', restoreId, at);
+  strictEqual(plan.previousReceiptPublicIds[0], 'ourfinance-prod/g/old/a');
+  throws(() => buildRestoreWrites(productionGroup, productionLive, staged, 'ourfinance-prod', restoreId, at));
+});
+
 test('restore plan writes exact historical decimal fields without legacy minor units', () => {
   const exact: GroupExportV2 = { ...group,
     members: [...group.members, { userId: 'bob', role: 'member', status: 'active' }],

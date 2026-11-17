@@ -12,9 +12,9 @@ const idPattern = /^[A-Za-z0-9_-]{1,128}$/;
 const restoreSegment = /^restore_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /** Restored media can use an isolated asset path while its logical receipt ID stays stable. */
-export function authorizedReceiptPublicId(publicId: unknown, groupId: string, expenseId: string, attachmentId: string): publicId is string {
+export function authorizedReceiptPublicId(publicId: unknown, projectId: string, groupId: string, expenseId: string, attachmentId: string): publicId is string {
   if (typeof publicId !== 'string') return false;
-  const base = `ourfinance-test/${groupId}/${expenseId}/`;
+  const base = `${projectId}/${groupId}/${expenseId}/`;
   if (publicId === `${base}${attachmentId}`) return true;
   const parts = publicId.slice(base.length).split('/');
   return publicId.startsWith(base) && parts.length === 2 && restoreSegment.test(parts[0]) && parts[1] === attachmentId;
@@ -130,7 +130,7 @@ export async function handleMedia(request: Request, ids: { groupId: string; expe
     try { format = imageFormat(bytes, request.headers.get('Content-Type') ?? ''); }
     catch { return Response.json({ error: 'Image invalide' }, { status: 400, headers }); }
     const id = crypto.randomUUID();
-    const publicId = `ourfinance-test/${groupId}/${expenseId}/${id}`;
+    const publicId = `${env.FIREBASE_PROJECT_ID}/${groupId}/${expenseId}/${id}`;
     await uploadAuthenticated(bytes, format, publicId, env);
     try {
       const accessToken = await serviceAccessToken(env.FIREBASE_SERVICE_ACCOUNT_JSON, env.FIREBASE_PROJECT_ID);
@@ -152,7 +152,7 @@ export async function handleMedia(request: Request, ids: { groupId: string; expe
     if (request.method === 'DELETE' && meta['ownerId']?.stringValue !== uid && member.role !== 'owner') return Response.json({ error: 'Suppression refusée' }, { status: 403, headers });
     const publicId = meta['publicId']?.stringValue;
     const format = meta['format']?.stringValue;
-    if (!authorizedReceiptPublicId(publicId, groupId, expenseId, attachmentId) || (format !== 'jpg' && format !== 'png')) return Response.json({ error: 'Métadonnées invalides' }, { status: 500, headers });
+    if (!authorizedReceiptPublicId(publicId, env.FIREBASE_PROJECT_ID, groupId, expenseId, attachmentId) || (format !== 'jpg' && format !== 'png')) return Response.json({ error: 'Métadonnées invalides' }, { status: 500, headers });
     if (request.method === 'DELETE') {
       const accessToken = await serviceAccessToken(env.FIREBASE_SERVICE_ACCOUNT_JSON, env.FIREBASE_PROJECT_ID);
       await deleteReceiptAsset(`${expensePath}/attachments/${attachmentId}`, publicId, meta['status']?.stringValue === 'deleted', accessToken, env);
