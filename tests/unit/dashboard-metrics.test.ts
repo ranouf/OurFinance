@@ -16,14 +16,14 @@ test('dashboard uses only the selected group, currency and month for its cards',
   deepStrictEqual(dashboardMetrics(expenses, [], 'canada', 'CAD', 'alex', '2026-11'), {
     balanceMinor: -49n, groupSpentMinor: 301n, monthlySpentMinor: 101n, monthlyPaidMinor: 101n, settlementTotalMinor: 0n,
     memberBalances: [{ userId: 'alex', balanceMinor: -49n }, { userId: 'camille', balanceMinor: 49n }],
-    categories: [{ name: '—', amountMinor: 301n }],
+    categories: [{ id: 'other', label: undefined, amountMinor: 301n }],
   });
   throws(() => dashboardMetrics(expenses, [], 'canada', 'CAD', 'alex', 'novembre'));
 });
 
 test('dashboard derives repayments, member balances and categories from active group entries', () => {
   const expenses = [{ groupId: 'canada', currency: 'CAD', date: '2026-11-02', amountMinor: 101,
-    categoryLabel: 'Épicerie', payments: [{ userId: 'alex', amountMinor: 101 }],
+    categoryId: 'groceries', categoryLabel: 'Épicerie', payments: [{ userId: 'alex', amountMinor: 101 }],
     allocations: [{ userId: 'alex', amountMinor: 50 }, { userId: 'camille', amountMinor: 51 }] }];
   const settlements = [
     { groupId: 'canada', currency: 'CAD', date: '2026-11-03', fromUserId: 'camille', toUserId: 'alex', amountMinor: 20 },
@@ -33,6 +33,6 @@ test('dashboard derives repayments, member balances and categories from active g
     balanceMinor: 31n, groupSpentMinor: 101n, monthlySpentMinor: 101n, monthlyPaidMinor: 101n,
     settlementTotalMinor: 20n,
     memberBalances: [{ userId: 'alex', balanceMinor: 31n }, { userId: 'camille', balanceMinor: -31n }],
-    categories: [{ name: 'Épicerie', amountMinor: 101n }],
+    categories: [{ id: 'groceries', label: 'Épicerie', amountMinor: 101n }],
   });
 });

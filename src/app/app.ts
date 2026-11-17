@@ -15,6 +15,7 @@ import { Group } from './core/firebase/group-model';
 import { capturePendingInvite, clearPendingInvite } from './core/firebase/pending-invite';
 import type { ExpenseHistoryEntry } from './core/firebase/expense-service';
 import { dashboardMetrics } from './features/dashboard/dashboard-metrics';
+import { categoryLabel } from './shared/utils/category-label';
 import { qrInvitationText } from './features/groups/qr-invitation-text';
 import { language, locale, setLanguage, t } from './shared/utils/i18n';
 
@@ -64,7 +65,7 @@ export class App implements OnInit, OnDestroy {
   readonly monthlyPaidMinor = signal<bigint>(0n);
   readonly settlementTotalMinor = signal<bigint>(0n);
   readonly dashboardMemberBalances = signal<readonly { userId: string; balanceMinor: bigint }[]>([]);
-  readonly dashboardCategories = signal<readonly { name: string; amountMinor: bigint }[]>([]);
+  readonly dashboardCategories = signal<readonly { id: string; label?: string; amountMinor: bigint }[]>([]);
   readonly recentExpenses = signal<ExpenseHistoryEntry[]>([]);
   readonly recentExpensesBusy = signal(false);
   readonly recentExpensesError = signal(false);
@@ -76,6 +77,7 @@ export class App implements OnInit, OnDestroy {
   readonly monthlyPaid = computed(() => this.selectedGroup() ? formatMinorExact(this.monthlyPaidMinor(), this.selectedGroup()!.currency, locale()) : '');
   readonly settlementTotal = computed(() => this.selectedGroup() ? formatMinorExact(this.settlementTotalMinor(), this.selectedGroup()!.currency, locale()) : '');
   formatDashboardMinor(value: bigint): string { return this.selectedGroup() ? formatMinorExact(value, this.selectedGroup()!.currency, locale()) : ''; }
+  dashboardCategoryLabel(item: { id: string; label?: string }): string { return categoryLabel(item.id, language(), item.label); }
   readonly dashboardDonut = computed(() => {
     const rows = this.dashboardCategories().slice(0, 4);
     const total = this.dashboardCategories().reduce((sum, row) => sum + row.amountMinor, 0n);
