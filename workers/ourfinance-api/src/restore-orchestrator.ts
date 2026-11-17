@@ -4,7 +4,7 @@ import { beginRestoreLock, abortRestoreLock } from './restore-lock';
 import { collectLiveRestoreInventory, type LiveRestoreInventory } from './restore-inventory';
 import { stageRestoreReceipts, type RestoreReceiptBytes, type StagedRestoreReceipt } from './restore-media';
 import { commitGroupRestoreV2, readRestoreOutcome } from './restore-commit';
-import { retryRestoreCleanup } from './restore-cleanup';
+import { retryRestoreCleanup, type RestoreCleanupResult } from './restore-cleanup';
 
 export interface RestoreEnv {
   readonly FIREBASE_PROJECT_ID: string; readonly FIREBASE_SERVICE_ACCOUNT_JSON: string;
@@ -24,7 +24,7 @@ export interface RestoreOperations {
   inventory(uid: string, groupId: string, restoreId: string): Promise<LiveRestoreInventory>;
   commit(uid: string, groupId: string, restoreId: string, backup: GroupExportV2, live: LiveRestoreInventory, staged: readonly StagedRestoreReceipt[]): Promise<readonly string[]>;
   outcome(uid: string, groupId: string, restoreId: string): Promise<'committed' | 'locked'>;
-  cleanup(uid: string, groupId: string, restoreId: string): Promise<number>;
+  cleanup(uid: string, groupId: string, restoreId: string): Promise<RestoreCleanupResult>;
 }
 
 /** The archive is verified before a lock; a failed swap keeps the old group until abort. */
@@ -74,13 +74,14 @@ export async function restoreGroupFromPackage(
       if (outcome === 'committed') committed = true;
       else throw error;
     }
-    try { await operations.cleanup(uid, groupId, restoreId); return { restoreId, cleanupPending: false }; }
+    try { const result = await operations.cleanup(uid, groupId, restoreId); return { restoreId, cleanupPending: result.pending }; }
     catch { return { restoreId, cleanupPending: true }; }
   } catch (error) {
     if (locked && !committed && !(error instanceof RestoreOrchestrationError && error.code === 'recovery_required')) {
       try {
         await operations.abort(uid, groupId, restoreId);
-        await operations.cleanup(uid, groupId, restoreId);
+        const result = await operations.cleanup(uid, groupId, restoreId);
+        if (result.pending) throw new Error('Nettoyage différé');
       } catch { throw new RestoreOrchestrationError('recovery_required', { cause: error }, 'abort'); }
     }
     if (error instanceof RestoreOrchestrationError) throw error;

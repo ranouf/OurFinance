@@ -122,12 +122,14 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       }
       if (request.method === 'DELETE' && !suffix) {
         await abortRestoreLock(uid, groupId, restoreId, restoreEnv);
-        try { await retryRestoreCleanup(uid, groupId, restoreId, restoreEnv); return new Response(null, { status: 204, headers }); }
-        catch { return new Response(JSON.stringify({ restoreId, cleanupPending: true }), { status: 202, headers }); }
+        try {
+          const result = await retryRestoreCleanup(uid, groupId, restoreId, restoreEnv);
+          return result.pending ? new Response(JSON.stringify({ restoreId, cleanupPending: true }), { status: 202, headers }) : new Response(null, { status: 204, headers });
+        } catch { return new Response(JSON.stringify({ restoreId, cleanupPending: true }), { status: 202, headers }); }
       }
       if (request.method === 'POST' && suffix === 'cleanup') {
-        await retryRestoreCleanup(uid, groupId, restoreId, restoreEnv);
-        return new Response(null, { status: 204, headers });
+        const result = await retryRestoreCleanup(uid, groupId, restoreId, restoreEnv);
+        return result.pending ? new Response(JSON.stringify({ restoreId, cleanupPending: true }), { status: 202, headers }) : new Response(null, { status: 204, headers });
       }
       return new Response(JSON.stringify({ error: 'Méthode non prise en charge' }), { status: 405, headers });
     } catch (error) {
