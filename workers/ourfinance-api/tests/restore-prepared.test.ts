@@ -23,6 +23,10 @@ async function fixture(role: 'owner' | 'member' = 'owner', expectedDigest = dige
   let patches = 0;
   let requests = 0;
   let staged: string[] = [];
+  let jobIds = [publicId];
+  let jobDigests = [expectedDigest];
+  let jobFormats = ['png'];
+  let jobManifest = 'a'.repeat(64);
   let failNextPatch = false;
   const transport = async (resource: string | URL | Request, init?: RequestInit) => {
     requests++;
@@ -48,16 +52,19 @@ async function fixture(role: 'owner' | 'member' = 'owner', expectedDigest = dige
       restoreId: { stringValue: restoreId }, restoreOwnerId: { stringValue: 'alice' } } });
     if (url.endsWith('/groups/g/members/alice')) return Response.json({ fields: { role: { stringValue: role }, status: { stringValue: 'active' } } });
     if (url.endsWith(`/groups/g/restoreJobs/${restoreId}`)) return Response.json({ updateTime: '2026-11-17T00:00:00Z', fields: {
-      ownerId: { stringValue: 'alice' }, status: { stringValue: 'staging' }, manifestSha256: { stringValue: 'a'.repeat(64) },
-      newPublicIds: { arrayValue: { values: [{ stringValue: publicId }] } },
-      receiptSha256: { arrayValue: { values: [{ stringValue: expectedDigest }] } },
-      receiptFormats: { arrayValue: { values: [{ stringValue: 'png' }] } },
+      ownerId: { stringValue: 'alice' }, status: { stringValue: 'staging' }, manifestSha256: { stringValue: jobManifest },
+      newPublicIds: { arrayValue: { values: jobIds.map(stringValue => ({ stringValue })) } },
+      receiptSha256: { arrayValue: { values: jobDigests.map(stringValue => ({ stringValue })) } },
+      receiptFormats: { arrayValue: { values: jobFormats.map(stringValue => ({ stringValue })) } },
       stagedIndices: { arrayValue: { values: staged.map(stringValue => ({ stringValue })) } },
     } });
     throw new Error('Requête inattendue');
   };
   return { env, transport: transport as typeof fetch, get uploads() { return uploads; }, get patches() { return patches; },
-    get requests() { return requests; }, get staged() { return staged; }, failPatch() { failNextPatch = true; } };
+    get requests() { return requests; }, get staged() { return staged; }, failPatch() { failNextPatch = true; },
+    setJob(ids: string[], digests: string[], formats: string[], manifest: string, indices: string[]) {
+      jobIds = ids; jobDigests = digests; jobFormats = formats; jobManifest = manifest; staged = indices;
+    } };
 }
 
 test('prepared restore stages one exact private receipt and retries idempotently', async () => {
@@ -143,4 +150,16 @@ test('30 synthetic private receipts roundtrip through V2 ZIP and prepared lock',
   strictEqual(savedHashes, 30);
   await rejects(commitPreparedRestore('alice', 'g', restoreId, decoded, state.env, transport as typeof fetch),
     (error: unknown) => error instanceof PreparedRestoreError && error.code === 'receipts_not_staged');
+  const fingerprint = await sha256Hex(new TextEncoder().encode(JSON.stringify(decoded.manifest)));
+  const ids = decoded.manifest.receipts.map(row => `ourfinance-test/g/${row.expenseId}/restore_${restoreId}/${row.attachmentId}`);
+  state.setJob(ids, decoded.manifest.receipts.map(row => row.sha256), ids.map(() => 'png'), fingerprint,
+    ids.map((_, index) => String(index)));
+  let committed = 0;
+  const result = await commitPreparedRestore('alice', 'g', restoreId, decoded, state.env, transport as typeof fetch, {
+    inventory: async () => ({ groupDocuments: ['groups/g'], userDocuments: [], receiptPublicIds: [] }),
+    commit: async (_uid, _groupId, _restoreId, _backup, _live, staged) => { committed = staged.length; return []; },
+    outcome: async () => 'locked',
+  });
+  strictEqual(committed, 30);
+  deepStrictEqual(result, { restoreId, cleanupPending: true });
 });

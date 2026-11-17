@@ -5,7 +5,8 @@ import { imageFormat, uploadAuthenticated, type CloudinaryEnv } from './cloudina
 import { beginPreparedRestoreLock } from './restore-lock';
 import { collectLiveRestoreInventory } from './restore-inventory';
 import { commitGroupRestoreV2, readRestoreOutcome } from './restore-commit';
-import { retryRestoreCleanup } from './restore-cleanup';
+import type { LiveRestoreInventory } from './restore-inventory';
+import type { StagedRestoreReceipt } from './restore-media';
 import { serviceAccessToken } from './service-account';
 
 export interface PreparedRestoreEnv extends CloudinaryEnv {
@@ -32,6 +33,12 @@ export interface PreparedRestoreJob {
   readonly updateTime: string;
 }
 export interface PreparedRestoreResult { readonly restoreId: string; readonly cleanupPending: boolean }
+export interface PreparedCommitOperations {
+  inventory(uid: string, groupId: string, restoreId: string): Promise<LiveRestoreInventory>;
+  commit(uid: string, groupId: string, restoreId: string, backup: GroupExportV2, live: LiveRestoreInventory,
+    staged: readonly StagedRestoreReceipt[]): Promise<readonly string[]>;
+  outcome(uid: string, groupId: string, restoreId: string): Promise<'committed' | 'locked'>;
+}
 const idPattern = /^[A-Za-z0-9_-]{1,128}$/;
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const shaPattern = /^[0-9a-f]{64}$/;
@@ -127,18 +134,20 @@ export async function stagePreparedRestoreReceipt(uid: string, groupId: string, 
 
 /** The document swap remains atomic; only previously verified, staged media can enter it. */
 export async function commitPreparedRestore(uid: string, groupId: string, restoreId: string, archive: BackupPackageV2,
-  env: PreparedRestoreEnv, transport: typeof fetch = fetch): Promise<PreparedRestoreResult> {
+  env: PreparedRestoreEnv, transport: typeof fetch = fetch, override?: PreparedCommitOperations): Promise<PreparedRestoreResult> {
+  const operations: PreparedCommitOperations = override ?? {
+    inventory: (user, group, id) => collectLiveRestoreInventory(user, group, env, transport, id),
+    commit: (user, group, id, backup, live, staged) => commitGroupRestoreV2(user, group, id, backup, live, staged, env, transport),
+    outcome: (user, group, id) => readRestoreOutcome(user, group, id, env, transport),
+  };
   const checked = await verifiedArchive(groupId, restoreId, archive);
   let job: PreparedRestoreJob;
   try { job = await readPreparedRestoreJob(uid, groupId, restoreId, env, transport); }
   catch (error) {
     // A committed swap may have lost its HTTP response. The durable marker resolves it.
     if (error instanceof PreparedRestoreError && error.status === 409 &&
-        await readRestoreOutcome(uid, groupId, restoreId, env, transport) === 'committed') {
-      try {
-        const cleanup = await retryRestoreCleanup(uid, groupId, restoreId, env, transport);
-        return { restoreId, cleanupPending: cleanup.pending };
-      } catch { return { restoreId, cleanupPending: true }; }
+        await operations.outcome(uid, groupId, restoreId) === 'committed') {
+      return { restoreId, cleanupPending: true };
     }
     throw error;
   }
@@ -150,19 +159,17 @@ export async function commitPreparedRestore(uid: string, groupId: string, restor
   }
   const staged = archive.manifest.receipts.map((row, index) => ({ expenseId: row.expenseId, attachmentId: row.attachmentId,
     publicId: job.publicIds[index], format: row.contentType === 'image/png' ? 'png' as const : 'jpg' as const }));
-  const live = await collectLiveRestoreInventory(uid, groupId, env, transport, restoreId);
-  try { await commitGroupRestoreV2(uid, groupId, restoreId, checked.backup, live, staged, env, transport); }
+  const live = await operations.inventory(uid, groupId, restoreId);
+  try { await operations.commit(uid, groupId, restoreId, checked.backup, live, staged); }
   catch (error) {
     try {
-      if (await readRestoreOutcome(uid, groupId, restoreId, env, transport) !== 'committed') throw new PreparedRestoreError(409, 'restore_not_committed');
+      if (await operations.outcome(uid, groupId, restoreId) !== 'committed') throw new PreparedRestoreError(409, 'restore_not_committed');
     } catch (outcomeError) {
       if (outcomeError instanceof PreparedRestoreError) throw outcomeError;
       throw new PreparedRestoreError(503, 'recovery_required');
     }
     void error;
   }
-  try {
-    const cleanup = await retryRestoreCleanup(uid, groupId, restoreId, env, transport);
-    return { restoreId, cleanupPending: cleanup.pending };
-  } catch { return { restoreId, cleanupPending: true }; }
+  // Cleanup uses separate bounded requests; never add media deletion to this commit invocation.
+  return { restoreId, cleanupPending: true };
 }
