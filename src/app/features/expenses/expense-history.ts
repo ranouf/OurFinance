@@ -1,5 +1,6 @@
-import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, signal } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import type { FirebaseApp } from 'firebase/app';
 import type { User } from 'firebase/auth';
 import type { DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
@@ -35,6 +36,12 @@ import { expenseMessage, expenseText } from './expense-text';
             @for (category of categoryOptions(); track category.id) { <option [value]="category.id">{{ category.icon }} {{ categoryLabel(category.id, language(), category.label) }}</option> }
           </select>
         </label>
+        <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end">
+          <label class="block min-w-0 flex-1 text-sm font-bold">{{ text('searchAll') }}
+            <input class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" type="search" name="historySearch" [(ngModel)]="search" [placeholder]="text('searchPlaceholder')" />
+          </label>
+          <button class="min-h-11 rounded-xl bg-pop-primary px-5 py-2 text-sm font-bold text-white hover:bg-pop-primary-dark focus-visible:outline-2 focus-visible:outline-pop-primary disabled:opacity-50" type="button" [disabled]="busy()" (click)="refresh()">{{ text('search') }}</button>
+        </div>
         <details class="mt-3 rounded-xl border border-pop-border px-4 py-3">
           <summary class="cursor-pointer text-sm font-bold text-pop-primary-dark focus-visible:outline-2 focus-visible:outline-pop-primary">{{ text('moreFilters') }}</summary>
           <div class="mt-4 grid gap-3 sm:grid-cols-2">
@@ -51,11 +58,7 @@ import { expenseMessage, expenseText } from './expense-text';
               @for (member of participantOptions(); track member.userId) { <option [value]="member.userId">{{ memberLabel(member.userId) }}</option> }
             </select>
           </label>
-          <label class="mt-3 block text-sm font-bold">{{ text('searchAll') }}
-            <input class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" type="search" name="historySearch" [(ngModel)]="search" [placeholder]="text('searchPlaceholder')" />
-          </label>
           @if (from && to && from > to) { <p class="mt-2 text-sm text-rose-700">{{ text('invalidDates') }}</p> }
-          <button class="mt-4 min-h-11 rounded-xl bg-pop-primary px-5 py-2 text-sm font-bold text-white hover:bg-pop-primary-dark focus-visible:outline-2 focus-visible:outline-pop-primary disabled:opacity-50" type="button" [disabled]="busy()" (click)="refresh()">{{ text('search') }}</button>
         </details>
         @if (hasFilter()) { <p class="mt-2 text-sm text-pop-muted">{{ scannedCount() }} {{ text('scanned') }}</p> }
         @if (entries().length) {
@@ -138,7 +141,7 @@ export class ExpenseHistory implements OnChanges {
   selectedGroupId = '';
   from = '';
   to = '';
-  search = '';
+  search = inject(ActivatedRoute).snapshot.queryParamMap.get('search') ?? '';
   searchTerm = '';
   selectedCategoryId = '';
   selectedParticipantId = '';
