@@ -107,3 +107,30 @@ test('only the owner lists invitation metadata, never a token or hash', async ()
   strictEqual(JSON.stringify(result).includes(created.token), false);
   await rejects(listQrInvitations('g1', 'guest', f.env, '', f.transport), (error: unknown) => error instanceof QrInvitationError && error.status === 403);
 });
+
+test('owner listing expires a bounded invitation and removes its server-only token index', async () => {
+  const f = await fixture();
+  const created = await createQrInvitation({}, 'owner', 'g1', f.env, f.transport);
+  f.docs.get(`groups/g1/invitations/${created.invitationId}`)!['expiresAt'] = { timestampValue: '2020-01-01T00:00:00.000Z' };
+  const listed = await listQrInvitations('g1', 'owner', f.env, '', f.transport);
+  strictEqual(listed.invitations[0].status, 'expired');
+  strictEqual(f.docs.get(`groups/g1/invitations/${created.invitationId}`)?.status.stringValue, 'expired');
+  strictEqual([...f.docs.keys()].some(path => path.startsWith('invitationTokens/')), false);
+  strictEqual(f.commits[1].length, 2);
+  await rejects(previewQrInvitation(created.token, 'guest', 'guest@example.com', f.env, f.transport),
+    (error: unknown) => error instanceof QrInvitationError && error.status === 403);
+});
+
+test('expiry cleanup tolerates a concurrent transaction conflict and retries on the next owner listing', async () => {
+  const f = await fixture();
+  const created = await createQrInvitation({}, 'owner', 'g1', f.env, f.transport);
+  f.docs.get(`groups/g1/invitations/${created.invitationId}`)!['expiresAt'] = { timestampValue: '2020-01-01T00:00:00.000Z' };
+  f.conflict();
+  strictEqual((await listQrInvitations('g1', 'owner', f.env, '', f.transport)).invitations[0].status, 'expired');
+  strictEqual(f.docs.get(`groups/g1/invitations/${created.invitationId}`)?.status.stringValue, 'active');
+  strictEqual([...f.docs.keys()].some(path => path.startsWith('invitationTokens/')), true);
+  strictEqual(f.rollbacks.length, 1);
+  await listQrInvitations('g1', 'owner', f.env, '', f.transport);
+  strictEqual(f.docs.get(`groups/g1/invitations/${created.invitationId}`)?.status.stringValue, 'expired');
+  strictEqual([...f.docs.keys()].some(path => path.startsWith('invitationTokens/')), false);
+});

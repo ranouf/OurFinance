@@ -11,6 +11,7 @@ const value = (doc: Record<string, unknown> | null, key: string): string | undef
   const fields = doc?.['fields'] as Record<string, { stringValue?: string; timestampValue?: string }> | undefined;
   return fields?.[key]?.stringValue ?? fields?.[key]?.timestampValue;
 };
+const expired = (at: string): boolean => !Number.isFinite(Date.parse(at)) || Date.parse(at) <= Date.now();
 
 async function digest(token: string): Promise<string> {
   const bytes = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token)));
@@ -74,7 +75,7 @@ async function resolvedInvitation(db: Awaited<ReturnType<typeof store>>, token: 
   const invitation = await db.read(`groups/${groupId}/invitations/${invitationId}`, transaction);
   if (value(group, 'status') !== 'active' || value(invitation, 'status') !== 'active' || value(invitation, 'tokenHash') !== hash) throw new QrInvitationError(403, 'invitation_unavailable');
   const expiresAt = value(invitation, 'expiresAt');
-  if (!expiresAt || !Number.isFinite(Date.parse(expiresAt)) || Date.parse(expiresAt) <= Date.now()) throw new QrInvitationError(403, 'invitation_expired');
+  if (!expiresAt || expired(expiresAt)) throw new QrInvitationError(403, 'invitation_expired');
   return { groupId, invitationId, group, invitation, hash, expiresAt };
 }
 
@@ -171,13 +172,48 @@ export async function listQrInvitations(groupId: string, uid: string, env: QrInv
   const response = await transport(url.toString(), { headers: { Authorization: `Bearer ${access}` } });
   if (!response.ok) throw new QrInvitationError(503, 'firestore_unavailable');
   const body = await response.json() as { documents?: Array<Record<string, unknown>>; nextPageToken?: string };
+  // Owner-listing provides bounded, opportunistic cleanup without a scheduled
+  // service. A transaction rechecks ownership and expiry before removing the
+  // server-only token lookup, so an acceptance or revocation cannot be undone.
+  for (const doc of body.documents ?? []) {
+    const prefix = `${db.root}/groups/${groupId}/invitations/`;
+    const name = doc['name'];
+    const invitationId = typeof name === 'string' && name.startsWith(prefix) ? name.slice(prefix.length) : '';
+    const expiresAt = value(doc, 'expiresAt');
+    if (!idPattern.test(invitationId) || value(doc, 'status') !== 'active' || !expiresAt || !expired(expiresAt)) continue;
+    try { await withTransaction(db, async transaction => {
+      const currentGroup = await db.read(`groups/${groupId}`, transaction);
+      const currentOwner = await db.read(`groups/${groupId}/members/${uid}`, transaction);
+      const current = await db.read(`groups/${groupId}/invitations/${invitationId}`, transaction);
+      if (value(currentGroup, 'status') !== 'active' || value(currentOwner, 'status') !== 'active' || value(currentOwner, 'role') !== 'owner') {
+        throw new QrInvitationError(403, 'owner_required');
+      }
+      const hash = value(current, 'tokenHash');
+      const currentExpiry = value(current, 'expiresAt');
+      if (value(current, 'status') !== 'active' || !currentExpiry || !expired(currentExpiry) || !hash || !/^[a-f0-9]{64}$/.test(hash)) {
+        throw new QrInvitationError(409, 'conflict');
+      }
+      const lookup = await db.read(`invitationTokens/${hash}`, transaction);
+      const writes: unknown[] = [{ update: { name: `${db.root}/groups/${groupId}/invitations/${invitationId}`,
+        fields: { status: string('expired') } }, updateMask: { fieldPaths: ['status'] } }];
+      if (value(lookup, 'groupId') === groupId && value(lookup, 'invitationId') === invitationId) {
+        writes.push({ delete: `${db.root}/invitationTokens/${hash}` });
+      }
+      await db.commit(transaction, writes);
+    }); }
+    catch (error) {
+      // Expiry is enforced on preview and acceptance even when maintenance
+      // fails; keep the owner's read available and retry on the next listing.
+      if (error instanceof QrInvitationError && error.status === 403) throw error;
+    }
+  }
   return {
     invitations: (body.documents ?? []).map(doc => {
       const expiresAt = value(doc, 'expiresAt') ?? '';
       const status = value(doc, 'status') ?? 'unknown';
       return {
         invitationId: String(doc['name']).split('/').pop() ?? '',
-        status: status === 'active' && Date.parse(expiresAt) <= Date.now() ? 'expired' : status,
+        status: status === 'active' && expired(expiresAt) ? 'expired' : status,
         expiresAt,
         targetEmail: value(doc, 'targetEmail') ?? null,
       };
