@@ -133,9 +133,9 @@ export class LoginPage {
           <div class="absolute bottom-3 right-3 z-10 flex -space-x-2 sm:bottom-4 sm:right-4" [attr.aria-label]="t('whoOwes')">
             @for (item of app.dashboardMemberBalances(); track item.userId) {
               @if (app.dashboardMemberName(item.userId); as name) {
-                <span class="group relative flex size-9 items-center justify-center rounded-full border-2 border-white bg-pop-peach text-sm font-black text-pop-primary-dark shadow-md outline-none focus-visible:ring-2 focus-visible:ring-pop-sun" tabindex="0" [attr.aria-label]="name + ' · ' + app.formatDashboardMinor(item.balanceMinor)">
+                <span class="group relative flex size-9 items-center justify-center rounded-full border-2 border-white bg-pop-peach text-sm font-black text-pop-primary-dark shadow-md outline-none focus-visible:ring-2 focus-visible:ring-pop-sun" tabindex="0" [attr.aria-label]="name + ' · ' + memberBalanceLabel(item.balanceMinor) + ' ' + app.formatDashboardMinor(item.balanceMinor)">
                   {{ name.slice(0, 1).toLocaleUpperCase() }}
-                  <span class="pointer-events-none absolute bottom-full right-0 mb-2 hidden min-w-max rounded-xl bg-pop-text px-3 py-2 text-xs font-bold text-white shadow-lg group-hover:block group-focus:block">{{ name }} · {{ app.formatDashboardMinor(item.balanceMinor) }}</span>
+                  <span class="pointer-events-none absolute bottom-full right-0 mb-2 hidden min-w-max rounded-xl bg-pop-text px-3 py-2 text-xs font-bold text-white shadow-lg group-hover:block group-focus:block">{{ name }} · {{ memberBalanceLabel(item.balanceMinor) }} {{ app.formatDashboardMinor(item.balanceMinor) }}</span>
                 </span>
               }
             }
@@ -213,6 +213,7 @@ export class DashboardPage {
   private readonly router = inject(Router);
   readonly t = t;
   search = '';
+  memberBalanceLabel(value: bigint): string { return value > 0n ? t('receivable') : value < 0n ? t('payable') : t('balanced'); }
   searchExpenses(): void {
     const search = this.search.trim();
     if (search) void this.router.navigate(['/expenses'], { queryParams: { search } });

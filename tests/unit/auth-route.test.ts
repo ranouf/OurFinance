@@ -17,4 +17,5 @@ test('navigation starts only after the session resolves', () => {
   strictEqual(authDestination(true, '/ui/components', null, false), null);
   strictEqual(authDestination(true, '/ui/components', { emailVerified: false }, false), null);
   strictEqual(authDestination(true, '/ui/components', { emailVerified: true }, true), null);
+  strictEqual(authDestination(true, '/gallery/Gallery', null, false), null);
 });
