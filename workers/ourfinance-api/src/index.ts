@@ -24,6 +24,7 @@ import { collectLiveRestoreInventory, RestoreInventoryError } from './restore-in
 import { summarizeRestorePreviewV2 } from './restore-preview';
 import { commitPreparedRestore, prepareRestore, PreparedRestoreError, stagePreparedRestoreReceipt } from './restore-prepared';
 import { listSharedMemberProfiles, MemberProfileError } from './member-profiles';
+import { readCurrentRestore, RestoreCurrentError } from './restore-current';
 
 export interface Env extends Partial<CloudinaryEnv> {
   FIREBASE_PROJECT_ID: string;
@@ -85,6 +86,23 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       return new Response(JSON.stringify({ members }), { status: 200, headers });
     } catch (error) {
       return new Response(JSON.stringify({ error: error instanceof MemberProfileError ? error.code : 'profiles_unavailable' }), { status: error instanceof MemberProfileError ? error.status : 503, headers });
+    }
+  }
+  const currentRestoreMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/backup\/restores\/current$/.exec(url.pathname);
+  if (currentRestoreMatch && request.method === 'GET') {
+    const groupId = currentRestoreMatch[1];
+    if (env.ENABLE_RESTORE_POC !== 'true' || env.RESTORE_POC_GROUP_ID !== groupId || !env.FIREBASE_SERVICE_ACCOUNT_JSON)
+      return new Response(JSON.stringify({ error: 'Restauration non configurée' }), { status: 503, headers });
+    let uid: string;
+    try { uid = await verifyFirebaseVerifiedEmail(bearerToken(request), env.FIREBASE_PROJECT_ID); }
+    catch { return new Response(JSON.stringify({ error: 'Non authentifié' }), { status: 401, headers }); }
+    try {
+      const state = await readCurrentRestore(uid, groupId,
+        { FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT_JSON: env.FIREBASE_SERVICE_ACCOUNT_JSON });
+      return new Response(JSON.stringify(state), { status: 200, headers });
+    } catch (error) {
+      return new Response(JSON.stringify({ error: error instanceof RestoreCurrentError ? error.code : 'restore_unavailable' }),
+        { status: error instanceof RestoreCurrentError ? error.status : 503, headers });
     }
   }
   const restorePreviewMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/backup\/preview$/.exec(url.pathname);
@@ -155,8 +173,8 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const result = await commitPreparedRestore(uid, groupId, restoreId, archive, restoreEnv);
       return new Response(JSON.stringify(result), { status: result.cleanupPending ? 202 : 200, headers });
     } catch (error) {
-      const status = error instanceof PreparedRestoreError ? error.status : error instanceof RequestBodyError ? 413 : 503;
-      const code = error instanceof PreparedRestoreError ? error.code : error instanceof RequestBodyError ? 'body_too_large' : 'restore_unavailable';
+      const status = error instanceof PreparedRestoreError || error instanceof RestoreLockError ? error.status : error instanceof RequestBodyError ? 413 : 503;
+      const code = error instanceof PreparedRestoreError || error instanceof RestoreLockError ? error.code : error instanceof RequestBodyError ? 'body_too_large' : 'restore_unavailable';
       return new Response(JSON.stringify({ error: code }), { status, headers });
     }
   }

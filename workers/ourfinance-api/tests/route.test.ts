@@ -55,6 +55,13 @@ test('restore preview remains disabled without one explicit test group', async (
     { ...env, FIREBASE_SERVICE_ACCOUNT_JSON: 'configured' });
   strictEqual(response.status, 503);
 });
+test('restore recovery state is disabled by default and requires authentication when enabled', async () => {
+  const url = 'https://worker.example/groups/g1/backup/restores/current';
+  const configured = { ...env, FIREBASE_SERVICE_ACCOUNT_JSON: 'configured' };
+  strictEqual((await handleRequest(new Request(url), configured)).status, 503);
+  strictEqual((await handleRequest(new Request(url), { ...configured, ENABLE_RESTORE_POC: 'true', RESTORE_POC_GROUP_ID: 'other' })).status, 503);
+  strictEqual((await handleRequest(new Request(url), { ...configured, ENABLE_RESTORE_POC: 'true', RESTORE_POC_GROUP_ID: 'g1' })).status, 401);
+});
 test('expense creation is disabled without an explicit test group', async () => {
   const response = await handleRequest(new Request('https://worker.example/groups/g1/expenses', { method: 'POST', headers: { Origin: env.ALLOWED_ORIGIN } }), { ...env, FIREBASE_SERVICE_ACCOUNT_JSON: 'configured' });
   strictEqual(response.status, 503);

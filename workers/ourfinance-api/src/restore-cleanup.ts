@@ -26,7 +26,22 @@ export async function retryRestoreCleanup(uid: string, groupId: string, restoreI
   if (group.fields?.['status']?.stringValue !== 'active' || group.fields['ownerId']?.stringValue !== uid ||
       member.fields?.['role']?.stringValue !== 'owner' || member.fields['status']?.stringValue !== 'active' ||
       job.fields?.['ownerId']?.stringValue !== uid) throw new RestoreCleanupError(403, 'owner_required');
-  if (job.fields['status']?.stringValue === 'completed') return { removed: 0, pending: false };
+  const clearPendingMarker = async () => {
+    if (group.fields?.['pendingCleanupRestoreId']?.stringValue !== restoreId) return;
+    if (!group.updateTime) throw new RestoreCleanupError(503, 'invalid_cleanup_journal');
+    const response = await transport(`https://firestore.googleapis.com/v1/${root}:commit`, {
+      method: 'POST', headers, body: JSON.stringify({ writes: [{
+        update: { name: `${root}/groups/${groupId}`, fields: {} },
+        updateMask: { fieldPaths: ['pendingCleanupRestoreId'] },
+        currentDocument: { updateTime: group.updateTime },
+      }] }),
+    });
+    if (!response.ok) throw new RestoreCleanupError([400, 409, 412].includes(response.status) ? 409 : 503, 'cleanup_state_unavailable');
+  };
+  if (job.fields['status']?.stringValue === 'completed') {
+    await clearPendingMarker();
+    return { removed: 0, pending: false };
+  }
   if (job.fields['status']?.stringValue !== 'cleanup_pending') throw new RestoreCleanupError(409, 'cleanup_not_pending');
   const oldArray = job.fields['oldPublicIds']?.arrayValue;
   const currentArray = job.fields['newPublicIds']?.arrayValue;
@@ -50,5 +65,6 @@ export async function retryRestoreCleanup(uid: string, groupId: string, restoreI
     : { oldPublicIds: { arrayValue: { values: remaining.map(publicId => ({ stringValue: publicId })) } } };
   const response = await transport(url, { method: 'PATCH', headers, body: JSON.stringify({ fields }) });
   if (!response.ok) throw new RestoreCleanupError(response.status === 409 || response.status === 412 ? 409 : 503, 'cleanup_state_unavailable');
+  if (completed) await clearPendingMarker();
   return { removed: batch.length, pending: !completed };
 }
