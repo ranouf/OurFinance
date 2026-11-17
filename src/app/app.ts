@@ -78,6 +78,7 @@ export class App implements OnInit, OnDestroy {
   readonly recentExpensesBusy = signal(false);
   readonly recentExpensesError = signal(false);
   readonly selectedBalance = computed(() => this.selectedGroup() ? formatMinorExact(this.selectedBalanceMinor(), this.selectedGroup()!.currency, locale()) : '');
+  readonly selectedBalancePositive = computed(() => this.selectedBalanceMinor() > 0n);
   readonly groupSpent = computed(() => this.selectedGroup() ? formatMinorExact(this.groupSpentMinor(), this.selectedGroup()!.currency, locale()) : '');
   readonly receivableAmount = computed(() => this.selectedGroup() ? formatMinorExact(this.selectedBalanceMinor() > 0n ? this.selectedBalanceMinor() : 0n, this.selectedGroup()!.currency, locale()) : '');
   readonly payableAmount = computed(() => this.selectedGroup() ? formatMinorExact(this.selectedBalanceMinor() < 0n ? -this.selectedBalanceMinor() : 0n, this.selectedGroup()!.currency, locale()) : '');

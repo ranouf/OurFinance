@@ -81,7 +81,6 @@
       <div class="sm:col-span-2"><h3 class="mb-1.5 text-xs font-black">{{ kitText[language()].split }}</h3><app-ui-tabs [tabs]="[{ value: 'equal', label: formText[language()].equal }, { value: 'percentage', label: demoText[language()].percentage }, { value: 'exact', label: demoText[language()].exactAmount }]" [active]="activeSplit" (activeChange)="activeSplit = $event" /></div>
       <div class="flex items-end sm:col-span-2"><app-ui-button variant="coral" size="sm">+ {{ kitText[language()].addExpense }}</app-ui-button></div>
     </div>
-    <img class="pointer-events-none absolute -bottom-6 -right-5 hidden w-32 lg:block" src="/illustrations/bistro-table-rose.png" alt="" aria-hidden="true" />
   </section>
 
   <section id="inputs" class="scroll-mt-6 gallery-panel" [attr.aria-label]="formText[language()].inputs">
