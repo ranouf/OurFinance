@@ -1,5 +1,8 @@
 <button
-  class="inline-flex min-h-11 items-center justify-center rounded-xl border px-5 py-2.5 text-sm font-extrabold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pop-primary-dark disabled:cursor-not-allowed disabled:opacity-50"
+  class="inline-flex items-center justify-center rounded-[10px] border font-extrabold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pop-primary-dark disabled:cursor-not-allowed disabled:opacity-50"
+  [class.min-h-9]="size === 'sm'" [class.px-3]="size === 'sm'" [class.text-xs]="size === 'sm'"
+  [class.min-h-11]="size === 'md'" [class.px-4]="size === 'md'" [class.text-sm]="size === 'md'"
+  [class.min-h-12]="size === 'lg'" [class.px-5]="size === 'lg'" [class.text-base]="size === 'lg'"
   [class.border-pop-primary]="variant === 'primary'"
   [class.bg-pop-primary]="variant === 'primary'"
   [class.text-white]="variant === 'primary' || variant === 'coral' || variant === 'danger'"

@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, HostListener } from '@angular/core';
 import { RouterLink, RouterOutlet } from '@angular/router';
 import { language } from '../../shared/utils/i18n';
 
@@ -17,4 +17,12 @@ export class GalleryLayoutComponent {
   readonly language = language;
   readonly labels = labels;
   activeSection = 'foundations';
+
+  @HostListener('window:scroll')
+  updateActiveSection(): void {
+    for (const id of ['guides', 'responsive', 'business', 'patterns', 'forms', 'foundations']) {
+      const section = document.getElementById(id);
+      if (section && section.getBoundingClientRect().top <= 180) { this.activeSection = id; break; }
+    }
+  }
 }

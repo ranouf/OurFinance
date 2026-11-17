@@ -1,16 +1,29 @@
-<div
-  class="rounded-xl border p-4 text-sm"
-  [class.border-red-300]="variant === 'error'"
-  [class.bg-red-50]="variant === 'error'"
-  [class.text-red-900]="variant === 'error'"
-  [class.border-amber-300]="variant === 'warning'"
-  [class.bg-amber-50]="variant === 'warning'"
-  [class.text-amber-900]="variant === 'warning'"
-  [class.border-emerald-300]="variant === 'success'"
-  [class.bg-emerald-50]="variant === 'success'"
-  [class.text-emerald-900]="variant === 'success'"
-  [class.border-pop-border]="variant === 'info'"
-  [class.bg-pop-lavender]="variant === 'info'"
-  [class.text-pop-text]="variant === 'info'"
-  [attr.role]="variant === 'error' ? 'alert' : 'status'"
-><ng-content /></div>
+@if (!closed()) {
+  <div
+    class="flex min-h-9 items-center gap-2 rounded-[10px] border px-3 py-1.5 text-xs shadow-[0_2px_7px_#5140a40d]"
+    [class.border-red-100]="variant === 'error'"
+    [class.bg-red-50]="variant === 'error'"
+    [class.text-red-900]="variant === 'error'"
+    [class.border-amber-100]="variant === 'warning'"
+    [class.bg-amber-50]="variant === 'warning'"
+    [class.text-amber-900]="variant === 'warning'"
+    [class.border-emerald-100]="variant === 'success'"
+    [class.bg-emerald-50]="variant === 'success'"
+    [class.text-emerald-900]="variant === 'success'"
+    [class.border-indigo-100]="variant === 'info'"
+    [class.bg-indigo-50]="variant === 'info'"
+    [class.text-pop-text]="variant === 'info'"
+    [attr.role]="variant === 'error' ? 'alert' : 'status'"
+  >
+    @if (icon) {
+      <span class="flex size-5 shrink-0 items-center justify-center rounded-full text-[11px] font-black text-white"
+        [class.bg-red-500]="variant === 'error'" [class.bg-amber-500]="variant === 'warning'"
+        [class.bg-emerald-600]="variant === 'success'" [class.bg-blue-600]="variant === 'info'" aria-hidden="true">
+        @switch (variant) { @case ('success') { ✓ } @case ('error') { ! } @case ('warning') { ! } @default { i } }
+      </span>
+    }
+    <span class="min-w-0 flex-1">@if (title) { <strong class="font-black">{{ title }} · </strong> }<ng-content /></span>
+    <ng-content select="[alert-action]" />
+    @if (dismissible) { <button type="button" class="flex size-7 shrink-0 items-center justify-center rounded-md text-base font-bold hover:bg-white/60 focus-visible:outline-2 focus-visible:outline-pop-primary-dark" [attr.aria-label]="closeLabel" (click)="close()">×</button> }
+  </div>
+}
