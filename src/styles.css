@@ -21,4 +21,15 @@ body { background: var(--color-pop-background); color: var(--color-pop-text); fo
 html { scroll-behavior: smooth; }
 :where(button:not(:disabled), a[href], select:not(:disabled)) { cursor: pointer; }
 button:disabled { cursor: not-allowed; }
+.dashboard-action { position: relative; display: flex; min-width: 0; min-height: 6.25rem; align-items: center; gap: .9rem; overflow: hidden; border: 2px solid #fff; border-radius: 1.8rem; padding: .85rem 1.1rem; box-shadow: 0 9px 22px #6a52ca29, inset 0 1px 0 #ffffffb8; transition: transform .15s ease, box-shadow .15s ease; }
+.dashboard-action:hover { transform: translateY(-3px); box-shadow: 0 13px 26px #6a52ca38, inset 0 1px 0 #ffffffb8; }
+.dashboard-action:focus-visible { outline: 3px solid var(--color-pop-primary-dark); outline-offset: 3px; }
+.dashboard-action strong { min-width: 0; max-width: 13ch; font-size: clamp(1rem, 1.55vw, 1.35rem); font-weight: 900; line-height: 1.14; }
+.dashboard-action-coral { background: linear-gradient(125deg, #ff8666 0%, #ff624f 100%); color: white; }
+.dashboard-action-lavender { background: linear-gradient(120deg, #f1e8ff 0%, #ded4ff 100%); color: #271252; }
+.dashboard-action-icon { display: flex; width: 3.35rem; height: 3.35rem; flex: none; align-items: center; justify-content: center; border-radius: 50%; background: #ffffffd9; color: #6041cf; box-shadow: 0 3px 12px #5032a221; }
+.dashboard-action-icon svg { width: 2.1rem; height: 2.1rem; }
+.dashboard-action-icon-coral { background: #fff; color: #ff6957; }
+.dashboard-action-qr { width: 1.85rem; height: 1.85rem; flex: none; margin-left: auto; color: #7954dd; }
+@media (max-width: 639px) { .dashboard-action { min-height: 5.25rem; } .dashboard-action strong { font-size: 1.1rem; } }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
