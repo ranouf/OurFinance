@@ -218,6 +218,11 @@ Le formulaire propose une icône lors du choix d'une catégorie, affiche l'icôn
 
 ## 10. Écrans V1
 
+**Maquettes approuvées** : les huit références desktop/mobile de [`docs/design-references/`](design-references/README.md) sont obligatoires pour les PR UI. Les SVG de `public/illustrations/` sont des assets décoratifs, **pas** des maquettes d'écrans. Codex doit comparer les captures Playwright de son rendu aux images approuvées (1280 × 800 et 390 × 844) avant de déclarer un écran terminé.
+
+**Architecture UI** : routes Angular séparées pour Connexion, Dashboard, Groupes, Dépenses, Statistiques et Paramètres ; **aucun empilement de tous les formulaires sur une seule page**. Le shell authentifié reste visible même avec **zéro groupe** ; état vide Everyday Pop illustré, CTA de création, aucun montant fictif.
+
+
 **Direction graphique obligatoire : [Everyday Pop](DESIGN_EVERYDAY_POP.md).** Elle remplace le style générique/turquoise de la PR #101 et la mascotte ronde jaune. Utiliser les **SVG vectoriels locaux** de `public/illustrations/` : terrasse de café avec groupe d'amis et bières jaunes, couple avec rose rouge, chaises de bistrot, bulles de catégories/devises. Aucun texte, aucune enseigne de bistrot ni tour Eiffel dans les illustrations. L'interface conserve les libellés FR/EN/JA traduisibles séparément. Les quatre parcours **Connexion, Dashboard/Groupes, Dépenses et Statistiques** doivent chacun être soignés **sur desktop ET sur mobile**.
 
 1. **Connexion / inscription / mot de passe oublié**, avec conservation et reprise de l'invitation QR/lien après le parcours Auth.
@@ -458,6 +463,7 @@ tools/
 - [ ] Photos Cloudinary privées (`authenticated`) visibles seulement aux membres autorisés, avec signature/stream protégé et exportables avec leur dépense.
 - [ ] CSV Splitwise importé avec historique, anomalies et rapprochement des soldes.
 - [ ] PWA installable et responsive, **design Everyday Pop cohérent sur Connexion, Dashboard/Groupes, Dépenses et Statistiques en desktop et mobile**, SVG locaux, graphiques et sélection de dates accessibles, sans traitement silencieux de données privées en dehors du groupe.
+- [ ] **Huit maquettes de référence consultées visuellement**, captures Playwright réelles 1280 × 800 et 390 × 844 comparées dans chaque PR UI, écarts documentés, validation visuelle du propriétaire avant merge/déploiement ; routes Angular réelles et shell visible avec zéro groupe.
 - [ ] UI entièrement disponible en **français, anglais et japonais**, avec langue initiale selon le navigateur, choix dans les paramètres, préférence persistée et changement immédiat.
 - [ ] Pipeline PR et déploiement GitHub vers Firebase Hosting/Firestore/Worker validés ; sauvegardes documentées.
 - [ ] La V1 fonctionne sur Firebase Spark + Cloudinary Free + Worker Free **sans carte bancaire ni facturation requise**, et les quotas sont surveillés.

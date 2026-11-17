@@ -21,3 +21,11 @@ Cloud et local : travailler sur branches distinctes, tenir compte des PR ouverte
 ## Invitations QR — décision produit (16 novembre 2026)
 
 **Lire `docs/INVITATIONS_QR.md` avant toute modification de l'authentification, des groupes, des membres ou des invitations.** Un QR code d'invitation contient le même lien HTTPS temporaire qu'un partage classique. Utiliser `angularx-qrcode` (version compatible avec le major Angular installé), génération locale ; aucun service QR externe ni lecteur caméra intégré requis en V1. Couvrir compte connecté, connexion, nouveau compte Google/email, email non vérifié, **mot de passe oublié et réinitialisation**, changement de compte, déjà membre, expiration/révocation/usage unique, refus et concurrence. Ne jamais accepter une invitation automatiquement : confirmation explicite et validation atomique via Worker/Firestore. Les jetons ne doivent jamais apparaître dans les logs, Firestore en clair, les captures ou les PR. Respecter Everyday Pop desktop/mobile et FR/EN/JA.
+
+## Références visuelles obligatoires pour toutes les PR UI
+
+**Ouvrir réellement les huit images de `docs/design-references/`**, puis lire `docs/design-references/README.md`. Elles constituent les **maquettes approuvées des écrans complets** ; les SVG de `public/illustrations/` ne sont que des assets décoratifs. Les références sont des images générées avec **données fictives**, distinctes des captures privées Splitwise.
+
+Pour chaque écran modifié, lancer l'application et capturer avec Playwright à **1280 × 800 desktop** et **390 × 844 mobile** ; comparer visuellement aux références, corriger les écarts de composition et répéter. Fournir **référence + rendu réel** dans la PR, avec différences résiduelles et tests. **Build et tests verts ne suffisent pas** ; attendre la validation visuelle du propriétaire avant merge/déploiement.
+
+**Navigation** : utiliser de vraies pages Angular Router ; ne pas empiler Dashboard, formulaires, Profil, Dépenses et Statistiques sur une page unique. Le shell desktop/mobile doit rester visible pour tout utilisateur authentifié même avec **zéro groupe** ; afficher alors un état vide Everyday Pop et CTA de création de groupe, sans montant fictif. Préserver Firebase/Worker, les règles métier et les traductions FR/EN/JA.

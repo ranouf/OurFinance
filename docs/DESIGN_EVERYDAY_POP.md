@@ -23,6 +23,14 @@ Ces SVG sont des **interprétations vectorielles originales et plus épurées** 
 
 **Important :** les captures d'écran Splitwise fournies séparément à Codex restent privées et **ne doivent jamais être ajoutées au dépôt**. Les maquettes d'interface servent de direction, pas d'éléments graphiques à reproduire à l'identique.
 
+## Références visuelles obligatoires : huit maquettes d'écrans
+
+Les **huit maquettes approuvées** (Connexion, Dashboard/Groupes, Dépenses, Statistiques × desktop/mobile) sont désormais versionnées dans [`docs/design-references/`](design-references/README.md). **Codex doit ouvrir et comparer les images elles-mêmes**, pas seulement lire les descriptions ou regarder les SVG décoratifs.
+
+**Règle de validation** : avant de déclarer un écran terminé, capture Playwright réelle en **1280 × 800** et **390 × 844**, comparaison visuelle côte à côte, corrections itératives et images de validation dans la PR avec données fictives. Ne pas fusionner ou déployer sans validation visuelle du propriétaire. Voir [README des maquettes](design-references/README.md).
+
+**Architecture UX non négociable** : des pages Angular Router séparées, **pas une longue page de formulaires** ; navigation desktop/mobile visible pour un utilisateur authentifié **même sans groupe**. La maquette Dashboard montre un état avec groupes ; implémenter aussi un **état vide** soigné sans groupe, sans soldes fictifs ni formulaire de profil/invitation empilé.
+
 ## 2. Personnalité de marque
 
 **Everyday Pop** = chaleureux, joyeux, contemporain, rassurant, social et ludique **sans devenir enfantin**. L'utilisateur doit se sentir dans une application conviviale de dépenses partagées, pas dans un back-office financier.
@@ -139,4 +147,6 @@ Créer une couche de tokens commune, **ne pas dupliquer** les vues pour desktop/
 - [ ] FR/EN/JA et formats monétaires/date corrects ; devise unique par groupe.
 - [ ] Tests responsive 320/390/768/1280 px, accessibilité clavier, focus, contraste, loading/empty/error.
 - [ ] SVG locaux utilisés sans requête à un service externe ; poids/performance vérifiés.
+- [ ] **Chaque écran** a été comparé visuellement aux [8 maquettes approuvées](design-references/README.md) avec captures Playwright desktop 1280 × 800 et mobile 390 × 844, écarts documentés et validation visuelle du propriétaire avant merge/déploiement.
+- [ ] Shell authentifié visible même avec zéro groupe ; écrans routés et état vide Everyday Pop ; aucun empilement des formulaires métier sur le dashboard.
 - [ ] Tests unitaires, intégration et E2E existants toujours verts ; aucune capture personnelle dans Git.
