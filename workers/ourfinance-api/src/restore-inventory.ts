@@ -24,7 +24,11 @@ export async function collectLiveRestoreInventory(uid: string, groupId: string, 
     if (!response.ok) throw new RestoreInventoryError(response.status === 409 ? 409 : 503, 'firestore_unavailable');
     return await response.json() as Record<string, unknown>;
   };
-  const begin = await checked(await transport(`https://firestore.googleapis.com/v1/${root}:beginTransaction`, { method: 'POST', headers, body: '{}' }));
+  // Inventory never writes. A read-write transaction can retain document locks
+  // until rollback and contend with the subsequent replacement transaction.
+  const begin = await checked(await transport(`https://firestore.googleapis.com/v1/${root}:beginTransaction`, {
+    method: 'POST', headers, body: JSON.stringify({ options: { readOnly: {} } }),
+  }));
   if (typeof begin['transaction'] !== 'string') throw new RestoreInventoryError(503, 'transaction_unavailable');
   const transaction = begin['transaction'];
   let count = 0;

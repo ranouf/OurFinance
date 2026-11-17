@@ -10,10 +10,15 @@ async function fixture(role: 'owner' | 'member' = 'owner', unknownCollection = f
   }) };
   const root = 'projects/ourfinance-test/databases/(default)/documents';
   let rollbacks = 0;
-  const transport = async (resource: string | URL | Request) => {
+  let readOnlyBegins = 0;
+  const transport = async (resource: string | URL | Request, init?: RequestInit) => {
     const url = new URL(String(resource));
     if (url.hostname === 'oauth2.googleapis.com') return Response.json({ access_token: 'synthetic-service-token' });
-    if (url.pathname.endsWith(':beginTransaction')) return Response.json({ transaction: 'txn' });
+    if (url.pathname.endsWith(':beginTransaction')) {
+      deepStrictEqual(JSON.parse(String(init?.body)), { options: { readOnly: {} } });
+      readOnlyBegins++;
+      return Response.json({ transaction: 'txn' });
+    }
     if (url.pathname.endsWith(':rollback')) { rollbacks++; return Response.json({}); }
     const path = url.pathname.slice(`/v1/${root}/`.length);
     if (path === 'groups/g:listCollectionIds') return Response.json({ collectionIds: unknownCollection ? ['expenses', 'unexpected'] : ['members', 'expenses'] });
@@ -28,7 +33,7 @@ async function fixture(role: 'owner' | 'member' = 'owner', unknownCollection = f
     if (path === 'users/alice/groupPreferences/g') return Response.json({}, { status: 404 });
     return Response.json({});
   };
-  return { env, transport: transport as typeof fetch, get rollbacks() { return rollbacks; } };
+  return { env, transport: transport as typeof fetch, get rollbacks() { return rollbacks; }, get readOnlyBegins() { return readOnlyBegins; } };
 }
 
 test('owner inventories group, nested receipt and personal documents without writing', async () => {
@@ -38,6 +43,7 @@ test('owner inventories group, nested receipt and personal documents without wri
   deepStrictEqual(inventory.userDocuments, ['users/alice/groupMemberships/g']);
   deepStrictEqual(inventory.receiptPublicIds, ['ourfinance-test/g/e/a']);
   strictEqual(state.rollbacks, 1);
+  strictEqual(state.readOnlyBegins, 1);
 });
 
 test('ordinary member cannot inventory the group', async () => {
