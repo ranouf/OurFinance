@@ -1,17 +1,26 @@
 import type { ImportPreviewV1 } from './import-v1';
+import { reconcileNativeSplitwiseCsv, type NativeSplitwiseCsv } from './splitwise-native-csv';
+
+interface ImportRecordBase {
+  readonly sourceId: string;
+  readonly date: string;
+  readonly description: string;
+  readonly currency: string;
+}
+type PreparedImportRecord = ImportRecordBase & ({
+  readonly amountMinor: number;
+  readonly netImpactsMinor: Readonly<Record<string, number>>;
+} | {
+  readonly sourceCostExact: string;
+  readonly sourcePrecision: number;
+  readonly netImpactsExact: Readonly<Record<string, string>>;
+});
 
 export interface PreparedImportBatch {
   readonly groupId: string;
   readonly body: {
     readonly batchId: string;
-    readonly records: readonly {
-      readonly sourceId: string;
-      readonly date: string;
-      readonly description: string;
-      readonly currency: string;
-      readonly amountMinor: number;
-      readonly netImpactsMinor: Readonly<Record<string, number>>;
-    }[];
+    readonly records: readonly PreparedImportRecord[];
   };
 }
 
@@ -62,4 +71,40 @@ export function prepareImportBatch(
     };
   });
   return { groupId: targetGroupId, body: { batchId, records } };
+}
+
+/** Creates idempotent, source-precise batches without inferring historical shares. */
+export async function prepareNativeImportBatches(
+  source: NativeSplitwiseCsv,
+  sourceGroupId: string,
+  targetGroupId: string,
+  targetCurrency: string,
+  memberMapping: Readonly<Record<string, string>>,
+): Promise<PreparedImportBatch[]> {
+  if (!documentId.test(sourceGroupId) || !documentId.test(targetGroupId) || source.currency !== targetCurrency ||
+      !reconcileNativeSplitwiseCsv(source).matched) throw new Error('Source non rapprochée ou devise incompatible');
+  const memberIds = source.participants.map(person => memberMapping[person]);
+  if (memberIds.some(id => !id || !documentId.test(id)) || new Set(memberIds).size !== memberIds.length) throw new Error('Correspondance des membres invalide');
+  const occurrences = new Map<string, number>();
+  const records: PreparedImportRecord[] = [];
+  for (const row of source.rows) {
+    if (row.description.length > 160) throw new Error('Description historique trop longue');
+    const signature = JSON.stringify([sourceGroupId, row.date, row.description, row.category, row.cost, row.currency,
+      source.participants.map(person => row.impacts[person])]);
+    const occurrence = occurrences.get(signature) ?? 0;
+    occurrences.set(signature, occurrence + 1);
+    const bytes = new TextEncoder().encode(JSON.stringify([signature, occurrence]));
+    const hash = await crypto.subtle.digest('SHA-256', bytes);
+    const sourceId = `native_${[...new Uint8Array(hash)].map(byte => byte.toString(16).padStart(2, '0')).join('')}`;
+    const sourcePrecision = Math.max((row.cost.split('.')[1] ?? '').length,
+      ...source.participants.map(person => (row.impacts[person].split('.')[1] ?? '').length));
+    records.push({ sourceId, date: row.date, description: row.description, currency: row.currency,
+      sourceCostExact: row.cost, sourcePrecision,
+      netImpactsExact: Object.fromEntries(source.participants.map(person => [memberMapping[person], row.impacts[person]])) });
+  }
+  const batches: PreparedImportBatch[] = [];
+  for (let index = 0; index < records.length; index += 10) {
+    batches.push({ groupId: targetGroupId, body: { batchId: crypto.randomUUID(), records: records.slice(index, index + 10) } });
+  }
+  return batches;
 }

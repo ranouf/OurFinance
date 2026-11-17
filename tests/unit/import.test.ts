@@ -1,8 +1,10 @@
 import { test } from 'node:test';
-import { deepStrictEqual, strictEqual, throws } from 'node:assert';
+import { deepStrictEqual, rejects, strictEqual, throws } from 'node:assert';
 import { parseCsv } from '../../src/app/features/import-export/csv';
 import { previewMappedCsv } from '../../src/app/features/import-export/import-v1';
 import { reconcileImpacts } from '../../src/app/features/import-export/reconcile';
+import { prepareNativeImportBatches } from '../../src/app/features/import-export/prepare-batch';
+import { parseNativeSplitwiseCsv } from '../../src/app/features/import-export/splitwise-native-csv';
 test('quoted commas and newlines parse without losing data', () => {
   deepStrictEqual(parseCsv('a,b\r\n"hello,\nworld",x\r\n'), [['a','b'],['hello,\nworld','x']]);
   throws(() => parseCsv('"unclosed'));
@@ -67,4 +69,22 @@ test('rapprochement sépare strictement groupes et devises', () => {
   strictEqual(result.differences.length, 6);
   strictEqual(result.differences.find(row => row.groupId === 'g1' && row.currency === 'CAD' && row.userId === 'alex')?.importedMinor, '100');
   strictEqual(result.differences.find(row => row.groupId === 'g2' && row.currency === 'CAD' && row.userId === 'alex')?.importedMinor, '-100');
+});
+
+test('lots natifs exacts : mapping explicite et identifiants stables, y compris doublons identiques', async () => {
+  const header = 'Date,Description,Catégorie,Coût,Devise,Alice,Bob\n';
+  const row = '2026-11-01,Trajet fictif,Transport,101.50,JPY,50.75,-50.75\n';
+  const balance = '2026-11-16,Solde total,Total, ,JPY,101.50,-101.50';
+  const source = parseNativeSplitwiseCsv(header + row + row + balance);
+  const mapping = { Alice: 'alex', Bob: 'camille' };
+  const first = await prepareNativeImportBatches(source, 'groupe-source', 'groupe-cible', 'JPY', mapping);
+  const second = await prepareNativeImportBatches(source, 'groupe-source', 'groupe-cible', 'JPY', mapping);
+  strictEqual(first.length, 1);
+  strictEqual(first[0].body.records.length, 2);
+  deepStrictEqual(first[0].body.records.map(record => record.sourceId), second[0].body.records.map(record => record.sourceId));
+  strictEqual(first[0].body.records[0].sourceId === first[0].body.records[1].sourceId, false);
+  deepStrictEqual(first[0].body.records[0], { sourceId: first[0].body.records[0].sourceId, date: '2026-11-01',
+    description: 'Trajet fictif', currency: 'JPY', sourceCostExact: '101.50', sourcePrecision: 2,
+    netImpactsExact: { alex: '50.75', camille: '-50.75' } });
+  await rejects(prepareNativeImportBatches(source, 'groupe-source', 'groupe-cible', 'CAD', mapping));
 });
