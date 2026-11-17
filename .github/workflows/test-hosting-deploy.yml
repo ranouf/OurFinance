@@ -43,3 +43,13 @@ jobs:
           credentials_json: ${{ secrets.TEST_FIREBASE_DEPLOY_SA_JSON }}
       - name: Deploy Hosting to test only
         run: npx firebase-tools deploy --only hosting --project ourfinance-test --non-interactive
+      - name: Verify deployed Hosting headers
+        run: |
+          for path in / /dashboard; do
+            headers="$(curl --fail --silent --show-error --location --head "https://ourfinance-test.web.app$path" | tr -d '\r')"
+            printf '%s\n' "$headers" | grep -qi '^referrer-policy: no-referrer$'
+            printf '%s\n' "$headers" | grep -qi '^x-content-type-options: nosniff$'
+            printf '%s\n' "$headers" | grep -qi '^x-frame-options: DENY$'
+            printf '%s\n' "$headers" | grep -qi "^content-security-policy: .*frame-ancestors 'none'"
+            printf '%s\n' "$headers" | grep -qi "script-src 'self'"
+          done
