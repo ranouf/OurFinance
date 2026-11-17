@@ -88,6 +88,15 @@ test('media staging failure aborts the lock and retries asset cleanup', async ()
   deepStrictEqual(events, ['begin', 'stage', 'abort', 'cleanup']);
 });
 
+test('inventory failure aborts the lock before any replacement commit', async () => {
+  const events: string[] = [];
+  const ops = operations(events);
+  ops.inventory = async () => { events.push('inventory'); throw new Error('Firestore unavailable'); };
+  await rejects(restoreGroupFromPackage('alice', 'g', restoreId, await archive(), env, fetch, ops),
+    (error: unknown) => error instanceof RestoreOrchestrationError && error.code === 'restore_failed' && error.stage === 'inventory');
+  deepStrictEqual(events, ['begin', 'stage', 'inventory', 'abort', 'cleanup']);
+});
+
 test('failed rollback reports only the safe recovery stage', async () => {
   const events: string[] = [];
   const ops = operations(events);
