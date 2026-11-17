@@ -10,6 +10,8 @@ Travailler par jalon M0 à M6 avec PR petites et vérifiables. Avant de fusionne
 
 Lors d'une tâche autonome, poursuivre les étapes non bloquantes, documenter les obstacles et ouvrir une PR plutôt que fusionner automatiquement les changements sensibles.
 
+Appliquer `docs/PR_REVIEW.md` à chaque commit et push, ainsi qu'avant toute fusion. Un PR `[UI]` requiert des captures réelles et une vidéo dans sa description ; ces médias de validation restent toujours hors dépôt.
+
 ## Direction UI approuvée (16 novembre 2026)
 
 **Everyday Pop est obligatoire pour toute nouvelle tâche UI.** Lire `docs/DESIGN_EVERYDAY_POP.md` avant de modifier Connexion, Dashboard/Groupes, Dépenses ou Statistiques. Réutiliser les assets SVG locaux de `public/illustrations/` (terrasse de café, groupe d'amis avec bières jaunes, couple avec rose rouge, catégories/devises sans texte ni tour Eiffel). Les SVG sont des illustrations vectorielles originales et simplifiées, pas des PNG déguisés. Ne pas réintroduire la mascotte ronde jaune ou le style turquoise générique de la PR #101. Conserver ses améliorations fonctionnelles et responsive lorsqu'elles sont utiles.
