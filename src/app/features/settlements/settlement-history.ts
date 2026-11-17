@@ -12,27 +12,28 @@ import { locale, t } from '../../shared/utils/i18n';
   selector: 'app-settlement-history',
   imports: [FormsModule],
   template: `
-    <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-5" [attr.aria-label]="t('settlementHistory')">
-      <h2 class="text-lg font-semibold">{{ t('settlementHistory') }}</h2>
-      <label class="mt-4 block text-sm font-medium">{{ t('group') }}
-        <select class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="settlementHistoryGroup" [(ngModel)]="selectedGroupId" (ngModelChange)="refresh()">
+    <section class="mt-6 rounded-3xl border border-pop-border bg-pop-surface p-5 text-pop-text shadow-sm md:p-7" [attr.aria-label]="t('settlementHistory')">
+      <div class="mb-5 h-1.5 w-14 rounded-full bg-pop-sun" aria-hidden="true"></div>
+      <h2 class="text-2xl font-extrabold tracking-tight">{{ t('settlementHistory') }}</h2>
+      <label class="mt-5 block text-sm font-bold">{{ t('group') }}
+        <select class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="settlementHistoryGroup" [(ngModel)]="selectedGroupId" (ngModelChange)="refresh()">
           <option value="">{{ t('chooseGroup') }}</option>
           @for (group of groups; track group.id) { <option [value]="group.id">{{ group.name }}</option> }
         </select>
       </label>
       @if (selectedGroupId) {
-        <button class="mt-3 rounded-lg border border-teal-700 px-3 py-2 text-sm text-teal-800 disabled:opacity-50" type="button" [disabled]="busy()" (click)="refresh()">{{ t('refresh') }}</button>
+        <button class="mt-3 min-h-11 rounded-xl bg-pop-primary px-5 py-2 text-sm font-bold text-white hover:bg-pop-primary-dark disabled:opacity-50" type="button" [disabled]="busy()" (click)="refresh()">{{ t('refresh') }}</button>
         @if (entries().length) {
-          <ul class="mt-4 divide-y divide-slate-200">
+          <ul class="mt-5 space-y-3">
             @for (entry of entries(); track entry.id) {
-              <li class="py-3 text-sm">
-                <div class="flex justify-between gap-3"><span class="min-w-0 break-all">{{ memberLabel(entry.fromUserId) }} → {{ memberLabel(entry.toUserId) }}</span><span class="shrink-0 font-semibold">{{ amount(entry) }}</span></div>
-                <p class="mt-1 text-slate-600">{{ entry.date }}</p>
+              <li class="rounded-2xl border border-pop-border bg-pop-surface p-4 text-sm shadow-sm">
+                <div class="flex items-center justify-between gap-3"><span class="min-w-0 break-all font-bold">{{ memberLabel(entry.fromUserId) }} → {{ memberLabel(entry.toUserId) }}</span><span class="shrink-0 font-extrabold text-pop-primary-dark">{{ amount(entry) }}</span></div>
+                <p class="mt-1 text-pop-muted">{{ displayDate(entry.date) }}</p>
               </li>
             }
           </ul>
-          @if (hasMore()) { <button class="mt-3 rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:opacity-50" type="button" [disabled]="busy()" (click)="loadMore()">{{ t('showMore') }}</button> }
-        } @else if (!busy() && !message()) { <p class="mt-4 text-sm text-slate-600">{{ t('noSettlement') }}</p> }
+          @if (hasMore()) { <button class="mt-3 min-h-11 rounded-xl border border-pop-border px-4 py-2 text-sm font-bold text-pop-primary-dark disabled:opacity-50" type="button" [disabled]="busy()" (click)="loadMore()">{{ t('showMore') }}</button> }
+        } @else if (!busy() && !message()) { <p class="mt-5 rounded-2xl bg-pop-lavender p-5 text-sm text-pop-muted">{{ t('noSettlement') }}</p> }
       }
       @if (message()) { <p class="mt-4 text-sm text-rose-700" role="status">{{ message() }}</p> }
     </section>
@@ -59,7 +60,8 @@ export class SettlementHistory implements OnChanges {
     if (changes['revision'] && !changes['revision'].firstChange && this.selectedGroupId) void this.refresh();
   }
   amount(entry: SettlementHistoryEntry): string { return formatMinor(entry.amountMinor, entry.currency, locale()); }
-  memberLabel(userId: string): string { return userId === this.user?.uid ? t('me') : userId; }
+  displayDate(value: string): string { return new Intl.DateTimeFormat(locale(), { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date(`${value}T00:00:00Z`)); }
+  memberLabel(userId: string): string { return userId === this.user?.uid ? t('me') : `${t('otherMember')} ${userId.slice(0, 8)}`; }
   async refresh(): Promise<void> { this.entries.set([]); this.last = undefined; this.hasMore.set(false); await this.load(); }
   async loadMore(): Promise<void> { await this.load(); }
   private async load(): Promise<void> {
