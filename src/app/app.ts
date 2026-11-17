@@ -22,7 +22,7 @@ import { language, locale, setLanguage, t } from './shared/utils/i18n';
   selector: 'app-root',
   imports: [AppShell, RouterOutlet],
   template: `
-    <app-shell [signedIn]="!!auth?.user()" [userInitial]="userInitial()">
+    <app-shell [signedIn]="!!auth?.user()" [hasGroups]="groups().length > 0" [userInitial]="userInitial()">
       @if (!online()) { <p class="mx-auto max-w-6xl rounded-xl bg-amber-50 p-3 text-sm text-amber-900" role="status">{{ t('offline') }}</p> }
       @if (state() === 'loading') { <p class="mx-auto max-w-6xl p-6" role="status">{{ t('loadingConfig') }}</p> }
       @else if (state() === 'unconfigured') { <p class="mx-auto max-w-6xl p-6" role="status">{{ t('missingConfig') }}</p> }

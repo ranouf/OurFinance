@@ -56,7 +56,7 @@ class NavIcon { @Input({ required: true }) name = ''; }
           <div class="mx-auto grid max-w-lg grid-cols-5 gap-1">
             <a class="pop-bottom-link" routerLink="/dashboard" routerLinkActive="pop-bottom-active"><app-nav-icon name="home" />{{ t('navHome') }}</a>
             <a class="pop-bottom-link" routerLink="/groups" routerLinkActive="pop-bottom-active"><app-nav-icon name="groups" />{{ t('navGroups') }}</a>
-            <a class="pop-bottom-link" routerLink="/expenses" routerLinkActive="pop-bottom-active"><span class="flex h-11 w-11 items-center justify-center rounded-full bg-pop-coral text-2xl text-white shadow-md" aria-hidden="true">＋</span>{{ t('navAdd') }}</a>
+            <a class="pop-bottom-link" [routerLink]="hasGroups ? '/expenses' : '/groups'" routerLinkActive="pop-bottom-active" [attr.aria-label]="hasGroups ? t('navAdd') : t('createGroup')"><span class="flex h-11 w-11 items-center justify-center rounded-full bg-pop-coral text-2xl text-white shadow-md" aria-hidden="true">＋</span>{{ t('navAdd') }}</a>
             <a class="pop-bottom-link" routerLink="/statistics" routerLinkActive="pop-bottom-active"><app-nav-icon name="statistics" />{{ t('navStatistics') }}</a>
             <a class="pop-bottom-link" routerLink="/account" routerLinkActive="pop-bottom-active"><app-nav-icon name="account" />{{ t('navAccount') }}</a>
           </div>
@@ -74,4 +74,4 @@ class NavIcon { @Input({ required: true }) name = ''; }
     .pop-bottom-link:focus-visible { outline:2px solid var(--color-pop-primary); outline-offset:2px; }
   `],
 })
-export class AppShell { @Input() signedIn = false; @Input() userInitial = '?'; readonly t = t; }
+export class AppShell { @Input() signedIn = false; @Input() hasGroups = false; @Input() userInitial = '?'; readonly t = t; }
