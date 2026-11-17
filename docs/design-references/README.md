@@ -33,6 +33,14 @@ La dernière direction choisie par l'utilisateur est **la DEUXIÈME proposition 
 
 **Sémantique financière obligatoire** : la maquette fournit une composition, pas une formule comptable. Les totaux, balances, montants reçus et remboursés doivent être calculés avec les vrais services et la **devise unique du groupe**, sans addition entre devises ni montant hardcodé.
 
+### Préférence la plus récente sur le Dashboard (17 novembre 2026)
+
+**Composition prioritaire** : la maquette [Dashboard Everyday Pop V2 desktop](everyday-pop-v2-dashboard-desktop.webp) reste la référence pour la sidebar, les titres, la carte héro violette, les trois actions rapides, les trois panneaux financiers et la **frise de maisons/plantes en bas du contenu**. **Exception demandée explicitement** : conserver les **personnages et les tables de café de la version actuellement implémentée**, asset `public/illustrations/cafe-hero-mobile.webp`, au lieu de remplacer cette scène par celle de l'ancienne maquette. Adapter son recadrage aux zones desktop/mobile sans masquer les données.
+
+La sidebar doit utiliser la **chaise de bistrot, les plantes et les immeubles parisiens en filigrane** de `public/illustrations/sidebar-paris-cafe.webp`, placés en bas à gauche. Ce décor de sidebar est **distinct** de la frise maisons/plantes du bas de page. Les données et noms affichés dans les captures utilisateur ne sont pas des données de démonstration à publier.
+
+Les boutons rapides conservent le relief/ombrage de la référence, avec icônes Lucide et QR bien visible. Dans la galerie de composants, « Navigation et données » utilise deux colonnes desktop ; l'invitation QR s'ouvre via la tuile « Inviter des membres », sans second CTA. Pour les comparaisons PR, référence du README **à gauche**, screenshot réel **à droite**.
+
 ### Revue visuelle minimale pour Codex
 
 Pour la PR #124 et toute suite UI, produire pour chaque état concerné une **capture réelle Playwright à 1280×800 desktop et 390×844 mobile** avec comptes et groupes fictifs ; fournir **une comparaison côte à côte entre chaque capture et cette V2**, signaler les écarts, les corriger et refaire des captures. **Ne pas déclarer la conformité visuelle sur la seule base d'un build vert, de tests unitaires ou de la présence des fichiers images**. Aucun merge ou déploiement sans validation explicite de l'utilisateur.
