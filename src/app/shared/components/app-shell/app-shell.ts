@@ -42,7 +42,7 @@ class NavIcon { @Input({ required: true }) name = ''; }
         @if (signedIn) {
           <header class="relative z-40" [class.dashboard-header]="dashboard" [class.bg-white/90]="!dashboard">
             <div class="relative z-10 mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-7 lg:px-8" [class.lg:py-6]="dashboard">
-              <a class="flex items-center gap-1.5 lg:hidden" routerLink="/dashboard"><img src="/illustrations/ourfinance-mark.svg" width="36" height="36" alt="" /><strong class="text-lg font-black text-pop-primary-dark">ourfinance.</strong></a>
+              <a class="flex items-center gap-1.5 lg:hidden" routerLink="/dashboard"><img src="/illustrations/ourfinance-mark.svg" width="36" height="36" alt="" /><strong class="text-[22px] font-black tracking-tight text-pop-primary-dark">ourfinance.</strong></a>
               @if (dashboard) {
                 <div class="hidden min-w-0 flex-1 lg:block"><h1 class="text-3xl font-black leading-tight text-pop-primary-dark">{{ t('dashboardHello') }}{{ firstName ? ' ' + firstName : '' }} ! 👋</h1><p class="mt-1 text-sm font-semibold text-pop-primary-dark">{{ t('loginHeroLead') }} {{ t('loginHeroHighlight') }}</p></div>
                 <form class="hidden w-80 min-h-11 items-center gap-2 rounded-full bg-white px-4 shadow-[0_4px_14px_#5c46ad25] lg:flex" role="search" (submit)="submitSearch($event)">
