@@ -5,7 +5,7 @@ Le workflow `Deploy test Worker manually` publie **uniquement** `ourfinance-api-
 ## Prérequis
 
 1. Réserver `ourfinance-api-dev` et `ourfinance-test` dans l'[issue #30](https://github.com/ranouf/OurFinance/issues/30), avec le PR et le SHA complet. Ne pas lancer deux essais sur la pile simultanément.
-2. Configurer dans l'environnement GitHub `test` le secret `CLOUDFLARE_TEST_API_TOKEN`, limité au compte Cloudflare de TEST et à la modification du seul Worker `ourfinance-api-dev`, ainsi que la variable non secrète `CLOUDFLARE_TEST_ACCOUNT_ID`. Aucun jeton ni valeur de secret dans le dépôt ou l'issue.
+2. Configurer dans l'environnement GitHub `test` le secret `CLOUDFLARE_TEST_API_TOKEN` avec la permission minimale de publication des Workers sur un **compte Cloudflare isolé pour TEST**, ainsi que la variable non secrète `CLOUDFLARE_TEST_ACCOUNT_ID`. Vérifier la portée réelle du jeton : si Cloudflare ne permet pas de le restreindre au seul script, le compte TEST ne doit pas héberger de Worker de production. Aucun jeton ni valeur de secret dans le dépôt ou l'issue.
 3. Conserver `FIREBASE_SERVICE_ACCOUNT_JSON`, `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` et `CLOUDINARY_API_SECRET` dans les secrets **Cloudflare** du Worker. Le workflow ne les lit pas.
 
 ## Exécution et résultat attendu
