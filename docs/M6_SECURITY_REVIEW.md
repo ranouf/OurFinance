@@ -17,7 +17,7 @@ Ce document distingue les contrôles observés sur `ourfinance-test` des décisi
 
 L'export/import géré Firestore exige facturation et bucket Cloud Storage ; il n'est pas disponible sur le projet Spark actuel. L'archive applicative `group-v2-partial` conserve groupe, membres, préférences, dépenses, remboursements, imports, commentaires, catégories, activité et octets des reçus privés, mais pas les comptes Firebase Auth.
 
-La restauration du groupe d'origine et de ses préférences a réussi sur TEST avec un reçu privé, puis avec 30 PNG préparés et nettoyés (`#119`). Les lectures propriétaire/membre ont réussi et les accès tiers/révoqué ont été refusés. `#139` ajoute la récupération propriétaire d'une tentative `staging` ou `cleanup_pending` après fermeture d'onglet ; 139 tests Worker et la CI sont verts, mais son essai réel TEST reste attendu. La route est désactivée hors du groupe POC explicitement configuré.
+La restauration du groupe d'origine et de ses préférences a réussi sur TEST avec un reçu privé, puis avec 30 PNG préparés et nettoyés (`#119`). Les lectures propriétaire/membre ont réussi et les accès tiers/révoqué ont été refusés. `#139` est fusionné après un essai réel de récupération propriétaire : `staging` 200, `cleanup_pending` 200, refus d'une nouvelle préparation 409, nettoyage 204 et retour `active` 200 ; 30 assets fictifs supprimés. La route est désactivée hors du groupe POC explicitement configuré. Le Worker TEST a été libéré avec flags retirés, `/health` 200 et route 503.
 
 ## Décisions et contrôles avant production
 
