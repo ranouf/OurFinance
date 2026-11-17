@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import { rejects, strictEqual } from 'node:assert';
 import { generateKeyPair, exportPKCS8 } from 'jose';
-import { abortRestoreLock, beginRestoreLock, RestoreLockError } from '../src/restore-lock';
+import { abortRestoreLock, beginPreparedRestoreLock, beginRestoreLock, RestoreLockError } from '../src/restore-lock';
 
 const restoreId = '123e4567-e89b-42d3-a456-426614174000';
 
@@ -13,6 +13,7 @@ async function fixture(role: 'owner' | 'member' = 'owner') {
   let status = 'active';
   let commits = 0;
   let rollbacks = 0;
+  let jobFields: Record<string, unknown> = {};
   const transport = async (resource: string | URL | Request, init?: RequestInit) => {
     const url = String(resource);
     if (url.includes('oauth2.googleapis.com')) return Response.json({ access_token: 'synthetic-service-token' });
@@ -27,12 +28,13 @@ async function fixture(role: 'owner' | 'member' = 'owner') {
       const body = JSON.parse(String(init?.body));
       strictEqual(body.writes.length, 2);
       strictEqual(body.writes[1].update.name.endsWith(`/groups/g/restoreJobs/${restoreId}`), true);
+      jobFields = body.writes[1].update.fields;
       status = body.writes[0].update.fields.status.stringValue;
       return Response.json({});
     }
     throw new Error('Requête inattendue');
   };
-  return { env, transport: transport as typeof fetch, get status() { return status; }, get commits() { return commits; }, get rollbacks() { return rollbacks; } };
+  return { env, transport: transport as typeof fetch, get status() { return status; }, get commits() { return commits; }, get rollbacks() { return rollbacks; }, get jobFields() { return jobFields; } };
 }
 
 test('owner locks original group and can abort before replacing documents', async () => {
@@ -50,4 +52,16 @@ test('ordinary member cannot lock a group and transaction rolls back', async () 
     (error: unknown) => error instanceof RestoreLockError && error.status === 403);
   strictEqual(state.commits, 0);
   strictEqual(state.rollbacks, 1);
+});
+
+test('prepared restore records 30 exact receipt digests without uploading media', async () => {
+  const state = await fixture();
+  const ids = Array.from({ length: 30 }, (_, index) => `ourfinance-test/g/e/restore_${restoreId}/a_${index}`);
+  const digests = ids.map(() => 'a'.repeat(64));
+  await beginPreparedRestoreLock('alice', 'g', restoreId, 'CAD', ids,
+    { manifestSha256: 'b'.repeat(64), receiptSha256: digests, receiptFormats: ids.map(() => 'png') }, state.env, state.transport);
+  strictEqual(state.commits, 1);
+  strictEqual(state.status, 'restoring');
+  strictEqual((state.jobFields['manifestSha256'] as { stringValue: string }).stringValue, 'b'.repeat(64));
+  strictEqual((state.jobFields['receiptSha256'] as { arrayValue: { values: unknown[] } }).arrayValue.values.length, 30);
 });

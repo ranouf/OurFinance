@@ -163,12 +163,29 @@ export class RestorePanel {
     try {
       const url = new URL(`/groups/${encodeURIComponent(group.id)}/backup/restores/${restoreId}`, this.workerUrl);
       if (url.protocol !== 'https:') throw new Error('insecure_url');
-      const copy = new Uint8Array(archive.byteLength);
-      copy.set(archive);
-      const response = await fetch(url, {
-        method: 'POST', headers: { Authorization: `Bearer ${await user.getIdToken()}`, 'Content-Type': 'application/zip' },
-        body: copy.buffer, cache: 'no-store',
-      });
+      const token = await user.getIdToken();
+      const sendZip = async (path: string): Promise<Response> => {
+        const copy = new Uint8Array(archive.byteLength);
+        copy.set(archive);
+        return fetch(new URL(path, url), { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/zip' },
+          body: copy.buffer, cache: 'no-store' });
+      };
+      const contents = await decodeBackupZipV2(archive);
+      let response: Response;
+      if (contents.receipts.length > 25) {
+        const prepared = await sendZip(`${url.pathname}/prepare`);
+        if (prepared.status !== 201) throw new Error('prepare_failed');
+        for (const [index, receipt] of contents.receipts.entries()) {
+          const copy = new Uint8Array(receipt.bytes.byteLength);
+          copy.set(receipt.bytes);
+          const staged = await fetch(new URL(`${url.pathname}/receipts/${index}`, url), { method: 'POST',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': receipt.contentType }, body: copy.buffer, cache: 'no-store' });
+          if (!staged.ok) throw new Error('stage_failed');
+        }
+        response = await sendZip(`${url.pathname}/commit`);
+      } else {
+        response = await sendZip(url.pathname);
+      }
       if (response.status === 200 || response.status === 202) {
         this.clearPreview();
         this.message.set(response.status === 202 ? 'restoreCleanupPending' : 'restoreDone');

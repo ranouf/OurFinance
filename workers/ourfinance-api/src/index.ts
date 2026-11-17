@@ -22,6 +22,7 @@ import { retryRestoreCleanup, RestoreCleanupError } from './restore-cleanup';
 import { readLimitedBody } from './media';
 import { collectLiveRestoreInventory, RestoreInventoryError } from './restore-inventory';
 import { summarizeRestorePreviewV2 } from './restore-preview';
+import { commitPreparedRestore, prepareRestore, PreparedRestoreError, stagePreparedRestoreReceipt } from './restore-prepared';
 
 export interface Env extends Partial<CloudinaryEnv> {
   FIREBASE_PROJECT_ID: string;
@@ -93,6 +94,46 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     } catch (error) {
       const status = error instanceof RestoreInventoryError ? error.status : 400;
       return new Response(JSON.stringify({ error: error instanceof RestoreInventoryError ? error.code : 'invalid_backup' }), { status, headers });
+    }
+  }
+  const preparedMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/backup\/restores\/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})\/(prepare|commit|receipts\/([0-9]{1,3}))$/.exec(url.pathname);
+  if (preparedMatch && request.method === 'POST') {
+    const [, groupId, restoreId, action, receiptIndex] = preparedMatch;
+    if (env.ENABLE_RESTORE_POC !== 'true' || env.RESTORE_POC_GROUP_ID !== groupId || !env.FIREBASE_SERVICE_ACCOUNT_JSON ||
+        !env.CLOUDINARY_CLOUD_NAME || !env.CLOUDINARY_API_KEY || !env.CLOUDINARY_API_SECRET) {
+      return new Response(JSON.stringify({ error: 'Restauration non configurée' }), { status: 503, headers });
+    }
+    let uid: string;
+    try { uid = await verifyFirebaseVerifiedEmail(bearerToken(request), env.FIREBASE_PROJECT_ID); }
+    catch { return new Response(JSON.stringify({ error: 'Non authentifié' }), { status: 401, headers }); }
+    const restoreEnv = { FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT_JSON: env.FIREBASE_SERVICE_ACCOUNT_JSON,
+      CLOUDINARY_CLOUD_NAME: env.CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY: env.CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET: env.CLOUDINARY_API_SECRET };
+    try {
+      if (action.startsWith('receipts/')) {
+        const contentType = request.headers.get('Content-Type')?.split(';')[0].trim();
+        if (contentType !== 'image/png' && contentType !== 'image/jpeg') return new Response(JSON.stringify({ error: 'Reçu invalide' }), { status: 400, headers });
+        const bytes = await readLimitedBody(request, 2_000_000);
+        const result = await stagePreparedRestoreReceipt(uid, groupId, restoreId, Number(receiptIndex), bytes,
+          contentType === 'image/png' ? 'png' : 'jpg', restoreEnv);
+        return new Response(JSON.stringify(result), { status: 200, headers });
+      }
+      if (request.headers.get('Content-Type')?.split(';')[0].trim() !== 'application/zip') {
+        return new Response(JSON.stringify({ error: 'Archive invalide' }), { status: 400, headers });
+      }
+      const bytes = await readLimitedBody(request, 20_000_000);
+      let archive;
+      try { archive = await decodeBackupZipV2(bytes); }
+      catch { return new Response(JSON.stringify({ error: 'invalid_backup' }), { status: 400, headers }); }
+      if (action === 'prepare') {
+        const result = await prepareRestore(uid, groupId, restoreId, archive, restoreEnv);
+        return new Response(JSON.stringify(result), { status: 201, headers });
+      }
+      const result = await commitPreparedRestore(uid, groupId, restoreId, archive, restoreEnv);
+      return new Response(JSON.stringify(result), { status: result.cleanupPending ? 202 : 200, headers });
+    } catch (error) {
+      const status = error instanceof PreparedRestoreError ? error.status : error instanceof RequestBodyError ? 413 : 503;
+      const code = error instanceof PreparedRestoreError ? error.code : error instanceof RequestBodyError ? 'body_too_large' : 'restore_unavailable';
+      return new Response(JSON.stringify({ error: code }), { status, headers });
     }
   }
   const restoreMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/backup\/restores\/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})(?:\/(cleanup))?$/.exec(url.pathname);

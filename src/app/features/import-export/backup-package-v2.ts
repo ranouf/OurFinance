@@ -55,7 +55,7 @@ async function packageFromGroupJson(
   if (group.group.id !== groupId) throw new Error('Groupe de sauvegarde différent');
   const active = group.receipts.filter(row => row.status === 'active');
   const groupBytes = new TextEncoder().encode(groupJson);
-  if (groupBytes.byteLength > 10_000_000 || active.length > 25) throw new Error('Lot de sauvegarde trop volumineux');
+  if (groupBytes.byteLength > 10_000_000 || active.length > 100) throw new Error('Lot de sauvegarde trop volumineux');
   const receipts: ExportedReceipt[] = [];
   const assets = new Map(group.receiptAssets.map(row => [`${row.expenseId}/${row.attachmentId}`, row.publicId]));
   for (const row of active) {
