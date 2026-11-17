@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 320" fill="none" preserveAspectRatio="xMaxYMid slice">
   <defs>
     <clipPath id="silhouette"><path d="M0 0h478c55 0 89 21 98 57 29-2 53 14 57 41 5 8 7 18 7 30v192H0V0Z"/></clipPath>
-    <linearGradient id="base" x1="0" y1="0" x2="640" y2="320" gradientUnits="userSpaceOnUse"><stop stop-color="#6C55EC"/><stop offset="1" stop-color="#5939D3"/></linearGradient>
+    <linearGradient id="base" x1="0" y1="0" x2="640" y2="320" gradientUnits="userSpaceOnUse"><stop stop-color="#6455EC"/><stop offset="1" stop-color="#5939D3"/></linearGradient>
     <linearGradient id="back" x1="220" y1="30" x2="630" y2="305" gradientUnits="userSpaceOnUse">
       <stop stop-color="#9378F4"/>
       <stop offset="1" stop-color="#6B49E2"/>

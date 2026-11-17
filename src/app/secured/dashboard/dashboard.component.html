@@ -21,7 +21,7 @@
             <div class="pointer-events-none absolute inset-0 bg-gradient-to-r from-pop-primary via-pop-primary/50 to-transparent"></div>
           </div>
           <div class="hidden min-h-64 grid-cols-[52%_48%] sm:grid sm:overflow-hidden sm:rounded-[1.8rem]">
-            <div class="relative overflow-hidden bg-pop-primary"><img class="absolute inset-0 h-full w-full object-cover object-[16%_45%]" src="/illustrations/cafe-hero-mobile.webp" alt="" /></div>
+            <div class="relative overflow-hidden bg-pop-primary"><img class="absolute inset-0 h-full w-full object-cover object-bottom" src="/illustrations/cafe-hero-foreground.png" alt="" /></div>
             <div class="dashboard-group-panel relative flex min-w-0 flex-col justify-center px-5 py-5 lg:px-7">
               <a class="relative z-10 flex min-w-0 items-center gap-2 text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white" routerLink="/groups"><span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-white/20" aria-hidden="true"><svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="/illustrations/lucide-actions.svg#user-round-plus" /></svg></span><h1 class="min-w-0 truncate text-xl font-black lg:text-2xl">{{ group.name }}</h1><span class="text-xl" aria-hidden="true">⌄</span></a>
               <span class="sr-only">{{ group.memberCount ?? 1 }} {{ t('membersCount') }}</span>
