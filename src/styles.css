@@ -1,0 +1,22 @@
+@import "tailwindcss";
+
+@theme {
+  --color-pop-primary: #6455ec;
+  --color-pop-primary-dark: #4735b9;
+  --color-pop-coral: #ff806d;
+  --color-pop-sun: #f7c85f;
+  --color-pop-mint: #a8d9bf;
+  --color-pop-background: #f6f5ff;
+  --color-pop-surface: #ffffff;
+  --color-pop-text: #302752;
+  --color-pop-muted: #7b6c93;
+  --color-pop-border: #eae6f5;
+  --color-pop-lavender: #ece8ff;
+  --color-pop-peach: #fff0e9;
+  --color-pop-mint-soft: #e4f4ea;
+}
+
+:root { color-scheme: light; }
+body { background: var(--color-pop-background); color: var(--color-pop-text); font-family: 'Nunito Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', ui-rounded, system-ui, sans-serif; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }

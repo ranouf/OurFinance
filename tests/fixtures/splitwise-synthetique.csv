@@ -1,0 +1,4 @@
+Source ID,Group ID,Date,Description,Category,Cost,Currency,Amount Minor,Alex Exemple,Camille Exemple,Sam Exemple
+synthetic-001,groupe-test,2026-10-01,Épicerie,Épicerie,60.00,CAD,6000,40,-20,-20
+synthetic-002,groupe-test,2026-10-03,Transport,Transport,30.00,CAD,3000,-10,20,-10
+synthetic-003,groupe-test,2026-10-05,Restaurant,Restaurant,45.00,CAD,4500,-15,-15,30

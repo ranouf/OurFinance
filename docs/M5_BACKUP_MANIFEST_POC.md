@@ -1,0 +1,7 @@
+# M5 — manifeste partiel de groupe et reçus
+
+`buildBackupPackageV1` assemble en mémoire le JSON de groupe et les octets des reçus actifs récupérés via le proxy privé. Il calcule SHA-256 et la taille du JSON et de chaque reçu. `verifyBackupPackageV1` recalcule les empreintes et vérifie que chaque fichier correspond à une pièce jointe active du groupe. Si un reçu échoue, aucun paquet n'est retourné. Pour éviter un stockage mémoire excessif dans cette première version, la fonction refuse un JSON de plus de 10 Mo ou plus de 25 reçus actifs ; l'export par morceaux reste à développer.
+
+Le manifeste porte volontairement `scope: group-v1-partial`. Il ne s'agit pas d'une sauvegarde complète : commentaires, activité, préférences, paramètres de compte et lots personnels manquent ; l'instantané Firestore n'est pas transactionnel. Les objets produits ne sont pas encore écrits en archive ou fichiers ni restaurés. Le hash détecte une corruption du paquet ; il n'authentifie pas son origine contre une modification volontaire du manifeste et des fichiers.
+
+Essai fictif ultérieur sur la pile, après réservation : groupe à deux membres, dépense et PNG 1×1, collecte par membre actif, vérification des empreintes et des octets, refus tiers/révoqué et suppression de l'asset. Aucun fichier contenant des données réelles ni média de validation ne doit être ajouté au dépôt. Nettoyer la fixture et retirer les variables POC. Ne pas déclarer M5/M6 terminés avec ce seul paquet.

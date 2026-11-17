@@ -1,0 +1,75 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function member(groupId) {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/groups/$(groupId)) &&
+        get(/databases/$(database)/documents/groups/$(groupId)).data.status == 'active' &&
+        exists(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)).data.status == 'active';
+    }
+    function owner(groupId) {
+      return member(groupId) &&
+        get(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)).data.role == 'owner';
+    }
+    function validProfile() {
+      return request.resource.data.keys().hasOnly(['displayName', 'preferredLanguage', 'timeZone']) &&
+        request.resource.data.keys().hasAll(['displayName', 'preferredLanguage', 'timeZone']) &&
+        request.resource.data.displayName is string && request.resource.data.displayName.size() > 0 && request.resource.data.displayName.size() <= 80 &&
+        request.resource.data.preferredLanguage in ['fr', 'en', 'ja'] &&
+        request.resource.data.timeZone is string && request.resource.data.timeZone.size() > 0 && request.resource.data.timeZone.size() <= 80;
+    }
+    match /users/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create, update: if signedIn() && request.auth.uid == uid && validProfile();
+      allow delete: if false;
+      match /groupMemberships/{groupId} {
+        allow read: if signedIn() && request.auth.uid == uid;
+        allow write: if false;
+      }
+      match /groupPreferences/{groupId} {
+        allow read: if signedIn() && request.auth.uid == uid && member(groupId);
+        // Written with the expense transaction through the Worker only.
+        allow write: if false;
+      }
+      match /importBatches/{batchId} {
+        allow read: if signedIn() && request.auth.uid == uid && member(resource.data.groupId);
+        allow write: if false;
+      }
+      match /{other=**} { allow read, write: if false; }
+    }
+    match /groups/{groupId} {
+      allow read: if member(groupId);
+      // Creation and membership changes require a trusted Worker transaction.
+      allow write: if false;
+      match /members/{uid} {
+        allow read: if member(groupId);
+        allow write: if false;
+      }
+      match /categories/{categoryId} {
+        allow read: if member(groupId);
+        allow write: if false;
+      }
+      match /expenses/{expenseId} {
+        allow read: if member(groupId);
+        allow write: if false;
+        match /comments/{commentId} {
+          allow read: if member(groupId);
+          allow write: if false;
+        }
+        match /attachments/{attachmentId} {
+          allow read: if member(groupId);
+          allow write: if false;
+        }
+      }
+      match /settlements/{settlementId} { allow read: if member(groupId); allow write: if false; }
+      match /importedRecords/{recordId} { allow read: if member(groupId); allow write: if false; }
+      match /activity/{eventId} { allow read: if member(groupId); allow write: if false; }
+      match /balances/{balanceId} { allow read: if member(groupId); allow write: if false; }
+      match /statistics/{periodId} { allow read: if member(groupId); allow write: if false; }
+      match /invitations/{invitationId} { allow read, write: if false; }
+    }
+    match /{document=**} { allow read, write: if false; }
+  }
+}

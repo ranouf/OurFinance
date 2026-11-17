@@ -1,0 +1,5 @@
+# M5 — lecture vérifiée du ZIP partiel
+
+`decodeBackupZipV1` accepte seulement le sous-ensemble ZIP sans compression produit par `encodeBackupZipV1` : au plus 27 fichiers, moins de 60 Mo, noms relatifs attendus, noms UTF-8 et aucune entrée chiffrée ou compressée. Il vérifie les index central/local, les tailles et CRC32, puis reconstruit le paquet en mémoire. `verifyBackupPackageV1` vérifie ensuite SHA-256, le JSON de groupe, les chemins de reçus et leur correspondance au manifeste. Les archives tronquées, modifiées, avec noms dupliqués ou fichiers inattendus sont refusées.
+
+La lecture **n'écrit rien dans Firestore** et n'active pas de restauration. Le manifeste reste `group-v1-partial`; plusieurs collections, préférences et paramètres personnels manquent toujours, et l'export d'origine n'est pas transactionnel. Le contrôle d'empreinte détecte une corruption, sans prouver l'auteur du paquet. Toute restauration future devra être isolée dans un groupe fictif, validée côté serveur avec autorisations et transactions, puis comparée à l'original avant d'être proposée aux utilisateurs.
