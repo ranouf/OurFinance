@@ -27,7 +27,7 @@ import { ProfilePanel } from './features/profile/profile-panel';
     <div class="mx-auto max-w-5xl overflow-hidden rounded-[1.7rem] bg-white shadow-[0_18px_50px_#30275214] lg:grid lg:min-h-[690px] lg:grid-cols-[1.1fr_1fr]">
       <div class="relative overflow-hidden bg-pop-primary lg:flex lg:flex-col lg:justify-end">
         <div class="flex items-center gap-2 bg-white px-5 py-3 lg:hidden"><img src="/illustrations/ourfinance-mark.svg" width="34" height="34" alt="" /><span class="text-lg font-black text-pop-primary-dark">ourfinance.</span></div>
-        <img class="h-56 w-full object-cover object-[center_62%] sm:h-64 lg:h-full lg:min-h-[690px] lg:object-center" src="/illustrations/cafe-hero.webp" alt="" />
+        <picture><source media="(min-width: 1024px)" srcset="/illustrations/cafe-hero.webp" /><img class="h-56 w-full object-cover object-center sm:h-64 lg:h-full lg:min-h-[690px]" src="/illustrations/cafe-hero-mobile.webp" alt="" /></picture>
         <div class="hidden lg:absolute lg:inset-x-0 lg:top-0 lg:block lg:bg-gradient-to-b lg:from-pop-primary/95 lg:via-pop-primary/75 lg:to-transparent lg:p-8 lg:pb-44 lg:text-white">
           <p class="flex items-center gap-2 text-2xl font-black"><img src="/illustrations/ourfinance-mark.svg" width="42" height="42" alt="" />ourfinance.</p>
           <p class="mt-10 max-w-sm text-4xl font-black leading-tight">{{ t('loginHeroLead') }} <span class="text-pop-sun">{{ t('loginHeroHighlight') }}</span></p>
@@ -57,12 +57,13 @@ import { ProfilePanel } from './features/profile/profile-panel';
             <div class="mt-4 flex gap-2 text-sm"><button class="font-bold text-pop-primary-dark underline" type="button" (click)="app.mode.set('login')">{{ t('connection') }}</button></div>
           }
           <form class="mt-5 space-y-4" (ngSubmit)="app.submit()">
-            <label class="block text-sm font-bold">{{ t('email') }}<input class="mt-1 min-h-11 w-full rounded-xl border border-pop-border bg-pop-background px-3 focus-visible:outline-2 focus-visible:outline-pop-primary" type="email" name="email" autocomplete="email" [(ngModel)]="app.email" required /></label>
+            <label class="block text-sm font-bold">{{ t('email') }}<span class="relative mt-1 block"><svg class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-pop-primary-dark" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 7 9-7" /></svg><input class="min-h-11 w-full rounded-xl border border-pop-border bg-pop-background py-2 pl-10 pr-3 focus-visible:outline-2 focus-visible:outline-pop-primary" type="email" name="email" autocomplete="email" [(ngModel)]="app.email" required /></span></label>
             @if (app.mode() !== 'reset') {
               <label class="block text-sm font-bold">{{ t('password') }}
                 <span class="mt-1 flex rounded-xl border border-pop-border bg-pop-background focus-within:outline-2 focus-within:outline-pop-primary">
-                  <input class="min-h-11 min-w-0 flex-1 bg-transparent px-3 outline-none" [type]="app.showPassword() ? 'text' : 'password'" name="password" [autocomplete]="app.mode() === 'register' ? 'new-password' : 'current-password'" [(ngModel)]="app.password" required />
-                  <button class="min-h-11 px-3 text-xs font-bold text-pop-primary-dark" type="button" (click)="app.showPassword.update(value => !value)">{{ app.showPassword() ? t('hidePassword') : t('showPassword') }}</button>
+                  <svg class="ml-3 shrink-0 self-center text-pop-primary-dark" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></svg>
+                  <input class="min-h-11 min-w-0 flex-1 bg-transparent px-2 outline-none" [type]="app.showPassword() ? 'text' : 'password'" name="password" [autocomplete]="app.mode() === 'register' ? 'new-password' : 'current-password'" [(ngModel)]="app.password" required />
+                  <button class="flex min-h-11 min-w-11 items-center justify-center px-3 text-pop-primary-dark" type="button" (click)="app.showPassword.update(value => !value)" [attr.aria-label]="app.showPassword() ? t('hidePassword') : t('showPassword')"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></svg></button>
                 </span>
               </label>
             }
@@ -71,7 +72,7 @@ import { ProfilePanel } from './features/profile/profile-panel';
           </form>
           @if (app.mode() === 'login') {
             <div class="my-3 flex items-center gap-3 text-xs text-pop-muted"><span class="h-px flex-1 bg-pop-border"></span>{{ t('or') }}<span class="h-px flex-1 bg-pop-border"></span></div>
-            <button class="min-h-12 w-full rounded-xl border border-pop-border px-4 font-bold disabled:opacity-50" type="button" [disabled]="app.busy() || !app.online()" (click)="app.google()">{{ t('google') }}</button>
+            <button class="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-pop-border px-4 font-bold disabled:opacity-50" type="button" [disabled]="app.busy() || !app.online()" (click)="app.google()"><span class="bg-gradient-to-br from-blue-600 via-red-500 to-green-600 bg-clip-text text-xl font-black text-transparent" aria-hidden="true">G</span>{{ t('google') }}</button>
             <p class="mt-4 text-center text-sm text-pop-muted">{{ t('newHere') }} <button class="font-bold text-pop-primary-dark underline" type="button" (click)="app.mode.set('register')">{{ t('signup') }}</button></p>
           }
         }
