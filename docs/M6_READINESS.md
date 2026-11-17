@@ -1,29 +1,32 @@
 # M6 — état de préparation V1 (16 novembre 2026)
 
-Statut : **V1 incomplète, production non prête**. Le plan `docs/PLAN_TECHNIQUE_V1.md` de `main` au commit `f75fdc5` impose une seule devise stricte par groupe, sans conversion, et FR/EN/JA dès la V1. Aucun PR n’est fusionné automatiquement et aucun déploiement en production n’est autorisé.
+Statut : **V1 incomplète, production non prête**. Le plan et la direction Everyday Pop publiés sur `main` imposent une devise unique stricte par groupe, FR/EN/JA, des graphiques interactifs et un parcours mobile soigné. Les résultats ci-dessous sont attachés aux SHA indiqués dans les PR, pas à une pile déjà fusionnée. Aucune PR n'est fusionnée automatiquement ; aucun déploiement en production n'est autorisé.
 
-## Pile compatible en brouillon
+## Fonctionnalités et preuves disponibles
 
-La nouvelle pile part de la PR #59, avant les ajouts FX : #74 (devise stricte), #76 (verrou après première transaction), #77 (import/export dans la devise du groupe), #78 (profil et langue), #79 (couverture Node en CI), #80 (workflow manuel Hosting de test), #81 (accueil/profil traduits), #82 (catégories système traduites), #83 (formats localisés), puis #85 qui intègre les filtres #75 et l’édition/suppression auteur seul #84. Les bases et SHA exacts sont dans chaque PR. **#60–#67 et #73 restent incompatibles** ; #68–#72 demandent réempilement ou remplacement selon leur portée. Aucune de ces PR incompatibles ne doit être fusionnée telle quelle.
+| Jalon | État vérifié | Reste à faire avant la V1 |
+|---|---|---|
+| M0 — faisabilité | Chaîne Firebase Auth → Worker → Firestore/Cloudinary testée avec membres actifs, tiers et membre révoqué ; reçu privé `authenticated` lu seulement par les membres actifs. Dépense atomique et idempotence éprouvées sur TEST. | Suivi réel des quotas Free et audit final de la configuration avant production. |
+| M1 — socle | Angular, PWA, CI, trois langues et environnement TEST existent. La PR UI #107 applique les tokens, illustrations et connexion Everyday Pop sur la base clavier #105 ; CI verte au SHA `5f22328`, contrôle connecté du socle `10d7160` avec données fictives. | Contrôle ciblé du HEAD #107, preview isolée, validation installation Android/iOS et cohérence de toute l'interface. |
+| M2 — comptes/groupes | Création de groupe, invitations sécurisées et règles d'appartenance éprouvées sur TEST. Le contrôle combiné #107/M3 a couvert groupes fictifs de 1/2/3 membres, devises CAD/JPY, FR/EN/JA et 320/390/768/1280 px. | Vérifier le comptage des membres, solde et activité du groupe sélectionné sur le HEAD #107 ; Google OAuth et courriels externes réels non rejoués dans ce contrôle. |
+| M3 — dépenses | Cinq modes et préférences personnelles, édition/suppression auteur seul, commentaires, catégories collaboratives et devise stricte testés par tranches. | Refonte Everyday Pop de l'éditeur/historique en cours dans le fil local ; validation sur sa PR empilée puis essai intégré. |
+| M4 — finances | Remboursements, statistiques, dropdown Jours/Mois/Années #90 et graphiques catégorie/membre/temps #100 testés avec données fictives et captures. | Refonte Everyday Pop des statistiques en cours dans le fil local ; revalider les chiffres, l'accessibilité et les bornes sur la pile intégrée. |
+| M5 — import/reçus | Import et annulation, export V1/V2, reçus privés et révocation éprouvés. Le format V2 conserve préférences et pièces dans son périmètre déclaré. | Essai de migration plus large, rapprochement final, limites de volume et reprise sur panne ; maintien explicite des omissions du format `group-v2-partial`. |
+| M6 — sécurité/qualité | Rules 12/12 sur émulateur isolé ; restauration réelle #102 au SHA `68b2a4c`, puis preview/UI intégrée #102/#104 aux SHA `97e7fd4`/`ceb95c9`. Owner 200, membre/révoqué/tiers 403, ZIP altéré 400, reçu privé rétabli. Trois tests supplémentaires de reprise ont été ajoutés à #102 ; 96 tests Worker passent. | Tests de panne Cloudinary/Firestore en environnement réel, interruption/reprise et groupe >20 Mo ; E2E complets, lecteur d'écran, Safari/iOS, performance, revue IAM/quota, workflow de déploiement TEST→production. |
 
-## Preuves disponibles et portée
+## Piles de PR à revoir
 
-- Sur la branche combinée #85 : `npm run test:unit` **60/60**, `npm run test:worker` **54/54**, `npm run typecheck`, `npm run typecheck:worker` et `npm run build` réussis localement. Bundle initial **451,10 kB**. CI et essai réel du SHA combiné à confirmer.
-- La PR #74 au SHA `310d2b0f9c82318dbab962b84f48551c8b90b311` a un essai réel sur le projet de test : CAD accepté, JPY refusé sans écriture dans un groupe CAD, groupe JPY accepté, tiers et membre révoqué refusés. Captures/vidéo fictives et nettoyage consignés dans la PR et l’issue #30.
-- La PR #76 au SHA `382bef4f1131bb8c39e89fbc2d8962e7bf6d12cf` a un essai réel : devise modifiable avant la première opération par le propriétaire, verrou après dépense/règlement/import, ancien historique archivé aussi bloquant, membre ordinaire refusé. Fixture nettoyée et route de nouveau désactivée. Ces essais ne valident pas à eux seuls la pile #85.
-- Les filtres #75 ont été examinés sur ordinateur et mobile avec données fictives. L’essai de #84 est en cours à la date de cette revue ; ses résultats ne sont pas encore attribués à #85.
-- `npm run test:coverage` sur la pile V1 a mesuré **93,10 % lignes**, **84,97 % branches**, **95,68 % fonctions** parmi les modules chargés par les tests Node. Les composants/templates Angular non chargés restent exclus ; voir [M6_COVERAGE.md](M6_COVERAGE.md).
-- Le test local des règles Firestore de #78 n’a pas démarré, port 8080 occupé. Sa CI a réussi, mais les scénarios de langue/profil doivent encore être essayés réellement.
+- **Sécurité, reçus et restauration** : #98 → #102 API → #104 UI, toutes en brouillon. La restauration remplace le groupe d'origine et les préférences de chaque membre ; elle reste désactivée par défaut et limitée à un groupe fictif en TEST quand les variables POC sont activées. Le format `group-v2-partial` n'inclut pas les comptes Firebase Auth et n'est pas une sauvegarde totale de l'application.
+- **Interface Everyday Pop** : #101 → #105 → #107, puis tranches M3 et M4 du fil local. #101 fournit la structure et le responsive, **pas** la direction graphique finale. #107 intègre explicitement les SVG et documents du `main` plus récent. Les dépendances doivent être réconciliées avant revue/fusion.
+- Les anciennes PR FX (#60–#67 et #73 notamment) implémentent des conversions contraires à la règle de devise unique et **ne doivent pas être fusionnées telles quelles**. Les essais d'une PR ne valident pas automatiquement un SHA intégré ultérieur.
 
-## Critères encore ouverts
+## Contrôles transverses
 
-- **M1 / UX** : design system mobile soigné, previews isolées par PR, workflow test Hosting #80 non exécuté, déploiement coordonné règles/index/Worker/Hosting non automatisé. Le secret Actions de déploiement Hosting ne peut pas être confirmé dans cette session (liste : HTTP 403).
-- **M2** : profil FR/EN/JA et règles à examiner sur la pile réelle ; interface pour changer la devise d’un groupe avant sa première transaction ; invitations en parcours complet.
-- **M3** : essai réel et visuel de #84 puis du SHA intégré #85 ; catégories personnalisées et tous les cas d’édition/suppression auteur seul. Les autres textes des formulaires restent à traduire.
-- **M4** : sélecteur de période en dropdown avec onglets Jours/Mois/Années, bornes inclusives, Appliquer/Annuler ; graphiques interactifs catégorie, membre et temps ; distinction payé/part due/solde ; essais 1/2/3+ membres et mobile.
-- **M5** : parcours complet d’import CSV/JSON avec séparation guidée des devises incompatibles, rapprochement et annulation ; sauvegarde/restauration de **l’original** du groupe et des préférences de **chaque membre**, reçus privés inclus. Le ZIP actuel annonce explicitement une portée partielle et ne restaure rien.
-- **M6** : traduction complète et immédiate de tous les écrans, erreurs, catégories et graphiques en FR/EN/JA ; tests navigateur E2E, accessibilité clavier/lecteur d’écran, Android/iOS, performance, quotas, audit IAM/Worker/règles, sauvegarde réelle et restauration vérifiée. La couverture globale de 80 % incluant Angular reste ouverte.
+- `npm run test:coverage` sur #107 : 124 tests passés ; 92,97 % lignes, 83,66 % branches, 95,63 % fonctions **des modules chargés par les tests Node**. Les templates Angular ne sont pas inclus dans cette mesure.
+- `npm audit --omit=dev` sur #107 : zéro alerte de production. Une revue séparée avait relevé 14 alertes modérées dans les outils de développement `firebase-tools` et transitives, sans correctif compatible proposé par `npm audit fix --dry-run`.
+- Les essais TEST utilisent uniquement des comptes, dépenses, groupes et reçus fictifs ; la pile est réservée/libérée dans l'[issue #30](https://github.com/ranouf/OurFinance/issues/30). Après les essais #102/#104, six variables temporaires ont été retirées, les fixtures et assets supprimés, `/health` répondait 200 et les routes POC 503.
+- Les 27 captures Splitwise du propriétaire restent privées, absentes du dépôt, des PR et des preuves publiées. Les captures/vidéos de validation de #104 ont été examinées localement mais ne sont pas encore jointes nativement à la PR ; leur absence est documentée.
 
-## Données privées et déploiement
+## Critères de sortie
 
-Les 27 captures Splitwise fournies par le propriétaire sont strictement privées et absentes du dépôt/PR. Les preuves publiques des PR utilisent uniquement des comptes et données fictifs. La pile de test `ourfinance-test` / `ourfinance-api-dev` se réserve et se libère dans l’[issue #30](https://github.com/ranouf/OurFinance/issues/30). Aucune fusion de PR ni production sans décision distincte du propriétaire.
+Avant une décision de production : intégrer les piles compatibles, exécuter les essais complets sur leur **SHA intégré exact**, fermer les routes POC, tester sauvegarde et restauration avec pannes/récupération et volumes, vérifier Firestore Rules/Worker/IAM et les quotas, terminer l'UX Everyday Pop et les trois langues sur tous les parcours, valider Android et iOS, puis faire approuver séparément la fusion et le déploiement. Les PR restent en brouillon tant que ces critères ne sont pas démontrés.
