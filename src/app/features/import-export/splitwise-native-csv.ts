@@ -22,7 +22,7 @@ export interface NativeSplitwiseReconciliation {
   readonly differences: Readonly<Record<string, string>>;
 }
 
-const decimal = /^-?\d+(?:\.\d+)?$/;
+const decimal = /^-?\d{1,30}(?:\.\d{1,12})?$/;
 const validDate = (value: string) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const date = new Date(`${value}T00:00:00.000Z`);
@@ -75,7 +75,8 @@ export function parseNativeSplitwiseCsv(input: string): NativeSplitwiseCsv {
 
 /** Compares the native final balance with transaction impacts at source precision. */
 export function reconcileNativeSplitwiseCsv(source: NativeSplitwiseCsv): NativeSplitwiseReconciliation {
-  if (source.participants.some(person => !decimal.test(source.balances[person] ?? ''))) throw new Error('Solde final absent');
+  if (source.participants.some(person => !decimal.test(source.balances[person] ?? '') ||
+      source.rows.some(row => !decimal.test(row.impacts[person] ?? '')))) throw new Error('Solde ou impact invalide');
   const digits = Math.max(0, ...source.rows.flatMap(row => Object.values(row.impacts).map(value => (value.split('.')[1] ?? '').length)),
     ...Object.values(source.balances).map(value => (value.split('.')[1] ?? '').length));
   const differences = Object.fromEntries(source.participants.map(person => {

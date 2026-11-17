@@ -33,3 +33,9 @@ test('refuse un fichier mélangeant plusieurs devises', () => {
   const csv = 'Date,Description,Catégorie,Coût,Devise,Alice,Bob\n2026-11-01,Trajet fictif,Transport,10.00,CAD,5.00,-5.00\n2026-11-02,Repas fictif,Restaurant,10.00,EUR,5.00,-5.00\n2026-11-16,Solde total,Total, ,CAD,10.00,-10.00';
   throws(() => parseNativeSplitwiseCsv(csv), /devise incohérente/);
 });
+
+test('refuse une précision numérique démesurée avant conversion entière', () => {
+  const huge = '1'.repeat(100_000);
+  const csv = `Date,Description,Catégorie,Coût,Devise,Alice,Bob\n2026-11-01,Trajet fictif,Transport,${huge},JPY,1,-1`;
+  throws(() => parseNativeSplitwiseCsv(csv), /transaction Splitwise invalide/);
+});
