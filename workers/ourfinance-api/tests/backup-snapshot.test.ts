@@ -41,14 +41,20 @@ async function fixture(role: 'owner' | 'member' = 'owner', expenseCount = 0) {
       document('groups/g/members/alice', { role: { stringValue: 'owner' }, status: { stringValue: 'active' } }),
       document('groups/g/members/bob', { role: { stringValue: 'member' }, status: { stringValue: 'revoked' } }),
     ] });
-    if (path === 'groups/g/expenses') return Response.json({ documents: Array.from({ length: expenseCount }, (_, index) => document(`groups/g/expenses/e${index}`, {
+    if (path === 'groups/g/expenses') {
+      const start = Number(url.searchParams.get('pageToken') ?? '0');
+      return Response.json({ documents: Array.from({ length: Math.min(100, expenseCount - start) }, (_, offset) => {
+        const index = start + offset;
+        return document(`groups/g/expenses/e${index}`, {
       date: { stringValue: '2026-11-01' }, description: { stringValue: `Fictif ${index}` }, currency: { stringValue: 'CAD' },
       amountMinor: { integerValue: '101' }, categoryId: { stringValue: 'other' }, categoryLabel: { stringValue: 'Autre' },
       categoryIcon: { stringValue: 'receipt' }, categoryColor: { stringValue: 'slate' },
       payments: { arrayValue: { values: [{ mapValue: { fields: { userId: { stringValue: 'alice' }, amountMinor: { integerValue: '101' } } } }] } },
       allocations: { arrayValue: { values: [{ mapValue: { fields: { userId: { stringValue: 'alice' }, amountMinor: { integerValue: '101' } } } }] } },
       splitSnapshotJson: { stringValue: '{"kind":"equal","users":["alice"]}' }, createdBy: { stringValue: 'alice' }, deleted: { booleanValue: false },
-    })) });
+        });
+      }), ...(start + 100 < expenseCount ? { nextPageToken: String(start + 100) } : {}) });
+    }
     if (path === 'users/alice/groupPreferences/g') return Response.json(document(path, {
       modeJson: { stringValue: '{"kind":"equal","users":["alice","bob"]}' },
       updatedAt: { timestampValue: '2026-11-16T18:00:00.000Z' },
@@ -84,4 +90,13 @@ test('snapshot of 51 expenses stays below the Worker Free subrequest budget', as
   strictEqual(result.comments.length, 1);
   strictEqual(state.transactionReads < 45, true);
   strictEqual(state.rollbacks, 1);
+});
+
+test('snapshot pages 936 synthetic expenses with a receipt and comment under the subrequest budget', async () => {
+  const state = await fixture('owner', 936);
+  const result = JSON.parse(await collectBackupSnapshotV2('alice', 'g', state.env, state.transport));
+  strictEqual(result.expenses.length, 936);
+  strictEqual(result.receipts.length, 1);
+  strictEqual(result.comments.length, 1);
+  strictEqual(state.transactionReads < 45, true);
 });

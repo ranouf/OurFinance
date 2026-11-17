@@ -34,7 +34,13 @@ async function fixture(role: 'owner' | 'member' = 'owner', unknownCollection = f
       ...(restoring ? { restoreId: { stringValue: '123e4567-e89b-42d3-a456-426614174000' } } : {}) } });
     if (path === 'groups/g/members/alice') return Response.json({ fields: { status: { stringValue: 'active' }, role: { stringValue: role } } });
     if (path === 'groups/g/members') return Response.json({ documents: [{ name: `${root}/groups/g/members/alice` }] });
-    if (path === 'groups/g/expenses') return Response.json({ documents: Array.from({ length: expenseCount }, (_, index) => ({ name: `${root}/groups/g/expenses/${index === 0 ? 'e' : `e${index}`}` })) });
+    if (path === 'groups/g/expenses') {
+      const start = Number(url.searchParams.get('pageToken') ?? '0');
+      return Response.json({ documents: Array.from({ length: Math.min(100, expenseCount - start) }, (_, offset) => {
+        const index = start + offset;
+        return { name: `${root}/groups/g/expenses/${index === 0 ? 'e' : `e${index}`}` };
+      }), ...(start + 100 < expenseCount ? { nextPageToken: String(start + 100) } : {}) });
+    }
     if (path === 'users/alice/groupMemberships/g') return Response.json({ fields: { groupId: { stringValue: 'g' } } });
     if (path === 'users/alice/groupPreferences/g') return Response.json({}, { status: 404 });
     return Response.json({});
@@ -79,5 +85,12 @@ test('inventory of 51 expenses stays below the Worker Free subrequest budget', a
   const state = await fixture('owner', false, false, 51);
   const result = await collectLiveRestoreInventory('alice', 'g', state.env, state.transport);
   strictEqual(result.groupDocuments.filter(path => path.startsWith('groups/g/expenses/')).length, 52);
+  strictEqual(state.requests < 45, true);
+});
+
+test('inventory pages 936 synthetic expenses under the Worker Free subrequest budget', async () => {
+  const state = await fixture('owner', false, false, 936);
+  const result = await collectLiveRestoreInventory('alice', 'g', state.env, state.transport);
+  strictEqual(result.groupDocuments.filter(path => path.startsWith('groups/g/expenses/')).length, 937);
   strictEqual(state.requests < 45, true);
 });
