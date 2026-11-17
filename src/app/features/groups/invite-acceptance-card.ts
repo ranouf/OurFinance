@@ -20,7 +20,7 @@ import { qrInvitationText } from './qr-invitation-text';
         </div>
       } @else if (!busy()) {
         <p class="mt-4 text-sm" role="alert">{{ text()[errorKey()] }}</p>
-        <button class="mt-3 min-h-11 rounded-xl border border-pop-primary px-4 py-2 font-bold text-pop-primary-dark" type="button" (click)="load()">{{ text().retry }}</button>
+        @if (!unusable()) { <button class="mt-3 min-h-11 rounded-xl border border-pop-primary px-4 py-2 font-bold text-pop-primary-dark" type="button" (click)="load()">{{ text().retry }}</button> }
       }
       <button class="mt-5 block min-h-11 text-sm font-bold text-pop-primary-dark underline" type="button" (click)="changeAccount.emit()">{{ text().changeAccount }}</button>
       @if (message()) { <p class="mt-3 text-sm" role="status">{{ message() }}</p> }
@@ -34,9 +34,11 @@ export class InviteAcceptanceCard implements OnInit {
   @Output() readonly joined = new EventEmitter<string>();
   @Output() readonly declined = new EventEmitter<void>();
   @Output() readonly changeAccount = new EventEmitter<void>();
+  @Output() readonly invalidated = new EventEmitter<void>();
   readonly text = computed(() => qrInvitationText[language()]);
   readonly preview = signal<QrInvitePreview | null>(null);
   readonly errorKey = signal<'inviteFailed' | 'alreadyMember' | 'wrongAccount' | 'inviteExpired'>('inviteFailed');
+  readonly unusable = signal(false);
   readonly busy = signal(false);
   private readonly messageKey = signal<'inviteFailed' | 'joining' | 'done' | null>(null);
   readonly message = computed(() => this.messageKey() ? this.text()[this.messageKey()!] : '');
@@ -45,9 +47,9 @@ export class InviteAcceptanceCard implements OnInit {
   formatDate(value: string): string { return new Intl.DateTimeFormat(locale(), { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)); }
   async load(): Promise<void> {
     if (this.busy()) return;
-    this.busy.set(true); this.messageKey.set(null);
+    this.busy.set(true); this.messageKey.set(null); this.unusable.set(false);
     try { this.preview.set(await new QrInvitationService(this.workerUrl).preview(this.user, this.token)); }
-    catch (error) { this.preview.set(null); this.errorKey.set(this.keyFor(error)); }
+    catch (error) { this.preview.set(null); this.errorKey.set(this.keyFor(error)); this.clearUnusableToken(error); }
     finally { this.busy.set(false); }
   }
   async accept(): Promise<void> {
@@ -56,7 +58,7 @@ export class InviteAcceptanceCard implements OnInit {
     try {
       const result = await new QrInvitationService(this.workerUrl).accept(this.user, this.token);
       this.messageKey.set('done'); this.joined.emit(result.groupId);
-    } catch (error) { this.messageKey.set(null); this.errorKey.set(this.keyFor(error)); this.preview.set(null); }
+    } catch (error) { this.messageKey.set(null); this.errorKey.set(this.keyFor(error)); this.preview.set(null); this.clearUnusableToken(error); }
     finally { this.busy.set(false); }
   }
 
@@ -66,5 +68,13 @@ export class InviteAcceptanceCard implements OnInit {
     if (error.code === 'email_mismatch') return 'wrongAccount';
     if (error.code === 'invitation_expired') return 'inviteExpired';
     return 'inviteFailed';
+  }
+
+  private clearUnusableToken(error: unknown): void {
+    if (error instanceof QrInviteRequestError &&
+        (error.code === 'invitation_expired' || (error.status === 403 && error.code === 'invitation_unavailable'))) {
+      this.unusable.set(true);
+      this.invalidated.emit();
+    }
   }
 }

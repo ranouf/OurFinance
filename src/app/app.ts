@@ -71,7 +71,7 @@ import { language, locale, setLanguage, t } from './shared/utils/i18n';
           } @else {
             @if (pendingInvite()) {
               @if (workerUrl) {
-                @defer (when pendingInvite()) { <app-invite-acceptance-card [user]="user" [workerUrl]="workerUrl" [token]="pendingInvite()!" (joined)="onQrJoined($event)" (declined)="declineInvite()" (changeAccount)="logout()" /> }
+                @defer (when pendingInvite()) { <app-invite-acceptance-card [user]="user" [workerUrl]="workerUrl" [token]="pendingInvite()!" (joined)="onQrJoined($event)" (declined)="declineInvite()" (changeAccount)="logout()" (invalidated)="clearStoredInvite()" /> }
                 @placeholder { <p class="mt-4" role="status">{{ qrText().loading }}</p> }
               }
             } @else {
@@ -369,7 +369,8 @@ export class App implements OnInit, OnDestroy {
     catch { this.message.set(t('actionFailed')); }
     finally { this.busy.set(false); }
   }
-  declineInvite(): void { if (typeof window !== 'undefined') clearPendingInvite(window.sessionStorage); this.pendingInvite.set(null); }
+  clearStoredInvite(): void { if (typeof window !== 'undefined') clearPendingInvite(window.sessionStorage); }
+  declineInvite(): void { this.clearStoredInvite(); this.pendingInvite.set(null); }
   async onQrJoined(groupId: string): Promise<void> {
     this.declineInvite();
     await this.loadGroups();
