@@ -100,6 +100,8 @@ export class App implements OnInit, OnDestroy {
   readonly monthlyPaid = computed(() => this.selectedGroup() ? formatMinorExact(this.monthlyPaidMinor(), this.selectedGroup()!.currency, locale()) : '');
   readonly settlementTotal = computed(() => this.selectedGroup() ? formatMinorExact(this.settlementTotalMinor(), this.selectedGroup()!.currency, locale()) : '');
   formatDashboardMinor(value: bigint): string { return this.selectedGroup() ? formatMinorExact(value, this.selectedGroup()!.currency, locale()) : ''; }
+  dashboardMemberLabel(userId: string, index: number): string { return this.dashboardMemberName(userId) || `${t('otherMember')} ${index + 1}`; }
+  dashboardMemberInitial(userId: string, index: number): string { return this.dashboardMemberLabel(userId, index).charAt(0).toLocaleUpperCase(locale()); }
   dashboardCategoryLabel(item: { id: string; label?: string }): string { return categoryLabel(item.id, language(), item.label); }
   readonly dashboardDonut = computed(() => {
     const rows = this.dashboardCategories().slice(0, 4);
