@@ -23,11 +23,14 @@ async function fixture(role: 'owner' | 'member' = 'owner', count = 1, pendingMar
     const url = String(resource);
     if (url.includes('oauth2.googleapis.com')) return Response.json({ access_token: 'synthetic-service-token' });
     if (url.endsWith('/image/destroy')) { destroys++; return Response.json({ result: 'ok' }); }
-    if (url.includes('/groups/g?') && init?.method === 'PATCH') {
+    if (url.endsWith('/documents:commit') && init?.method === 'POST') {
       markerPatches++;
-      strictEqual(new URL(url).searchParams.get('currentDocument.updateTime'), '2026-11-17T00:00:00Z');
-      strictEqual(new URL(url).searchParams.get('updateMask.fieldPaths'), 'pendingCleanupRestoreId');
-      if (failMarkerPatch) { failMarkerPatch = false; return Response.json({}, { status: 412 }); }
+      const write = JSON.parse(String(init.body)).writes[0];
+      strictEqual(write.update.name, 'projects/ourfinance-test/databases/(default)/documents/groups/g');
+      strictEqual(write.currentDocument.updateTime, '2026-11-17T00:00:00Z');
+      deepStrictEqual(write.updateMask.fieldPaths, ['pendingCleanupRestoreId']);
+      deepStrictEqual(write.update.fields, {});
+      if (failMarkerPatch) { failMarkerPatch = false; return Response.json({}, { status: 400 }); }
       pendingMarker = false;
       return Response.json({});
     }
