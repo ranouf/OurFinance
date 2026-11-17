@@ -3,7 +3,7 @@ import type { PreparedImportBatch } from './prepare-batch';
 
 /** Thin authenticated client; the Worker is the sole authority for writes. */
 export class ImportService {
-  constructor(private readonly workerUrl: string, private readonly transport: typeof fetch = fetch) {}
+  constructor(private readonly workerUrl: string, private readonly transport: typeof fetch = (...args) => fetch(...args)) {}
 
   private endpoint(groupId: string, batchId?: string): URL {
     if (!/^[A-Za-z0-9_-]{1,128}$/.test(groupId) ||
