@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, ElementRef, ViewChild, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { App } from './app';
@@ -25,7 +25,7 @@ import { ProfilePanel } from './features/profile/profile-panel';
   selector: 'app-login-page',
   imports: [FormsModule],
   template: `
-    <div class="mx-auto max-w-5xl overflow-hidden rounded-[1.7rem] bg-white shadow-[0_18px_50px_#30275214] lg:grid lg:min-h-[690px] lg:grid-cols-[1.1fr_1fr]">
+    <div class="login-page mx-auto max-w-5xl overflow-hidden rounded-[1.7rem] bg-white shadow-[0_18px_50px_#30275214] lg:grid lg:min-h-[690px] lg:grid-cols-[1.1fr_1fr]">
       <div class="relative overflow-hidden bg-pop-primary lg:flex lg:flex-col lg:justify-end">
         <div class="flex items-center gap-2 bg-white px-5 py-3 lg:hidden"><img src="/illustrations/ourfinance-mark.svg" width="34" height="34" alt="" /><span class="text-lg font-black text-pop-primary-dark">ourfinance.</span></div>
         <picture><source media="(min-width: 1024px)" srcset="/illustrations/cafe-hero.webp" /><img class="h-72 w-full object-cover object-center sm:h-72 lg:h-full lg:min-h-[690px]" src="/illustrations/cafe-hero-mobile.webp" alt="" /></picture>
@@ -57,16 +57,17 @@ import { ProfilePanel } from './features/profile/profile-panel';
           @if (app.mode() !== 'login') {
             <div class="mt-4 flex gap-2 text-sm"><button class="font-bold text-pop-primary-dark underline" type="button" (click)="app.mode.set('login')">{{ t('connection') }}</button></div>
           }
-          <form class="mt-5 space-y-4" (ngSubmit)="app.submit()">
-            <label class="block text-sm font-bold">{{ t('email') }}<span class="relative mt-1 block"><svg class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-pop-primary-dark" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 7 9-7" /></svg><input class="min-h-11 w-full rounded-xl border border-pop-border bg-pop-background py-2 pl-10 pr-3 focus-visible:outline-2 focus-visible:outline-pop-primary" type="email" name="email" autocomplete="email" [(ngModel)]="app.email" required /></span></label>
+          <form class="mt-5 space-y-4" novalidate (ngSubmit)="submit()">
+            <div><label class="block text-sm font-bold" for="login-email">{{ t('email') }}</label><span class="relative mt-1 block"><svg class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-pop-primary-dark" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 7 9-7" /></svg><input #emailInput id="login-email" class="min-h-11 w-full rounded-xl border border-pop-border bg-pop-background py-2 pl-10 pr-3 focus-visible:outline-2 focus-visible:outline-pop-primary" type="email" name="email" autocomplete="email" [(ngModel)]="app.email" [attr.aria-invalid]="emailInvalid()" [attr.aria-describedby]="emailInvalid() ? 'login-email-error' : app.message() ? 'login-auth-message' : null" required /></span>@if (emailInvalid()) { <p id="login-email-error" class="mt-1 text-xs font-bold text-rose-700">{{ t('emailInvalid') }}</p> }</div>
             @if (app.mode() !== 'reset') {
-              <label class="block text-sm font-bold">{{ t('password') }}
-                <span class="mt-1 flex rounded-xl border border-pop-border bg-pop-background focus-within:outline-2 focus-within:outline-pop-primary">
+              <div><label class="block text-sm font-bold" for="login-password">{{ t('password') }}</label>
+                <span class="mt-1 flex rounded-xl border border-pop-border bg-pop-background focus-within:outline-2 focus-within:outline-pop-primary" [class.border-rose-600]="passwordInvalid()">
                   <svg class="ml-3 shrink-0 self-center text-pop-primary-dark" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></svg>
-                  <input class="min-h-11 min-w-0 flex-1 bg-transparent px-2 outline-none" [type]="app.showPassword() ? 'text' : 'password'" name="password" [autocomplete]="app.mode() === 'register' ? 'new-password' : 'current-password'" [(ngModel)]="app.password" required />
+                  <input #passwordInput id="login-password" class="min-h-11 min-w-0 flex-1 bg-transparent px-2 outline-none" [type]="app.showPassword() ? 'text' : 'password'" name="password" [autocomplete]="app.mode() === 'register' ? 'new-password' : 'current-password'" [(ngModel)]="app.password" [attr.aria-invalid]="passwordInvalid()" [attr.aria-describedby]="passwordInvalid() ? 'login-password-error' : app.message() ? 'login-auth-message' : null" required />
                   <button class="flex min-h-11 min-w-11 items-center justify-center px-3 text-pop-primary-dark" type="button" (click)="app.showPassword.update(value => !value)" [attr.aria-label]="app.showPassword() ? t('hidePassword') : t('showPassword')"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></svg></button>
                 </span>
-              </label>
+                @if (passwordInvalid()) { <p id="login-password-error" class="mt-1 text-xs font-bold text-rose-700">{{ t('passwordRequired') }}</p> }
+              </div>
             }
             @if (app.mode() === 'login') { <button class="block min-h-9 w-full text-right text-xs font-bold text-pop-primary-dark" type="button" (click)="app.mode.set('reset')">{{ t('forgotten') }}</button> }
             <button class="min-h-12 w-full rounded-xl bg-pop-coral px-4 font-extrabold text-pop-text hover:brightness-95 disabled:opacity-50" [disabled]="app.busy() || !app.online()" type="submit">{{ app.mode() === 'register' ? t('register') : app.mode() === 'reset' ? t('resetSend') : t('login') }}</button>
@@ -77,12 +78,26 @@ import { ProfilePanel } from './features/profile/profile-panel';
             <p class="mt-4 text-center text-sm text-pop-muted">{{ t('newHere') }} <button class="font-bold text-pop-primary-dark underline" type="button" (click)="app.mode.set('register')">{{ t('signup') }}</button></p>
           }
         }
-        @if (app.message()) { <p class="mt-4 text-sm" role="status">{{ app.message() }}</p> }
+        @if (app.message()) { <p id="login-auth-message" class="mt-4 text-sm" role="alert">{{ app.message() }}</p> }
       </div>
     </div>
   `,
 })
-export class LoginPage { readonly app = inject(App); readonly t = t; }
+export class LoginPage {
+  readonly app = inject(App);
+  readonly t = t;
+  readonly submitted = signal(false);
+  @ViewChild('emailInput') emailInput?: ElementRef<HTMLInputElement>;
+  @ViewChild('passwordInput') passwordInput?: ElementRef<HTMLInputElement>;
+  emailInvalid(): boolean { return this.submitted() && !this.emailInput?.nativeElement.validity.valid; }
+  passwordInvalid(): boolean { return this.submitted() && this.app.mode() !== 'reset' && !this.app.password; }
+  async submit(): Promise<void> {
+    this.submitted.set(true);
+    if (this.emailInvalid()) { this.emailInput?.nativeElement.focus(); return; }
+    if (this.passwordInvalid()) { this.passwordInput?.nativeElement.focus(); return; }
+    await this.app.submit();
+  }
+}
 
 @Component({
   imports: [RouterLink, GroupOverview],
@@ -100,7 +115,8 @@ export class LoginPage { readonly app = inject(App); readonly t = t; }
         <section class="relative mt-3 overflow-hidden rounded-[1.8rem] bg-pop-primary text-white shadow-[0_12px_30px_#6455ec30] sm:mt-5" [attr.aria-label]="t('myBalance')">
           <div class="relative min-h-44 px-5 pb-20 pt-5 sm:hidden">
             <div class="relative z-10 max-w-[54%]"><p class="text-xl font-black leading-tight">{{ t('dashboardHello') }}{{ app.firstName() ? ' ' + app.firstName() : '' }} ! 👋</p><p class="mt-2 text-xs text-white/90">{{ t('dashboardIntro') }}</p><p class="mt-3 text-xs font-bold">{{ group.name }} · {{ group.currency }}</p></div>
-            <img class="pointer-events-none absolute bottom-[-1.2rem] right-[-1.3rem] w-[67%] max-w-64" src="/illustrations/couple-cafe-table.webp" alt="" />
+            <img class="pointer-events-none absolute inset-0 h-full w-full origin-left scale-[1.38] object-cover object-left opacity-90" src="/illustrations/cafe-hero-mobile.webp" alt="" />
+            <div class="pointer-events-none absolute inset-0 bg-gradient-to-r from-pop-primary via-pop-primary/85 to-transparent"></div>
           </div>
           <div class="hidden min-h-64 grid-cols-[52%_48%] sm:grid">
             <div class="relative overflow-hidden"><img class="absolute inset-0 h-full w-full object-cover object-[16%_45%]" src="/illustrations/cafe-hero-mobile.webp" alt="" /><div class="absolute inset-y-0 right-0 w-20 bg-gradient-to-r from-transparent to-pop-primary"></div></div>
@@ -110,13 +126,13 @@ export class LoginPage { readonly app = inject(App); readonly t = t; }
           </div>
         </section>
         <div class="mt-4 flex max-w-full min-w-0 snap-x gap-3 overflow-x-auto pb-1 sm:hidden" [attr.aria-label]="t('myGroups')">
-          @for (item of app.groups(); track item.id) { <button class="flex min-h-16 w-[80%] shrink-0 snap-start items-center gap-3 rounded-2xl border border-pop-border bg-white p-3 text-left" type="button" [attr.aria-pressed]="app.selectedGroupId() === item.id" (click)="app.selectedGroupId.set(item.id)"><img class="h-10 w-10" [src]="$index % 2 ? '/illustrations/category-travel.svg' : '/illustrations/category-home.svg'" alt="" /><span class="min-w-0 flex-1"><strong class="block truncate">{{ item.name }}</strong><small>{{ item.memberCount ?? 1 }} {{ t('membersCount') }}</small></span><span class="rounded-full bg-pop-lavender px-2 py-1 text-xs font-bold">{{ item.currency }}</span></button> }
+          @for (item of app.groups(); track item.id) { <button class="flex min-h-16 shrink-0 snap-start items-center gap-3 rounded-2xl border border-pop-border bg-white p-3 text-left" [class.w-full]="app.groups().length === 1" [class.w-[80%]]="app.groups().length > 1" type="button" [attr.aria-pressed]="app.selectedGroupId() === item.id" (click)="app.selectedGroupId.set(item.id)"><img class="h-10 w-10" [src]="$index % 2 ? '/illustrations/category-travel.svg' : '/illustrations/category-home.svg'" alt="" /><span class="min-w-0 flex-1"><strong class="block truncate">{{ item.name }}</strong><small>{{ item.memberCount ?? 1 }} {{ t('membersCount') }}</small></span><span class="rounded-full bg-pop-lavender px-2 py-1 text-xs font-bold">{{ item.currency }}</span></button> }
         </div>
         <a class="mt-2 flex min-h-11 items-center justify-center rounded-2xl bg-pop-lavender text-sm font-extrabold text-pop-primary-dark sm:hidden" routerLink="/groups">+ {{ t('createGroup') }}</a>
         <div class="flex flex-col">
         <nav class="mt-5 grid gap-3 sm:grid-cols-3" [attr.aria-label]="t('quickActions')">
           <a class="dashboard-action dashboard-action-coral" routerLink="/expenses"><span class="dashboard-action-icon dashboard-action-icon-coral" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none"><path d="M24 10v28M10 24h28" stroke="currentColor" stroke-width="5" stroke-linecap="round" /></svg></span><strong>{{ t('addExpenseAction') }}</strong></a>
-          <a class="dashboard-action dashboard-action-lavender" routerLink="/groups"><span class="dashboard-action-icon" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none"><circle cx="19" cy="17" r="7" stroke="currentColor" stroke-width="3"/><path d="M7 37v-3a12 12 0 0 1 24 0v3H7ZM36 15v14M29 22h14" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span><strong>{{ t('inviteQrAction') }}</strong><svg class="dashboard-action-qr" viewBox="0 0 36 36" fill="none" aria-hidden="true"><path d="M2 2h12v12H2zM22 2h12v12H22zM2 22h12v12H2z" stroke="currentColor" stroke-width="3"/><path d="M22 22h4v4h-4zM30 22h4v4h-4zM22 30h4v4h-4zM30 30h4v4h-4z" fill="currentColor"/></svg></a>
+          <a class="dashboard-action dashboard-action-lavender" routerLink="/groups"><span class="dashboard-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 21a8 8 0 0 1 13.292-6"/><circle cx="10" cy="8" r="5"/><path d="M19 16v6"/><path d="M22 19h-6"/></svg></span><strong>{{ t('inviteQrAction') }}</strong><svg class="dashboard-action-qr" viewBox="0 0 36 36" fill="none" aria-hidden="true"><path d="M2 2h12v12H2zM22 2h12v12H22zM2 22h12v12H2z" stroke="currentColor" stroke-width="3"/><path d="M22 22h4v4h-4zM30 22h4v4h-4zM22 30h4v4h-4zM30 30h4v4h-4z" fill="currentColor"/></svg></a>
           <a class="dashboard-action dashboard-action-lavender" routerLink="/statistics"><span class="dashboard-action-icon" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none"><path d="M11 16h25l-6-6m6 6-6 6M37 32H12l6-6m-6 6 6 6" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span><strong>{{ t('settleAction') }}</strong></a>
         </nav>
         <div class="order-1 mt-5 grid gap-4 sm:order-2 lg:grid-cols-3">
