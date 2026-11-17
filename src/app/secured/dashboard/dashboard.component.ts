@@ -5,9 +5,10 @@ import { App } from '../../app';
 import { t } from '../../shared/utils/i18n';
 import { categoryById, categoryColorClass } from '../../shared/utils/categories';
 import { GroupOverview } from '../../features/groups/group-overview';
+import { UiIconBadge } from '../../shared/components/ui-icon-badge/ui-icon-badge';
 
 @Component({
-  imports: [FormsModule, RouterLink, GroupOverview],
+  imports: [FormsModule, RouterLink, GroupOverview, UiIconBadge],
   templateUrl: './dashboard.component.html',
 })
 export class DashboardPage {

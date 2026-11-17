@@ -25,7 +25,7 @@ class NavIcon { @Input({ required: true }) name = ''; }
         <aside class="fixed inset-y-0 left-0 z-20 hidden w-56 overflow-hidden bg-gradient-to-b from-white via-[#faf7ff] to-[#eee8ff] px-4 py-7 lg:flex lg:flex-col" [attr.aria-label]="t('navLabel')">
           <a class="mb-10 flex items-center gap-2 rounded-xl focus-visible:outline-2 focus-visible:outline-pop-primary" routerLink="/dashboard">
             <img src="/illustrations/ourfinance-mark.svg" width="44" height="44" alt="" />
-            <span class="text-[22px] font-black tracking-tight text-pop-primary-dark">ourfinance.</span>
+            <span class="text-[22px] font-black tracking-tight text-pop-text">ourfinance.</span>
           </a>
           <nav class="space-y-2" [attr.aria-label]="t('navLabel')">
             <a class="pop-nav-link" routerLink="/dashboard" routerLinkActive="pop-nav-active"><app-nav-icon name="home" />{{ t('navHome') }}</a>
@@ -41,7 +41,7 @@ class NavIcon { @Input({ required: true }) name = ''; }
         @if (signedIn) {
           <header class="relative z-40" [class.dashboard-header]="dashboard" [class.bg-white/90]="!dashboard">
             <div class="relative z-10 mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-7 lg:px-8" [class.lg:py-6]="dashboard">
-              <a class="flex items-center gap-1.5 lg:hidden" routerLink="/dashboard"><img src="/illustrations/ourfinance-mark.svg" width="36" height="36" alt="" /><strong class="text-[22px] font-black tracking-tight text-pop-primary-dark">ourfinance.</strong></a>
+              <a class="flex items-center gap-1.5 lg:hidden" routerLink="/dashboard"><img src="/illustrations/ourfinance-mark.svg" width="36" height="36" alt="" /><strong class="text-[22px] font-black tracking-tight text-pop-text">ourfinance.</strong></a>
               @if (dashboard) {
                 <div class="hidden min-w-0 flex-1 lg:block"><h1 class="text-3xl font-black leading-tight text-pop-primary-dark">{{ t('dashboardHello') }}{{ firstName ? ' ' + firstName : '' }} ! 👋</h1><p class="mt-1 text-sm font-semibold text-pop-primary-dark">{{ t('loginHeroLead') }} {{ t('loginHeroHighlight') }}</p></div>
                 <form class="hidden w-80 min-h-11 items-center gap-2 rounded-full bg-white px-4 shadow-[0_4px_14px_#5c46ad25] lg:flex" role="search" (submit)="submitSearch($event)">
