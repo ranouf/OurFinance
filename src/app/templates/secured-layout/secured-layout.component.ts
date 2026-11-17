@@ -1,5 +1,5 @@
 import { Component, inject } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { Router, RouterOutlet } from '@angular/router';
 import { App } from '../../app';
 import { AppShell } from '../../shared/components/app-shell/app-shell';
 
@@ -10,4 +10,6 @@ import { AppShell } from '../../shared/components/app-shell/app-shell';
 })
 export class SecuredLayoutComponent {
   readonly app = inject(App);
+  private readonly router = inject(Router);
+  searchExpenses(term: string): void { void this.router.navigate(['/expenses'], { queryParams: { search: term } }); }
 }

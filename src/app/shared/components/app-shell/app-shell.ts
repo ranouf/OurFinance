@@ -4,7 +4,7 @@ import { t } from '../../utils/i18n';
 
 @Component({
   selector: 'app-nav-icon',
-  template: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  template: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     @switch (name) {
       @case ('home') { <path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z" /> }
       @case ('groups') { <circle cx="9" cy="8" r="3" /><path d="M3 20v-2a6 6 0 0 1 12 0v2zM17 5a3 3 0 0 1 0 6m1 3a5 5 0 0 1 3 5v1" /> }
@@ -20,12 +20,12 @@ class NavIcon { @Input({ required: true }) name = ''; }
   selector: 'app-shell',
   imports: [RouterLink, RouterLinkActive, NavIcon],
   template: `
-    <div class="min-h-screen bg-pop-background text-pop-text">
+    <div class="min-h-screen bg-pop-background text-pop-text" [class.dashboard-shell]="dashboard">
       @if (signedIn) {
         <aside class="fixed inset-y-0 left-0 z-20 hidden w-56 overflow-hidden border-r border-pop-border bg-white px-4 py-7 lg:flex lg:flex-col" [attr.aria-label]="t('navLabel')">
           <a class="mb-10 flex items-center gap-2 rounded-xl focus-visible:outline-2 focus-visible:outline-pop-primary" routerLink="/dashboard">
-            <img src="/illustrations/ourfinance-mark.svg" width="40" height="40" alt="" />
-            <span class="text-lg font-black tracking-tight text-pop-primary-dark">ourfinance.</span>
+            <img src="/illustrations/ourfinance-mark.svg" width="44" height="44" alt="" />
+            <span class="text-[22px] font-black tracking-tight text-pop-primary-dark">ourfinance.</span>
           </a>
           <nav class="space-y-2" [attr.aria-label]="t('navLabel')">
             <a class="pop-nav-link" routerLink="/dashboard" routerLinkActive="pop-nav-active"><app-nav-icon name="home" />{{ t('navHome') }}</a>
@@ -40,10 +40,17 @@ class NavIcon { @Input({ required: true }) name = ''; }
       }
       <div [class.lg:pl-56]="signedIn">
         @if (signedIn) {
-          <header class="relative z-40 bg-white/90">
-            <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-7 lg:px-8">
-              <a class="flex items-center gap-1.5 lg:hidden" routerLink="/dashboard"><img src="/illustrations/ourfinance-mark.svg" width="34" height="34" alt="" /><strong class="text-base font-black text-pop-primary-dark">ourfinance.</strong></a>
-              <span class="hidden font-black text-pop-primary-dark lg:block">{{ pageTitle }}</span>
+          <header class="relative z-40" [class.dashboard-header]="dashboard" [class.bg-white/90]="!dashboard">
+            <div class="relative z-10 mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-7 lg:px-8" [class.lg:py-6]="dashboard">
+              <a class="flex items-center gap-1.5 lg:hidden" routerLink="/dashboard"><img src="/illustrations/ourfinance-mark.svg" width="36" height="36" alt="" /><strong class="text-lg font-black text-pop-primary-dark">ourfinance.</strong></a>
+              @if (dashboard) {
+                <div class="hidden min-w-0 flex-1 lg:block"><h1 class="text-3xl font-black leading-tight text-pop-primary-dark">{{ t('dashboardHello') }}{{ firstName ? ' ' + firstName : '' }} ! 👋</h1><p class="mt-1 text-sm font-semibold text-pop-primary-dark">{{ t('loginHeroLead') }} {{ t('loginHeroHighlight') }}</p></div>
+                <form class="hidden w-80 min-h-11 items-center gap-2 rounded-full bg-white px-4 shadow-[0_4px_14px_#5c46ad25] lg:flex" role="search" (submit)="submitSearch($event)">
+                  <svg class="size-5 shrink-0 text-pop-primary-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7"/><path d="m16 16 5 5"/></svg>
+                  <label class="sr-only" for="dashboard-header-search">{{ t('searchExpenses') }}</label><input id="dashboard-header-search" class="min-w-0 flex-1 bg-transparent py-2 text-sm" type="search" name="search" [value]="searchTerm" (input)="searchTerm = $any($event.target).value" [placeholder]="t('searchExpenses')" />
+                  <button class="sr-only focus:not-sr-only" type="submit">{{ t('search') }}</button>
+                </form>
+              } @else { <span class="hidden font-black text-pop-primary-dark lg:block">{{ pageTitle }}</span> }
               <details #profileMenu class="relative group">
                 <summary class="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-2xl px-1 focus-visible:outline-2 focus-visible:outline-pop-primary [&::-webkit-details-marker]:hidden" [attr.aria-label]="t('navAccount')">
                   <span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-pop-coral font-black text-white" aria-hidden="true">{{ userInitial }}</span><span class="hidden max-w-40 truncate text-sm font-bold sm:inline">{{ userName }}</span><span class="hidden text-pop-primary-dark sm:inline" aria-hidden="true">⌄</span>
@@ -72,9 +79,14 @@ class NavIcon { @Input({ required: true }) name = ''; }
     </div>
   `,
   styles: [`
-    .pop-nav-link { display:flex; align-items:center; gap:.75rem; min-height:2.75rem; border-radius:.75rem; padding:0 .75rem; color:var(--color-pop-text); font-weight:750; font-size:.9rem; }
-    .pop-nav-link:hover, .pop-nav-link:focus-visible, .pop-nav-active { background:var(--color-pop-lavender); color:var(--color-pop-primary-dark); }
-    .pop-nav-link app-nav-icon { display:flex; width:1.35rem; justify-content:center; }
+    .pop-nav-link { display:flex; align-items:center; gap:.85rem; min-height:3.25rem; border-radius:1rem; padding:0 .85rem; color:var(--color-pop-text); font-weight:800; font-size:1.05rem; }
+    .pop-nav-link:hover { background:var(--color-pop-lavender); color:var(--color-pop-primary-dark); }
+    .pop-nav-active, .pop-nav-active:hover { background:linear-gradient(110deg, var(--color-pop-primary), var(--color-pop-primary-dark)); color:#fff; box-shadow:0 5px 11px #6455ec2e; }
+    .pop-nav-link:focus-visible { outline:2px solid var(--color-pop-primary-dark); outline-offset:2px; }
+    .pop-nav-link app-nav-icon { display:flex; width:1.5rem; justify-content:center; }
+    .dashboard-header { background:linear-gradient(105deg, #f4eeff 0%, #ebe1ff 72%, #f8f5ff 100%); }
+    .dashboard-header::before { content:''; position:absolute; inset:0 0 0 auto; width:60%; pointer-events:none; opacity:.75; background:radial-gradient(circle at 75% 75%, #dac8fa 0 24px, transparent 25px), radial-gradient(circle at 82% 75%, #dac8fa 0 17px, transparent 18px), radial-gradient(circle at 92% 90%, #e1d2fb 0 35px, transparent 36px); }
+    @media (max-width:639px) { .dashboard-shell { background:#fff; } .dashboard-header { background:#fff; } .dashboard-header::before { display:none; } }
     .pop-bottom-link { display:flex; min-height:3.35rem; flex-direction:column; align-items:center; justify-content:center; gap:.1rem; border-radius:.7rem; color:var(--color-pop-muted); font-size:.62rem; font-weight:750; text-align:center; }
     .pop-bottom-link app-nav-icon { display:flex; }
     .pop-bottom-active { color:var(--color-pop-primary-dark); }
@@ -87,9 +99,14 @@ export class AppShell {
   @Input() userInitial = '?';
   @Input() userName = '';
   @Input() pageTitle = '';
+  @Input() dashboard = false;
+  @Input() firstName = '';
   @Output() signOut = new EventEmitter<void>();
+  @Output() searchExpenses = new EventEmitter<string>();
+  searchTerm = '';
   @ViewChild('profileMenu') profileMenu?: ElementRef<HTMLDetailsElement>;
   readonly t = t;
+  submitSearch(event: Event): void { event.preventDefault(); const term = this.searchTerm.trim(); if (term) this.searchExpenses.emit(term); }
   @HostListener('document:click', ['$event']) closeMenuOutside(event: MouseEvent): void {
     const menu = this.profileMenu?.nativeElement;
     if (menu && !menu.contains(event.target as Node)) menu.open = false;

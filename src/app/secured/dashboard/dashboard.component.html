@@ -1,5 +1,5 @@
     <div class="mx-auto max-w-5xl">
-      @if (app.selectedGroup()) { <div class="hidden items-start justify-between gap-3 sm:flex">
+      @if (app.selectedGroup()) { <div class="hidden items-start justify-between gap-3 sm:flex lg:hidden">
         <div><p class="text-xs font-bold text-pop-muted">{{ t('todayLabel') }}</p><h1 class="mt-1 text-2xl font-black sm:text-3xl">{{ t('dashboardGreeting') }} 👋</h1><p class="mt-1 text-sm text-pop-muted">{{ t('dashboardIntro') }}</p></div>
         @if (app.selectedGroup()) { <a class="hidden min-h-11 items-center rounded-xl bg-pop-coral px-4 text-sm font-extrabold text-pop-text sm:inline-flex" routerLink="/expenses">+ {{ t('navAdd') }}</a> }
       </div> }
@@ -8,7 +8,7 @@
       } @else if (app.groupsError()) {
         <p class="mt-6 rounded-2xl border border-pop-border bg-white p-6" role="alert">{{ t('groupsUnavailable') }}</p>
       } @else if (app.selectedGroup(); as group) {
-        <form class="mt-3 flex min-h-11 items-center gap-2 rounded-2xl border border-pop-border bg-white px-3 shadow-sm sm:mt-5" (ngSubmit)="searchExpenses()" role="search">
+        <form class="mt-3 hidden min-h-11 items-center gap-2 rounded-2xl border border-pop-border bg-white px-3 shadow-sm sm:mt-5 sm:flex lg:hidden" (ngSubmit)="searchExpenses()" role="search">
           <svg class="size-5 shrink-0 text-pop-primary-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7"/><path d="m16 16 5 5"/></svg>
           <label class="sr-only" for="dashboard-expense-search">{{ t('searchExpenses') }}</label>
           <input id="dashboard-expense-search" class="min-w-0 flex-1 py-2 text-sm outline-none" type="search" name="dashboardExpenseSearch" [(ngModel)]="search" [placeholder]="t('searchExpenses')" />
@@ -22,8 +22,10 @@
           </div>
           <div class="hidden min-h-64 grid-cols-[52%_48%] sm:grid">
             <div class="relative overflow-hidden"><img class="absolute inset-0 h-full w-full object-cover object-[16%_45%]" src="/illustrations/cafe-hero-mobile.webp" alt="" /><div class="absolute inset-y-0 right-0 w-20 bg-gradient-to-r from-transparent to-pop-primary"></div></div>
-            <div class="flex min-w-0 flex-col justify-center px-5 py-6 lg:px-8"><p class="text-xs font-bold uppercase tracking-wider text-white/75">{{ t('myGroups') }} · {{ group.currency }}</p><h1 class="mt-1 break-words text-2xl font-black lg:text-4xl">{{ group.name }}</h1><p class="mt-2 text-sm text-white/80">{{ group.memberCount ?? 1 }} {{ t('membersCount') }}</p>
-              <div class="mt-2 flex -space-x-2" [attr.aria-label]="t('whoOwes')">
+            <div class="flex min-w-0 flex-col justify-center px-5 py-5 lg:px-7">
+              <a class="flex min-w-0 items-center gap-2 text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white" routerLink="/groups"><span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-white/20" aria-hidden="true"><svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="/illustrations/lucide-actions.svg#user-round-plus" /></svg></span><h1 class="min-w-0 truncate text-xl font-black lg:text-2xl">{{ group.name }}</h1><span class="text-xl" aria-hidden="true">⌄</span></a>
+              <span class="sr-only">{{ group.memberCount ?? 1 }} {{ t('membersCount') }}</span>
+              <div class="mt-3 flex -space-x-2" [attr.aria-label]="t('whoOwes')">
                 @for (item of app.dashboardMemberBalances(); track item.userId) {
                   @if (app.dashboardMemberName(item.userId); as name) {
                     <span class="group relative flex size-9 items-center justify-center rounded-full border-2 border-white bg-pop-peach text-sm font-black text-pop-primary-dark shadow-md outline-none focus-visible:ring-2 focus-visible:ring-pop-sun" tabindex="0" [attr.aria-label]="name + ' · ' + memberBalanceLabel(item.balanceMinor) + ' ' + app.formatDashboardMinor(item.balanceMinor)">
@@ -32,8 +34,9 @@
                     </span>
                   }
                 }
+                <a class="ml-3 flex size-9 items-center justify-center rounded-full border-2 border-white bg-pop-lavender text-pop-primary-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white" routerLink="/groups" [attr.aria-label]="t('inviteQrAction')"><svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><use href="/illustrations/lucide-actions.svg#plus" /></svg></a>
               </div>
-              @if (app.balanceBusy()) { <p class="mt-5" role="status">{{ t('loadingBalances') }}</p> } @else if (app.balanceError()) { <p class="mt-5" role="status">{{ t('balancesUnavailable') }}</p> } @else { <div class="mt-5 grid grid-cols-2 gap-3"><div><span class="block text-xs text-white/80">{{ t('myBalance') }}</span><strong class="text-xl lg:text-2xl">{{ app.selectedBalance() }}</strong></div><div><span class="block text-xs text-white/80">{{ t('groupTotal') }}</span><strong class="text-xl lg:text-2xl">{{ app.groupSpent() }}</strong></div><div><span class="block text-xs text-white/80">{{ t('totalRepayments') }}</span><strong class="text-xl lg:text-2xl">{{ app.settlementTotal() }}</strong></div></div> }
+              @if (app.balanceBusy()) { <p class="mt-4" role="status">{{ t('loadingBalances') }}</p> } @else if (app.balanceError()) { <p class="mt-4" role="status">{{ t('balancesUnavailable') }}</p> } @else { <div class="mt-4 grid grid-cols-[1.05fr_1fr] gap-3"><div class="flex min-w-0 flex-col justify-center"><span class="block text-xs text-white/85">{{ t('myBalance') }}</span><strong class="mt-1 break-words text-2xl font-black lg:text-[1.8rem]">{{ app.selectedBalance() }} <small class="text-sm font-bold">{{ group.currency }}</small></strong></div><div class="min-w-0 space-y-2 border-l border-white/40 pl-3"><div class="flex items-center justify-between gap-2"><span class="text-[11px] text-white/85">{{ t('groupTotal') }}</span><strong class="text-sm font-black">{{ app.groupSpent() }}</strong></div><div class="flex items-center justify-between gap-2"><span class="text-[11px] text-white/85">{{ t('totalRepayments') }}</span><strong class="text-sm font-black">{{ app.settlementTotal() }}</strong></div></div></div> }
             </div>
           </div>
           <div class="absolute bottom-3 right-3 z-10 flex -space-x-2 sm:hidden" [attr.aria-label]="t('whoOwes')">
@@ -47,18 +50,19 @@
             }
           </div>
         </section>
-        <div class="mt-4 flex max-w-full min-w-0 snap-x gap-3 overflow-x-auto pb-1 sm:hidden" [attr.aria-label]="t('myGroups')">
-          @for (item of app.groups(); track item.id) { <button class="flex min-h-16 shrink-0 snap-start items-center gap-3 rounded-2xl border border-pop-border bg-white p-3 text-left" [class.w-full]="app.groups().length === 1" [class.w-[80%]]="app.groups().length > 1" type="button" [attr.aria-pressed]="app.selectedGroupId() === item.id" (click)="app.selectedGroupId.set(item.id)"><img class="h-10 w-10" [src]="$index % 2 ? '/illustrations/category-travel.svg' : '/illustrations/category-home.svg'" alt="" /><span class="min-w-0 flex-1"><strong class="block truncate">{{ item.name }}</strong><small>{{ item.memberCount ?? 1 }} {{ t('membersCount') }}</small></span><span class="rounded-full bg-pop-lavender px-2 py-1 text-xs font-bold">{{ item.currency }}</span></button> }
+        <div class="mt-4 flex items-center justify-between sm:hidden"><h2 class="text-lg font-black">{{ t('myGroups') }}</h2><a class="text-xs font-bold text-pop-primary-dark" routerLink="/groups">{{ t('viewAll') }} →</a></div>
+        <div class="mt-2 flex max-w-full min-w-0 snap-x gap-3 overflow-x-auto pb-1 sm:hidden" [attr.aria-label]="t('myGroups')">
+          @for (item of app.groups(); track item.id) { <button class="flex min-h-16 shrink-0 snap-start items-center gap-3 rounded-2xl border border-pop-border bg-pop-peach p-3 text-left" [class.w-full]="app.groups().length === 1" [class.w-[80%]]="app.groups().length > 1" type="button" [attr.aria-pressed]="app.selectedGroupId() === item.id" (click)="app.selectedGroupId.set(item.id)"><img class="h-10 w-10" [src]="$index % 2 ? '/illustrations/category-travel.svg' : '/illustrations/category-home.svg'" alt="" /><span class="min-w-0 flex-1"><strong class="block truncate">{{ item.name }}</strong><small>{{ item.memberCount ?? 1 }} {{ t('membersCount') }}</small></span><strong class="shrink-0 text-sm font-black text-emerald-700">{{ app.selectedGroupId() === item.id ? app.selectedBalance() : item.currency }}</strong><span aria-hidden="true">›</span></button> }
         </div>
         <a class="mt-2 flex min-h-11 items-center justify-center rounded-2xl bg-pop-lavender text-sm font-extrabold text-pop-primary-dark sm:hidden" routerLink="/groups">+ {{ t('createGroup') }}</a>
-        <div class="flex flex-col">
-        <nav class="mt-5 grid gap-3 sm:grid-cols-3" [attr.aria-label]="t('quickActions')">
+        <div class="mt-5 grid gap-4 lg:grid-cols-3">
+        <nav class="order-2 grid grid-cols-3 gap-2 lg:order-1 lg:col-span-3 lg:gap-3" [attr.aria-label]="t('quickActions')">
           <a class="dashboard-action dashboard-action-coral" routerLink="/expenses"><span class="dashboard-action-icon dashboard-action-icon-coral" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><use href="/illustrations/lucide-actions.svg#plus" /></svg></span><strong>{{ t('addExpenseAction') }}</strong></a>
-          <a class="dashboard-action dashboard-action-lavender" routerLink="/groups"><span class="dashboard-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="/illustrations/lucide-actions.svg#user-round-plus" /></svg></span><strong>{{ t('inviteQrAction') }}</strong><svg class="dashboard-action-qr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="/illustrations/lucide-actions.svg#qr-code" /></svg></a>
-          <a class="dashboard-action dashboard-action-lavender" routerLink="/statistics"><span class="dashboard-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="/illustrations/lucide-actions.svg#shuffle" /></svg></span><strong>{{ t('settleAction') }}</strong></a>
+          <a class="dashboard-action dashboard-action-lavender dashboard-action-invite" routerLink="/groups"><span class="dashboard-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="/illustrations/lucide-actions.svg#user-round-plus" /></svg></span><strong>{{ t('inviteQrAction') }}</strong><svg class="dashboard-action-qr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="/illustrations/lucide-actions.svg#qr-code" /></svg></a>
+          <a class="dashboard-action dashboard-action-lavender dashboard-action-sun" routerLink="/statistics"><span class="dashboard-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="/illustrations/lucide-actions.svg#shuffle" /></svg></span><strong class="lg:hidden">{{ t('viewStats') }}</strong><strong class="hidden lg:block">{{ t('settleAction') }}</strong></a>
         </nav>
-        <div class="order-1 mt-5 grid gap-4 sm:order-2 lg:grid-cols-3">
-          <section class="order-2 min-w-0 rounded-[1.7rem] border border-pop-border bg-white p-4 shadow-[0_9px_25px_#6455ec12] lg:order-1" [attr.aria-label]="t('whoOwes')">
+        <div class="contents">
+          <section class="order-3 min-w-0 rounded-[1.7rem] border border-pop-border bg-white p-4 shadow-[0_9px_25px_#6455ec12] lg:order-2" [attr.aria-label]="t('whoOwes')">
             <h2 class="flex items-center gap-2 text-lg font-black"><svg class="size-5 shrink-0 text-pop-primary-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v17M5 7h14M4 7l-3 7h6L4 7Zm16 0-3 7h6l-3-7ZM7 20h10" /></svg>{{ t('whoOwes') }}</h2>
             @if (app.balanceBusy()) { <p class="mt-4 text-sm" role="status">{{ t('loadingBalances') }}</p> }
             @else if (app.balanceError()) { <p class="mt-4 text-sm" role="status">{{ t('balancesUnavailable') }}</p> }
@@ -69,7 +73,7 @@
               }
             </ul> }
           </section>
-          <section class="order-1 min-w-0 rounded-[1.7rem] border border-pop-border bg-white p-4 shadow-[0_9px_25px_#6455ec12] lg:order-2" [attr.aria-label]="t('recentExpenses')">
+          <section class="order-1 min-w-0 rounded-[1.7rem] border border-pop-border bg-white p-4 shadow-[0_9px_25px_#6455ec12] lg:order-3" [attr.aria-label]="t('recentExpenses')">
             <div class="flex items-center justify-between gap-2"><h2 class="flex min-w-0 items-center gap-2 text-lg font-black"><svg class="size-5 shrink-0 text-pop-primary-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>{{ t('recentExpenses') }}</h2><a class="shrink-0 text-xs font-bold text-pop-primary-dark" routerLink="/expenses">{{ t('viewAll') }} →</a></div>
             <div class="mt-3 divide-y divide-pop-border">
               @if (app.recentExpensesBusy()) { <p class="py-3 text-sm" role="status">{{ t('loadingExpenseHistory') }}</p> }
@@ -78,7 +82,7 @@
               @else { @for (entry of app.recentExpenses(); track entry.id) { <div class="flex min-h-12 items-center gap-2 py-1.5"><span class="flex size-9 shrink-0 items-center justify-center rounded-full text-lg" [class]="categoryColorClass(entry.categoryColor)" aria-hidden="true">{{ entry.categoryIcon }}</span><span class="min-w-0 flex-1"><strong class="block truncate text-sm">{{ entry.description }}</strong><small class="text-pop-muted">{{ entry.date }}</small></span><strong class="shrink-0 text-xs text-pop-primary-dark">{{ app.formatRecentExpense(entry) }}</strong></div> } }
             </div>
           </section>
-          <section class="order-3 min-w-0 rounded-[1.7rem] border border-pop-border bg-white p-4 shadow-[0_9px_25px_#6455ec12]" [attr.aria-label]="t('byCategory')">
+          <section class="order-4 min-w-0 rounded-[1.7rem] border border-pop-border bg-white p-4 shadow-[0_9px_25px_#6455ec12]" [attr.aria-label]="t('byCategory')">
             <div class="flex items-center justify-between gap-2"><h2 class="flex min-w-0 items-center gap-2 text-base font-black"><svg class="size-5 shrink-0 text-pop-primary-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="12" height="12" rx="3"/><rect x="9" y="9" width="12" height="12" rx="3"/></svg>{{ t('byCategory') }}</h2><a class="shrink-0 text-xs font-bold text-pop-primary-dark" routerLink="/statistics">{{ t('viewAll') }} →</a></div>
             @if (app.balanceBusy()) { <p class="mt-4 text-sm" role="status">{{ t('loadingStatistics') }}</p> }
             @else if (app.balanceError()) { <p class="mt-4 text-sm" role="status">{{ t('balancesUnavailable') }}</p> }
