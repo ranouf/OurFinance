@@ -5,44 +5,47 @@ import type { User } from 'firebase/auth';
 import { ExpenseService } from '../../core/firebase/expense-service';
 import type { Group, GroupMember } from '../../core/firebase/group-model';
 import { SettlementService, type SettlementRequest } from '../../core/firebase/settlement-service';
+import { t } from '../../shared/utils/i18n';
 import { parseMinor } from '../expenses/expense-draft';
+import { settlementMessage, settlementText } from './settlement-text';
 
 @Component({
   selector: 'app-settlement-form',
   imports: [FormsModule],
   template: `
-    <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-5" aria-label="Déclarer un remboursement">
-      <h2 class="text-lg font-semibold">Déclarer un remboursement</h2>
-      <p class="mt-1 text-sm text-slate-600">Enregistre un remboursement que vous avez envoyé. Aucun argent n’est transféré.</p>
+    <section class="mt-6 rounded-3xl border border-pop-border bg-pop-surface p-5 text-pop-text shadow-sm md:p-7" [attr.aria-label]="text('title')">
+      <div class="mb-5 h-1.5 w-14 rounded-full bg-pop-sun" aria-hidden="true"></div>
+      <h2 class="text-2xl font-extrabold tracking-tight">{{ text('title') }}</h2>
+      <p class="mt-1 text-sm text-pop-muted">{{ text('intro') }}</p>
       <form class="mt-5 space-y-4" (ngSubmit)="save()">
-        <label class="block text-sm font-medium">Groupe
-          <select class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="settlementGroup" [(ngModel)]="selectedGroupId" (ngModelChange)="loadMembers()" required>
-            <option value="">Choisir un groupe</option>
+        <label class="block text-sm font-bold">{{ t('group') }}
+          <select class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="settlementGroup" [(ngModel)]="selectedGroupId" (ngModelChange)="loadMembers()" required>
+            <option value="">{{ t('chooseGroup') }}</option>
             @for (group of groups; track group.id) { <option [value]="group.id">{{ group.name }}</option> }
           </select>
         </label>
         @if (selectedGroupId) {
-          <label class="block text-sm font-medium">Remboursé à
-            <select class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="settlementRecipient" [(ngModel)]="recipientId" required>
-              <option value="">Choisir un membre</option>
-              @for (member of recipients(); track member.userId) { <option [value]="member.userId">{{ member.userId }}</option> }
+          <label class="block text-sm font-bold">{{ text('recipient') }}
+            <select class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="settlementRecipient" [(ngModel)]="recipientId" required>
+              <option value="">{{ text('chooseMember') }}</option>
+              @for (member of recipients(); track member.userId) { <option [value]="member.userId">{{ memberLabel(member.userId) }}</option> }
             </select>
           </label>
           <div class="grid grid-cols-2 gap-3">
-            <label class="block text-sm font-medium">Montant
-              <input class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="settlementAmount" [(ngModel)]="amount" inputmode="decimal" placeholder="0,00" required />
+            <label class="block text-sm font-bold">{{ text('amount') }}
+              <input class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="settlementAmount" [(ngModel)]="amount" inputmode="decimal" placeholder="0,00" required />
             </label>
-            <label class="block text-sm font-medium">Devise
-              <input class="mt-1 w-full rounded-lg border border-slate-300 bg-slate-50 p-3" [value]="currency" readonly />
+            <label class="block text-sm font-bold">{{ text('currency') }}
+              <input class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-lavender p-3 font-bold text-pop-primary-dark" [value]="currency" readonly />
             </label>
           </div>
-          <label class="block text-sm font-medium">Date
-            <input class="mt-1 w-full rounded-lg border border-slate-300 p-3" type="date" name="settlementDate" [(ngModel)]="date" required />
+          <label class="block text-sm font-bold">{{ text('date') }}
+            <input class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" type="date" name="settlementDate" [(ngModel)]="date" required />
           </label>
-          <button class="w-full rounded-lg bg-teal-700 px-4 py-3 font-semibold text-white disabled:opacity-50" type="submit" [disabled]="busy() || !recipientId">Enregistrer le remboursement</button>
+          <button class="min-h-11 w-full rounded-xl bg-pop-primary px-4 py-3 font-bold text-white hover:bg-pop-primary-dark disabled:opacity-50" type="submit" [disabled]="busy() || !recipientId">{{ text('save') }}</button>
         }
       </form>
-      @if (message()) { <p class="mt-4 text-sm" role="status">{{ message() }}</p> }
+      @if (message()) { <p class="mt-4 rounded-xl bg-pop-lavender p-3 text-sm" role="status">{{ displayMessage(message()) }}</p> }
     </section>
   `,
 })
@@ -55,6 +58,10 @@ export class SettlementForm implements OnChanges {
   readonly recipients = signal<GroupMember[]>([]);
   readonly busy = signal(false);
   readonly message = signal('');
+  readonly text = settlementText;
+  readonly t = t;
+  readonly displayMessage = settlementMessage;
+  memberLabel(userId: string): string { return `${t('otherMember')} ${userId.slice(0, 8)}`; }
   selectedGroupId = '';
   recipientId = '';
   amount = '';
