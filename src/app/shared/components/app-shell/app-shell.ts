@@ -29,7 +29,7 @@ import { t } from '../../utils/i18n';
               <span class="truncate text-lg font-extrabold tracking-tight">OurFinance</span>
             </a>
             <span class="hidden text-sm font-semibold text-pop-muted lg:block">OurFinance</span>
-            <span class="shrink-0 rounded-full bg-pop-lavender px-3 py-1.5 text-xs font-bold text-pop-primary-dark">{{ t('testEnvironment') }}</span>
+            <span class="shrink-0 rounded-full bg-pop-lavender px-3 py-1.5 text-xs font-bold text-pop-primary-dark max-[359px]:hidden">{{ t('testEnvironment') }}</span>
           </div>
         </header>
         <main class="mx-auto max-w-6xl px-4 py-6 sm:px-7 sm:py-9" [class.pb-28]="signedIn"><ng-content /></main>

@@ -39,7 +39,7 @@ import { language, locale, setLanguage, t } from './shared/utils/i18n';
             </div>
             <picture>
               <source media="(min-width: 1024px)" srcset="/illustrations/cafe-terrace-desktop.svg" />
-              <img class="h-48 w-full object-cover object-center sm:h-64 lg:h-80" src="/illustrations/cafe-terrace-mobile.svg" alt="" />
+              <img class="h-32 w-full object-cover object-center sm:h-64 lg:h-80" src="/illustrations/cafe-terrace-mobile.svg" alt="" />
             </picture>
           </div>
         } @else {
