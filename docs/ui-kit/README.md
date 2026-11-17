@@ -102,11 +102,40 @@ Ne pas inventer dix nouveaux violets arbitraires à chaque composant. Le **corai
 | Composant | Variants et états | Aspect exact attendu |
 |---|---|---|
 | `UiButton` | `primary`, `coral`, `secondary`, `outline`, `ghost`, `danger` ; `sm/md/lg` ; normal, hover, focus, disabled, loading | Boutons **compacts**, alignés sur une ligne, arrondi 8–10 ; primary violet plein, CTA corail plein **texte foncé**, secondary lavande, outline blanc + trait fin, ghost sans bordure, danger rose pâle + texte rouge |
+| `UiQuickAction` / `UiQuickActionGroup` | `coral`, `lavender`, `lavender-strong` ; compact/default ; hover, focus, disabled, loading | **Trois boutons d’action rapide spécifiques au Dashboard**, avec icône, texte sur deux lignes et ombre douce ; voir la capture exacte ci-dessous. Ne pas les réduire à trois `UiButton` ordinaires. |
 | `UiAlert` | success/info/warning/error ; closable ou non ; action facultative | **Bandes horizontales pastel**, hauteur contrôlée, icône gauche, message au centre, fermeture à droite ; pas des boîtes massives à grosse bordure |
 | `UiBadge` | nouveau, actif, en attente, urgent ; neutre | Pastille couleur pastel, texte en gras foncé, arrondi très ample |
 | `UiChip` | filter, selectable, removable, selected | Petite pilule lavande ou blanche, icône catégorie, libellé, croix facultative ; plusieurs chips sur une ligne avec `gap` régulier |
 | `UiIcon` | style Lucide outline / tailles 18, 20, 24 | Trait cohérent **1.75–2 px**, couleur prune/violet ; pas d'emoji disparates comme système d'icônes |
 | `UiToast` | success/info/error, dismissible | Petite notification flottante, fond violet ou pastel, contraste lisible et ombre douce |
+
+### A bis — Les trois boutons d'action rapide du Dashboard (référence explicite et obligatoire)
+
+**Ces trois boutons ont été approuvés séparément par l'utilisateur et constituent une signature visuelle du Dashboard Everyday Pop V2.** Ils ne sont **pas** de simples boutons rectangulaires `UiButton` alignés : ce sont des **tuiles-actions compactes**, avec une composition et des proportions propres. La capture suivante, fournie par l'utilisateur, **prime sur les variantes génériques** lorsqu'il s'agit de ces trois actions.
+
+![Référence exacte — Ajouter une dépense, Inviter des membres, Équilibrer les comptes](visual-reference/dashboard-quick-actions.png)
+
+**Composition et comportements à respecter :**
+
+| Action | Variante | Iconographie et contenu | Navigation/action |
+|---|---|---|---|
+| **Ajouter une dépense** | `coral` | Fond corail lumineux légèrement dégradé, **rond contenant un +** à gauche, libellé gras sur **deux lignes** | Ouvrir le parcours de création d'une dépense dans le groupe actif ; si aucun groupe, inviter à en créer un |
+| **Inviter des membres** | `lavender` | Fond lavande clair, pictogramme **utilisateur +** à gauche, libellé sur **deux lignes**, petit **QR code** violet à droite | Ouvrir le panneau d'invitation QR/lien du groupe actif, selon les permissions ; si action interdite, expliquer pourquoi |
+| **Équilibrer les comptes** | `lavender-strong` | Fond lavande légèrement plus soutenu, pictogramme **flèches croisées** à gauche, libellé sur **deux lignes** | Ouvrir le parcours de consultation/règlement des soldes ; **ne pas** créer de remboursement automatiquement au clic |
+
+**Contrat visuel à partir de la capture (mesures cibles à ajuster par comparaison Playwright) :**
+
+- **Disposition desktop** : trois tuiles sur **une seule rangée**, hauteurs et alignements identiques, espacées de **10–12 px**, sans autre carte blanche autour si cela alourdit le rendu. Les libellés restent sur deux lignes, sans troncature.
+- **Dimensions** : hauteur visible **44–52 px** environ, largeur fluide avec minimum adapté au texte (environ **140–160 px** dans une zone compacte), `padding-inline` **12–16 px** ; arrondi **14–16 px**. Conserver une cible tactile d'au moins **44 × 44 px**.
+- **Trait et relief** : liseré **blanc très fin, ~1–2 px**, ombre douce courte sous les trois tuiles ; **pas de grosse bordure violette**, de shadow sombre ou de contour de carte supplémentaire. Focus clavier : anneau violet accessible, distinct du liseré décoratif.
+- **Palette** : premier bouton **corail** (`pop-coral`, avec dégradé très subtil possible), les deux suivants **lavande/violet très clair** (`pop-lavender` et nuance voisine). Les pictogrammes et textes des tuiles lavande sont **violet foncé**. Le premier est montré en **texte blanc** sur la capture : conserver cette intention visuelle **seulement si le contraste WCAG est suffisant** ; sinon foncer localement le corail derrière le texte ou utiliser le texte prune foncé, sans dénaturer la composition.
+- **Typographie** : **Nunito Sans 800–900**, libellé centré verticalement, environ **11–12 px** dans ce composant compact, `line-height` **1.15–1.25** ; ne pas remplacer par une police système mince ni mettre le texte sur une seule ligne.
+- **Icônes** : Lucide cohérent, trait **2–2.25 px** ; premier `plus` dans un disque corail clair, deuxième `user-round-plus` avec un **`qr-code` secondaire à droite**, troisième `shuffle` / `arrow-left-right`. Ne pas remplacer par des emojis.
+- **Mobile** : conserver les trois actions **visibles et utilisables**, idéalement en rangée si elles tiennent à **390 px** sans texte microscopique ; à **320 px**, passer en grille 2 + 1 ou empilement si nécessaire, sans scroll horizontal involontaire ni réduction sous 44 px. L'ordre reste Ajouter → Inviter → Équilibrer.
+- **Variants et états** : `hover` (léger rehaussement), `pressed` (relief réduit), `focus-visible` (anneau accessible), `disabled` (raison compréhensible), `loading` (pas de double action), `icon-only` **non recommandé** pour ces trois actions : les libellés font partie du design. `prefers-reduced-motion` respecté.
+- **Composant Angular** : préférer **`UiQuickAction`** composable (inputs typés `variant`, `icon`, `label`, `trailingIcon?`, `disabled`, `loading` ; action via lien Angular Router ou événement) et **`UiQuickActionGroup`** pour la grille responsive. Les règles d'autorisation et les opérations financières restent dans les pages/services, pas dans la primitive.
+
+**Definition of Done spécifique :** reproduire ces trois actions côte à côte sur le Dashboard avec les **mêmes proportions, contours, ombres, icônes, hiérarchie et texte sur deux lignes** ; capturer Playwright à **1280 × 800** et **390 × 844**, et comparer à **cette capture précise** et aux maquettes du Dashboard V2. Un rendu avec trois boutons génériques sans ces détails est **non conforme**, même si la navigation fonctionne.
 
 ### B — Formulaires & sélection
 
