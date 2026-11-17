@@ -38,6 +38,7 @@ export class AuthService {
     const user = this.auth.currentUser;
     if (!user) return;
     await user.reload();
+    if (user.emailVerified) await user.getIdToken(true);
     this.user.set(null);
     this.user.set(this.auth.currentUser);
   }
