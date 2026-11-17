@@ -1,3 +1,4 @@
+import { unavailableCode } from './provider-quota';
 import { splitAmount, validateExpense, type Allocation, type SplitMode } from '../../../src/app/shared/utils/split-engine';
 import { categories, categoryById, categoryIcons, isCustomCategoryId, type CategoryColor, type CategoryDefinition } from '../../../src/app/shared/utils/categories';
 import { serviceAccessToken } from './service-account';
@@ -62,7 +63,7 @@ function modeUsers(mode: SplitMode): string[] {
 }
 
 async function json(response: Response): Promise<Record<string, unknown>> {
-  if (!response.ok) throw new ExpenseError(response.status === 409 ? 409 : 503, response.status === 409 ? 'transaction_conflict' : 'firestore_unavailable');
+  if (!response.ok) throw new ExpenseError(response.status === 409 ? 409 : 503, response.status === 409 ? 'transaction_conflict' : unavailableCode(response, 'firestore_unavailable'));
   return await response.json() as Record<string, unknown>;
 }
 

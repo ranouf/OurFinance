@@ -1,3 +1,4 @@
+import { unavailableCode } from './provider-quota';
 import { categoryColors, categoryIcons } from '../../../src/app/shared/utils/categories';
 import { serviceAccessToken } from './service-account';
 
@@ -20,7 +21,7 @@ function parse(value: unknown): { name: string; iconId: string; color: string; s
 }
 
 async function checked(response: Response): Promise<Record<string, unknown>> {
-  if (!response.ok) throw new CategoryError(response.status === 409 ? 409 : 503, response.status === 409 ? 'category_conflict' : 'firestore_unavailable');
+  if (!response.ok) throw new CategoryError(response.status === 409 ? 409 : 503, response.status === 409 ? 'category_conflict' : unavailableCode(response, 'firestore_unavailable'));
   return await response.json() as Record<string, unknown>;
 }
 

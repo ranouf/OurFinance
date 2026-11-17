@@ -1,3 +1,4 @@
+import { unavailableCode } from './provider-quota';
 import { serviceAccessToken } from './service-account';
 
 export interface QrInvitationEnv { readonly FIREBASE_PROJECT_ID: string; readonly FIREBASE_SERVICE_ACCOUNT_JSON: string; readonly QR_INVITATION_POC_GROUP_ID: string; }
@@ -34,19 +35,19 @@ async function store(env: QrInvitationEnv, transport: typeof fetch) {
     const query = transaction ? `?transaction=${encodeURIComponent(transaction)}` : '';
     const response = await transport(`https://firestore.googleapis.com/v1/${root}/${path}${query}`, { headers });
     if (response.status === 404) return null;
-    if (!response.ok) throw new QrInvitationError(503, 'firestore_unavailable');
+    if (!response.ok) throw new QrInvitationError(503, unavailableCode(response, 'firestore_unavailable'));
     return await response.json() as Record<string, unknown>;
   };
   const begin = async (): Promise<string> => {
     const response = await transport(`https://firestore.googleapis.com/v1/${root}:beginTransaction`, { method: 'POST', headers, body: '{}' });
-    if (!response.ok) throw new QrInvitationError(503, 'transaction_unavailable');
+    if (!response.ok) throw new QrInvitationError(503, unavailableCode(response, 'transaction_unavailable'));
     const body = await response.json() as { transaction?: string };
     if (!body.transaction) throw new QrInvitationError(503, 'transaction_unavailable');
     return body.transaction;
   };
   const commit = async (transaction: string, writes: unknown[]) => {
     const response = await transport(`https://firestore.googleapis.com/v1/${root}:commit`, { method: 'POST', headers, body: JSON.stringify({ transaction, writes }) });
-    if (!response.ok) throw new QrInvitationError(response.status === 409 ? 409 : 503, response.status === 409 ? 'conflict' : 'firestore_unavailable');
+    if (!response.ok) throw new QrInvitationError(response.status === 409 ? 409 : 503, response.status === 409 ? 'conflict' : unavailableCode(response, 'firestore_unavailable'));
   };
   const rollback = async (transaction: string) => {
     await transport(`https://firestore.googleapis.com/v1/${root}:rollback`, { method: 'POST', headers, body: JSON.stringify({ transaction }) });
@@ -170,7 +171,7 @@ export async function listQrInvitations(groupId: string, uid: string, env: QrInv
   url.searchParams.set('pageSize', '20');
   if (pageToken) url.searchParams.set('pageToken', pageToken);
   const response = await transport(url.toString(), { headers: { Authorization: `Bearer ${access}` } });
-  if (!response.ok) throw new QrInvitationError(503, 'firestore_unavailable');
+  if (!response.ok) throw new QrInvitationError(503, unavailableCode(response, 'firestore_unavailable'));
   const body = await response.json() as { documents?: Array<Record<string, unknown>>; nextPageToken?: string };
   // Owner-listing provides bounded, opportunistic cleanup without a scheduled
   // service. A transaction rechecks ownership and expiry before removing the

@@ -59,6 +59,16 @@ test('revoked participant prevents a commit', async () => {
   strictEqual(committed, false);
 });
 
+test('Firestore quota exhaustion has an explicit fixed code', async () => {
+  const { privateKey } = await generateKeyPair('RS256', { extractable: true });
+  const service = JSON.stringify({ project_id: 'ourfinance-test', client_email: 'test@ourfinance-test.iam.gserviceaccount.com', private_key: await exportPKCS8(privateKey) });
+  const transport = async (resource: string | URL | Request) => String(resource).includes('oauth2.googleapis.com')
+    ? Response.json({ access_token: 'service-token' })
+    : Response.json({ message: 'private provider detail' }, { status: 429 });
+  await rejects(createExpense(input, 'alice', 'g1', { FIREBASE_PROJECT_ID: 'ourfinance-test', FIREBASE_SERVICE_ACCOUNT_JSON: service }, transport as typeof fetch),
+    (error: unknown) => error instanceof ExpenseError && error.status === 503 && error.code === 'provider_quota_exceeded');
+});
+
 test('an expense in another currency is denied before commit and rolled back', async () => {
   const { privateKey } = await generateKeyPair('RS256', { extractable: true });
   const service = JSON.stringify({ project_id: 'ourfinance-test', client_email: 'test@ourfinance-test.iam.gserviceaccount.com', private_key: await exportPKCS8(privateKey) });

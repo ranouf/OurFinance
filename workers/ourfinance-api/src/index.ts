@@ -24,6 +24,7 @@ import { collectLiveRestoreInventory, RestoreInventoryError } from './restore-in
 import { summarizeRestorePreviewV2 } from './restore-preview';
 import { commitPreparedRestore, prepareRestore, PreparedRestoreError, stagePreparedRestoreReceipt } from './restore-prepared';
 import { listSharedMemberProfiles, MemberProfileError } from './member-profiles';
+import { ProviderQuotaError } from './provider-quota';
 import { readCurrentRestore, RestoreCurrentError } from './restore-current';
 
 export interface Env extends Partial<CloudinaryEnv> {
@@ -174,7 +175,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       return new Response(JSON.stringify(result), { status: result.cleanupPending ? 202 : 200, headers });
     } catch (error) {
       const status = error instanceof PreparedRestoreError || error instanceof RestoreLockError ? error.status : error instanceof RequestBodyError ? 413 : 503;
-      const code = error instanceof PreparedRestoreError || error instanceof RestoreLockError ? error.code : error instanceof RequestBodyError ? 'body_too_large' : 'restore_unavailable';
+      const code = error instanceof ProviderQuotaError ? error.message : error instanceof PreparedRestoreError || error instanceof RestoreLockError ? error.code : error instanceof RequestBodyError ? 'body_too_large' : 'restore_unavailable';
       return new Response(JSON.stringify({ error: code }), { status, headers });
     }
   }
@@ -403,7 +404,10 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
   if (mediaMatch && ((request.method === 'POST' && !mediaMatch[3]) || ((request.method === 'GET' || request.method === 'DELETE') && !!mediaMatch[3]))) {
     if (env.ENABLE_MEDIA_POC !== 'true' || !env.MEDIA_POC_GROUP_ID || env.MEDIA_POC_GROUP_ID !== mediaMatch[1] || !env.FIREBASE_SERVICE_ACCOUNT_JSON || !env.CLOUDINARY_CLOUD_NAME || !env.CLOUDINARY_API_KEY || !env.CLOUDINARY_API_SECRET) return new Response(JSON.stringify({ error: 'Médias non configurés' }), { status: 503, headers });
     try { return await handleMedia(request, { groupId: mediaMatch[1], expenseId: mediaMatch[2], attachmentId: mediaMatch[3] }, env as Required<Env>, headers); }
-    catch (error) { return new Response(JSON.stringify({ error: 'Média indisponible', code: error instanceof MediaDiagnosticError ? error.code : 'internal' }), { status: 502, headers }); }
+    catch (error) {
+      if (error instanceof ProviderQuotaError) return new Response(JSON.stringify({ error: error.message }), { status: 503, headers });
+      return new Response(JSON.stringify({ error: 'Média indisponible', code: error instanceof MediaDiagnosticError ? error.code : 'internal' }), { status: 502, headers });
+    }
   }
   const expenseMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/expenses$/.exec(url.pathname);
   const expenseItemMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/expenses\/([A-Za-z0-9_-]{1,128})$/.exec(url.pathname);

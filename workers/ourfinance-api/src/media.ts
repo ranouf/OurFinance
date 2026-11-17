@@ -3,6 +3,7 @@ import { readMember } from './firestore';
 import { serviceAccessToken } from './service-account';
 import { fetchCloudinaryPrivate, MediaDiagnosticError } from './media-diagnostic';
 import { authenticatedDownloadUrl, destroyAuthenticated, imageFormat, uploadAuthenticated, type CloudinaryEnv } from './cloudinary';
+import { isProviderQuotaStatus, ProviderQuotaError } from './provider-quota';
 
 export interface MediaEnv extends CloudinaryEnv {
   FIREBASE_PROJECT_ID: string;
@@ -162,6 +163,7 @@ export async function handleMedia(request: Request, ids: { groupId: string; expe
     try { url = await authenticatedDownloadUrl(publicId, format, env); }
     catch { throw new MediaDiagnosticError('download_sign'); }
     const upstream = await fetchCloudinaryPrivate(url);
+    if (isProviderQuotaStatus(upstream.status)) throw new ProviderQuotaError();
     if (!upstream.ok) return Response.json({ error: 'Image indisponible' }, { status: 502, headers });
     headers.set('Content-Type', format === 'jpg' ? 'image/jpeg' : 'image/png');
     headers.set('Content-Disposition', 'inline');

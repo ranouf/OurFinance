@@ -1,3 +1,4 @@
+import { unavailableCode } from './provider-quota';
 import { serviceAccessToken } from './service-account';
 
 export interface GroupCurrencyEnv { readonly FIREBASE_PROJECT_ID: string; readonly FIREBASE_SERVICE_ACCOUNT_JSON: string; }
@@ -10,7 +11,7 @@ const field = (doc: Record<string, unknown> | null, key: string) =>
   ((doc?.['fields'] as Record<string, { stringValue?: string; timestampValue?: string }> | undefined)?.[key]);
 
 async function checked(response: Response): Promise<Record<string, unknown>> {
-  if (!response.ok) throw new GroupCurrencyError(response.status === 409 ? 409 : 503, response.status === 409 ? 'transaction_conflict' : 'firestore_unavailable');
+  if (!response.ok) throw new GroupCurrencyError(response.status === 409 ? 409 : 503, response.status === 409 ? 'transaction_conflict' : unavailableCode(response, 'firestore_unavailable'));
   return await response.json() as Record<string, unknown>;
 }
 

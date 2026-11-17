@@ -21,6 +21,8 @@ La restauration du groupe d'origine et de ses préférences a réussi sur TEST a
 
 ## Décisions et contrôles avant production
 
+Les réponses HTTP **420/429** de Cloudinary et les réponses **429** des transactions Firestore couvertes par le Worker sont signalées au client par `503 { "error": "provider_quota_exceeded" }`. Le code public est fixe : le corps de réponse du fournisseur, les URL signées et les jetons ne sont jamais renvoyés. Le client doit afficher un message de quota explicite et permettre une nouvelle tentative ultérieure ; ce contrat ne crée aucune limite quotidienne métier. Les erreurs produites par la plateforme Cloudflare avant l'exécution du Worker restent hors de ce contrat et nécessitent un contrôle réel des quotas et alertes.
+
 - Définir/tester la rotation de la clé de service et un accès de secours ; revoir les rôles IAM sur l'environnement cible.
 - Mesurer les quotas Firebase Spark, Cloudflare Free et Cloudinary Free et prévoir alertes/nettoyage des pièces orphelines.
 - Les tests locaux simulent déjà un échec d'upload Cloudinary, un échec d'inventaire Firestore, une réponse de commit perdue et un nettoyage différé ; le lecteur de flux est testé à 20 000 000 et 20 000 001 octets. Rejouer sur TEST, avec fixture fictive et nettoyage, les pannes contrôlées pertinentes et le rejet HTTP d'une archive de plus de 20 Mo. Ne pas confondre ces tests locaux avec un essai réel sur Worker TEST.
