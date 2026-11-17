@@ -17,7 +17,7 @@ OurFinance est une application de suivi et de partage de dépenses, accessible s
 - Aucun partage 60/40, 50/50 ou autre n'est défini automatiquement à la création d'un groupe.
 - La **dernière répartition utilisée par un utilisateur dans un groupe** est sauvegardée après validation d'une dépense et proposée lors de sa prochaine dépense dans ce même groupe. Chaque utilisateur conserve sa préférence distincte.
 - La répartition reste modifiable à chaque dépense : égalitaire, montants exacts, pourcentages, parts ou ajustements. Modifier la préférence ne change pas l'historique.
-- Authentification Google ou email/mot de passe, vérification d'email, récupération du mot de passe.
+- Authentification Google ou email/mot de passe, vérification d'email, récupération du mot de passe ; **invitation par QR code et lien sécurisé** avec reprise du parcours après connexion, inscription ou réinitialisation.
 - Statistiques interactives par groupe : plage personnalisée **Jours / Mois / Années** dans un seul sélecteur déroulant, graphiques par catégorie, comparaison des paiements et parts dues par membre, évolution temporelle, écarts et soldes.
 - Historique, recherche, catalogue de catégories illustrées, catégories personnalisées collaboratives, reçus, remboursements, import/export.
 - Application disponible **en français, anglais et japonais dès la V1** : langue initiale selon le navigateur, changement immédiat dans les paramètres, préférence sauvegardée.
@@ -92,17 +92,22 @@ Les membres et pourcentages des exemples n'imposent aucune règle globale. **La 
 - Profil : nom d'affichage, avatar, langue préférée (`fr`/`en`/`ja` ou détection navigateur), préférences et fuseau horaire. La devise est déterminée **par le groupe**, pas par le profil.
 - Les utilisateurs sont indépendants de leurs groupes : création, invitation, retrait et changement de groupe actif.
 
-### Invitations de groupe sans service d'envoi d'emails externe
+### Invitations de groupe par QR code et lien sécurisé — V1 / M2
 
-- Générer un **lien d'invitation à usage unique**, expirant et lié à un groupe ; éventuellement limité à une adresse email précise.
-- En V1, l'auteur partage ce lien lui-même (copie, messagerie, bouton `mailto:` ou Web Share API). **Ne pas promettre l'envoi automatique d'emails d'invitation** : Firebase Auth n'est pas une plateforme de mails transactionnels arbitraires.
-- L'acceptation nécessite une connexion Firebase et une vérification serveur de la validité du jeton, du destinataire éventuel, de son expiration, de l'état du groupe et de l'unicité de l'acceptation.
-- Si les Security Rules et transactions Firestore ne permettent pas une acceptation atomique sûre, utiliser une route dédiée du Worker avec autorisation minimale, jamais des secrets d'administration dans Angular.
+**Spécification détaillée : [INVITATIONS_QR.md](INVITATIONS_QR.md)**. Ce document définit les parcours complets, l'architecture, la sécurité, les écrans et les tests.
+
+- Un propriétaire de groupe peut créer une **invitation à usage unique** et afficher son **QR code**, copier le lien, partager via les fonctions natives, voir l'expiration (24 h par défaut), révoquer et régénérer. Le QR encode le **même lien HTTPS** que le partage classique, pas une authentification.
+- Utiliser la bibliothèque Angular existante **`angularx-qrcode`** (composant standalone), version compatible avec le major Angular installé ; génération locale sans SaaS ni service payant. Le scan via l'appareil photo natif ouvre la PWA, sans bibliothèque de lecture QR intégrée en V1.
+- **V1 : émission et révocation réservées au propriétaire**. Invitation ouverte (premier utilisateur éligible) ou ciblée sur un email vérifié. Un QR = un nouvel adhérent ; pour inviter plusieurs personnes, créer des QR distincts. Les membres actifs peuvent gérer les catégories personnalisées, mais pas les invitations.
+- Couvrir les cycles : compte déjà connecté, compte existant déconnecté, Google, nouvel utilisateur email/mot de passe avec confirmation, **mot de passe oublié puis réinitialisation Firebase**, compte connecté incorrect, email non vérifié, déjà membre, invitation expirée/révoquée/utilisée, refus, hors ligne et acceptations concurrentes.
+- Conserver temporairement l'invitation pendant l'authentification et reprendre sur une **page de confirmation** ; si l'email de reset est ouvert sur un autre appareil, proposer de rouvrir le lien ou de rescanner le QR. **Aucune adhésion automatique au scan ou à la connexion**.
+- Jeton opaque cryptographiquement aléatoire, conservé uniquement sous **forme de hash côté serveur** ; expiration, révocation et usage unique vérifiés dans une **transaction Firestore atomique** via le Worker après vérification du Firebase ID token et, si ciblé, de l'email vérifié. Aucune fuite de données de groupe avant adhésion, pas de jeton dans les logs, analytics ou URL de reset.
+- Partage manuel du lien/QR par l'émetteur (copie, messagerie, `mailto:`, Web Share API). **Aucun email d'invitation automatique** en V1 ; Firebase Auth gère uniquement ses propres emails de confirmation/réinitialisation.
 
 ## 5. Groupes, participants et autorisations
 
 - Un utilisateur crée un groupe avec nom, icône/couleur, **devise ISO 4217 obligatoire et unique** et description facultative. La devise ne peut être modifiée que tant que le groupe n'a enregistré **aucune transaction** (dépense, remboursement ou import), même si ces transactions sont ensuite archivées.
-- Il peut inviter des utilisateurs existants ou nouveaux par email/lien à usage unique, avec expiration et vérification de l'identité invitée.
+- Le **propriétaire** peut inviter des utilisateurs existants ou nouveaux par **lien/QR à usage unique**, avec expiration, révocation et vérification d'identité, selon [INVITATIONS_QR.md](INVITATIONS_QR.md).
 - Rôles par groupe : `owner` et `member` pour la V1, avec possibilité d'étendre les permissions.
 - Un utilisateur peut appartenir à plusieurs groupes, chacun dans sa propre devise, et voir ses soldes par groupe ou par relation. Ne jamais additionner des montants provenant de groupes de devises différentes.
 - Une personne peut suivre seule son groupe « Duplex » ; le moteur produit des dépenses et statistiques mais aucune dette entre membres.
@@ -123,7 +128,7 @@ Le découpage **par groupe** constitue la frontière d'isolation et permet des l
 | `users/{uid}/groupPreferences/{groupId}` | **Dernier partage réellement enregistré par cet utilisateur dans ce groupe**, et préférences de formulaire |
 | `groups/{groupId}` | Créateur, nom, `currencyCode` ISO obligatoire, icône, couleur, état, verrou de devise après première transaction, dates d'audit |
 | `groups/{groupId}/members/{uid}` | Rôle, statut, date d'adhésion ; un seul document par membre |
-| `groups/{groupId}/invitations/{invitationId}` | Hash/identifiant opaque de jeton, email cible éventuel, expiration, état et usage unique |
+| `groups/{groupId}/invitations/{invitationId}` | `tokenHash` (jamais le secret brut), `createdBy`, `createdAt`, `expiresAt`, `maxUses:1`, `status`, email cible facultatif, `acceptedBy`, `acceptedAt`, `revokedAt` ; lien et QR |
 | `groups/{groupId}/categories/{categoryId}` | Catégorie personnalisée au groupe : nom, icône Lucide, couleur, `archivedAt`, audit ; catalogue système global distinct et immuable |
 | `groups/{groupId}/expenses/{expenseId}` | Description, `amountMinor` **dans la devise du groupe**, catégorie, `expenseDate` (`YYYY-MM-DD`), auteur, payeurs et **allocations embarqués**, instantané du split, audit ; pas de devise indépendante |
 | `groups/{groupId}/expenses/{expenseId}/comments/{commentId}` | Auteur, contenu, dates et modération |
@@ -215,9 +220,9 @@ Le formulaire propose une icône lors du choix d'une catégorie, affiche l'icôn
 
 **Direction graphique obligatoire : [Everyday Pop](DESIGN_EVERYDAY_POP.md).** Elle remplace le style générique/turquoise de la PR #101 et la mascotte ronde jaune. Utiliser les **SVG vectoriels locaux** de `public/illustrations/` : terrasse de café avec groupe d'amis et bières jaunes, couple avec rose rouge, chaises de bistrot, bulles de catégories/devises. Aucun texte, aucune enseigne de bistrot ni tour Eiffel dans les illustrations. L'interface conserve les libellés FR/EN/JA traduisibles séparément. Les quatre parcours **Connexion, Dashboard/Groupes, Dépenses et Statistiques** doivent chacun être soignés **sur desktop ET sur mobile**.
 
-1. **Connexion / inscription / mot de passe oublié**.
-2. **Mes groupes** : liste, devise propre à chaque groupe, soldes, groupe personnel ou partagé, invitation, archivage.
-3. **Détail d'un groupe** : membres, filtres, opérations regroupées par date, devise fixe visible, solde, bouton d'ajout.
+1. **Connexion / inscription / mot de passe oublié**, avec conservation et reprise de l'invitation QR/lien après le parcours Auth.
+2. **Mes groupes** : liste, devise propre à chaque groupe, soldes, groupe personnel ou partagé, invitation **par lien ou QR**, archivage.
+3. **Détail d'un groupe** : membres, **modal QR/lien d'invitation, historique et révocation pour le propriétaire**, filtres, opérations regroupées par date, devise fixe visible, solde, bouton d'ajout.
 4. **Création / édition** : formulaire rapide, catégories illustrées, pièces jointes.
 5. **Éditeur de partage** : cinq modes, mémorisation personnelle par groupe, validations visuelles.
 6. **Détail d'une dépense** : paiement, parts, historique, commentaires et justificatifs.
@@ -226,6 +231,8 @@ Le formulaire propose une icône lors du choix d'une catégorie, affiche l'icôn
 9. **Statistiques** : tableau de bord interactif par groupe avec sélecteur de période en dropdown (onglets Jours / Mois / Années), répartition par catégorie, comparaison par membre, évolution temporelle, montants payés/attribués et soldes après règlements.
 10. **Compte / préférences** : nom, langue (FR/EN/JA), sécurité, déconnexion et export.
 11. **Import Splitwise** : sélection de fichier, mapping, aperçu, erreurs et rapprochement final.
+
+**Écran d'invitation `/join`** : page générique avant authentification, prévisualisation limitée après connexion, confirmation explicite « Rejoindre », erreurs d'expiration/révocation, et navigation vers le groupe. UX Everyday Pop desktop/mobile ; voir [INVITATIONS_QR.md](INVITATIONS_QR.md).
 
 Navigation fixe adaptée aux petits écrans (Groupes, Amis, Statistiques/Activité, Compte), grand bouton « Ajouter une dépense ». Sur desktop : navigation latérale et tables/graphiques plus larges. **Français, anglais et japonais livrés ensemble en V1**, avec tests de longueur des libellés, navigation clavier, focus, contraste, états vides et chargement.
 
@@ -332,6 +339,9 @@ src/app/
     components/
       app-shell/
       bottom-navigation/
+      invite-qr-code/
+      group-invite-dialog/
+      invite-acceptance-card/
       money-input/
       currency-selector/
       category-picker/
@@ -350,6 +360,7 @@ src/app/
     utils/
   features/
     authentication/
+    invitations/
     groups/
     expenses/
     settlements/
@@ -387,10 +398,10 @@ tools/
 - UI Tailwind et **design system documenté** ; classes utilitaires et variantes partagées, CSS global minimal ; graphes accessibles et responsive.
 - Internationalisation FR/EN/JA via Transloco (ou équivalent après POC), détection du navigateur, préférence utilisateur persistée et changement de langue à chaud.
 - `SplitEngine` pur, indépendant des services et de la base, avec tests exhaustifs.
-- Services ciblés : `AuthService`, `GroupService`, `ExpenseService`, `SplitPreferenceService`, `BalanceService`, `CurrencyService` (catalogue ISO + formatage, **pas de conversion**), `CategoryService`, `StatisticsService`, `LocaleService`, `AttachmentService`, `SplitwiseImportService`.
+- Services ciblés : `AuthService`, `GroupInvitationService`, `PendingInviteService`, `GroupService`, `ExpenseService`, `SplitPreferenceService`, `BalanceService`, `CurrencyService` (catalogue ISO + formatage, **pas de conversion**), `CategoryService`, `StatisticsService`, `LocaleService`, `AttachmentService`, `SplitwiseImportService`.
 - Repositories Firestore typés, **converters** explicites, index composites versionnés, cache de statistiques dérivables, lecture paginée et abonnements désinscrits correctement.
 - `SplitEngine` commun ou tests de conformité croisés entre Angular et Worker ; validations du format des écritures côté Worker (dont la somme des paiements/parts) et transactions cohérentes avant publication dans Firestore.
-- Passerelle Worker limitée aux actions privilégiées : création/édition/suppression de dépenses, remboursements, acceptation sécurisée d'invitations, signatures/accès aux médias. Les vues restent accessibles directement depuis Firebase SDK **sous Security Rules**.
+- Passerelle Worker limitée aux actions privilégiées : création/édition/suppression de dépenses, remboursements, émission, prévisualisation authentifiée, acceptation atomique et révocation d'invitations QR/lien, signatures/accès aux médias. Les vues restent accessibles directement depuis Firebase SDK **sous Security Rules**.
 - Secrets Cloudinary, identité serveur Firestore et éventuelles clés de signature dans les secrets Cloudflare ; compte de service **IAM minimal**, rotation, audit. Jamais de clé de service Firebase ou `CLOUDINARY_API_SECRET` dans Angular, Chrome, GitHub en clair ou les logs.
 
 ## 14. Tests, sécurité et CI/CD
@@ -401,6 +412,7 @@ tools/
 - Préférence `(user,group)` : première dépense sans configuration, réutilisation, modification, isolation entre utilisateurs/groupes, changement de membres, non-rétroactivité.
 - Sécurité : **tests d'intégration Firestore Security Rules dans Emulator Suite** (lecture/écriture inter-groupes refusées, requêtes de collection group, préférences personnelles), API Worker authentifiée, invitations non réutilisables, membre retiré sans accès aux photos ni aux données.
 - Transactions atomiques et concurrence dans les routes Worker, calculs sensibles falsifiés côté client rejetés, historiques et suppressions logiques.
+- **QR et invitations** : génération locale `angularx-qrcode`, scan natif iOS/Android, utilisateur connecté/déconnecté, inscription Google/email, vérification, reset password, mauvais compte, déjà membre, expiration/révocation/usage unique, idempotence et concurrence, absence de fuite de jeton et de données du groupe, FR/EN/JA.
 - Cloudinary : uploads `authenticated`, accès refusé sans groupe, signatures de courte durée, suppression à distance, fichiers hors quota, fuite potentielle de liens, MIME et taille abusifs.
 - Import idempotent, doublons, annulation du batch, données partielles, **rejet ou répartition explicite des devises incompatibles entre groupes distincts**, comparaison des soldes.
 - E2E : création du compte, invitation, dépense, remboursement, photo, statistiques, export et navigation PWA ; au minimum Chrome mobile/desktop, vérification Safari/iOS.
@@ -423,18 +435,19 @@ tools/
 | Jalons | Travaux | Critère de fin |
 |---|---|---|
 | **M0 — faisabilité** | POC Firebase Auth/Firestore Spark, Worker Free, Cloudinary `authenticated`, calculs atomiques et règles d'accès, quotas ; évaluation de l'extension/exports officiels | Dépense test sécurisée, image privée accessible au membre autorisé et refusée à un tiers, coût nul démontré |
-| **M1 — fondation** | Angular/Tailwind/PWA, **design system Everyday Pop et marque SVG**, **connexion desktop/mobile illustrée**, shell/navigation responsive, infrastructure **i18n FR/EN/JA**, POC bibliothèque de graphiques, Firebase Hosting, Firestore Emulator, CI GitHub, Worker, environnements séparés | Site installable, connexion et shell cohérents desktop/mobile, traductions chargées, PR validées, preview isolée |
-| **M2 — comptes/groupes** | Google/email, récupération native, profil, **détection navigateur + préférence de langue modifiable**, **dashboard et cartes de groupes Everyday Pop desktop/mobile**, groupes libres à **devise unique obligatoire**, invitations par lien, Security Rules | Dashboard et groupes responsive à 1/2/3 membres ; devise choisie à la création, langue persistée, aucune fuite inter-groupes |
+| **M1 — fondation** | Angular/Tailwind/PWA, **design system Everyday Pop et marque SVG**, **connexion desktop/mobile illustrée**, **composant QR partagé via une bibliothèque Angular compatible**, shell/navigation responsive, infrastructure **i18n FR/EN/JA**, POC bibliothèque de graphiques, Firebase Hosting, Firestore Emulator, CI GitHub, Worker, environnements séparés | Site installable, connexion et shell cohérents desktop/mobile, traductions chargées, PR validées, preview isolée |
+| **M2 — comptes/groupes** | Google/email, récupération native, profil, **détection navigateur + préférence de langue modifiable**, **dashboard et cartes de groupes Everyday Pop desktop/mobile**, groupes libres à **devise unique obligatoire**, **invitation par QR/lien et tous les cycles Auth** (création/révocation/acceptation), Security Rules | Dashboard et groupes responsive à 1/2/3 membres ; devise choisie à la création, langue persistée, QR scannable et adhésion sécurisée, aucune fuite inter-groupes |
 | **M3 — dépenses** | **Historique et éditeur Everyday Pop desktop/mobile**, catalogue global de catégories traduites, catégories personnalisées collaboratives, catalogue ISO pour **choix de devise par groupe**, montants strictement dans cette devise, paiements/parts, cinq répartitions, mémorisation personnelle | Dépenses exactes sans conversion ; éditeur mobile rapide ; devise verrouillée après première transaction ; split réutilisé sans imposer 60/40 |
 | **M4 — finances** | Remboursements dans la devise du groupe, soldes exacts, **statistiques Everyday Pop desktop/mobile**, **sélecteur dropdown Jours/Mois/Années**, indicateurs, camembert catégories, barres payé vs dû par membre, courbe temporelle, filtres et interactions | Montants exacts, écarts expliqués, graphiques et bornes de période testés, mobile et desktop |
 | **M5 — import/photos** | Reçus Cloudinary privés, export natif OurFinance, import Splitwise CSV/JSON **sans conversion et avec séparation des devises incompatibles**, extension d'aide aux exports, dédoublonnage | Migration rapprochée, fichiers privés, devises source préservées et erreurs signalées |
-| **M6 — production** | E2E, audit Firestore Rules/Worker/IAM, sauvegarde/restauration, **revue visuelle Everyday Pop desktop/mobile**, tests UX/i18n FR/EN/JA, graphiques et sélecteur mobile/desktop, performances, Android/iOS, déploiement | Groupes indépendants, 3 langues, identité Everyday Pop homogène, graphiques accessibles, validation utilisateur |
+| **M6 — production** | E2E, audit Firestore Rules/Worker/IAM, sauvegarde/restauration, **revue visuelle Everyday Pop desktop/mobile**, **E2E invitations QR sur iOS/Android, reset et concurrence**, tests UX/i18n FR/EN/JA, graphiques et sélecteur mobile/desktop, performances, Android/iOS, déploiement | Groupes indépendants, 3 langues, identité Everyday Pop homogène, graphiques accessibles, validation utilisateur |
 
 ### Definition of Done V1
 
 - [ ] Une personne peut créer un compte et plusieurs groupes, seule ou avec d'autres utilisateurs.
 - [ ] Les autres groupes sont strictement invisibles sans appartenance autorisée.
-- [ ] Les invitations **par lien partageable** et la récupération de mot de passe Firebase fonctionnent avec des adresses externes au projet.
+- [ ] Le propriétaire peut créer, afficher, copier, partager, révoquer et régénérer une **invitation QR/lien** à usage unique et durée limitée ; le QR est généré localement par une bibliothèque Angular existante.
+- [ ] Un invité peut scanner le QR, se connecter, s'inscrire (Google/email), vérifier son email ou **réinitialiser son mot de passe**, puis confirmer l'adhésion. Mauvais compte, déjà membre, expiration, révocation, double scan, sécurité et FR/EN/JA sont testés.
 - [ ] Le suivi d'un groupe à un seul membre fonctionne.
 - [ ] Une première dépense ne reçoit aucune répartition personnelle préenregistrée.
 - [ ] Une dépense suivante du même utilisateur/groupe propose sa dernière répartition, modifiable parmi les cinq modes.
@@ -453,6 +466,7 @@ tools/
 
 - Firebase — [Tarifs Spark](https://firebase.google.com/pricing), [Quotas Firestore](https://firebase.google.com/docs/firestore/quotas), [Transactions Firestore](https://firebase.google.com/docs/firestore/manage-data/transactions).
 - Firebase — [Authentification](https://firebase.google.com/docs/auth), [Réinitialisation de mot de passe](https://firebase.google.com/docs/auth/web/manage-users), [Règles de sécurité Firestore](https://firebase.google.com/docs/firestore/security/rules-conditions).
+- QR Angular — [angularx-qrcode](https://github.com/Cordobo/angularx-qrcode) et spécification [INVITATIONS_QR.md](INVITATIONS_QR.md).
 - Firebase — [Déploiement Hosting via GitHub](https://firebase.google.com/docs/hosting/github-integration), [Firebase Emulator Suite](https://firebase.google.com/docs/emulator-suite).
 - Cloudinary — [Facturation et 25 crédits Free](https://cloudinary.com/documentation/billing_and_plans), [Médias protégés](https://cloudinary.com/documentation/control_access_to_media), [Upload authentifié](https://cloudinary.com/documentation/upload_images).
 - Cloudflare — [Workers Free](https://developers.cloudflare.com/workers/platform/pricing/) et [Sécurité des secrets](https://developers.cloudflare.com/workers/configuration/secrets/).
@@ -470,4 +484,4 @@ tools/
 4. **Accès GitHub :** envisager de rendre `OurFinance` privé si des exemples ou fixtures de données personnelles doivent être conservés ; éviter tout jeu de données réel dans un dépôt public.
 5. **Domaine :** garder le domaine Firebase gratuit au démarrage ; sous-domaine `carnould.com` facultatif, via BookMyName, après la mise en production.
 6. **Décisions produit confirmées (16/11/2026) :** une seule devise stricte par groupe, sans conversion ; statistiques avec dropdown Jours/Mois/Années et graphiques interactifs ; FR/EN/JA dès la V1 ; **direction UI Everyday Pop** (voir `docs/DESIGN_EVERYDAY_POP.md`) avec SVG de terrasse de café, design system et UX mobile-first. Ces décisions **remplacent** les anciennes exigences multidevises par dépense, les anciennes mentions « anglais/japonais prévus plus tard » et le style générique de la PR #101.
-
+7. **Invitations QR (16/11/2026)** : lien sécurisé et QR, `angularx-qrcode`, cycles de connexion/inscription/réinitialisation, validation atomique et UX Everyday Pop ; voir [INVITATIONS_QR.md](INVITATIONS_QR.md).
