@@ -7,6 +7,7 @@ import { getAuth } from 'firebase/auth';
 import { AppShell } from './shared/components/app-shell/app-shell';
 import { AuthService } from './core/firebase/auth-service';
 import { authDestination } from './core/firebase/auth-route';
+import { loadSharedMemberProfiles } from './core/firebase/member-profile-service';
 import { FirebaseWebConfig, createFirebaseApp } from './core/firebase/firebase-config';
 import type { GroupService } from './core/firebase/group-service';
 import type { FirebaseApp } from 'firebase/app';
@@ -78,6 +79,7 @@ export class App implements OnInit, OnDestroy {
   readonly monthlyPaidMinor = signal<bigint>(0n);
   readonly settlementTotalMinor = signal<bigint>(0n);
   readonly dashboardMemberBalances = signal<readonly { userId: string; balanceMinor: bigint }[]>([]);
+  readonly dashboardMemberNames = signal<Readonly<Record<string, string>>>({});
   readonly dashboardCategories = signal<readonly { id: string; label?: string; amountMinor: bigint }[]>([]);
   readonly recentExpenses = signal<ExpenseHistoryEntry[]>([]);
   readonly recentExpensesBusy = signal(false);
@@ -90,6 +92,12 @@ export class App implements OnInit, OnDestroy {
   readonly monthlyPaid = computed(() => this.selectedGroup() ? formatMinorExact(this.monthlyPaidMinor(), this.selectedGroup()!.currency, locale()) : '');
   readonly settlementTotal = computed(() => this.selectedGroup() ? formatMinorExact(this.settlementTotalMinor(), this.selectedGroup()!.currency, locale()) : '');
   formatDashboardMinor(value: bigint): string { return this.selectedGroup() ? formatMinorExact(value, this.selectedGroup()!.currency, locale()) : ''; }
+  dashboardMemberName(userId: string, index: number): string {
+    const shared = this.dashboardMemberNames()[userId];
+    if (shared) return shared;
+    return userId === this.auth?.user()?.uid ? (this.auth?.user()?.displayName || t('me')) : `${t('otherMember')} ${index + 1}`;
+  }
+  dashboardMemberInitial(userId: string, index: number): string { return this.dashboardMemberName(userId, index).charAt(0).toLocaleUpperCase(locale()); }
   dashboardCategoryLabel(item: { id: string; label?: string }): string { return categoryLabel(item.id, language(), item.label); }
   readonly dashboardDonut = computed(() => {
     const rows = this.dashboardCategories().slice(0, 4);
@@ -195,6 +203,7 @@ export class App implements OnInit, OnDestroy {
     const requestId = ++this.balanceRequestId;
     this.balanceBusy.set(true);
     this.balanceError.set(false);
+    this.dashboardMemberNames.set({});
     try {
       const { BalanceService } = await import('./core/firebase/balance-service');
       const entries = await new BalanceService(this.firebaseApp!).entries(group.id);
@@ -209,6 +218,12 @@ export class App implements OnInit, OnDestroy {
       this.settlementTotalMinor.set(metrics.settlementTotalMinor);
       this.dashboardMemberBalances.set(metrics.memberBalances);
       this.dashboardCategories.set(metrics.categories);
+      const currentUser = this.auth?.user();
+      if (this.workerUrl && currentUser) {
+        void loadSharedMemberProfiles(this.workerUrl, group.id, currentUser).then(profiles => {
+          if (requestId === this.balanceRequestId) this.dashboardMemberNames.set(Object.fromEntries(profiles.filter(item => item.displayName).map(item => [item.userId, item.displayName!])))
+        }).catch(() => { /* The dashboard keeps neutral labels if the optional route is unavailable. */ });
+      }
     } catch {
       if (requestId === this.balanceRequestId) this.balanceError.set(true);
     } finally {
