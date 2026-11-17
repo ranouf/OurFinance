@@ -16,6 +16,7 @@ on:
         type: string
 permissions:
   contents: read
+  issues: read
 jobs:
   worker_dry_run:
     if: github.event_name == 'pull_request'
@@ -52,9 +53,18 @@ jobs:
         env:
           TARGET_SHA: ${{ inputs.sha }}
           RESERVATION: ${{ inputs.coordination_comment }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           [[ "$TARGET_SHA" =~ ^[0-9a-f]{40}$ ]]
           [[ "$RESERVATION" =~ ^https://github\.com/ranouf/OurFinance/issues/30#issuecomment-[0-9]+$ ]]
+          comment_id="${RESERVATION##*issuecomment-}"
+          gh api "repos/ranouf/OurFinance/issues/comments/$comment_id" |
+            jq -e --arg sha "$TARGET_SHA" '
+              .user.login == "ranouf" and
+              .issue_url == "https://api.github.com/repos/ranouf/OurFinance/issues/30" and
+              (.body | contains($sha) and (ascii_downcase | contains("test")) and
+                (contains("réserv") or contains("reserv")))
+            ' >/dev/null
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.sha }}
