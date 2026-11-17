@@ -35,7 +35,7 @@ import { ProfilePanel } from './features/profile/profile-panel';
       </div>
       <div class="px-5 py-6 sm:px-10 lg:flex lg:flex-col lg:justify-center lg:px-12">
         <div class="mb-3 hidden items-center gap-2 lg:flex"><img src="/illustrations/ourfinance-mark.svg" width="37" height="37" alt="" /><span class="text-lg font-black text-pop-primary-dark">ourfinance.</span></div>
-        <h1 class="text-2xl font-black leading-tight sm:text-3xl">{{ app.heading() }} @if (app.mode() === 'login') { 👋 }</h1>
+        <h1 class="text-2xl font-black leading-tight sm:text-3xl">@if (app.mode() === 'login') { <span class="lg:hidden">{{ t('welcomeMobile') }}</span><span class="hidden lg:inline">{{ app.heading() }}</span> 👋 } @else { {{ app.heading() }} }</h1>
         <p class="mt-1 text-sm text-pop-muted">{{ t('loginIntro') }}</p>
         @if (app.pendingInvite()) {
           <aside class="mt-4 rounded-xl bg-pop-lavender p-3 text-sm" role="status"><strong>{{ app.qrText().received }}</strong> {{ app.qrText().signIn }}
@@ -96,7 +96,7 @@ export class LoginPage { readonly app = inject(App); readonly t = t; }
       } @else if (app.groupsError()) {
         <p class="mt-6 rounded-2xl border border-pop-border bg-white p-6" role="alert">{{ t('groupsUnavailable') }}</p>
       } @else if (app.selectedGroup(); as group) {
-        <section class="relative mt-2 min-h-48 overflow-hidden rounded-[1.5rem] bg-pop-primary p-6 text-white shadow-[0_12px_30px_#6455ec30] sm:mt-5 sm:p-8" [attr.aria-label]="t('myBalance')">
+        <section class="relative mt-2 min-h-44 overflow-hidden rounded-[1.5rem] bg-pop-primary p-5 text-white shadow-[0_12px_30px_#6455ec30] sm:mt-5 sm:min-h-48 sm:p-8" [attr.aria-label]="t('myBalance')">
           <img class="pointer-events-none absolute bottom-0 right-0 w-48 opacity-95 sm:bottom-[-70px] sm:w-[370px]" src="/illustrations/couple-cafe.webp" alt="" />
           <div class="relative max-w-[65%]"><p class="text-xl font-black sm:hidden">{{ t('dashboardHello') }}{{ app.firstName() ? ' ' + app.firstName() : '' }} ! 👋</p><p class="mt-2 text-sm font-bold sm:mt-0">{{ group.name }} · {{ group.currency }}</p><p class="mt-4 text-sm">{{ app.balanceLabel() }}</p>
             @if (app.balanceBusy()) { <p role="status">{{ t('loadingBalances') }}</p> }
@@ -110,16 +110,19 @@ export class LoginPage { readonly app = inject(App); readonly t = t; }
           <a class="flex min-w-0 items-center gap-3 rounded-2xl bg-pop-peach p-4" routerLink="/statistics"><span class="text-3xl" aria-hidden="true">🪙</span><span class="min-w-0"><span class="block text-xs font-bold text-pop-muted">{{ t('paidByMe') }}</span><strong class="block truncate">{{ app.balanceBusy() ? t('loadingBalances') : app.balanceError() ? t('balancesUnavailable') : app.monthlyPaid() }}</strong></span></a>
           <a class="flex min-w-0 items-center gap-3 rounded-2xl bg-pop-mint-soft p-4" routerLink="/groups"><span class="text-3xl" aria-hidden="true">👥</span><span class="min-w-0"><span class="block text-xs font-bold text-pop-muted">{{ t('myGroups') }}</span><strong class="block truncate">{{ app.groups().length }}</strong></span></a>
         </div>
-        <div class="mt-6 flex items-center justify-between"><h2 class="text-xl font-black">{{ t('myGroups') }}</h2><a class="text-sm font-bold text-pop-primary-dark" routerLink="/groups">{{ t('viewAll') }} →</a></div>
-        <div class="mt-3 grid gap-3 sm:grid-cols-2">
+        <div class="mt-6 grid gap-6 lg:grid-cols-2 lg:items-start">
+        <section [attr.aria-label]="t('myGroups')">
+        <div class="flex items-center justify-between"><h2 class="text-xl font-black">{{ t('myGroups') }}</h2><a class="text-sm font-bold text-pop-primary-dark" routerLink="/groups">{{ t('viewAll') }} →</a></div>
+        <div class="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
           @for (item of app.groups(); track item.id) {
-            <button class="flex min-h-20 items-center gap-3 rounded-2xl border border-pop-border bg-white p-4 text-left" type="button" [attr.aria-pressed]="app.selectedGroupId() === item.id" (click)="app.selectedGroupId.set(item.id)">
+            <button [class]="($index > 1 ? 'hidden sm:flex' : 'flex') + ' min-h-16 items-center gap-3 rounded-2xl border border-pop-border bg-white p-3 text-left sm:min-h-20 sm:p-4'" type="button" [attr.aria-pressed]="app.selectedGroupId() === item.id" (click)="app.selectedGroupId.set(item.id)">
               <img class="h-11 w-11" [src]="$index % 2 ? '/illustrations/category-travel.svg' : '/illustrations/category-home.svg'" alt="" /><span class="min-w-0 flex-1"><strong class="block break-words">{{ item.name }}</strong><small class="text-pop-muted">{{ item.memberCount ?? 1 }} {{ t('membersCount') }}</small></span><span class="flex shrink-0 flex-col items-end gap-1"><span class="rounded-full bg-pop-lavender px-2 py-1 text-xs font-bold">{{ item.currency }}</span>@if (item.id === app.selectedGroupId() && !app.balanceBusy() && !app.balanceError()) { <strong class="text-xs" [class.text-emerald-700]="app.selectedBalanceMinor() > 0" [class.text-pop-coral]="app.selectedBalanceMinor() < 0">{{ app.selectedBalance() }}</strong> }</span>
             </button>
           }
         </div>
         <a class="mt-3 flex min-h-11 items-center justify-center rounded-2xl bg-pop-lavender text-sm font-extrabold text-pop-primary-dark sm:hidden" routerLink="/groups">+ {{ t('createGroup') }}</a>
-        <section class="mt-6 sm:mt-7" [attr.aria-label]="t('recentExpenses')">
+        </section>
+        <section [attr.aria-label]="t('recentExpenses')">
           <div class="flex items-center justify-between"><h2 class="text-xl font-black">{{ t('recentExpenses') }}</h2><a class="text-sm font-bold text-pop-primary-dark" routerLink="/expenses">{{ t('viewAll') }} →</a></div>
           <div class="mt-3 divide-y divide-pop-border overflow-hidden rounded-2xl border border-pop-border bg-white">
             @if (app.recentExpensesBusy()) { <p class="p-4 text-sm text-pop-muted" role="status">{{ t('loadingExpenseHistory') }}</p> }
@@ -130,6 +133,7 @@ export class LoginPage { readonly app = inject(App); readonly t = t; }
             } }
           </div>
         </section>
+        </div>
         <div class="mt-5 grid grid-cols-3 gap-2 sm:hidden">
           <a class="rounded-2xl bg-pop-peach p-3 text-center text-xs font-extrabold" routerLink="/expenses"><span class="mb-2 block text-2xl" aria-hidden="true">▤</span>{{ t('navAdd') }}</a>
           <a class="rounded-2xl bg-pop-lavender p-3 text-center text-xs font-extrabold" routerLink="/groups"><span class="mb-2 block text-2xl" aria-hidden="true">♧</span>{{ t('navGroups') }}</a>
