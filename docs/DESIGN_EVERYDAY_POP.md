@@ -76,6 +76,16 @@ Ces SVG sont des **interprétations vectorielles originales et plus épurées** 
 
 **Cas** : groupe personnel à 1 membre, 2 membres, 3+ membres, aucun groupe, aucun solde, soldes positifs/négatifs, noms longs, langue japonaise, listes longues, chargement, erreur.
 
+### 4.2 bis Invitations QR — priorité M2
+
+**Référence fonctionnelle et sécurité : [INVITATIONS_QR.md](INVITATIONS_QR.md).** Le propriétaire ouvre **Groupe → Membres → Inviter** et obtient un QR code et son lien HTTPS partageable (une invitation = un nouvel adhérent).
+
+- **Desktop** : modale Everyday Pop avec icône/nom du groupe, QR de 240–280 px sur **fond blanc uni**, expiration, avertissement QR ouvert ou ciblé, boutons **Copier le lien**, **Partager**, **Révoquer / Générer un nouveau QR**. Le QR doit rester contrasté et scannable, sans illustration superposée.
+- **Mobile** : bottom sheet ou page dédiée avec QR et CTA accessibles au pouce, partage natif, fallback copier le lien, bouton de fermeture et retour aux membres ; vérifier sur 320 px.
+- **Invité** : après scan par la caméra native, page `/join` avec illustration de café **discrète**, état « invitation reçue » avant connexion, parcours connexion/inscription/réinitialisation, prévisualisation limitée du groupe **après** authentification, boutons **Rejoindre** / **Pas maintenant**, états de succès/expiration/révocation.
+- **Identité** : violet primaire, corail, icônes Lucide, micro-interactions légères ; le QR lui-même reste monochrome/contrasté et lisible. Aucun texte dans les SVG décoratifs, toutes les chaînes FR/EN/JA.
+- **Accessibilité** : alternative textuelle (lien copiable), focus modal, clavier, lecteur d'écran, zoom, boutons ≥ 44 px, chargement et erreurs explicites. L'illustration ne doit pas cacher les informations critiques.
+
 ### 4.3 Dépenses / édition — priorité M3
 
 **Desktop** : groupe actif + devise fixe, filtres clairs, historique par date et catégorie, CTA principal ; ajout rapide en panneau latéral ou dialogue, pas de liste interminable de formulaires sous le dashboard.
@@ -96,7 +106,7 @@ Ces SVG sont des **interprétations vectorielles originales et plus épurées** 
 
 ## 5. Composants Angular réutilisables
 
-`AppShell`, `BrandMark`, `SidebarNavigation`, `BottomNavigation`, `GroupSwitcher`, `GroupCard`, `BalanceHero`, `StatCard`, `ExpenseListItem`, `CategoryIcon`, `ExpenseEditor`, `SplitEditor`, `PeriodRangePopover`, `CategoryDonutChart`, `MemberPaymentChart`, `SpendingTrendChart`, `EmptyState`, `LoadingSkeleton`, `Toast`, `ConfirmDialog`.
+`AppShell`, `BrandMark`, `SidebarNavigation`, `GroupInviteDialog`, `InviteQrCode`, `InviteLandingPage`, `InviteAcceptanceCard`, `BottomNavigation`, `GroupSwitcher`, `GroupCard`, `BalanceHero`, `StatCard`, `ExpenseListItem`, `CategoryIcon`, `ExpenseEditor`, `SplitEditor`, `PeriodRangePopover`, `CategoryDonutChart`, `MemberPaymentChart`, `SpendingTrendChart`, `EmptyState`, `LoadingSkeleton`, `Toast`, `ConfirmDialog`.
 
 Créer une couche de tokens commune, **ne pas dupliquer** les vues pour desktop/mobile : les mêmes données et composants changent de disposition via responsive. Pas de refonte des services métier ou de la sécurité pour appliquer un thème.
 
@@ -105,7 +115,7 @@ Créer une couche de tokens commune, **ne pas dupliquer** les vues pour desktop/
 | Jalon | Travaux de refonte Everyday Pop | Validation |
 |---|---|---|
 | **M1 — Design foundation** | Tokens, marque SVG, composants partagés, shell desktop/mobile, **connexion responsive illustrée** | 320/390/768/1280 px ; FR/EN/JA ; contraste et clavier |
-| **M2 — Groupes / Dashboard** | Cartes de groupes, sélecteur de groupe, balance hero, états vides, navigation | 1/2/3+ membres ; devise unique ; aucun total multidevise |
+| **M2 — Groupes / Dashboard** | Cartes de groupes, sélecteur de groupe, balance hero, états vides, navigation, **QR/lien d'invitation et parcours Auth complets** | 1/2/3+ membres ; devise unique ; QR scannable, acceptation sécurisée ; aucun total multidevise |
 | **M3 — Dépenses** | Liste de dépenses, ajout rapide desktop, éditeur mobile, catégories, états de formulaire | Split en cinq modes ; devise fixe ; données réelles non simulées |
 | **M4 — Statistiques** | KPI, camembert, comparatif membres, courbe, dropdown de période | Périodes exactes, responsive, accessibilité, données financières cohérentes |
 | **M6 — QA** | Tests E2E/visuels, FR/EN/JA, focus, 320 px, performance, poids SVG et animations réduites | Aucune régression métier, build et tests verts |
@@ -123,6 +133,7 @@ Créer une couche de tokens commune, **ne pas dupliquer** les vues pour desktop/
 
 - [ ] Écran de connexion **desktop + mobile** avec illustration de terrasse, sans mascotte ronde, sans texte dans l'illustration.
 - [ ] Dashboard et groupes Everyday Pop en desktop/mobile, avec hiérarchie financière claire.
+- [ ] Invitations QR/lien Everyday Pop en desktop/mobile, avec connexion/inscription/réinitialisation, scan natif et confirmation explicite ; respect de [INVITATIONS_QR.md](INVITATIONS_QR.md).
 - [ ] Dépenses et statistiques Everyday Pop en desktop/mobile, sans régression fonctionnelle.
 - [ ] Tous les composants utilisent les tokens partagés, pas une accumulation de styles locaux.
 - [ ] FR/EN/JA et formats monétaires/date corrects ; devise unique par groupe.
