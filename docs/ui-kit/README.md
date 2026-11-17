@@ -28,6 +28,23 @@ La référence a été redimensionnée/compressée **sans changement artistique*
 - **Détails illustrés** : le coin **bas gauche** de la page accueille une petite **table de bistrot à chaises tressées, rose rouge et tasse**, et le coin **haut droit** un petit **auvent blanc/corail et feuillage** ; ce sont des décors **limités aux pages de documentation / espaces de respiration**, pas un arrière-plan plein écran derrière les champs.
 - **Pas de surcharge** : ni grands espaces vides entre chaque ligne, ni boutons géants partout, ni grosses icônes emoji hétérogènes, ni dégradés dans tous les panneaux. Les illustrations soutiennent le design sans remplacer le contenu.
 
+### Direction artistique confirmée : une patte illustrée, pas un UI Kit « clinique »
+
+**Clarification de l'utilisateur lors de la revue de la PR #137 :** le problème n'est pas seulement la police, les couleurs ou les dimensions. Le rendu de la PR est **trop propre / trop générique**, alors que l'image approuvée possède une **patte artistique visible**, plus chaleureuse, organique et légèrement artisanale. **Ne pas interpréter « moins propre » comme un manque de finition.**
+
+| Référence Everyday Pop V2 | À éviter |
+|---|---|
+| **Illustrations dessinées** : petite terrasse de bistrot, rose rouge, tasse, chaises tressées, auvent corail, feuillage ; volumes arrondis, ombres colorées, légères irrégularités dans les contours **des illustrations** | Icônes plates ou décor vectoriel purement géométrique substitués aux scènes, grandes zones vides, illustration plaquée sans relation à la composition |
+| **Profondeur douce** : panneaux blancs avec bordure lavande fine, ombre lilas presque imperceptible, détails légèrement superposés ou débordant dans des zones décoratives | Cartes uniformes `rounded-3xl p-5 shadow-sm` répétées partout, grosses bordures, ombres grises/noires standard |
+| **Rythme éditorial vivant** : cartes de tailles adaptées à leur contenu, grilles compactes, alignements précis, éléments décoratifs asymétriques en périphérie | Longue pile de blocs identiques, espacements excessifs, colonnes sans hiérarchie, tout centré et symétrique |
+| **Typographie ronde et expressive** : vraie **Nunito Sans chargée**, titres très gras, contraste de tailles et de poids, libellés compacts et lisibles | Police de secours malgré le CSS `font-family`, textes maigres ou petits, style système générique |
+| **Couleurs nuancées** : violet/prune, lavande, corail, menthe ; quelques ombres et dégradés doux **dans les illustrations et les CTA** | Dégradés partout, couleurs saturées dans tous les champs, accumulation d'effets brillants |
+| **Contrôles précis** : champs, listes, QR, graphiques et chiffres nets, accessibles, avec focus et validation clairs | Flou, texture, rotation, ombres lourdes ou contours irréguliers **sur les données et les éléments interactifs** |
+
+**Règle de réalisation** : viser un **design system professionnel habillé d'une illustration éditoriale chaleureuse**, pas un clone de dashboard SaaS ni une application de dessin. Les petits décalages organiques et le relief sont réservés aux **illustrations et décorations** ; les grilles, boutons, textes, bordures et formulaires restent rigoureusement alignés.
+
+**Critère de revue visuelle supplémentaire** : en comparant `docs/ui-kit/visual-reference/everyday-pop-v2-ui-kit-reference.webp` aux captures Playwright de la PR, évaluer séparément (1) **fidélité des composants** et (2) **présence de la patte artistique**. Un résultat avec les bons tokens mais sans scènes illustrées, relief coloré et composition éditoriale est **non conforme**. Les décorations doivent être responsive, accessibles (`aria-hidden` si purement décoratives), et ne jamais cacher une donnée.
+
 ## 2. Contrat visuel — tokens et proportions
 
 Ces paramètres sont des **valeurs cibles à tester contre la capture**, et doivent être ajustés si une comparaison visuelle documentée le justifie. Définir une seule source dans Tailwind 4 / `src/styles.css` et dans les primitives Angular.
