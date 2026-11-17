@@ -43,7 +43,7 @@ class NavIcon { @Input({ required: true }) name = ''; }
           <header class="relative z-40 bg-white/90">
             <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-7 lg:px-8">
               <a class="flex items-center gap-1.5 lg:hidden" routerLink="/dashboard"><img src="/illustrations/ourfinance-mark.svg" width="34" height="34" alt="" /><strong class="text-base font-black text-pop-primary-dark">ourfinance.</strong></a>
-              <span class="hidden font-black text-pop-primary-dark lg:block">{{ t('navHome') }}</span>
+              <span class="hidden font-black text-pop-primary-dark lg:block">{{ pageTitle }}</span>
               <details #profileMenu class="relative group">
                 <summary class="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-2xl px-1 focus-visible:outline-2 focus-visible:outline-pop-primary [&::-webkit-details-marker]:hidden" [attr.aria-label]="t('navAccount')">
                   <span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-pop-coral font-black text-white" aria-hidden="true">{{ userInitial }}</span><span class="hidden max-w-40 truncate text-sm font-bold sm:inline">{{ userName }}</span><span class="hidden text-pop-primary-dark sm:inline" aria-hidden="true">⌄</span>
@@ -86,6 +86,7 @@ export class AppShell {
   @Input() hasGroups = false;
   @Input() userInitial = '?';
   @Input() userName = '';
+  @Input() pageTitle = '';
   @Output() signOut = new EventEmitter<void>();
   @ViewChild('profileMenu') profileMenu?: ElementRef<HTMLDetailsElement>;
   readonly t = t;

@@ -25,7 +25,7 @@ import { language, locale, setLanguage, t } from './shared/utils/i18n';
   selector: 'app-root',
   imports: [AppShell, RouterOutlet],
   template: `
-    <app-shell [signedIn]="!!auth?.user()" [hasGroups]="groups().length > 0" [userInitial]="userInitial()" [userName]="auth?.user()?.displayName || auth?.user()?.email || ''" (signOut)="logout()">
+    <app-shell [signedIn]="!!auth?.user()" [hasGroups]="groups().length > 0" [userInitial]="userInitial()" [userName]="auth?.user()?.displayName || auth?.user()?.email || ''" [pageTitle]="pageTitle()" (signOut)="logout()">
       @if (!online()) { <p class="mx-auto max-w-6xl rounded-xl bg-amber-50 p-3 text-sm text-amber-900" role="status">{{ t('offline') }}</p> }
       @if (state() === 'loading') { <p class="mx-auto max-w-6xl p-6" role="status">{{ t('loadingConfig') }}</p> }
       @else if (state() === 'unconfigured') { <p class="mx-auto max-w-6xl p-6" role="status">{{ t('missingConfig') }}</p> }
@@ -50,6 +50,11 @@ export class App implements OnInit, OnDestroy {
   readonly pendingInvite = signal<string | null>(null);
   private readonly router = inject(Router);
   private readonly routeEvent = toSignal(this.router.events.pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd)));
+  readonly pageTitle = computed(() => {
+    this.routeEvent();
+    const path = this.router.url.split('?')[0];
+    return path === '/groups' ? t('navGroups') : path === '/expenses' ? t('navExpenses') : path === '/statistics' ? t('navStatistics') : path === '/account' ? t('navAccount') : t('navHome');
+  });
   readonly qrText = computed(() => qrInvitationText[language()]);
   readonly authRedirect = computed(() => {
     this.routeEvent();
