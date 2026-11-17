@@ -8,6 +8,21 @@ export function parseInvitationCode(value: string): InvitationCode | null {
   return match ? { groupId: match[1], invitationId: match[2], token: match[3] } : null;
 }
 
+export function invitationLink(origin: string, pathname: string, code: string): string {
+  if (!parseInvitationCode(code)) throw new Error('Code invalide');
+  const url = new URL(pathname, origin);
+  if (url.origin !== new URL(origin).origin) throw new Error('Origine invalide');
+  url.search = '';
+  url.hash = new URLSearchParams({ invite: code }).toString();
+  return url.toString();
+}
+
+export function invitationCodeFromHash(hash: string): string | null {
+  if (!hash.startsWith('#invite=')) return null;
+  const code = new URLSearchParams(hash.slice(1)).get('invite');
+  return code && parseInvitationCode(code) ? code : null;
+}
+
 export class InvitationService {
   constructor(private readonly workerUrl: string) {}
 
