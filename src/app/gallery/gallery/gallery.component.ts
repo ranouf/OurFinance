@@ -34,6 +34,12 @@ const formText = {
   ja: { inputs: '入力の種類', text: 'テキスト', number: '数値', email: 'メール', phone: '電話', password: 'パスワード', search: '検索', url: 'ウェブアドレス', date: '日付', time: '時刻', select: '選択', textarea: '複数行テキスト', controls: '選択', checkbox: 'グループの支出を表示', toggle: '通知を受け取る', radio: '分割方法', equal: '均等割り', exact: '正確な金額', calendar: 'カレンダー' },
 } as const;
 
+const kitText = {
+  fr: { foundations: 'Fondations et actions', foundationsIntro: 'Couleurs, typographie, boutons et états d’interface.', palette: 'Palette de couleurs', typography: 'Typographie', primary: 'Primaire', primaryDark: 'Primaire foncé', coral: 'Corail', sun: 'Jaune', mint: 'Menthe', lavender: 'Lavande', surface: 'Surface', border: 'Bordure', title: 'Titre principal', section: 'Titre de section', card: 'Titre de carte', body: 'Texte courant', action: 'Action', outline: 'Contour', ghost: 'Discret', warning: 'Attention : vérifiez les données.', forms: 'Formulaires et sélection', formsIntro: 'Champs, sélecteurs, contrôles et exemple de formulaire.', example: 'Exemple : ajouter une dépense', expense: 'Dîner entre amis', amount: 'Montant', category: 'Catégorie', payer: 'Payé par', split: 'Répartition', addExpense: 'Ajouter la dépense', patterns: 'Navigation, données et détails', patternsIntro: 'Cartes, listes, tableaux et états d’information.', groupCard: 'Carte de groupe', expenseList: 'Liste de dépenses', family: 'Famille fictive', members: 'membres', travel: 'Voyage fictif', restaurant: 'Restaurant fictif', groceries: 'Épicerie fictive', empty: 'Aucune dépense pour le moment.', business: 'Composants métier', businessIntro: 'Présentation des dépenses, groupes et répartitions.', responsive: 'Responsive et tokens', responsiveIntro: 'Les mêmes contrôles restent utilisables à 320, 390 et 1280 px.', guides: 'Guides et bonnes pratiques', guidesIntro: 'Libellés visibles, focus perceptible, erreurs en texte et exemples fictifs.' },
+  en: { foundations: 'Foundations and actions', foundationsIntro: 'Colors, typography, buttons and interface states.', palette: 'Color palette', typography: 'Typography', primary: 'Primary', primaryDark: 'Dark primary', coral: 'Coral', sun: 'Yellow', mint: 'Mint', lavender: 'Lavender', surface: 'Surface', border: 'Border', title: 'Main heading', section: 'Section heading', card: 'Card heading', body: 'Body text', action: 'Action', outline: 'Outline', ghost: 'Subtle', warning: 'Warning: check the information.', forms: 'Forms and selection', formsIntro: 'Fields, selectors, controls and a form example.', example: 'Example: add an expense', expense: 'Dinner with friends', amount: 'Amount', category: 'Category', payer: 'Paid by', split: 'Split', addExpense: 'Add expense', patterns: 'Navigation, data and details', patternsIntro: 'Cards, lists, tables and information states.', groupCard: 'Group card', expenseList: 'Expense list', family: 'Example family', members: 'members', travel: 'Example trip', restaurant: 'Example restaurant', groceries: 'Example groceries', empty: 'No expenses yet.', business: 'Business components', businessIntro: 'Expense, group and split views.', responsive: 'Responsive and tokens', responsiveIntro: 'The same controls work at 320, 390 and 1280 px.', guides: 'Guides and good practices', guidesIntro: 'Visible labels, clear focus, text errors and fictitious examples.' },
+  ja: { foundations: '基本と操作', foundationsIntro: '色、書体、ボタン、画面の状態。', palette: 'カラーパレット', typography: 'タイポグラフィ', primary: 'メイン', primaryDark: '濃いメイン', coral: 'コーラル', sun: '黄色', mint: 'ミント', lavender: 'ラベンダー', surface: '背景', border: '境界線', title: '大見出し', section: 'セクション見出し', card: 'カード見出し', body: '本文', action: '操作', outline: '輪郭', ghost: '控えめ', warning: '注意：情報を確認してください。', forms: 'フォームと選択', formsIntro: '入力欄、選択、操作、フォーム例。', example: '例：支出を追加', expense: '友人との夕食', amount: '金額', category: 'カテゴリー', payer: '支払者', split: '分割', addExpense: '支出を追加', patterns: 'ナビゲーションとデータ', patternsIntro: 'カード、一覧、表、情報の状態。', groupCard: 'グループカード', expenseList: '支出一覧', family: '家族の例', members: '人のメンバー', travel: '旅行の例', restaurant: 'レストランの例', groceries: '食料品の例', empty: '支出はまだありません。', business: '業務部品', businessIntro: '支出、グループ、分割の表示。', responsive: 'レスポンシブとトークン', responsiveIntro: '320、390、1280 px でも操作できます。', guides: 'ガイドと実践', guidesIntro: '見えるラベル、明確なフォーカス、文字によるエラー、架空の例。' },
+} as const;
+
 @Component({
   selector: 'app-gallery',
   imports: [CalendarComponent, CheckboxComponent, ControlErrorsComponent, FieldComponent, InputComponent, InviteQrCode, RadioGroupComponent, ReactiveFormsModule, SelectComponent, TextareaComponent, ToggleComponent, UiAlert, UiBadge, UiButton, UiField],
@@ -43,6 +49,7 @@ export class GalleryComponent {
   readonly language = language;
   readonly text = galleryText;
   readonly formText = formText;
+  readonly kitText = kitText;
   readonly textControl = new FormControl('Famille fictive');
   readonly numberControl = new FormControl<number | null>(42);
   readonly emailControl = new FormControl('incorrect', [Validators.email]);
@@ -58,6 +65,9 @@ export class GalleryComponent {
   readonly toggleControl = new FormControl(false);
   readonly radioControl = new FormControl('equal');
   readonly calendarControl = new FormControl('2026-11-17');
+  readonly exampleDescription = new FormControl('Dîner entre amis');
+  readonly exampleAmount = new FormControl<number | null>(86.40);
+  readonly exampleCategory = new FormControl('restaurant');
 
   constructor() { this.emailControl.markAsTouched(); }
 }

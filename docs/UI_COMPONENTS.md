@@ -1,6 +1,6 @@
 # Composants partagés
 
-La galerie `/ui/components` montre les composants d’interface réutilisables avec des données fictives. Son `GalleryLayout` fournit une colonne de navigation par composant, avec une mise en page adaptée au mobile. Elle suit les couleurs et espacements Everyday Pop et se vérifie sur ordinateur et mobile.
+La galerie `/ui/components` montre les composants d’interface réutilisables avec des données fictives. Son `GalleryLayout` fournit une colonne de navigation par section et par composant sur ordinateur, avec une navigation compacte sur mobile. Les sections reprennent les fondations, formulaires, données et exemples métier du visuel Everyday Pop V2 validé.
 
 | Composant | Usage | États montrés |
 | --- | --- | --- |

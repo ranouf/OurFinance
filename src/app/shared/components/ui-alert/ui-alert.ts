@@ -5,5 +5,5 @@ import { Component, Input } from '@angular/core';
   templateUrl: './ui-alert.html',
 })
 export class UiAlert {
-  @Input() variant: 'error' | 'success' | 'info' = 'info';
+  @Input() variant: 'error' | 'warning' | 'success' | 'info' = 'info';
 }

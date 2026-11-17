@@ -1,23 +1,28 @@
-<header class="border-b border-pop-border bg-white px-4 py-4 sm:px-6">
-  <a class="mx-auto flex max-w-7xl items-center gap-2 rounded-xl focus-visible:outline-2 focus-visible:outline-pop-primary-dark" routerLink="/dashboard" aria-label="OurFinance">
-    <img src="/illustrations/ourfinance-mark.svg" width="36" height="36" alt="" />
-    <strong class="text-lg font-black text-pop-primary-dark">ourfinance.</strong>
-  </a>
-</header>
-<div class="mx-auto grid max-w-7xl gap-5 px-4 pb-20 sm:px-6 lg:grid-cols-[13rem_minmax(0,1fr)] lg:pb-8">
-  <aside class="h-fit rounded-3xl border border-pop-border bg-white p-4 shadow-sm lg:sticky lg:top-5 lg:mt-8" [attr.aria-label]="labels[language()].nav">
-    <h2 class="text-sm font-extrabold uppercase tracking-wider text-pop-primary-dark">{{ labels[language()].nav }}</h2>
-    <nav class="mt-3 grid grid-cols-2 gap-1 text-sm font-bold sm:grid-cols-3 lg:grid-cols-1" [attr.aria-label]="labels[language()].nav">
-      <a class="rounded-xl px-3 py-2 text-pop-text hover:bg-pop-lavender focus-visible:outline-2 focus-visible:outline-pop-primary-dark" href="#buttons">{{ labels[language()].buttons }}</a>
-      <a class="rounded-xl px-3 py-2 text-pop-text hover:bg-pop-lavender focus-visible:outline-2 focus-visible:outline-pop-primary-dark" href="#fields">{{ labels[language()].fields }}</a>
-      <a class="rounded-xl px-3 py-2 text-pop-text hover:bg-pop-lavender focus-visible:outline-2 focus-visible:outline-pop-primary-dark" href="#inputs">{{ labels[language()].inputs }}</a>
-      <a class="rounded-xl px-3 py-2 text-pop-text hover:bg-pop-lavender focus-visible:outline-2 focus-visible:outline-pop-primary-dark" href="#choices">{{ labels[language()].choices }}</a>
-      <a class="rounded-xl px-3 py-2 text-pop-text hover:bg-pop-lavender focus-visible:outline-2 focus-visible:outline-pop-primary-dark" href="#calendar">{{ labels[language()].calendar }}</a>
-      <a class="rounded-xl px-3 py-2 text-pop-text hover:bg-pop-lavender focus-visible:outline-2 focus-visible:outline-pop-primary-dark" href="#alerts">{{ labels[language()].alerts }}</a>
-      <a class="rounded-xl px-3 py-2 text-pop-text hover:bg-pop-lavender focus-visible:outline-2 focus-visible:outline-pop-primary-dark" href="#badges">{{ labels[language()].badges }}</a>
-      <a class="rounded-xl px-3 py-2 text-pop-text hover:bg-pop-lavender focus-visible:outline-2 focus-visible:outline-pop-primary-dark" href="#qr">{{ labels[language()].qr }}</a>
-      <a class="rounded-xl px-3 py-2 text-pop-text hover:bg-pop-lavender focus-visible:outline-2 focus-visible:outline-pop-primary-dark" href="#navigation">{{ labels[language()].navigation }}</a>
+<div class="min-h-screen bg-[radial-gradient(circle_at_70%_8%,#e7e0ff_0,transparent_30%),#f6f5ff] text-pop-text lg:grid lg:grid-cols-[15rem_minmax(0,1fr)]">
+  <aside class="relative border-b border-pop-border bg-white/90 px-4 py-5 lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto lg:border-b-0 lg:border-r lg:px-5" [attr.aria-label]="labels[language()].nav">
+    <a class="flex items-center gap-2 rounded-xl focus-visible:outline-2 focus-visible:outline-pop-primary-dark" routerLink="/dashboard" aria-label="OurFinance">
+      <img src="/illustrations/ourfinance-mark.svg" width="34" height="34" alt="" />
+      <span class="text-sm font-black text-pop-primary-dark">OurFinance · UI Kit</span>
+    </a>
+    <span class="ml-10 mt-1 inline-flex rounded-full bg-pop-lavender px-2 py-0.5 text-[10px] font-extrabold text-pop-primary-dark">Everyday Pop V2</span>
+    <nav class="mt-5 grid grid-cols-2 gap-1 text-xs font-bold sm:grid-cols-3 lg:grid-cols-1" [attr.aria-label]="labels[language()].nav">
+      <a class="rounded-xl px-3 py-2 text-pop-primary-dark hover:bg-pop-lavender focus-visible:outline-2 focus-visible:outline-pop-primary-dark" [class.bg-pop-lavender]="activeSection === 'foundations'" href="#foundations" (click)="activeSection = 'foundations'">{{ labels[language()].foundations }}</a>
+      <a class="rounded-xl px-3 py-2 text-pop-primary-dark hover:bg-pop-lavender focus-visible:outline-2 focus-visible:outline-pop-primary-dark" [class.bg-pop-lavender]="activeSection === 'forms'" href="#forms" (click)="activeSection = 'forms'">{{ labels[language()].forms }}</a>
+      <a class="rounded-xl px-3 py-2 text-pop-primary-dark hover:bg-pop-lavender focus-visible:outline-2 focus-visible:outline-pop-primary-dark" [class.bg-pop-lavender]="activeSection === 'patterns'" href="#patterns" (click)="activeSection = 'patterns'">{{ labels[language()].patterns }}</a>
+      <a class="rounded-xl px-3 py-2 text-pop-primary-dark hover:bg-pop-lavender focus-visible:outline-2 focus-visible:outline-pop-primary-dark" [class.bg-pop-lavender]="activeSection === 'business'" href="#business" (click)="activeSection = 'business'">{{ labels[language()].business }}</a>
+      <a class="rounded-xl px-3 py-2 text-pop-primary-dark hover:bg-pop-lavender focus-visible:outline-2 focus-visible:outline-pop-primary-dark" [class.bg-pop-lavender]="activeSection === 'responsive'" href="#responsive" (click)="activeSection = 'responsive'">{{ labels[language()].responsive }}</a>
+      <a class="rounded-xl px-3 py-2 text-pop-primary-dark hover:bg-pop-lavender focus-visible:outline-2 focus-visible:outline-pop-primary-dark" [class.bg-pop-lavender]="activeSection === 'guides'" href="#guides" (click)="activeSection = 'guides'">{{ labels[language()].guides }}</a>
+      <span class="col-span-full mt-3 hidden px-3 lg:block text-[10px] font-extrabold uppercase tracking-wider text-pop-muted lg:mt-5">{{ labels[language()].components }}</span>
+      <a class="hidden rounded-xl px-3 py-1.5 lg:block text-pop-text hover:bg-pop-lavender focus-visible:outline-2 focus-visible:outline-pop-primary-dark" href="#buttons">{{ labels[language()].buttons }}</a>
+      <a class="hidden rounded-xl px-3 py-1.5 lg:block text-pop-text hover:bg-pop-lavender focus-visible:outline-2 focus-visible:outline-pop-primary-dark" href="#fields">{{ labels[language()].fields }}</a>
+      <a class="hidden rounded-xl px-3 py-1.5 lg:block text-pop-text hover:bg-pop-lavender focus-visible:outline-2 focus-visible:outline-pop-primary-dark" href="#inputs">{{ labels[language()].inputs }}</a>
+      <a class="hidden rounded-xl px-3 py-1.5 lg:block text-pop-text hover:bg-pop-lavender focus-visible:outline-2 focus-visible:outline-pop-primary-dark" href="#choices">{{ labels[language()].choices }}</a>
+      <a class="hidden rounded-xl px-3 py-1.5 lg:block text-pop-text hover:bg-pop-lavender focus-visible:outline-2 focus-visible:outline-pop-primary-dark" href="#calendar">{{ labels[language()].calendar }}</a>
+      <a class="hidden rounded-xl px-3 py-1.5 lg:block text-pop-text hover:bg-pop-lavender focus-visible:outline-2 focus-visible:outline-pop-primary-dark" href="#alerts">{{ labels[language()].alerts }}</a>
+      <a class="hidden rounded-xl px-3 py-1.5 lg:block text-pop-text hover:bg-pop-lavender focus-visible:outline-2 focus-visible:outline-pop-primary-dark" href="#badges">{{ labels[language()].badges }}</a>
+      <a class="hidden rounded-xl px-3 py-1.5 lg:block text-pop-text hover:bg-pop-lavender focus-visible:outline-2 focus-visible:outline-pop-primary-dark" href="#qr">{{ labels[language()].qr }}</a>
     </nav>
+    <img class="pointer-events-none mt-5 hidden w-full lg:block" src="/illustrations/sidebar-paris-cafe.webp" alt="" />
   </aside>
   <div class="min-w-0"><router-outlet /></div>
 </div>
