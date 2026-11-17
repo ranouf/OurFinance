@@ -12,6 +12,18 @@ test('unapproved origin and missing token are rejected', async () => {
   strictEqual((await handleRequest(new Request('https://worker.example/health', { headers: { Origin: 'https://evil.example' } }), env)).status, 403);
   strictEqual((await handleRequest(new Request('https://worker.example/groups/g/access'), env)).status, 401);
 });
+test('one configured preview origin is allowed without widening the main origin', async () => {
+  const preview = 'https://ourfinance-test--csp-121-b8lgwqgm.web.app';
+  const configured = { ...env, ALLOWED_PREVIEW_ORIGIN: preview };
+  for (const origin of [env.ALLOWED_ORIGIN, preview]) {
+    const response = await handleRequest(new Request('https://worker.example/health', { headers: { Origin: origin } }), configured);
+    strictEqual(response.status, 200);
+    strictEqual(response.headers.get('Access-Control-Allow-Origin'), origin);
+  }
+  const rejected = await handleRequest(new Request('https://worker.example/health', { headers: { Origin: `${preview}.evil.example` } }), configured);
+  strictEqual(rejected.status, 403);
+  strictEqual(rejected.headers.get('Access-Control-Allow-Origin'), null);
+});
 test('group creation remains disabled by default even with server identity', async () => {
   const response = await handleRequest(new Request('https://worker.example/groups', { method: 'POST', headers: { Origin: env.ALLOWED_ORIGIN } }), { ...env, FIREBASE_SERVICE_ACCOUNT_JSON: 'configured' });
   strictEqual(response.status, 503);
