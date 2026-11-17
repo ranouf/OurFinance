@@ -26,6 +26,7 @@ import { summarizeRestorePreviewV2 } from './restore-preview';
 export interface Env extends Partial<CloudinaryEnv> {
   FIREBASE_PROJECT_ID: string;
   ALLOWED_ORIGIN: string;
+  ALLOWED_PREVIEW_ORIGIN?: string;
   FIREBASE_SERVICE_ACCOUNT_JSON?: string;
   ENABLE_GROUP_CREATION?: string;
   ENABLE_GROUP_CURRENCY_POC?: string;
@@ -56,7 +57,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
   const origin = request.headers.get('Origin');
   const headers = new Headers({ 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
   headers.set('Referrer-Policy', 'no-referrer');
-  if (origin && origin !== env.ALLOWED_ORIGIN) return new Response(JSON.stringify({ error: 'Origine refusée' }), { status: 403, headers });
+  if (origin && origin !== env.ALLOWED_ORIGIN && origin !== env.ALLOWED_PREVIEW_ORIGIN) return new Response(JSON.stringify({ error: 'Origine refusée' }), { status: 403, headers });
   if (origin) headers.set('Access-Control-Allow-Origin', origin);
   headers.set('Vary', 'Origin');
   if (request.method === 'OPTIONS') {
