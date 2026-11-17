@@ -11,8 +11,10 @@ export interface RestoreEnv {
   readonly CLOUDINARY_CLOUD_NAME: string; readonly CLOUDINARY_API_KEY: string; readonly CLOUDINARY_API_SECRET: string;
 }
 export interface RestoreResult { readonly restoreId: string; readonly cleanupPending: boolean }
+export type RestoreStage = 'lock' | 'media' | 'inventory' | 'commit' | 'abort';
 export class RestoreOrchestrationError extends Error {
-  constructor(readonly code: 'recovery_required' | 'invalid_backup', options?: ErrorOptions) { super(code, options); }
+  constructor(readonly code: 'recovery_required' | 'invalid_backup' | 'restore_failed', options?: ErrorOptions,
+    readonly stage?: RestoreStage) { super(code, options); }
 }
 
 export interface RestoreOperations {
@@ -50,21 +52,25 @@ export async function restoreGroupFromPackage(
   };
   let locked = false;
   let committed = false;
+  let stage: RestoreStage = 'lock';
   try {
     try { await operations.begin(uid, groupId, restoreId, backup.group.currency, expectedPublicIds); locked = true; }
     catch (error) {
       try { locked = await operations.outcome(uid, groupId, restoreId) === 'locked'; }
       catch { /* No proof of a lock: keep the original error. */ }
-      if (locked) throw new RestoreOrchestrationError('recovery_required', { cause: error });
+      if (locked) throw new RestoreOrchestrationError('recovery_required', { cause: error }, stage);
       throw error;
     }
+    stage = 'media';
     const staged = await operations.stage(groupId, restoreId, receipts);
+    stage = 'inventory';
     const live = await operations.inventory(uid, groupId, restoreId);
+    stage = 'commit';
     try { await operations.commit(uid, groupId, restoreId, backup, live, staged); committed = true; }
     catch (error) {
       let outcome: 'committed' | 'locked';
       try { outcome = await operations.outcome(uid, groupId, restoreId); }
-      catch { throw new RestoreOrchestrationError('recovery_required', { cause: error }); }
+      catch { throw new RestoreOrchestrationError('recovery_required', { cause: error }, stage); }
       if (outcome === 'committed') committed = true;
       else throw error;
     }
@@ -75,8 +81,9 @@ export async function restoreGroupFromPackage(
       try {
         await operations.abort(uid, groupId, restoreId);
         await operations.cleanup(uid, groupId, restoreId);
-      } catch { throw new RestoreOrchestrationError('recovery_required', { cause: error }); }
+      } catch { throw new RestoreOrchestrationError('recovery_required', { cause: error }, 'abort'); }
     }
-    throw error;
+    if (error instanceof RestoreOrchestrationError) throw error;
+    throw new RestoreOrchestrationError('restore_failed', { cause: error }, stage);
   }
 }
