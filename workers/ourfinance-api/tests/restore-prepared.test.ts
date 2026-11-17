@@ -154,6 +154,10 @@ test('30 synthetic private receipts roundtrip through V2 ZIP and prepared lock',
   const ids = decoded.manifest.receipts.map(row => `ourfinance-test/g/${row.expenseId}/restore_${restoreId}/${row.attachmentId}`);
   state.setJob(ids, decoded.manifest.receipts.map(row => row.sha256), ids.map(() => 'png'), fingerprint,
     ids.map((_, index) => String(index)));
+  const lostLockTransport = async (resource: string | URL | Request, init?: RequestInit) =>
+    String(resource).endsWith(':beginTransaction') ? Response.json({}, { status: 409 }) : state.transport(resource, init);
+  deepStrictEqual(await prepareRestore('alice', 'g', restoreId, decoded, state.env, lostLockTransport as typeof fetch),
+    { restoreId, expectedReceipts: 30 });
   let committed = 0;
   const result = await commitPreparedRestore('alice', 'g', restoreId, decoded, state.env, transport as typeof fetch, {
     inventory: async () => ({ groupDocuments: ['groups/g'], userDocuments: [], receiptPublicIds: [] }),

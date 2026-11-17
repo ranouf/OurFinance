@@ -61,8 +61,12 @@ interface RestoreDiffCounts { readonly create: number; readonly replace: number;
         }
         @if (message()) {
           <p class="text-sm" role="status">{{ t(message()!) }}
-            @if (message() === 'restoreUncertain') { <span class="break-all">{{ attemptId() }}</span> }
+            @if (message() === 'restoreUncertain' || message() === 'restorePreparedUncertain') { <span class="break-all">{{ attemptId() }}</span> }
           </p>
+          @if (message() === 'restorePreparedUncertain') {
+            <button class="rounded-lg border border-teal-700 px-4 py-2 text-teal-800 disabled:opacity-50" type="button"
+              [disabled]="busy()" (click)="restore()">{{ t('restorePreparedRetry') }}</button>
+          }
           @if (message() === 'restoreDone' || message() === 'restoreCleanupPending') {
             <button class="rounded-lg border border-teal-700 px-4 py-2 text-teal-800" type="button"
               (click)="reload()">{{ t('restoreReload') }}</button>
@@ -86,7 +90,8 @@ export class RestorePanel {
   readonly busy = signal(false);
   readonly preview = signal<RestorePreflightV2 | null>(null);
   readonly diff = signal<RestoreDiffCounts | null>(null);
-  readonly message = signal<'restoreInvalid' | 'restoreUnavailable' | 'restoreDone' | 'restoreCleanupPending' | 'restoreUncertain' | null>(null);
+  readonly message = signal<'restoreInvalid' | 'restoreUnavailable' | 'restoreDone' | 'restoreCleanupPending' |
+    'restoreUncertain' | 'restorePreparedUncertain' | null>(null);
   readonly attemptId = signal('');
   groupId = '';
   confirmation = '';
@@ -95,6 +100,8 @@ export class RestorePanel {
   private previewGroupId?: string;
   private previewUid?: string;
   private attemptGroupId?: string;
+  private preparedAttemptId?: string;
+  private commitAttemptId?: string;
 
   selectedGroupName(): string { return this.groups.find(group => group.id === this.groupId)?.name ?? ''; }
   reload(): void { window.location.reload(); }
@@ -106,6 +113,8 @@ export class RestorePanel {
     this.message.set(null);
     this.attemptId.set('');
     this.attemptGroupId = undefined;
+    this.preparedAttemptId = undefined;
+    this.commitAttemptId = undefined;
   }
   selectFile(event: Event): void {
     this.selectedFile = (event.target as HTMLInputElement).files?.[0];
@@ -162,9 +171,10 @@ export class RestorePanel {
     if (this.busy() || !user?.emailVerified || !group || user.uid !== group.ownerId || !this.archive || !this.preview() || !this.diff() ||
         !this.workerUrl || this.confirmation !== group.name || this.previewGroupId !== group.id || this.previewUid !== user.uid) return;
     const archive = this.archive;
+    const retryPrepared = this.message() === 'restorePreparedUncertain' && this.preview()?.receiptCount && this.preview()!.receiptCount > 25;
     this.busy.set(true);
     this.message.set(null);
-    const restoreId = crypto.randomUUID();
+    const restoreId = retryPrepared && this.attemptId() ? this.attemptId() : crypto.randomUUID();
     this.attemptId.set(restoreId);
     this.attemptGroupId = group.id;
     try {
@@ -180,14 +190,20 @@ export class RestorePanel {
       const contents = await decodeBackupZipV2(archive);
       let response: Response;
       if (contents.receipts.length > 25) {
-        const prepared = await sendZip(`${url.pathname}/prepare`);
-        if (prepared.status !== 201) throw new Error('prepare_failed');
-        for (const [index, receipt] of contents.receipts.entries()) {
-          const copy = new Uint8Array(receipt.bytes.byteLength);
-          copy.set(receipt.bytes);
-          const staged = await fetch(new URL(`${url.pathname}/receipts/${index}`, url), { method: 'POST',
-            headers: { Authorization: `Bearer ${token}`, 'Content-Type': receipt.contentType }, body: copy.buffer, cache: 'no-store' });
-          if (!staged.ok) throw new Error('stage_failed');
+        if (this.preparedAttemptId !== restoreId && this.commitAttemptId !== restoreId) {
+          const prepared = await sendZip(`${url.pathname}/prepare`);
+          if (prepared.status !== 201) throw new Error('prepare_failed');
+          this.preparedAttemptId = restoreId;
+        }
+        if (this.commitAttemptId !== restoreId) {
+          for (const [index, receipt] of contents.receipts.entries()) {
+            const copy = new Uint8Array(receipt.bytes.byteLength);
+            copy.set(receipt.bytes);
+            const staged = await fetch(new URL(`${url.pathname}/receipts/${index}`, url), { method: 'POST',
+              headers: { Authorization: `Bearer ${token}`, 'Content-Type': receipt.contentType }, body: copy.buffer, cache: 'no-store' });
+            if (!staged.ok) throw new Error('stage_failed');
+          }
+          this.commitAttemptId = restoreId;
         }
         response = await sendZip(`${url.pathname}/commit`);
       } else {
@@ -200,10 +216,11 @@ export class RestorePanel {
         this.message.set(response.status === 202 ? 'restoreCleanupPending' : 'restoreDone');
       } else {
         const body = await response.json().catch(() => null) as { error?: string } | null;
-        this.message.set(body?.error === 'recovery_required' ? 'restoreUncertain' :
+        if (body?.error === 'receipts_not_staged') this.commitAttemptId = undefined;
+        this.message.set(contents.receipts.length > 25 ? 'restorePreparedUncertain' : body?.error === 'recovery_required' ? 'restoreUncertain' :
           response.status === 503 ? 'restoreUnavailable' : 'restoreInvalid');
       }
-    } catch { this.message.set('restoreUncertain'); }
+    } catch { this.message.set(this.preview()?.receiptCount && this.preview()!.receiptCount > 25 ? 'restorePreparedUncertain' : 'restoreUncertain'); }
     finally { this.busy.set(false); }
   }
 

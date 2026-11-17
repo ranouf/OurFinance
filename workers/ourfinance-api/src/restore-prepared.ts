@@ -61,8 +61,18 @@ async function verifiedArchive(groupId: string, restoreId: string, archive: Back
 export async function prepareRestore(uid: string, groupId: string, restoreId: string, archive: BackupPackageV2,
   env: PreparedRestoreEnv, transport: typeof fetch = fetch): Promise<{ restoreId: string; expectedReceipts: number }> {
   const checked = await verifiedArchive(groupId, restoreId, archive);
-  await beginPreparedRestoreLock(uid, groupId, restoreId, checked.backup.group.currency, checked.publicIds,
-    { manifestSha256: checked.manifestSha256, receiptSha256: checked.receiptSha256, receiptFormats: checked.receiptFormats }, env, transport);
+  try {
+    await beginPreparedRestoreLock(uid, groupId, restoreId, checked.backup.group.currency, checked.publicIds,
+      { manifestSha256: checked.manifestSha256, receiptSha256: checked.receiptSha256, receiptFormats: checked.receiptFormats }, env, transport);
+  } catch (error) {
+    // A lost lock response is safe to replay only for the same owner and exact archive.
+    let job: PreparedRestoreJob;
+    try { job = await readPreparedRestoreJob(uid, groupId, restoreId, env, transport); }
+    catch { throw error; }
+    if (job.manifestSha256 !== checked.manifestSha256 || job.publicIds.length !== checked.publicIds.length ||
+        job.publicIds.some((value, index) => value !== checked.publicIds[index] ||
+          job.receiptSha256[index] !== checked.receiptSha256[index] || job.receiptFormats[index] !== checked.receiptFormats[index])) throw error;
+  }
   return { restoreId, expectedReceipts: checked.publicIds.length };
 }
 
