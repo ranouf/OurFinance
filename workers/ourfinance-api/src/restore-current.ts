@@ -56,6 +56,8 @@ export async function readCurrentRestore(uid: string, groupId: string, env: Rest
     if (groupStatus === 'restoring' && groupFields['restoreOwnerId']?.stringValue !== uid)
       throw new RestoreCurrentError(409, 'restore_state_invalid');
     const job = await read(`groups/${groupId}/restoreJobs/${restoreId}`);
+    // A completed journal may be pruned while the group keeps its historical lastRestoreId.
+    if (groupStatus === 'active' && !job) return { status: 'active' };
     if (job?.fields?.['ownerId']?.stringValue !== uid) throw new RestoreCurrentError(409, 'restore_state_invalid');
     const jobStatus = job.fields['status']?.stringValue;
     if (groupStatus === 'restoring' && jobStatus === 'staging') return { status: 'staging', restoreId };
