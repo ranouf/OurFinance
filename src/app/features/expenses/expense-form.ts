@@ -12,73 +12,75 @@ import { categoryLabel } from '../../shared/utils/category-label';
 import { language, locale } from '../../shared/utils/i18n';
 import { prepareExpense, type ExpenseDraft } from './expense-draft';
 import type { SplitMode } from '../../shared/utils/split-engine';
+import { expenseMessage, expenseText } from './expense-text';
 
 @Component({
   selector: 'app-expense-form', imports: [FormsModule],
   template: `
-    <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-5" [attr.aria-label]="editing ? 'Modifier la dépense' : 'Nouvelle dépense'">
-      <h2 class="text-lg font-semibold">{{ editing ? 'Modifier la dépense' : 'Nouvelle dépense' }}</h2>
-      @if (editing) { <p class="mt-1 text-sm text-slate-600">Seul l’auteur peut modifier cette dépense.</p> }
-      <p class="mt-1 text-sm text-slate-600">Choisissez une répartition pour cette dépense. La préférence du groupe est proposée seulement après une dépense enregistrée.</p>
-      <form class="mt-5 space-y-4" (ngSubmit)="save()">
-        <label class="block text-sm font-medium">Groupe
-          <select class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="group" [(ngModel)]="selectedGroupId" (ngModelChange)="loadGroup()" [disabled]="!!editing" required>
-            <option value="">Choisir un groupe</option>
+    <section class="mt-6 rounded-3xl border border-pop-border bg-pop-surface p-5 text-pop-text shadow-sm md:p-7" [attr.aria-label]="editing ? text('editExpense') : text('newExpense')">
+      <div class="mb-5 h-1.5 w-14 rounded-full bg-pop-coral" aria-hidden="true"></div>
+      <h2 class="text-2xl font-extrabold tracking-tight">{{ editing ? text('editExpense') : text('newExpense') }}</h2>
+      @if (editing) { <p class="mt-1 text-sm text-pop-muted">{{ text('authorOnly') }}</p> }
+      <p class="mt-2 text-sm leading-6 text-pop-muted">{{ text('splitHelp') }}</p>
+      <form class="mt-6 grid gap-4 md:grid-cols-2" (ngSubmit)="save()">
+        <label class="block text-sm font-bold">{{ text('group') }}
+          <select class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 text-pop-text focus-visible:outline-2 focus-visible:outline-pop-primary" name="group" [(ngModel)]="selectedGroupId" (ngModelChange)="loadGroup()" [disabled]="!!editing" required>
+            <option value="">{{ text('chooseGroup') }}</option>
             @for (group of groups; track group.id) { <option [value]="group.id">{{ group.name }}</option> }
           </select>
         </label>
         @if (selectedGroupId) {
-          <label class="block text-sm font-medium">Description
-            <input class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="description" [(ngModel)]="draft.description" maxlength="160" required />
+          <label class="block text-sm font-bold md:col-span-2">{{ text('description') }}
+            <input class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 text-pop-text focus-visible:outline-2 focus-visible:outline-pop-primary" name="description" [(ngModel)]="draft.description" maxlength="160" required />
           </label>
-          <div class="grid grid-cols-2 gap-3">
-            <label class="block text-sm font-medium">Montant
-              <input class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="amount" [(ngModel)]="draft.amount" inputmode="decimal" placeholder="0,00" required />
+          <div class="grid gap-3 sm:grid-cols-2 md:col-span-2">
+            <label class="block text-sm font-bold">{{ text('amount') }}
+              <input class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 text-lg font-extrabold text-pop-text focus-visible:outline-2 focus-visible:outline-pop-primary" name="amount" [(ngModel)]="draft.amount" inputmode="decimal" placeholder="0,00" required />
             </label>
-            <div class="block text-sm font-medium">Devise du groupe
-              <div class="mt-1 rounded-lg border border-slate-300 bg-slate-50 p-3" aria-label="Devise fixe du groupe">{{ draft.currency }}</div>
+            <div class="block text-sm font-bold">{{ text('fixedCurrency') }}
+              <div class="mt-2 min-h-11 rounded-xl border border-pop-border bg-pop-lavender p-3 text-lg font-extrabold text-pop-primary-dark" [attr.aria-label]="text('fixedCurrency')">{{ draft.currency }}</div>
             </div>
           </div>
-          <label class="block text-sm font-medium">Date
-            <input class="mt-1 w-full rounded-lg border border-slate-300 p-3" type="date" name="date" [(ngModel)]="draft.date" required />
+          <label class="block text-sm font-bold">{{ text('date') }}
+            <input class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 text-pop-text focus-visible:outline-2 focus-visible:outline-pop-primary" type="date" name="date" [(ngModel)]="draft.date" required />
           </label>
-          <label class="block text-sm font-medium">Catégorie
-            <select class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="category" [(ngModel)]="draft.categoryId">
+          <label class="block text-sm font-bold">{{ text('category') }}
+            <select class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 text-pop-text focus-visible:outline-2 focus-visible:outline-pop-primary" name="category" [(ngModel)]="draft.categoryId">
                 @for (category of availableCategories(); track category.id) { <option [value]="category.id">{{ category.icon }} {{ categoryLabel(category.id, language(), category.label) }}</option> }
             </select>
           </label>
           @if (members().length) {
-            <label class="block text-sm font-medium">Payé par
-              <select class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="payer" [(ngModel)]="draft.payerId" required>
-                @for (member of members(); track member.userId) { <option [value]="member.userId">{{ member.userId === user?.uid ? 'Moi' : member.userId }}</option> }
+            <label class="block text-sm font-bold">{{ text('paidBy') }}
+              <select class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 text-pop-text focus-visible:outline-2 focus-visible:outline-pop-primary" name="payer" [(ngModel)]="draft.payerId" required>
+                @for (member of members(); track member.userId) { <option [value]="member.userId">{{ member.userId === user?.uid ? text('me') : member.userId }}</option> }
               </select>
             </label>
-            <fieldset class="rounded-xl border border-slate-200 p-3">
-              <legend class="px-1 text-sm font-medium">Répartition</legend>
-              <select class="mt-2 w-full rounded-lg border border-slate-300 p-3" name="mode" [(ngModel)]="draft.kind" (ngModelChange)="clearValues()" aria-label="Méthode de répartition">
-                <option value="equal">Égalitaire</option><option value="exact">Montants exacts</option><option value="percentage">Pourcentages</option><option value="shares">Parts</option><option value="adjustment">Ajustements</option>
+            <fieldset class="rounded-2xl border border-pop-border bg-pop-lavender p-4 md:col-span-2">
+              <legend class="px-2 text-sm font-extrabold text-pop-primary-dark">{{ text('split') }}</legend>
+              <select class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 text-pop-text focus-visible:outline-2 focus-visible:outline-pop-primary" name="mode" [(ngModel)]="draft.kind" (ngModelChange)="clearValues()" [attr.aria-label]="text('splitMethod')">
+                <option value="equal">{{ text('equal') }}</option><option value="exact">{{ text('exact') }}</option><option value="percentage">{{ text('percentage') }}</option><option value="shares">{{ text('shares') }}</option><option value="adjustment">{{ text('adjustment') }}</option>
               </select>
               @for (row of draft.rows; track row.userId; let i = $index) {
-                <div class="mt-3 flex items-center gap-3">
-                  <label class="flex min-w-0 flex-1 items-center gap-2 text-sm"><input class="shrink-0" type="checkbox" [name]="'selected-' + i" [(ngModel)]="row.selected" /><span class="min-w-0 break-all">{{ row.userId === user?.uid ? 'Moi' : row.userId }}</span></label>
+                <div class="mt-3 flex min-h-11 items-center gap-3 rounded-xl bg-pop-surface px-3 py-2">
+                  <label class="flex min-w-0 flex-1 items-center gap-2 text-sm"><input class="size-5 shrink-0 accent-pop-primary" type="checkbox" [name]="'selected-' + i" [(ngModel)]="row.selected" /><span class="min-w-0 break-all">{{ row.userId === user?.uid ? text('me') : row.userId }}</span></label>
                   @if (draft.kind !== 'equal' && row.selected) {
-                    <input class="w-24 rounded-lg border border-slate-300 p-2 text-right" [name]="'value-' + i" [(ngModel)]="row.value" inputmode="decimal" [attr.aria-label]="'Valeur pour ' + (row.userId === user?.uid ? 'Moi' : row.userId)" [placeholder]="draft.kind === 'percentage' ? '%' : draft.kind === 'shares' ? 'parts' : draft.currency" />
+                    <input class="min-h-11 w-24 rounded-xl border border-pop-border p-2 text-right focus-visible:outline-2 focus-visible:outline-pop-primary" [name]="'value-' + i" [(ngModel)]="row.value" inputmode="decimal" [attr.aria-label]="text('valueFor') + ' ' + (row.userId === user?.uid ? text('me') : row.userId)" [placeholder]="draft.kind === 'percentage' ? '%' : draft.kind === 'shares' ? text('shares') : draft.currency" />
                   }
                 </div>
               }
-              <button class="mt-4 rounded-lg border border-teal-700 px-3 py-2 text-sm text-teal-800" type="button" (click)="preview()">Calculer les parts</button>
+              <button class="mt-4 min-h-11 rounded-xl border border-pop-primary px-4 py-2 text-sm font-bold text-pop-primary-dark hover:bg-pop-surface focus-visible:outline-2 focus-visible:outline-pop-primary" type="button" (click)="preview()">{{ text('calculate') }}</button>
               @if (previewRows().length) {
-                <ul class="mt-3 text-sm" aria-label="Parts calculées">
-                  @for (row of previewRows(); track row.userId) { <li>{{ row.userId === user?.uid ? 'Moi' : row.userId }} : {{ formatMinor(row.amountMinor, draft.currency, locale()) }}</li> }
+                <ul class="mt-3 space-y-1 rounded-xl bg-pop-surface p-3 text-sm" [attr.aria-label]="text('calculated')">
+                  @for (row of previewRows(); track row.userId) { <li>{{ row.userId === user?.uid ? text('me') : row.userId }} : {{ formatMinor(row.amountMinor, draft.currency, locale()) }}</li> }
                 </ul>
               }
             </fieldset>
-            <button class="w-full rounded-lg bg-teal-700 px-4 py-3 font-semibold text-white disabled:opacity-50" type="submit" [disabled]="busy()">{{ editing ? 'Enregistrer les modifications' : 'Enregistrer la dépense' }}</button>
-            @if (editing) { <button class="w-full rounded-lg border border-slate-300 px-4 py-3" type="button" (click)="editCancelled.emit()">Annuler la modification</button> }
-          } @else { <p class="text-sm text-slate-600">Aucun membre actif disponible.</p> }
+            <button class="min-h-11 w-full rounded-xl bg-pop-primary px-5 py-3 font-extrabold text-white shadow-sm hover:bg-pop-primary-dark focus-visible:outline-2 focus-visible:outline-pop-primary disabled:opacity-50 md:col-span-2" type="submit" [disabled]="busy()">{{ editing ? text('saveEdit') : text('save') }}</button>
+            @if (editing) { <button class="min-h-11 w-full rounded-xl border border-pop-border px-4 py-3 font-bold text-pop-text md:col-span-2" type="button" (click)="editCancelled.emit()">{{ text('cancelEdit') }}</button> }
+          } @else { <p class="text-sm text-pop-muted md:col-span-2">{{ text('noMembers') }}</p> }
         }
       </form>
-      @if (message()) { <p class="mt-4 text-sm" role="status">{{ message() }}</p> }
+      @if (message()) { <p class="mt-4 rounded-xl bg-pop-lavender p-3 text-sm text-pop-text" role="status">{{ displayMessage(message()) }}</p> }
     </section>
   `,
 })
@@ -97,6 +99,8 @@ export class ExpenseForm implements OnChanges {
   readonly language = language;
   readonly locale = locale;
   readonly formatMinor = formatMinor;
+  readonly text = expenseText;
+  readonly displayMessage = expenseMessage;
   readonly members = signal<{ userId: string }[]>([]);
   readonly customCategories = signal<CustomCategory[]>([]);
   readonly busy = signal(false);
@@ -114,7 +118,7 @@ export class ExpenseForm implements OnChanges {
       this.service = new ExpenseService(this.firebaseApp, this.workerUrl);
       this.categoryService = new CategoryService(this.firebaseApp, this.workerUrl);
     }
-    if (changes['categoryRevision'] && !changes['categoryRevision'].firstChange && this.selectedGroupId) void this.loadCategories().catch(() => this.message.set('Catégories indisponibles.'));
+    if (changes['categoryRevision'] && !changes['categoryRevision'].firstChange && this.selectedGroupId) void this.loadCategories().catch(() => this.message.set('categoriesUnavailable'));
     if (changes['editing']) {
       if (this.editing) this.selectedGroupId = this.editing.groupId;
       void this.loadGroup();
@@ -164,7 +168,7 @@ export class ExpenseForm implements OnChanges {
         this.applyPreference(preference);
         this.changeDetector.markForCheck();
       }
-    } catch { this.message.set('Membres ou préférence indisponibles.'); }
+    } catch { this.message.set('membersUnavailable'); }
   }
   private applyPreference(mode: SplitMode): void {
     this.draft.kind = mode.kind;
@@ -181,12 +185,12 @@ export class ExpenseForm implements OnChanges {
     try {
       const result = prepareExpense(this.draft, new Set(this.members().map(member => member.userId)));
       this.previewRows.set(result.allocations.map(item => ({ userId: item.userId, amountMinor: item.amountMinor })));
-    } catch (error) { this.message.set(error instanceof Error ? error.message : 'Répartition invalide'); }
+    } catch (error) { this.message.set(error instanceof Error ? error.message : 'splitInvalid'); }
   }
   async save(): Promise<void> {
     if (!this.service || !this.user || !this.selectedGroupId || this.busy()) return;
     this.preview(); if (!this.previewRows().length) return;
-    if (!this.draft.description.trim() || this.draft.description.length > 160) { this.message.set('Description requise'); return; }
+    if (!this.draft.description.trim() || this.draft.description.length > 160) { this.message.set('descriptionRequired'); return; }
     this.busy.set(true);
     try {
       const result = prepareExpense(this.draft, new Set(this.members().map(member => member.userId)));
@@ -201,9 +205,9 @@ export class ExpenseForm implements OnChanges {
         await this.service.create(this.user, this.selectedGroupId, { idempotencyKey, ...content });
       }
       this.pendingKey = undefined; this.pendingBody = undefined;
-      this.message.set(this.editing ? 'Dépense modifiée.' : 'Dépense enregistrée.'); this.draft.description = ''; this.draft.amount = ''; this.previewRows.set([]); this.saved.emit();
+      this.message.set(this.editing ? 'updated' : 'saved'); this.draft.description = ''; this.draft.amount = ''; this.previewRows.set([]); this.saved.emit();
       if (this.editing) this.editCancelled.emit();
-    } catch (error) { this.message.set(error instanceof Error ? error.message : 'Enregistrement impossible'); }
+    } catch (error) { this.message.set(error instanceof Error ? error.message : 'saveFailed'); }
     finally { this.busy.set(false); }
   }
 }
