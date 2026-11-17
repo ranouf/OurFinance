@@ -32,12 +32,14 @@ export async function deleteReceiptAsset(path: string, publicId: string, already
       method: 'POST', headers,
       body: JSON.stringify({ writes: [{ update: { name, fields: { status: string('deleted'), cleanupPending: { booleanValue: true }, deletedAt: { timestampValue: new Date().toISOString() } } }, updateMask: { fieldPaths: ['status', 'cleanupPending', 'deletedAt'] }, currentDocument: { exists: true } }] }),
     });
+    if (isProviderQuotaStatus(update.status)) throw new ProviderQuotaError();
     if (!update.ok) throw new Error('Suppression logique refusée');
   }
   await destroyAuthenticated(publicId, env, transport);
   const cleared = await transport(`https://firestore.googleapis.com/v1/${name}?updateMask.fieldPaths=cleanupPending`, {
     method: 'PATCH', headers, body: JSON.stringify({ fields: { cleanupPending: { booleanValue: false } } }),
   });
+  if (isProviderQuotaStatus(cleared.status)) throw new ProviderQuotaError();
   if (!cleared.ok) throw new Error('Nettoyage du reçu non acquitté');
 }
 
@@ -46,6 +48,7 @@ export async function persistUploadedReceipt(groupId: string, expenseId: string,
   const root = `projects/${projectId}/databases/(default)/documents`;
   const headers = { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' };
   const begin = await transport(`https://firestore.googleapis.com/v1/${root}:beginTransaction`, { method: 'POST', headers, body: '{}' });
+  if (isProviderQuotaStatus(begin.status)) throw new ProviderQuotaError();
   if (!begin.ok) throw new Error('Transaction média indisponible');
   const transaction = (await begin.json() as { transaction?: string }).transaction;
   if (!transaction) throw new Error('Transaction média invalide');
@@ -54,6 +57,7 @@ export async function persistUploadedReceipt(groupId: string, expenseId: string,
     const read = async (path: string): Promise<Record<string, { stringValue?: string; booleanValue?: boolean }> | null> => {
       const response = await transport(`https://firestore.googleapis.com/v1/${root}/${path}?transaction=${encodeURIComponent(transaction)}`, { headers });
       if (response.status === 404) return null;
+      if (isProviderQuotaStatus(response.status)) throw new ProviderQuotaError();
       if (!response.ok) throw new Error('Lecture transactionnelle refusée');
       return (await response.json() as { fields?: Record<string, { stringValue?: string; booleanValue?: boolean }> }).fields ?? null;
     };
@@ -67,6 +71,7 @@ export async function persistUploadedReceipt(groupId: string, expenseId: string,
       method: 'POST', headers,
       body: JSON.stringify({ transaction, writes: [{ update: { name: `${root}/groups/${groupId}/expenses/${expenseId}/attachments/${attachmentId}`, fields: { publicId: string(publicId), format: string(format), type: string('authenticated'), status: string('active'), ownerId: string(uid), createdAt: { timestampValue: new Date().toISOString() } } }, currentDocument: { exists: false } }] }),
     });
+    if (isProviderQuotaStatus(response.status)) throw new ProviderQuotaError();
     if (!response.ok) throw new Error('Écriture de la pièce jointe refusée');
     committed = true;
   } finally {
@@ -99,6 +104,7 @@ async function firestoreDocument(path: string, token: string, env: MediaEnv, tra
   const url = `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/${path}`;
   const response = await transport(url, { headers: { Authorization: `Bearer ${token}` } });
   if (response.status === 404 || response.status === 403) return null;
+  if (isProviderQuotaStatus(response.status)) throw new ProviderQuotaError();
   if (!response.ok) throw new Error(`Lecture Firestore refusée (${response.status})`);
   const body = await response.json() as { fields?: Record<string, { stringValue?: string; booleanValue?: boolean }> };
   return body.fields ?? null;
@@ -114,12 +120,12 @@ export async function handleMedia(request: Request, ids: { groupId: string; expe
   } catch { return Response.json({ error: 'Non authentifié' }, { status: 401, headers }); }
   let member;
   try { member = await readMember(env.FIREBASE_PROJECT_ID, groupId, uid, token); }
-  catch { throw new MediaDiagnosticError('member_read'); }
+  catch (error) { if (error instanceof ProviderQuotaError) throw error; throw new MediaDiagnosticError('member_read'); }
   if (!member || member.status !== 'active') return Response.json({ error: 'Accès refusé' }, { status: 403, headers });
   const expensePath = `groups/${groupId}/expenses/${expenseId}`;
   let expense;
   try { expense = await firestoreDocument(expensePath, token, env); }
-  catch { throw new MediaDiagnosticError('expense_read'); }
+  catch (error) { if (error instanceof ProviderQuotaError) throw error; throw new MediaDiagnosticError('expense_read'); }
   if (!expense || expense['deleted']?.booleanValue === true) return Response.json({ error: 'Dépense absente' }, { status: 404, headers });
 
   if (request.method === 'POST' && !attachmentId) {
@@ -145,7 +151,7 @@ export async function handleMedia(request: Request, ids: { groupId: string; expe
   if ((request.method === 'GET' || request.method === 'DELETE') && attachmentId) {
     let meta;
     try { meta = await firestoreDocument(`${expensePath}/attachments/${attachmentId}`, token, env); }
-    catch { throw new MediaDiagnosticError('metadata_read'); }
+    catch (error) { if (error instanceof ProviderQuotaError) throw error; throw new MediaDiagnosticError('metadata_read'); }
     if (!meta || meta['type']?.stringValue !== 'authenticated' ||
         (meta['status']?.stringValue !== 'active' && !(request.method === 'DELETE' && meta['status']?.stringValue === 'deleted' && meta['cleanupPending']?.booleanValue === true))) {
       return Response.json({ error: 'Pièce jointe absente' }, { status: 404, headers });

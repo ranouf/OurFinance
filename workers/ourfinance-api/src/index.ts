@@ -86,7 +86,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const members = await listSharedMemberProfiles(groupId, uid, token, { FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT_JSON: env.FIREBASE_SERVICE_ACCOUNT_JSON });
       return new Response(JSON.stringify({ members }), { status: 200, headers });
     } catch (error) {
-      return new Response(JSON.stringify({ error: error instanceof MemberProfileError ? error.code : 'profiles_unavailable' }), { status: error instanceof MemberProfileError ? error.status : 503, headers });
+      return new Response(JSON.stringify({ error: error instanceof ProviderQuotaError ? error.message : error instanceof MemberProfileError ? error.code : 'profiles_unavailable' }), { status: error instanceof MemberProfileError ? error.status : 503, headers });
     }
   }
   const currentRestoreMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/backup\/restores\/current$/.exec(url.pathname);
@@ -475,7 +475,8 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     const member = await readMember(env.FIREBASE_PROJECT_ID, match[1], uid, token);
     if (!member || member.status !== 'active') return new Response(JSON.stringify({ error: 'Accès refusé' }), { status: 403, headers });
     return new Response(JSON.stringify({ groupId: match[1], role: member.role }), { headers });
-  } catch {
+  } catch (error) {
+    if (error instanceof ProviderQuotaError) return new Response(JSON.stringify({ error: error.message }), { status: 503, headers });
     return new Response(JSON.stringify({ error: 'Authentification ou service indisponible' }), { status: 401, headers });
   }
 }
