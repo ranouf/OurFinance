@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import { deepStrictEqual, rejects, strictEqual } from 'node:assert';
 import { exportPKCS8, generateKeyPair } from 'jose';
-import { acceptQrInvitation, createQrInvitation, previewQrInvitation, revokeQrInvitation, QrInvitationError } from '../src/qr-invitations';
+import { acceptQrInvitation, createQrInvitation, listQrInvitations, previewQrInvitation, revokeQrInvitation, QrInvitationError } from '../src/qr-invitations';
 
 type Fields = Record<string, { stringValue?: string; timestampValue?: string; integerValue?: string }>;
 async function fixture() {
@@ -31,6 +31,7 @@ async function fixture() {
       }
       return Response.json({ writeResults: writes.map(() => ({})) });
     }
+    if (url.includes('/groups/g1/invitations?')) return Response.json({ documents: [...docs.entries()].filter(([path]) => path.startsWith('groups/g1/invitations/')).map(([path, fields]) => ({ name: `projects/ourfinance-test/databases/(default)/documents/${path}`, fields })) });
     const path = url.split('/documents/')[1]?.split('?')[0];
     const fields = docs.get(path);
     return fields ? Response.json({ fields }) : new Response(null, { status: 404 });
@@ -93,4 +94,16 @@ test('target email, expiry and revocation deny access without consuming the invi
   strictEqual([...f.docs.keys()].some(path => path.startsWith('invitationTokens/')), false);
   await rejects(previewQrInvitation(created.token, 'guest', 'guest@example.com', f.env, f.transport), (error: unknown) => error instanceof QrInvitationError && error.status === 403);
   strictEqual(f.docs.has('groups/g1/members/guest'), false);
+});
+
+test('only the owner lists invitation metadata, never a token or hash', async () => {
+  const f = await fixture();
+  const created = await createQrInvitation({ targetEmail: 'guest@example.com' }, 'owner', 'g1', f.env, f.transport);
+  const result = await listQrInvitations('g1', 'owner', f.env, '', f.transport);
+  strictEqual(result.invitations.length, 1);
+  strictEqual(result.invitations[0].invitationId, created.invitationId);
+  strictEqual(result.invitations[0].targetEmail, 'guest@example.com');
+  strictEqual(JSON.stringify(result).includes('tokenHash'), false);
+  strictEqual(JSON.stringify(result).includes(created.token), false);
+  await rejects(listQrInvitations('g1', 'guest', f.env, '', f.transport), (error: unknown) => error instanceof QrInvitationError && error.status === 403);
 });

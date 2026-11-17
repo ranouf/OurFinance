@@ -8,7 +8,7 @@ import type { CloudinaryEnv } from './cloudinary';
 import { readMember } from './firestore';
 import { readLimitedJson, RequestBodyError } from './request-body';
 import { acceptInvitation, createInvitation, InvitationError } from './invitations';
-import { acceptQrInvitation, createQrInvitation, previewQrInvitation, revokeQrInvitation, QrInvitationError } from './qr-invitations';
+import { acceptQrInvitation, createQrInvitation, listQrInvitations, previewQrInvitation, revokeQrInvitation, QrInvitationError } from './qr-invitations';
 import { createSettlement, SettlementError } from './settlements';
 import { createImportBatch, undoImportBatch, ImportError } from './import-batches';
 import { writeCategory, CategoryError } from './custom-categories';
@@ -245,6 +245,19 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
   }
   const qrCreate = /^\/groups\/([A-Za-z0-9_-]{1,128})\/qr-invitations$/.exec(url.pathname);
   const qrRevoke = /^\/groups\/([A-Za-z0-9_-]{1,128})\/qr-invitations\/([A-Za-z0-9_-]{1,128})\/revoke$/.exec(url.pathname);
+  if (request.method === 'GET' && qrCreate) {
+    if (env.ENABLE_QR_INVITATION_POC !== 'true' || env.QR_INVITATION_POC_GROUP_ID !== qrCreate[1] || !env.FIREBASE_SERVICE_ACCOUNT_JSON) return new Response(JSON.stringify({ error: 'Invitations QR non configurées' }), { status: 503, headers });
+    let identity: { uid: string; email: string };
+    try { identity = await verifyFirebaseVerifiedIdentity(bearerToken(request), env.FIREBASE_PROJECT_ID); }
+    catch { return new Response(JSON.stringify({ error: 'Non authentifié' }), { status: 401, headers }); }
+    try {
+      const result = await listQrInvitations(qrCreate[1], identity.uid, { FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT_JSON: env.FIREBASE_SERVICE_ACCOUNT_JSON, QR_INVITATION_POC_GROUP_ID: env.QR_INVITATION_POC_GROUP_ID }, url.searchParams.get('pageToken') ?? '');
+      return new Response(JSON.stringify(result), { status: 200, headers });
+    } catch (error) {
+      const status = error instanceof QrInvitationError ? error.status : 503;
+      return new Response(JSON.stringify({ error: error instanceof QrInvitationError ? error.code : 'invitation_unavailable' }), { status, headers });
+    }
+  }
   if (request.method === 'POST' && (qrCreate || qrRevoke || url.pathname === '/qr-invitations/preview' || url.pathname === '/qr-invitations/accept')) {
     if (env.ENABLE_QR_INVITATION_POC !== 'true' || !env.QR_INVITATION_POC_GROUP_ID || !env.FIREBASE_SERVICE_ACCOUNT_JSON) return new Response(JSON.stringify({ error: 'Invitations QR non configurées' }), { status: 503, headers });
     let identity: { uid: string; email: string };

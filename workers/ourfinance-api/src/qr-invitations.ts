@@ -156,3 +156,32 @@ export async function revokeQrInvitation(invitationId: string, uid: string, grou
     ]);
   });
 }
+
+export async function listQrInvitations(groupId: string, uid: string, env: QrInvitationEnv, pageToken = '', transport: typeof fetch = fetch) {
+  if (![groupId, uid].every(id => idPattern.test(id)) || pageToken.length > 1024) throw new QrInvitationError(400, 'invalid_invitation');
+  if (groupId !== env.QR_INVITATION_POC_GROUP_ID) throw new QrInvitationError(403, 'invitation_unavailable');
+  const db = await store(env, transport);
+  const group = await db.read(`groups/${groupId}`);
+  const owner = await db.read(`groups/${groupId}/members/${uid}`);
+  if (value(group, 'status') !== 'active' || value(owner, 'status') !== 'active' || value(owner, 'role') !== 'owner') throw new QrInvitationError(403, 'owner_required');
+  const access = await serviceAccessToken(env.FIREBASE_SERVICE_ACCOUNT_JSON, env.FIREBASE_PROJECT_ID, transport);
+  const url = new URL(`https://firestore.googleapis.com/v1/${db.root}/groups/${groupId}/invitations`);
+  url.searchParams.set('pageSize', '20');
+  if (pageToken) url.searchParams.set('pageToken', pageToken);
+  const response = await transport(url.toString(), { headers: { Authorization: `Bearer ${access}` } });
+  if (!response.ok) throw new QrInvitationError(503, 'firestore_unavailable');
+  const body = await response.json() as { documents?: Array<Record<string, unknown>>; nextPageToken?: string };
+  return {
+    invitations: (body.documents ?? []).map(doc => {
+      const expiresAt = value(doc, 'expiresAt') ?? '';
+      const status = value(doc, 'status') ?? 'unknown';
+      return {
+        invitationId: String(doc['name']).split('/').pop() ?? '',
+        status: status === 'active' && Date.parse(expiresAt) <= Date.now() ? 'expired' : status,
+        expiresAt,
+        targetEmail: value(doc, 'targetEmail') ?? null,
+      };
+    }),
+    nextPageToken: body.nextPageToken ?? null,
+  };
+}
