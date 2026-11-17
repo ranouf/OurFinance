@@ -36,6 +36,25 @@ test('collects all group collections and only receipt metadata', async () => {
   strictEqual(JSON.stringify(value).includes('private-asset-not-exported'), false);
 });
 
+test('collects exact imported strings without converting them to currency minor units', async () => {
+  const exact: ExportReader = { ...reader, list: async path => path === `${root}/importedRecords` ? [
+    { id: 'native_1', data: { sourceId: 'native-example-1', batchId: 'batch_1', date: '2026-11-01',
+      description: 'Trajet fictif', currency: 'CAD', sourceCostExact: '101.50', sourcePrecision: 2,
+      netImpactsExact: { member_a: '50.75', member_b: '-50.75' }, splitStatus: 'undetermined', status: 'active' } },
+  ] : reader.list(path) };
+  const value = JSON.parse(await collectGroupExportV1(exact, user, 'group_test'));
+  deepStrictEqual(value.importedRecords[0].netImpactsExact, { member_a: '50.75', member_b: '-50.75' });
+  strictEqual('amountMinor' in value.importedRecords[0], false);
+});
+
+test('refuses an imported document with both exact and legacy money fields', async () => {
+  const ambiguous: ExportReader = { ...reader, list: async path => path === `${root}/importedRecords` ? [
+    { ...collections[path][0], data: { ...collections[path][0].data, sourceCostExact: '1.00', sourcePrecision: 2,
+      netImpactsExact: { member_a: '0.50', member_b: '-0.50' } } },
+  ] : reader.list(path) };
+  await rejects(collectGroupExportV1(ambiguous, user, 'group_test'), /ambigu/);
+});
+
 test('refuses unverified users, missing category snapshot and membership revoked during collection', async () => {
   await rejects(collectGroupExportV1(reader, { ...user, emailVerified: false }, 'group_test'));
   const invalid: ExportReader = { ...reader, list: async path => path === `${root}/expenses` ? [{ ...collections[path][0], data: { ...collections[path][0].data, categoryLabel: undefined } }] : reader.list(path) };

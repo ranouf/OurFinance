@@ -66,8 +66,12 @@ export function buildRestoreWrites(value: GroupExportV2, live: LiveRestoreInvent
   });
   for (const row of backup.importedRecords) update(`${groupPath}/importedRecords/${row.id}`, {
     sourceId: string(row.sourceId), batchId: string(row.batchId), date: string(row.date), description: string(row.description),
-    currency: string(row.currency), amountMinor: integer(row.amountMinor), splitStatus: string(row.splitStatus), status: string(row.status),
-    netImpactsMinor: map(Object.fromEntries(Object.entries(row.netImpactsMinor).map(([id, value]) => [id, integer(value)]))),
+    currency: string(row.currency), splitStatus: string(row.splitStatus), status: string(row.status),
+    ...('sourceCostExact' in row
+      ? { sourceCostExact: string(row.sourceCostExact!), sourcePrecision: integer(row.sourcePrecision!),
+          netImpactsExact: map(Object.fromEntries(Object.entries(row.netImpactsExact!).map(([id, value]) => [id, string(value)]))) }
+      : { amountMinor: integer(row.amountMinor!),
+          netImpactsMinor: map(Object.fromEntries(Object.entries(row.netImpactsMinor!).map(([id, value]) => [id, integer(value)]))) }),
     createdAt: time(now), ...(row.status === 'undone' ? { undoneAt: time(now) } : {}),
   });
   const ownerId = backup.members.find(row => row.role === 'owner')!.userId;
