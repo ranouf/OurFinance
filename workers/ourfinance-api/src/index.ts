@@ -22,6 +22,7 @@ import { retryRestoreCleanup, RestoreCleanupError } from './restore-cleanup';
 import { readLimitedBody } from './media';
 import { collectLiveRestoreInventory, RestoreInventoryError } from './restore-inventory';
 import { summarizeRestorePreviewV2 } from './restore-preview';
+import { listSharedMemberProfiles, MemberProfileError } from './member-profiles';
 
 export interface Env extends Partial<CloudinaryEnv> {
   FIREBASE_PROJECT_ID: string;
@@ -50,6 +51,8 @@ export interface Env extends Partial<CloudinaryEnv> {
   BACKUP_POC_GROUP_ID?: string;
   ENABLE_RESTORE_POC?: string;
   RESTORE_POC_GROUP_ID?: string;
+  ENABLE_MEMBER_PROFILES_POC?: string;
+  MEMBER_PROFILES_POC_GROUP_ID?: string;
 }
 
 export async function handleRequest(request: Request, env: Env): Promise<Response> {
@@ -66,6 +69,22 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
   }
   const url = new URL(request.url);
   if (url.pathname === '/health' && request.method === 'GET') return new Response(JSON.stringify({ status: 'ok' }), { headers });
+  const memberProfilesMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/member-profiles$/.exec(url.pathname);
+  if (memberProfilesMatch && request.method === 'GET') {
+    const groupId = memberProfilesMatch[1];
+    if (env.ENABLE_MEMBER_PROFILES_POC !== 'true' || env.MEMBER_PROFILES_POC_GROUP_ID !== groupId || !env.FIREBASE_SERVICE_ACCOUNT_JSON)
+      return new Response(JSON.stringify({ error: 'Route désactivée' }), { status: 503, headers });
+    let token: string;
+    let uid: string;
+    try { token = bearerToken(request); uid = await verifyFirebaseVerifiedEmail(token, env.FIREBASE_PROJECT_ID); }
+    catch { return new Response(JSON.stringify({ error: 'Non authentifié' }), { status: 401, headers }); }
+    try {
+      const members = await listSharedMemberProfiles(groupId, uid, token, { FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT_JSON: env.FIREBASE_SERVICE_ACCOUNT_JSON });
+      return new Response(JSON.stringify({ members }), { status: 200, headers });
+    } catch (error) {
+      return new Response(JSON.stringify({ error: error instanceof MemberProfileError ? error.code : 'profiles_unavailable' }), { status: error instanceof MemberProfileError ? error.status : 503, headers });
+    }
+  }
   const restorePreviewMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/backup\/preview$/.exec(url.pathname);
   if (restorePreviewMatch && request.method === 'POST') {
     const groupId = restorePreviewMatch[1];
