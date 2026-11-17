@@ -112,11 +112,11 @@ export class LoginPage { readonly app = inject(App); readonly t = t; }
           <a class="flex min-w-0 items-center gap-2 rounded-2xl bg-amber-50 p-4" routerLink="/statistics"><svg class="shrink-0 text-pop-coral" width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 5 13 13m0-9v9H9" /></svg><span class="min-w-0"><span class="block text-xs font-bold text-pop-muted">{{ t('toRepay') }}</span><strong class="block break-words text-sm">{{ app.balanceBusy() ? t('loadingBalances') : app.balanceError() ? t('balancesUnavailable') : app.payableAmount() }}</strong></span></a>
         </div>
         <div class="mt-6 grid gap-6 lg:grid-cols-2 lg:items-start">
-        <section [attr.aria-label]="t('myGroups')">
+        <section class="min-w-0" [attr.aria-label]="t('myGroups')">
         <div class="flex items-center justify-between"><h2 class="text-xl font-black">{{ t('myGroups') }}</h2><a class="text-sm font-bold text-pop-primary-dark" routerLink="/groups">{{ t('viewAll') }} →</a></div>
-        <div class="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+        <div class="mt-3 flex max-w-full min-w-0 snap-x gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:overflow-visible lg:grid-cols-1">
           @for (item of app.groups(); track item.id) {
-            <button [class]="($index > 1 ? 'hidden sm:flex' : 'flex') + ' min-h-16 items-center gap-3 rounded-2xl border border-pop-border bg-white p-3 text-left sm:min-h-20 sm:p-4'" type="button" [attr.aria-pressed]="app.selectedGroupId() === item.id" (click)="app.selectedGroupId.set(item.id)">
+            <button class="flex min-h-16 w-[82%] shrink-0 snap-start items-center gap-3 rounded-2xl border border-pop-border bg-white p-3 text-left sm:min-h-20 sm:w-auto sm:p-4" type="button" [attr.aria-pressed]="app.selectedGroupId() === item.id" (click)="app.selectedGroupId.set(item.id)">
               <img class="h-11 w-11" [src]="$index % 2 ? '/illustrations/category-travel.svg' : '/illustrations/category-home.svg'" alt="" /><span class="min-w-0 flex-1"><strong class="block break-words">{{ item.name }}</strong><small class="text-pop-muted">{{ item.memberCount ?? 1 }} {{ t('membersCount') }}</small></span><span class="flex shrink-0 flex-col items-end gap-1"><span class="rounded-full bg-pop-lavender px-2 py-1 text-xs font-bold">{{ item.currency }}</span>@if (item.id === app.selectedGroupId() && !app.balanceBusy() && !app.balanceError()) { <strong class="text-xs" [class.text-emerald-700]="app.selectedBalanceMinor() > 0" [class.text-pop-coral]="app.selectedBalanceMinor() < 0">{{ app.selectedBalance() }}</strong> }</span>
             </button>
           }
