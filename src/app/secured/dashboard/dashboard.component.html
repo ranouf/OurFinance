@@ -20,15 +20,15 @@
             <img class="pointer-events-none absolute inset-0 h-full w-full origin-right scale-[1.6] object-cover object-right opacity-95" src="/illustrations/cafe-hero-mobile.webp" alt="" />
             <div class="pointer-events-none absolute inset-0 bg-pop-primary/45"></div>
           </div>
-          <div class="hidden min-h-64 grid-cols-[52%_48%] sm:grid sm:overflow-hidden sm:rounded-[1.8rem]">
+          <div class="hidden min-h-64 grid-cols-[52%_48%] sm:grid sm:overflow-hidden sm:rounded-[1.8rem] dashboard-hero-desktop">
             <div class="relative overflow-hidden bg-pop-primary"><img class="absolute inset-0 h-full w-full object-cover object-bottom" src="/illustrations/cafe-hero-foreground.png" alt="" /></div>
             <div class="dashboard-group-panel relative flex min-w-0 flex-col justify-center bg-pop-primary px-5 py-5 lg:px-7">
-              <a class="relative z-10 flex min-w-0 items-center gap-2 text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white" routerLink="/groups"><span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-white/20" aria-hidden="true"><svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="/illustrations/lucide-actions.svg#user-round-plus" /></svg></span><h1 class="min-w-0 truncate text-xl font-black lg:text-2xl">{{ group.name }}</h1><span class="text-xl" aria-hidden="true">⌄</span></a>
+              <a class="relative z-10 flex min-w-0 items-center gap-2 text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white" routerLink="/groups"><span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-white/20" aria-hidden="true"><svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="/illustrations/lucide-actions.svg#user-round-plus" /></svg></span><h1 class="dashboard-hero-group-name min-w-0 truncate font-black">{{ group.name }}</h1><span class="text-xl" aria-hidden="true">⌄</span></a>
               <span class="sr-only">{{ group.memberCount ?? 1 }} {{ t('membersCount') }}</span>
               <div class="relative z-10 mt-3 flex -space-x-2" [attr.aria-label]="t('whoOwes')">
                 @for (item of app.dashboardMemberBalances(); track item.userId) {
                   @if (app.dashboardMemberName(item.userId); as name) {
-                    <span class="dashboard-avatar group relative flex size-9 items-center justify-center rounded-full border-2 border-white text-sm font-black text-pop-primary-dark shadow-md outline-none focus-visible:ring-2 focus-visible:ring-pop-sun" [class.dashboard-avatar-two]="$index % 4 === 1" [class.dashboard-avatar-three]="$index % 4 === 2" [class.dashboard-avatar-four]="$index % 4 === 3" tabindex="0" [attr.aria-label]="name + ' · ' + memberBalanceLabel(item.balanceMinor) + ' ' + app.formatDashboardMinor(item.balanceMinor)">
+                    <span class="dashboard-avatar group relative flex size-10 items-center justify-center rounded-full border-2 border-white text-sm font-black text-pop-primary-dark shadow-md outline-none focus-visible:ring-2 focus-visible:ring-pop-sun" [class.dashboard-avatar-two]="$index % 4 === 1" [class.dashboard-avatar-three]="$index % 4 === 2" [class.dashboard-avatar-four]="$index % 4 === 3" tabindex="0" [attr.aria-label]="name + ' · ' + memberBalanceLabel(item.balanceMinor) + ' ' + app.formatDashboardMinor(item.balanceMinor)">
                       <span class="sr-only">{{ name.slice(0, 1).toLocaleUpperCase() }}</span>
                       <span class="pointer-events-none absolute bottom-full left-0 mb-2 hidden min-w-max rounded-xl bg-pop-text px-3 py-2 text-xs font-bold text-white shadow-lg group-hover:block group-focus:block">{{ name }} · {{ memberBalanceLabel(item.balanceMinor) }} {{ app.formatDashboardMinor(item.balanceMinor) }}</span>
                     </span>
@@ -36,10 +36,32 @@
                 }
                 <a class="ml-3 flex size-9 items-center justify-center rounded-full border-2 border-white bg-pop-lavender text-pop-primary-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white" routerLink="/groups" [attr.aria-label]="t('inviteQrAction')"><svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><use href="/illustrations/lucide-actions.svg#plus" /></svg></a>
               </div>
-              @if (app.balanceBusy()) { <p class="relative z-10 mt-4" role="status">{{ t('loadingBalances') }}</p> } @else if (app.balanceError()) { <p class="relative z-10 mt-4" role="status">{{ t('balancesUnavailable') }}</p> } @else { <div class="relative z-10 mt-4 grid grid-cols-[1.05fr_1fr] gap-3"><div class="flex min-w-0 flex-col justify-center"><span class="block text-xs text-white/85">{{ t('myBalance') }}</span><strong class="mt-1 break-words text-2xl font-black lg:text-[1.8rem]">@if (app.selectedBalancePositive()) { + }{{ app.selectedBalance() }} <small class="text-sm font-bold">{{ group.currency }}</small></strong></div><div class="min-w-0 space-y-2 border-l border-white/40 pl-3"><div class="flex items-center justify-between gap-2"><span class="flex min-w-0 items-center gap-1 text-[11px] text-white/85"><span class="dashboard-metric-icon bg-emerald-400" aria-hidden="true">↗</span>{{ t('groupTotal') }}</span><strong class="text-sm font-black">{{ app.groupSpent() }}</strong></div><div class="flex items-center justify-between gap-2"><span class="flex min-w-0 items-center gap-1 text-[11px] text-white/85"><span class="dashboard-metric-icon bg-rose-400" aria-hidden="true">↗</span>{{ t('totalRepayments') }}</span><strong class="text-sm font-black">{{ app.settlementTotal() }}</strong></div></div></div> }
+              @if (app.balanceBusy()) { <p class="relative z-10 mt-4" role="status">{{ t('loadingBalances') }}</p> } @else if (app.balanceError()) { <p class="relative z-10 mt-4" role="status">{{ t('balancesUnavailable') }}</p> } @else { <div class="relative z-10 mt-5 grid grid-cols-[1.04fr_.96fr] items-center gap-4">
+                <div class="flex min-w-0 flex-col justify-center">
+                  <span class="dashboard-balance-label block text-white/90">{{ t('myBalance') }}</span>
+                  <div class="dashboard-balance-row mt-1 flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0">
+                    <strong class="dashboard-balance-value font-black">@if (app.selectedBalancePositive()) { + }{{ app.selectedBalance() }}</strong>
+                    <span class="dashboard-balance-currency font-extrabold">{{ group.currency }}</span>
+                  </div>
+                </div>
+                <div class="dashboard-metrics min-w-0 space-y-3 border-l border-white/40 pl-4">
+                  <div class="flex items-center justify-between gap-2">
+                    <span class="dashboard-metric-label flex min-w-0 items-center gap-1.5 text-white/90">
+                      <span class="dashboard-metric-icon bg-emerald-400" aria-hidden="true">↗</span>{{ t('groupTotal') }}
+                    </span>
+                    <strong class="dashboard-metric-value font-black">{{ app.groupSpent() }}</strong>
+                  </div>
+                  <div class="flex items-center justify-between gap-2">
+                    <span class="dashboard-metric-label flex min-w-0 items-center gap-1.5 text-white/90">
+                      <span class="dashboard-metric-icon bg-rose-400" aria-hidden="true">↗</span>{{ t('totalRepayments') }}
+                    </span>
+                    <strong class="dashboard-metric-value font-black">{{ app.settlementTotal() }}</strong>
+                  </div>
+                </div>
+              </div> }
             </div>
           </div>
-          <img class="pointer-events-none absolute -right-2 top-16 hidden h-28 w-9 sm:block" src="/illustrations/dashboard-cloud-edge.svg" alt="" aria-hidden="true" />
+          <img class="pointer-events-none absolute -right-4 top-6 hidden h-52 w-16 sm:block lg:-right-5 lg:w-20" src="/illustrations/dashboard-cloud-edge-illustrated.svg" alt="" aria-hidden="true" />
           <div class="absolute bottom-3 right-3 z-10 flex -space-x-2 sm:hidden" [attr.aria-label]="t('whoOwes')">
             @for (item of app.dashboardMemberBalances(); track item.userId) {
               @if (app.dashboardMemberName(item.userId); as name) {
