@@ -5,6 +5,7 @@ export interface Group {
   readonly currency: string;
   readonly ownerId: string;
   readonly currencyLocked?: boolean;
+  readonly memberCount?: number;
   readonly status: 'active' | 'archived';
 }
 

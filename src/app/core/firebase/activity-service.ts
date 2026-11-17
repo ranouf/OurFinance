@@ -11,13 +11,13 @@ export interface ActivityEntry {
 export class ActivityService {
   constructor(private readonly app: FirebaseApp) {}
 
-  async history(groupId: string, after?: QueryDocumentSnapshot<DocumentData>): Promise<{ entries: ActivityEntry[]; last?: QueryDocumentSnapshot<DocumentData>; hasMore: boolean }> {
+  async history(groupId: string, after?: QueryDocumentSnapshot<DocumentData>, pageSize = 20): Promise<{ entries: ActivityEntry[]; last?: QueryDocumentSnapshot<DocumentData>; hasMore: boolean }> {
     const activity = collection(getFirestore(this.app), 'groups', groupId, 'activity');
-    const snapshot = await getDocs(query(activity, orderBy('at', 'desc'), limit(20), ...(after ? [startAfter(after)] : [])));
+    const snapshot = await getDocs(query(activity, orderBy('at', 'desc'), limit(pageSize), ...(after ? [startAfter(after)] : [])));
     return {
       entries: snapshot.docs.map(item => ({ id: item.id, actorId: String(item.data()['actorId']), action: String(item.data()['action']), at: item.data()['at'] as Timestamp })),
       last: snapshot.docs.at(-1),
-      hasMore: snapshot.size === 20,
+      hasMore: snapshot.size === pageSize,
     };
   }
 }

@@ -20,13 +20,14 @@ import { ActivityHistory } from './features/activity/activity-history';
 import { CategoryManager } from './features/categories/category-manager';
 import { InvitationPanel } from './features/groups/invitation-panel';
 import { GroupCurrencyPanel } from './features/groups/group-currency-panel';
+import { GroupOverview } from './features/groups/group-overview';
 import { ExportPanel } from './features/import-export/export-panel';
 import { ProfilePanel } from './features/profile/profile-panel';
 import { language, locale, setLanguage, t } from './shared/utils/i18n';
 
 @Component({
   selector: 'app-root',
-  imports: [AppShell, FormsModule, ExpenseForm, ExpenseHistory, SettlementForm, SettlementHistory, BalanceSummary, StatisticsSummary, ActivityHistory, CategoryManager, InvitationPanel, GroupCurrencyPanel, ExportPanel, ProfilePanel],
+  imports: [AppShell, FormsModule, ExpenseForm, ExpenseHistory, SettlementForm, SettlementHistory, BalanceSummary, StatisticsSummary, ActivityHistory, CategoryManager, InvitationPanel, GroupCurrencyPanel, GroupOverview, ExportPanel, ProfilePanel],
   template: `
     <app-shell [signedIn]="!!auth?.user()?.emailVerified && groups().length > 0">
       <div class="mx-auto" [class.max-w-5xl]="!!auth?.user()" [class.lg:grid]="!auth?.user()" [class.lg:grid-cols-2]="!auth?.user()" [class.lg:items-stretch]="!auth?.user()" [class.lg:gap-7]="!auth?.user()">
@@ -39,7 +40,7 @@ import { language, locale, setLanguage, t } from './shared/utils/i18n';
             </div>
             <picture>
               <source media="(min-width: 1024px)" srcset="/illustrations/cafe-terrace-desktop.svg" />
-              <img class="h-48 w-full object-cover object-center sm:h-64 lg:h-80" src="/illustrations/cafe-terrace-mobile.svg" alt="" />
+              <img class="h-32 w-full object-cover object-center sm:h-64 lg:h-80" src="/illustrations/cafe-terrace-mobile.svg" alt="" />
             </picture>
           </div>
         } @else {
@@ -76,7 +77,11 @@ import { language, locale, setLanguage, t } from './shared/utils/i18n';
                       }
                     </div>
                   }
-                  <a class="relative mt-5 flex min-h-11 w-fit items-center rounded-xl bg-pop-coral px-4 font-extrabold text-pop-text focus-visible:outline-2 focus-visible:outline-white" href="#new-expense">{{ t('navAdd') }}</a>
+                  @if (selectedGroup()) {
+                    <a class="relative mt-5 flex min-h-11 w-fit items-center rounded-xl bg-pop-coral px-4 font-extrabold text-pop-text focus-visible:outline-2 focus-visible:outline-white" href="#new-expense">{{ t('navAdd') }}</a>
+                  } @else if (groupServiceReady()) {
+                    <a class="relative mt-5 flex min-h-11 w-fit items-center rounded-xl bg-pop-coral px-4 font-extrabold text-pop-text focus-visible:outline-2 focus-visible:outline-white" href="#create-group">{{ t('createGroup') }}</a>
+                  }
                 </div>
               </div>
               <div class="mt-7 flex flex-wrap items-center justify-between gap-3">
@@ -95,15 +100,24 @@ import { language, locale, setLanguage, t } from './shared/utils/i18n';
                     <li>
                       <button class="flex min-h-20 w-full min-w-0 items-center gap-3 rounded-2xl border bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-pop-primary" [class.border-pop-primary]="selectedGroupId() === group.id" [class.border-pop-border]="selectedGroupId() !== group.id" type="button" (click)="selectedGroupId.set(group.id)">
                         <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-pop-peach text-lg font-extrabold text-pop-primary-dark" aria-hidden="true">{{ group.name.slice(0, 1).toUpperCase() }}</span>
-                        <span class="min-w-0 flex-1 break-words font-bold">{{ group.name }}</span>
+                        <span class="min-w-0 flex-1 break-words"><strong class="block">{{ group.name }}</strong>@if (group.memberCount !== undefined) { <span class="mt-1 block text-xs font-semibold text-pop-muted">{{ group.memberCount }} {{ group.memberCount === 1 ? t('memberCount') : t('membersCount') }}</span> }</span>
                         <span class="shrink-0 rounded-full bg-pop-lavender px-2.5 py-1 text-xs font-extrabold text-pop-primary-dark">{{ group.currency }}</span>
                       </button>
                     </li>
                   }
                 </ul>
               } @else { <p class="mt-2 text-slate-600">{{ t('noGroups') }}</p> }
+              @if (selectedGroup(); as activeGroup) {
+                @if (firebaseApp && auth?.user(); as activeUser) {
+                  @defer (on viewport) {
+                    <app-group-overview [group]="activeGroup" [firebaseApp]="firebaseApp" [user]="activeUser" [revision]="expenseRevision() + settlementRevision() + categoryRevision() + commentRevision()" />
+                  } @placeholder {
+                    <p class="mt-6 text-sm text-pop-muted" role="status">{{ t('loadingActivity') }}</p>
+                  }
+                }
+              }
               @if (groupServiceReady()) {
-                <form class="mt-6 space-y-3 rounded-2xl border border-pop-border bg-white p-5" (ngSubmit)="createGroup()">
+                <form id="create-group" class="mt-6 space-y-3 rounded-2xl border border-pop-border bg-white p-5" (ngSubmit)="createGroup()">
                   <label class="block text-sm">{{ t('groupName') }}
                     <input class="mt-1 min-h-11 w-full rounded-xl border border-pop-border p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="groupName" [(ngModel)]="groupName" maxlength="80" required />
                   </label>
@@ -142,8 +156,9 @@ import { language, locale, setLanguage, t } from './shared/utils/i18n';
               @placeholder { <p class="mt-6 text-sm text-slate-600" role="status">{{ t('loadingBalances') }}</p> }</div>
               @defer (on viewport) { <app-statistics-summary [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [revision]="expenseRevision() + settlementRevision()" /> }
               @placeholder { <p class="mt-6 text-sm text-slate-600" role="status">{{ t('loadingStatistics') }}</p> }
-              @defer (on viewport) { <app-activity-history [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [revision]="expenseRevision() + settlementRevision() + categoryRevision() + commentRevision()" /> }
+              <div id="activity" tabindex="-1">@defer (on viewport) { <app-activity-history [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [revision]="expenseRevision() + settlementRevision() + categoryRevision() + commentRevision()" /> }
               @placeholder { <p class="mt-6 text-sm text-slate-600" role="status">{{ t('loadingActivity') }}</p> }
+              </div>
             }
             @if (firebaseApp && groups().length) {
               @defer (on viewport) {
