@@ -28,7 +28,7 @@ import { language, locale, setLanguage, t } from './shared/utils/i18n';
       @if (!online()) { <p class="mx-auto max-w-6xl rounded-xl bg-amber-50 p-3 text-sm text-amber-900" role="status">{{ t('offline') }}</p> }
       @if (state() === 'loading') { <p class="mx-auto max-w-6xl p-6" role="status">{{ t('loadingConfig') }}</p> }
       @else if (state() === 'unconfigured') { <p class="mx-auto max-w-6xl p-6" role="status">{{ t('missingConfig') }}</p> }
-      @else if (!auth?.ready()) {
+      @else if (!auth?.ready() || authRedirect()) {
         <div class="mx-auto flex min-h-[55vh] max-w-sm flex-col items-center justify-center px-6 text-center" role="status" aria-live="polite">
           <img src="/illustrations/ourfinance-mark.svg" width="52" height="52" alt="" />
           <p class="mt-4 text-base font-bold text-pop-primary-dark">{{ t('loadingSession') }}</p>
@@ -50,6 +50,11 @@ export class App implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly routeEvent = toSignal(this.router.events.pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd)));
   readonly qrText = computed(() => qrInvitationText[language()]);
+  readonly authRedirect = computed(() => {
+    this.routeEvent();
+    if (this.state() !== 'ready') return null;
+    return authDestination(this.auth?.ready() ?? false, this.router.url.split('?')[0], this.auth?.user() ?? null, !!this.pendingInvite());
+  });
   readonly online = signal(typeof navigator === 'undefined' ? true : navigator.onLine);
   @HostListener('window:online') onOnline(): void { this.online.set(true); }
   @HostListener('window:offline') onOffline(): void { this.online.set(false); }
@@ -130,13 +135,7 @@ export class App implements OnInit, OnDestroy {
       } else this.recentExpenses.set([]);
     });
     effect(() => {
-      this.routeEvent();
-      if (this.state() !== 'ready') return;
-      const authReady = this.auth?.ready() ?? false;
-      const user = this.auth?.user();
-      const invite = this.pendingInvite();
-      const path = this.router.url.split('?')[0];
-      const destination = authDestination(authReady, path, user ?? null, !!invite);
+      const destination = this.authRedirect();
       if (destination) void this.router.navigateByUrl(destination);
     });
   }
