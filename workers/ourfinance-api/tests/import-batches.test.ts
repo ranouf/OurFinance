@@ -84,3 +84,44 @@ test('a mixed-currency import is rejected without writing any record', async () 
   strictEqual(f.commits(), 0);
   strictEqual(f.rollbacks(), 1);
 });
+
+const exactInput = { batchId, records: [{
+  sourceId: 'native-example-1', date: '2026-11-01', description: 'Trajet fictif', currency: 'JPY',
+  sourceCostExact: '101.50', sourcePrecision: 2, netImpactsExact: { alex: '50.75', camille: '-50.75' },
+}] };
+
+test('historical fractions are stored as exact strings and can be undone', async () => {
+  const f = await fixture();
+  f.docs.get(`groups/${groupId}`)!.currencyCode.stringValue = 'JPY';
+  deepStrictEqual(await createImportBatch(exactInput, 'alex', groupId, f.env, f.transport), { batchId, recordCount: 1 });
+  const record = [...f.docs.entries()].find(([path]) => path.includes('/importedRecords/'))?.[1];
+  strictEqual(record?.sourceCostExact.stringValue, '101.50');
+  strictEqual(record?.sourcePrecision.integerValue, '2');
+  strictEqual(record?.netImpactsExact.mapValue.fields.alex.stringValue, '50.75');
+  strictEqual(record?.amountMinor, undefined);
+  strictEqual(record?.netImpactsMinor, undefined);
+  await rejects(createImportBatch({ ...exactInput, batchId: '123e4567-e89b-42d3-a456-426614174012' }, 'alex', groupId, f.env, f.transport),
+    (error: unknown) => error instanceof ImportError && error.status === 409);
+  await undoImportBatch(batchId, 'alex', groupId, f.env, f.transport);
+  strictEqual(f.commits(), 2);
+});
+
+test('historical exact import refuses a revoked participant before writing', async () => {
+  const f = await fixture();
+  f.docs.get(`groups/${groupId}`)!.currencyCode.stringValue = 'JPY';
+  f.docs.get(`groups/${groupId}/members/camille`)!.status.stringValue = 'revoked';
+  await rejects(createImportBatch(exactInput, 'alex', groupId, f.env, f.transport),
+    (error: unknown) => error instanceof ImportError && error.status === 403);
+  strictEqual(f.commits(), 0);
+});
+
+test('exact historical variant refuses rounding, imbalance and mixed representation', () => {
+  const row = exactInput.records[0];
+  for (const invalid of [
+    { ...row, sourcePrecision: 0 },
+    { ...row, sourceCostExact: '1'.repeat(31) },
+    { ...row, netImpactsExact: { alex: '50.75', camille: '-50.74' } },
+    { ...row, amountMinor: 102 },
+    { ...row, netImpactsMinor: { alex: 51, camille: -51 } },
+  ]) throws(() => parseImportBatch({ batchId, records: [invalid] }, groupId), ImportError);
+});
