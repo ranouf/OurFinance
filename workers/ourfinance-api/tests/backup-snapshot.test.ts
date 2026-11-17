@@ -23,7 +23,17 @@ async function fixture(role: 'owner' | 'member' = 'owner', expenseCount = 0) {
     const query = url.pathname.endsWith(':runQuery');
     if ((query ? JSON.parse(String(init?.body)).transaction : url.searchParams.get('transaction')) !== 'snapshot-txn') throw new Error('Lecture hors transaction');
     transactionReads++;
-    if (query) return Response.json([]);
+    if (query) {
+      const kind = JSON.parse(String(init?.body)).structuredQuery.from[0].collectionId;
+      if (expenseCount > 0 && kind === 'attachments') return Response.json([{ document: document('groups/g/expenses/e0/attachments/a', {
+        format: { stringValue: 'png' }, status: { stringValue: 'active' }, ownerId: { stringValue: 'alice' },
+        publicId: { stringValue: 'ourfinance-test/g/e0/a' },
+      }) }]);
+      if (expenseCount > 0 && kind === 'comments') return Response.json([{ document: document('groups/g/expenses/e0/comments/c', {
+        authorId: { stringValue: 'alice' }, text: { stringValue: 'Fictif' }, createdAt: { timestampValue: '2026-11-16T18:00:00.000Z' },
+      }) }]);
+      return Response.json([]);
+    }
     const path = url.pathname.slice(`/v1/${root}/`.length);
     if (path === 'groups/g') return Response.json(document(path, { status: { stringValue: 'active' }, name: { stringValue: 'Fictif' }, currencyCode: { stringValue: 'CAD' } }));
     if (path === 'groups/g/members/alice') return Response.json(document(path, { status: { stringValue: 'active' }, role: { stringValue: role } }));
@@ -70,6 +80,8 @@ test('snapshot of 51 expenses stays below the Worker Free subrequest budget', as
   const state = await fixture('owner', 51);
   const result = JSON.parse(await collectBackupSnapshotV2('alice', 'g', state.env, state.transport));
   strictEqual(result.expenses.length, 51);
+  strictEqual(result.receipts.length, 1);
+  strictEqual(result.comments.length, 1);
   strictEqual(state.transactionReads < 45, true);
   strictEqual(state.rollbacks, 1);
 });
