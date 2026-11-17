@@ -112,7 +112,9 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       if (action.startsWith('receipts/')) {
         const contentType = request.headers.get('Content-Type')?.split(';')[0].trim();
         if (contentType !== 'image/png' && contentType !== 'image/jpeg') return new Response(JSON.stringify({ error: 'Reçu invalide' }), { status: 400, headers });
-        const bytes = await readLimitedBody(request, 2_000_000);
+        let bytes: Uint8Array;
+        try { bytes = await readLimitedBody(request, 2_000_000); }
+        catch { return new Response(JSON.stringify({ error: 'body_too_large' }), { status: 413, headers }); }
         const result = await stagePreparedRestoreReceipt(uid, groupId, restoreId, Number(receiptIndex), bytes,
           contentType === 'image/png' ? 'png' : 'jpg', restoreEnv);
         return new Response(JSON.stringify(result), { status: 200, headers });
@@ -120,7 +122,9 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       if (request.headers.get('Content-Type')?.split(';')[0].trim() !== 'application/zip') {
         return new Response(JSON.stringify({ error: 'Archive invalide' }), { status: 400, headers });
       }
-      const bytes = await readLimitedBody(request, 20_000_000);
+      let bytes: Uint8Array;
+      try { bytes = await readLimitedBody(request, 20_000_000); }
+      catch { return new Response(JSON.stringify({ error: 'body_too_large' }), { status: 413, headers }); }
       let archive;
       try { archive = await decodeBackupZipV2(bytes); }
       catch { return new Response(JSON.stringify({ error: 'invalid_backup' }), { status: 400, headers }); }

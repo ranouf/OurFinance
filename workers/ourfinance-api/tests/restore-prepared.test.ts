@@ -2,8 +2,7 @@ import { test } from 'node:test';
 import { deepStrictEqual, rejects, strictEqual } from 'node:assert';
 import { createHash } from 'node:crypto';
 import { generateKeyPair, exportPKCS8 } from 'jose';
-import { readPreparedRestoreJob, stagePreparedRestoreReceipt, PreparedRestoreError } from '../src/restore-prepared';
-import { prepareRestore } from '../src/restore-prepared';
+import { commitPreparedRestore, prepareRestore, readPreparedRestoreJob, stagePreparedRestoreReceipt, PreparedRestoreError } from '../src/restore-prepared';
 import { sha256Hex } from '../../../src/app/features/import-export/backup-package';
 import type { BackupManifestV2 } from '../../../src/app/features/import-export/backup-package-v2';
 import { encodeBackupZipV2 } from '../../../src/app/features/import-export/backup-zip';
@@ -142,4 +141,6 @@ test('30 synthetic private receipts roundtrip through V2 ZIP and prepared lock',
   deepStrictEqual(await prepareRestore('alice', 'g', restoreId, decoded, state.env, transport as typeof fetch),
     { restoreId, expectedReceipts: 30 });
   strictEqual(savedHashes, 30);
+  await rejects(commitPreparedRestore('alice', 'g', restoreId, decoded, state.env, transport as typeof fetch),
+    (error: unknown) => error instanceof PreparedRestoreError && error.code === 'receipts_not_staged');
 });

@@ -65,6 +65,10 @@ async function packageFromGroupJson(
       throw new Error('Reçu modifié pendant la sauvegarde');
     }
   }
+  // Leave space for the ZIP manifest and headers so every offered archive fits the restore endpoint.
+  if (groupBytes.byteLength + receipts.reduce((sum, row) => sum + row.bytes.byteLength, 0) > 19_000_000) {
+    throw new Error('Lot de sauvegarde trop volumineux');
+  }
   if ((await reader.read(`groups/${groupId}/members/${user.uid}`))?.data['status'] !== 'active') throw new Error('Membre révoqué pendant la sauvegarde');
   const manifest: BackupManifestV2 = {
     format: 'OurFinanceBackupManifest', version: 2, scope: 'group-v2-partial', groupId, exportedAt: group.exportedAt,

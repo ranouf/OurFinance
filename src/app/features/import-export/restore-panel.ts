@@ -66,6 +66,10 @@ interface RestoreDiffCounts { readonly create: number; readonly replace: number;
           @if (message() === 'restoreDone' || message() === 'restoreCleanupPending') {
             <button class="rounded-lg border border-teal-700 px-4 py-2 text-teal-800" type="button"
               (click)="reload()">{{ t('restoreReload') }}</button>
+            @if (message() === 'restoreCleanupPending') {
+              <button class="ml-2 rounded-lg border border-teal-700 px-4 py-2 text-teal-800 disabled:opacity-50" type="button"
+                [disabled]="busy()" (click)="retryCleanup()">{{ t('restoreCleanupRetry') }}</button>
+            }
           }
         }
       </div>
@@ -90,6 +94,7 @@ export class RestorePanel {
   private archive?: Uint8Array;
   private previewGroupId?: string;
   private previewUid?: string;
+  private attemptGroupId?: string;
 
   selectedGroupName(): string { return this.groups.find(group => group.id === this.groupId)?.name ?? ''; }
   reload(): void { window.location.reload(); }
@@ -100,6 +105,7 @@ export class RestorePanel {
     this.confirmation = '';
     this.message.set(null);
     this.attemptId.set('');
+    this.attemptGroupId = undefined;
   }
   selectFile(event: Event): void {
     this.selectedFile = (event.target as HTMLInputElement).files?.[0];
@@ -160,6 +166,7 @@ export class RestorePanel {
     this.message.set(null);
     const restoreId = crypto.randomUUID();
     this.attemptId.set(restoreId);
+    this.attemptGroupId = group.id;
     try {
       const url = new URL(`/groups/${encodeURIComponent(group.id)}/backup/restores/${restoreId}`, this.workerUrl);
       if (url.protocol !== 'https:') throw new Error('insecure_url');
@@ -188,6 +195,8 @@ export class RestorePanel {
       }
       if (response.status === 200 || response.status === 202) {
         this.clearPreview();
+        this.attemptId.set(restoreId);
+        this.attemptGroupId = group.id;
         this.message.set(response.status === 202 ? 'restoreCleanupPending' : 'restoreDone');
       } else {
         const body = await response.json().catch(() => null) as { error?: string } | null;
@@ -195,6 +204,26 @@ export class RestorePanel {
           response.status === 503 ? 'restoreUnavailable' : 'restoreInvalid');
       }
     } catch { this.message.set('restoreUncertain'); }
+    finally { this.busy.set(false); }
+  }
+
+  async retryCleanup(): Promise<void> {
+    const user = this.user;
+    const restoreId = this.attemptId();
+    const groupId = this.attemptGroupId;
+    if (this.busy() || !user?.emailVerified || !groupId || !restoreId || !this.workerUrl || this.message() !== 'restoreCleanupPending') return;
+    this.busy.set(true);
+    try {
+      const url = new URL(`/groups/${encodeURIComponent(groupId)}/backup/restores/${restoreId}/cleanup`, this.workerUrl);
+      if (url.protocol !== 'https:') throw new Error('insecure_url');
+      const token = await user.getIdToken();
+      for (let index = 0; index < 50; index++) {
+        const response = await fetch(url, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
+        if (response.status === 204) { this.message.set('restoreDone'); return; }
+        if (response.status !== 202) throw new Error('cleanup_failed');
+      }
+      this.message.set('restoreCleanupPending');
+    } catch { this.message.set('restoreCleanupPending'); }
     finally { this.busy.set(false); }
   }
 }
