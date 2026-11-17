@@ -60,3 +60,21 @@ test('rechecks membership before releasing peer names', async () => {
     (error: unknown) => error instanceof MemberProfileError && error.status === 403);
   strictEqual(checks, 2);
 });
+
+test('bounds active profile reads below the Workers Free subrequest limit', async () => {
+  const env = await fixture();
+  let profileReads = 0;
+  const transport = async (input: string | URL | Request) => {
+    const url = String(input);
+    if (url.includes('oauth2.googleapis.com')) return Response.json({ access_token: 'service-token' });
+    if (url.endsWith('/groups/group-a/members/alice')) return Response.json({ fields: { role: { stringValue: 'owner' }, status: { stringValue: 'active' } } });
+    if (url.includes('/groups/group-a/members?')) return Response.json({ documents: Array.from({ length: 31 }, (_, index) => ({
+      name: `projects/x/documents/groups/group-a/members/member${index}`, fields: { status: { stringValue: 'active' } },
+    })) });
+    if (url.includes('/users/')) profileReads++;
+    throw new Error(url);
+  };
+  await rejects(listSharedMemberProfiles('group-a', 'alice', 'id-token', env, transport as typeof fetch),
+    (error: unknown) => error instanceof MemberProfileError && error.status === 413);
+  strictEqual(profileReads, 0);
+});

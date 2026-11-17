@@ -15,7 +15,11 @@ export async function listSharedMemberProfiles(groupId: string, callerUid: strin
   const root = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(env.FIREBASE_PROJECT_ID)}/databases/(default)/documents`;
   const members: string[] = [];
   let pageToken = '';
+  let pageCount = 0;
   do {
+    // Workers Free permits 50 subrequests. Reserve capacity for membership checks,
+    // the OAuth exchange and profile reads rather than exhausting the invocation.
+    if (++pageCount > 5) throw new MemberProfileError(413, 'group_too_large');
     const url = new URL(`${root}/groups/${encodeURIComponent(groupId)}/members`);
     url.searchParams.set('pageSize', '50');
     if (pageToken) url.searchParams.set('pageToken', pageToken);
@@ -28,7 +32,7 @@ export async function listSharedMemberProfiles(groupId: string, callerUid: strin
       if (!userId || !/^[A-Za-z0-9_-]{1,128}$/.test(userId)) throw new MemberProfileError(503, 'member_invalid');
       members.push(userId);
     }
-    if (members.length > 100) throw new MemberProfileError(413, 'group_too_large');
+    if (members.length > 30) throw new MemberProfileError(413, 'group_too_large');
     pageToken = body.nextPageToken ?? '';
   } while (pageToken);
   const profiles = await Promise.all(members.map(async userId => {
