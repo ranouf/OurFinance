@@ -14,6 +14,7 @@ const messages = {
   fr: {
     navLabel: 'Navigation principale', navHome: 'Accueil', navExpenses: 'Dépenses', navStatistics: 'Statistiques', navGroups: 'Groupes', navAdd: 'Ajouter', navHistory: 'Historique', navBalances: 'Soldes', navAccount: 'Profil',
     loginHero: 'Vos dépenses partagées, en toute simplicité.', loginHeroLead: 'Les dépenses ensemble,', loginHeroHighlight: 'tout simplement.', loginIntro: 'Connectez-vous pour retrouver vos groupes et vos dépenses.', or: 'ou', newHere: 'Pas encore de compte ?',
+    totalRepayments: 'Remboursements', addExpenseAction: 'Ajouter une dépense', inviteQrAction: 'Inviter avec QR', settleAction: 'Équilibrer', whoOwes: 'Qui doit quoi ?', byCategory: 'Par catégorie',
     todayLabel: 'Vos groupes et dépenses', dashboardGreeting: 'Hey, ça roule ?', dashboardHello: 'Bonjour', dashboardIntro: 'Vos groupes et dépenses, au même endroit.', viewGroup: 'Voir le groupe', viewStats: 'Voir les statistiques', viewAll: 'Tout voir', recentExpenses: 'Dépenses récentes', noRecentExpenses: 'Aucune dépense récente dans ce groupe.',
     emptyDashboardTitle: 'Bienvenue dans OurFinance !', emptyDashboardText: 'Tes dépenses ensemble, sans prise de tête.', createFirstGroup: 'Créer mon premier groupe',
     gettingStarted: 'C’est parti !', gettingStartedIntro: 'Crée un groupe pour partager tes dépenses avec tes proches.', stepGroup: 'Crée un groupe', stepGroupText: 'Pour tes amis, ta famille ou ton voyage.', stepExpense: 'Ajoute des dépenses', stepExpenseText: 'Tout est regroupé au même endroit.', stepBalance: 'Suis l’équilibre', stepBalanceText: 'Vois qui a payé et qui doit quoi.',
@@ -58,6 +59,7 @@ const messages = {
   en: {
     navLabel: 'Main navigation', navHome: 'Home', navExpenses: 'Expenses', navStatistics: 'Statistics', navGroups: 'Groups', navAdd: 'Add', navHistory: 'History', navBalances: 'Balances', navAccount: 'Profile',
     loginHero: 'Shared expenses, made simple.', loginHeroLead: 'Shared expenses,', loginHeroHighlight: 'made simple.', loginIntro: 'Sign in to see your groups and expenses.', or: 'or', newHere: 'No account yet?',
+    totalRepayments: 'Repayments', addExpenseAction: 'Add an expense', inviteQrAction: 'Invite by QR', settleAction: 'Settle up', whoOwes: 'Who owes what?', byCategory: 'By category',
     todayLabel: 'Your groups and expenses', dashboardGreeting: 'How is it going?', dashboardHello: 'Hello', dashboardIntro: 'Your groups and expenses, all in one place.', viewGroup: 'View group', viewStats: 'View statistics', viewAll: 'See all', recentExpenses: 'Recent expenses', noRecentExpenses: 'No recent expenses in this group.',
     emptyDashboardTitle: 'Welcome to OurFinance!', emptyDashboardText: 'Shared expenses, without the hassle.', createFirstGroup: 'Create my first group',
     gettingStarted: 'Let’s get started!', gettingStartedIntro: 'Create a group to share expenses with people close to you.', stepGroup: 'Create a group', stepGroupText: 'For friends, family or a trip.', stepExpense: 'Add expenses', stepExpenseText: 'Keep everything in one place.', stepBalance: 'Track the balance', stepBalanceText: 'See who paid and who owes what.',
@@ -102,6 +104,7 @@ const messages = {
   ja: {
     navLabel: 'メインナビゲーション', navHome: 'ホーム', navExpenses: '支出', navStatistics: '統計', navGroups: 'グループ', navAdd: '追加', navHistory: '履歴', navBalances: '残高', navAccount: '設定',
     loginHero: 'みんなの支出を、もっと簡単に。', loginHeroLead: 'みんなの支出を、', loginHeroHighlight: 'もっと簡単に。', loginIntro: 'ログインしてグループと支出を確認しましょう。', or: 'または', newHere: 'アカウントをお持ちでないですか？',
+    totalRepayments: '返済額', addExpenseAction: '支出を追加', inviteQrAction: 'QRで招待', settleAction: '精算する', whoOwes: '残高の内訳', byCategory: 'カテゴリ別',
     todayLabel: 'グループと支出', dashboardGreeting: '調子はどう？', dashboardHello: 'こんにちは', dashboardIntro: 'グループと支出を一か所で確認できます。', viewGroup: 'グループを見る', viewStats: '統計を見る', viewAll: 'すべて見る', recentExpenses: '最近の支出', noRecentExpenses: 'このグループには最近の支出がありません。',
     emptyDashboardTitle: 'OurFinanceへようこそ！', emptyDashboardText: 'みんなの支出を、気軽に管理。', createFirstGroup: '最初のグループを作成',
     gettingStarted: 'さあ、始めましょう！', gettingStartedIntro: 'グループを作成して、身近な人と支出を共有しましょう。', stepGroup: 'グループを作成', stepGroupText: '友人や家族、旅行ごとに。', stepExpense: '支出を追加', stepExpenseText: 'すべてを一か所で管理。', stepBalance: '残高を確認', stepBalanceText: '誰が支払い、誰にいくら必要か確認。',

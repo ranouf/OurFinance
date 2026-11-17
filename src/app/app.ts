@@ -62,6 +62,9 @@ export class App implements OnInit, OnDestroy {
   readonly groupSpentMinor = signal<bigint>(0n);
   readonly monthlySpentMinor = signal<bigint>(0n);
   readonly monthlyPaidMinor = signal<bigint>(0n);
+  readonly settlementTotalMinor = signal<bigint>(0n);
+  readonly dashboardMemberBalances = signal<readonly { userId: string; balanceMinor: bigint }[]>([]);
+  readonly dashboardCategories = signal<readonly { name: string; amountMinor: bigint }[]>([]);
   readonly recentExpenses = signal<ExpenseHistoryEntry[]>([]);
   readonly recentExpensesBusy = signal(false);
   readonly recentExpensesError = signal(false);
@@ -71,6 +74,23 @@ export class App implements OnInit, OnDestroy {
   readonly payableAmount = computed(() => this.selectedGroup() ? formatMinorExact(this.selectedBalanceMinor() < 0n ? -this.selectedBalanceMinor() : 0n, this.selectedGroup()!.currency, locale()) : '');
   readonly monthlySpent = computed(() => this.selectedGroup() ? formatMinorExact(this.monthlySpentMinor(), this.selectedGroup()!.currency, locale()) : '');
   readonly monthlyPaid = computed(() => this.selectedGroup() ? formatMinorExact(this.monthlyPaidMinor(), this.selectedGroup()!.currency, locale()) : '');
+  readonly settlementTotal = computed(() => this.selectedGroup() ? formatMinorExact(this.settlementTotalMinor(), this.selectedGroup()!.currency, locale()) : '');
+  formatDashboardMinor(value: bigint): string { return this.selectedGroup() ? formatMinorExact(value, this.selectedGroup()!.currency, locale()) : ''; }
+  readonly dashboardDonut = computed(() => {
+    const rows = this.dashboardCategories().slice(0, 4);
+    const total = this.dashboardCategories().reduce((sum, row) => sum + row.amountMinor, 0n);
+    if (!total) return 'conic-gradient(#eee9ff 0 100%)';
+    const colors = ['#6651ed', '#ff806e', '#ffc65e', '#67c9b3'];
+    let offset = 0;
+    const stops = rows.map((row, index) => {
+      const next = offset + Number(row.amountMinor * 10000n / total) / 100;
+      const stop = `${colors[index]} ${offset}% ${next}%`;
+      offset = next;
+      return stop;
+    });
+    if (offset < 100) stops.push(`#eee9ff ${offset}% 100%`);
+    return `conic-gradient(${stops.join(',')})`;
+  });
   formatRecentExpense(entry: ExpenseHistoryEntry): string { return formatMinorExact(BigInt(entry.amountMinor), entry.currency, locale()); }
   readonly balanceLabel = computed(() => this.selectedBalanceMinor() > 0n ? t('receivable') : this.selectedBalanceMinor() < 0n ? t('payable') : t('balanced'));
   private balanceRequestId = 0;
@@ -177,6 +197,9 @@ export class App implements OnInit, OnDestroy {
       this.groupSpentMinor.set(metrics.groupSpentMinor);
       this.monthlySpentMinor.set(metrics.monthlySpentMinor);
       this.monthlyPaidMinor.set(metrics.monthlyPaidMinor);
+      this.settlementTotalMinor.set(metrics.settlementTotalMinor);
+      this.dashboardMemberBalances.set(metrics.memberBalances);
+      this.dashboardCategories.set(metrics.categories);
     } catch {
       if (requestId === this.balanceRequestId) this.balanceError.set(true);
     } finally {

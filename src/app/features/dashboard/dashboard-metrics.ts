@@ -5,6 +5,9 @@ export interface DashboardMetrics {
   readonly groupSpentMinor: bigint;
   readonly monthlySpentMinor: bigint;
   readonly monthlyPaidMinor: bigint;
+  readonly settlementTotalMinor: bigint;
+  readonly memberBalances: readonly { userId: string; balanceMinor: bigint }[];
+  readonly categories: readonly { name: string; amountMinor: bigint }[];
 }
 
 /** Totals for the selected group only. Historical imports never enter active balances. */
@@ -15,9 +18,16 @@ export function dashboardMetrics(
   if (!/^\d{4}-\d{2}$/.test(month)) throw new Error('Période du dashboard invalide');
   const groupExpenses = expenses.filter(row => row.groupId === groupId && row.currency === currency && !row.deleted);
   const groupSettlements = settlements.filter(row => row.groupId === groupId && row.currency === currency && !row.deleted);
-  const balanceMinor = calculateBalances(groupExpenses, groupSettlements)
+  const memberBalances = calculateBalances(groupExpenses, groupSettlements)
+    .map(row => ({ userId: row.userId, balanceMinor: row.balanceMinor }));
+  const balanceMinor = memberBalances
     .find(row => row.userId === userId)?.balanceMinor ?? 0n;
   const monthly = groupExpenses.filter(row => row.date.startsWith(`${month}-`));
+  const categoryTotals = new Map<string, bigint>();
+  for (const row of groupExpenses) {
+    const name = row.categoryLabel?.trim() || row.categoryId?.trim() || '—';
+    categoryTotals.set(name, (categoryTotals.get(name) ?? 0n) + BigInt(row.amountMinor));
+  }
   return {
     balanceMinor,
     groupSpentMinor: groupExpenses.reduce((total, row) => total + BigInt(row.amountMinor), 0n),
@@ -25,5 +35,9 @@ export function dashboardMetrics(
     monthlyPaidMinor: monthly.reduce((total, row) => total + row.payments
       .filter(payment => payment.userId === userId)
       .reduce((paid, payment) => paid + BigInt(payment.amountMinor), 0n), 0n),
+    settlementTotalMinor: groupSettlements.reduce((total, row) => total + BigInt(row.amountMinor), 0n),
+    memberBalances,
+    categories: [...categoryTotals].map(([name, amountMinor]) => ({ name, amountMinor }))
+      .sort((a, b) => a.amountMinor === b.amountMinor ? a.name.localeCompare(b.name) : a.amountMinor > b.amountMinor ? -1 : 1),
   };
 }
