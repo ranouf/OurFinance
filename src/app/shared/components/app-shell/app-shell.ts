@@ -4,15 +4,7 @@ import { t } from '../../utils/i18n';
 
 @Component({
   selector: 'app-nav-icon',
-  template: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    @switch (name) {
-      @case ('home') { <path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z" /> }
-      @case ('groups') { <circle cx="9" cy="8" r="3" /><path d="M3 20v-2a6 6 0 0 1 12 0v2zM17 5a3 3 0 0 1 0 6m1 3a5 5 0 0 1 3 5v1" /> }
-      @case ('expenses') { <path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6" /> }
-      @case ('statistics') { <path d="M3 21h18M5 17h3v4H5zM11 11h3v10h-3zM17 5h3v16h-3z" /> }
-      @case ('account') { <circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0z" /> }
-    }
-  </svg>`,
+  template: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use [attr.href]="'/illustrations/lucide-actions.svg#' + (name === 'home' ? 'house' : name === 'groups' ? 'users-round' : name === 'expenses' ? 'receipt-text' : name === 'statistics' ? 'chart-no-axes-column' : 'user-round')" /></svg>`,
 })
 class NavIcon { @Input({ required: true }) name = ''; }
 
