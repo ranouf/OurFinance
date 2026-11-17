@@ -141,14 +141,15 @@ export class LoginPage { readonly app = inject(App); readonly t = t; }
           </div>
           <img class="pointer-events-none relative z-0 mx-auto -mb-3 h-48 w-full max-w-sm object-contain sm:absolute sm:-right-4 sm:bottom-0 sm:mb-0 sm:h-[280px] sm:w-[55%] sm:max-w-none lg:h-[330px]" src="/illustrations/friends-celebrating.webp" alt="" />
         </section>
-        <section class="mt-6 rounded-[1.8rem] border border-pop-border bg-white p-5 shadow-sm sm:p-8" [attr.aria-label]="t('gettingStarted')">
-          <h2 class="text-2xl font-black">{{ t('gettingStarted') }} ✨</h2>
-          <p class="mt-1 text-sm text-pop-muted">{{ t('gettingStartedIntro') }}</p>
-          <ol class="mt-5 grid gap-3 sm:grid-cols-3">
-            <li class="rounded-2xl bg-pop-peach p-5"><img class="h-12 w-12" src="/illustrations/category-home.svg" alt="" /><strong class="mt-3 block text-lg">1. {{ t('stepGroup') }}</strong><p class="mt-1 text-sm text-pop-muted">{{ t('stepGroupText') }}</p></li>
-            <li class="rounded-2xl bg-pop-lavender p-5"><span class="text-4xl text-pop-primary" aria-hidden="true">▤</span><strong class="mt-3 block text-lg">2. {{ t('stepExpense') }}</strong><p class="mt-1 text-sm text-pop-muted">{{ t('stepExpenseText') }}</p></li>
-            <li class="rounded-2xl bg-amber-50 p-5"><span class="text-4xl text-pop-primary" aria-hidden="true">▥</span><strong class="mt-3 block text-lg">3. {{ t('stepBalance') }}</strong><p class="mt-1 text-sm text-pop-muted">{{ t('stepBalanceText') }}</p></li>
-          </ol>
+        <section class="relative mt-6 overflow-hidden rounded-[1.8rem] border border-pop-border bg-white p-5 shadow-[0_12px_32px_#6455ec16] sm:p-7" [attr.aria-label]="t('gettingStarted')">
+          <div class="grid gap-4 lg:grid-cols-[minmax(0,1.08fr)_repeat(3,minmax(0,1fr))] lg:items-stretch">
+            <div class="relative min-w-0 pb-3 lg:py-4"><h2 class="text-2xl font-black lg:text-3xl">{{ t('gettingStarted') }} ✨</h2><p class="mt-3 max-w-xs text-sm leading-relaxed text-pop-muted lg:text-base">{{ t('gettingStartedIntro') }}</p><div class="pointer-events-none absolute -bottom-10 -left-8 hidden h-16 w-52 rounded-[50%] bg-pop-lavender/70 lg:block" aria-hidden="true"></div></div>
+            <ol class="grid gap-3 sm:grid-cols-3 lg:col-span-3 lg:gap-4">
+              <li class="min-w-0 rounded-[1.55rem] bg-gradient-to-br from-[#fff2ec] to-[#ffe8e5] p-5 text-center"><span class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-white/75" aria-hidden="true"><svg width="53" height="53" viewBox="0 0 53 53" fill="none"><circle cx="17" cy="18" r="8" fill="#9B6AF5"/><circle cx="36" cy="18" r="8" fill="#FF9968"/><circle cx="26.5" cy="14" r="9" fill="#FF796E"/><path d="M4 42c0-9 6-15 13-15s13 6 13 15v2H4v-2Z" fill="#8056DF"/><path d="M23 42c0-9 6-15 13-15s13 6 13 15v2H23v-2Z" fill="#FFA15E"/><path d="M11 45c0-12 7-20 15.5-20S42 33 42 45v2H11v-2Z" fill="#E06AA6"/></svg></span><strong class="mt-3 block text-base font-black leading-snug">1. {{ t('stepGroup') }}</strong><p class="mt-2 text-sm leading-relaxed text-pop-muted">{{ t('stepGroupText') }}</p></li>
+              <li class="min-w-0 rounded-[1.55rem] bg-gradient-to-br from-[#f7f0ff] to-[#eee8ff] p-5 text-center"><span class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-white/75" aria-hidden="true"><svg width="53" height="53" viewBox="0 0 53 53" fill="none"><path d="M14 5h25v42l-5-3-5 3-5-3-5 3-5-3V5Z" fill="#9363F7"/><path d="M20 14h13M20 21h13M20 28h9" stroke="white" stroke-width="3" stroke-linecap="round"/><circle cx="37" cy="38" r="11" fill="#FFBE37"/><path d="M37 32v12m-4-9h7" stroke="white" stroke-width="2.5" stroke-linecap="round"/></svg></span><strong class="mt-3 block text-base font-black leading-snug">2. {{ t('stepExpense') }}</strong><p class="mt-2 text-sm leading-relaxed text-pop-muted">{{ t('stepExpenseText') }}</p></li>
+              <li class="min-w-0 rounded-[1.55rem] bg-gradient-to-br from-[#fff9eb] to-[#fff1dd] p-5 text-center"><span class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-white/75" aria-hidden="true"><svg width="53" height="53" viewBox="0 0 53 53" fill="none"><rect x="7" y="29" width="10" height="17" rx="3" fill="#7252BD"/><rect x="22" y="19" width="10" height="27" rx="3" fill="#A277F7"/><rect x="37" y="9" width="10" height="37" rx="3" fill="#8051F4"/><path d="m36 5 3-3m8 6 4-2" stroke="#FFBA29" stroke-width="3" stroke-linecap="round"/></svg></span><strong class="mt-3 block text-base font-black leading-snug">3. {{ t('stepBalance') }}</strong><p class="mt-2 text-sm leading-relaxed text-pop-muted">{{ t('stepBalanceText') }}</p></li>
+            </ol>
+          </div>
         </section>
       }
     </div>

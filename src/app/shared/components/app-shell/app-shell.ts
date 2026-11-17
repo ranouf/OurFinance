@@ -22,7 +22,7 @@ class NavIcon { @Input({ required: true }) name = ''; }
   template: `
     <div class="min-h-screen bg-pop-background text-pop-text">
       @if (signedIn) {
-        <aside class="fixed inset-y-0 left-0 z-20 hidden w-56 border-r border-pop-border bg-white px-4 py-7 lg:flex lg:flex-col" [attr.aria-label]="t('navLabel')">
+        <aside class="fixed inset-y-0 left-0 z-20 hidden w-56 overflow-hidden border-r border-pop-border bg-white px-4 py-7 lg:flex lg:flex-col" [attr.aria-label]="t('navLabel')">
           <a class="mb-10 flex items-center gap-2 rounded-xl focus-visible:outline-2 focus-visible:outline-pop-primary" routerLink="/dashboard">
             <img src="/illustrations/ourfinance-mark.svg" width="40" height="40" alt="" />
             <span class="text-lg font-black tracking-tight text-pop-primary-dark">ourfinance.</span>
@@ -34,7 +34,8 @@ class NavIcon { @Input({ required: true }) name = ''; }
             <a class="pop-nav-link" routerLink="/statistics" routerLinkActive="pop-nav-active"><app-nav-icon name="statistics" />{{ t('navStatistics') }}</a>
             <a class="pop-nav-link" routerLink="/account" routerLinkActive="pop-nav-active"><app-nav-icon name="account" />{{ t('navAccount') }}</a>
           </nav>
-          <span class="mt-auto rounded-full bg-pop-lavender px-3 py-2 text-center text-xs font-bold text-pop-primary-dark">{{ t('testEnvironment') }}</span>
+          <div class="mt-auto h-36" aria-hidden="true"></div>
+          <img class="pointer-events-none absolute bottom-0 left-0 w-52" src="/illustrations/sidebar-plant-chair.svg" alt="" />
         </aside>
       }
       <div [class.lg:pl-56]="signedIn">
