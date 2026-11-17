@@ -171,7 +171,10 @@ import { language, locale, setLanguage, t } from './shared/utils/i18n';
             </label>
             @if (mode() !== 'reset') {
               <label class="block text-sm font-medium">{{ t('password') }}
-                <input class="mt-1 min-h-11 w-full rounded-xl border border-pop-border p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" type="password" name="password" autocomplete="current-password" [(ngModel)]="password" required />
+                <span class="mt-1 flex rounded-xl border border-pop-border focus-within:outline-2 focus-within:outline-pop-primary">
+                  <input class="min-h-11 min-w-0 flex-1 rounded-xl p-3 outline-none" [type]="showPassword() ? 'text' : 'password'" name="password" [autocomplete]="mode() === 'register' ? 'new-password' : 'current-password'" [(ngModel)]="password" required />
+                  <button class="min-h-11 shrink-0 rounded-xl px-3 text-sm font-bold text-pop-primary-dark" type="button" (click)="showPassword.update(value => !value)">{{ showPassword() ? t('hidePassword') : t('showPassword') }}</button>
+                </span>
               </label>
             }
             <button class="min-h-12 w-full rounded-xl bg-pop-primary px-4 py-3 font-extrabold text-white hover:bg-pop-primary-dark disabled:opacity-50" [disabled]="busy() || !online()" type="submit">
@@ -193,6 +196,7 @@ export class App implements OnInit, OnDestroy {
   readonly state = signal<'loading' | 'unconfigured' | 'ready'>('loading');
   readonly mode = signal<'login' | 'register' | 'reset'>('login');
   readonly busy = signal(false);
+  readonly showPassword = signal(false);
   readonly message = signal('');
   readonly online = signal(typeof navigator === 'undefined' ? true : navigator.onLine);
   @HostListener('window:online') onOnline(): void { this.online.set(true); }
