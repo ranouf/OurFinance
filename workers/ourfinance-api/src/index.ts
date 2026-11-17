@@ -173,8 +173,8 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const result = await commitPreparedRestore(uid, groupId, restoreId, archive, restoreEnv);
       return new Response(JSON.stringify(result), { status: result.cleanupPending ? 202 : 200, headers });
     } catch (error) {
-      const status = error instanceof PreparedRestoreError ? error.status : error instanceof RequestBodyError ? 413 : 503;
-      const code = error instanceof PreparedRestoreError ? error.code : error instanceof RequestBodyError ? 'body_too_large' : 'restore_unavailable';
+      const status = error instanceof PreparedRestoreError || error instanceof RestoreLockError ? error.status : error instanceof RequestBodyError ? 413 : 503;
+      const code = error instanceof PreparedRestoreError || error instanceof RestoreLockError ? error.code : error instanceof RequestBodyError ? 'body_too_large' : 'restore_unavailable';
       return new Response(JSON.stringify({ error: code }), { status, headers });
     }
   }
