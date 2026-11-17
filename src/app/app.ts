@@ -9,6 +9,7 @@ import type { FirebaseApp } from 'firebase/app';
 import { currencyCatalog } from './shared/utils/currency';
 import { formatMinorExact } from './shared/utils/currency';
 import { Group } from './core/firebase/group-model';
+import { capturePendingInvite, clearPendingInvite } from './core/firebase/pending-invite';
 import { ExpenseForm } from './features/expenses/expense-form';
 import { ExpenseHistory } from './features/expenses/expense-history';
 import type { ExpenseHistoryEntry } from './core/firebase/expense-service';
@@ -18,7 +19,9 @@ import { BalanceSummary } from './features/balances/balance-summary';
 import { StatisticsSummary } from './features/statistics/statistics-summary';
 import { ActivityHistory } from './features/activity/activity-history';
 import { CategoryManager } from './features/categories/category-manager';
-import { InvitationPanel } from './features/groups/invitation-panel';
+import { QrInvitationPanel } from './features/groups/qr-invitation-panel';
+import { InviteAcceptanceCard } from './features/groups/invite-acceptance-card';
+import { qrInvitationText } from './features/groups/qr-invitation-text';
 import { GroupCurrencyPanel } from './features/groups/group-currency-panel';
 import { GroupOverview } from './features/groups/group-overview';
 import { ExportPanel } from './features/import-export/export-panel';
@@ -28,7 +31,7 @@ import { language, locale, setLanguage, t } from './shared/utils/i18n';
 
 @Component({
   selector: 'app-root',
-  imports: [AppShell, FormsModule, ExpenseForm, ExpenseHistory, SettlementForm, SettlementHistory, BalanceSummary, StatisticsSummary, ActivityHistory, CategoryManager, InvitationPanel, GroupCurrencyPanel, GroupOverview, ExportPanel, RestorePanel, ProfilePanel],
+  imports: [AppShell, FormsModule, ExpenseForm, ExpenseHistory, SettlementForm, SettlementHistory, BalanceSummary, StatisticsSummary, ActivityHistory, CategoryManager, QrInvitationPanel, InviteAcceptanceCard, GroupCurrencyPanel, GroupOverview, ExportPanel, RestorePanel, ProfilePanel],
   template: `
     <app-shell [signedIn]="!!auth?.user()?.emailVerified && groups().length > 0">
       <div class="mx-auto" [class.max-w-5xl]="!!auth?.user()" [class.lg:grid]="!auth?.user()" [class.lg:grid-cols-2]="!auth?.user()" [class.lg:items-stretch]="!auth?.user()" [class.lg:gap-7]="!auth?.user()">
@@ -57,7 +60,20 @@ import { language, locale, setLanguage, t } from './shared/utils/i18n';
           <p class="mt-3 break-all text-sm text-pop-muted">{{ t('connectedAs') }} {{ user.email }}.</p>
           @if (!user.emailVerified) {
             <p class="mt-4 rounded-lg bg-amber-50 p-3 text-amber-900" role="status">{{ t('verifyEmail') }}</p>
+            @if (pendingInvite()) {
+              <p class="mt-2 text-sm">{{ qrText().verify }}</p>
+              <div class="mt-3 flex flex-wrap gap-2">
+                <button class="min-h-11 rounded-xl bg-pop-primary px-4 py-2 font-bold text-white disabled:opacity-50" type="button" [disabled]="busy()" (click)="refreshVerification()">{{ qrText().refreshVerification }}</button>
+                <button class="min-h-11 rounded-xl border border-pop-primary px-4 py-2 font-bold text-pop-primary-dark disabled:opacity-50" type="button" [disabled]="busy()" (click)="resendVerification()">{{ qrText().resendVerification }}</button>
+              </div>
+            }
           } @else {
+            @if (pendingInvite()) {
+              @if (workerUrl) {
+                @defer (when pendingInvite()) { <app-invite-acceptance-card [user]="user" [workerUrl]="workerUrl" [token]="pendingInvite()!" (joined)="onQrJoined($event)" (declined)="declineInvite()" (changeAccount)="logout()" /> }
+                @placeholder { <p class="mt-4" role="status">{{ qrText().loading }}</p> }
+              }
+            } @else {
             <section id="groups" tabindex="-1" class="mt-7" [attr.aria-label]="t('myGroups')">
               <div class="overflow-hidden rounded-[1.5rem] bg-pop-primary text-white shadow-[0_12px_30px_#6455ec30]">
                 <div class="relative p-5 sm:p-7">
@@ -136,7 +152,7 @@ import { language, locale, setLanguage, t } from './shared/utils/i18n';
                 @defer (on viewport) { <app-group-currency-panel [groups]="groups()" [user]="user" [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" (changed)="onInvitationJoined()" /> }
                 @placeholder { <p class="mt-6 text-sm text-slate-600" role="status">{{ t('loadingGroupCurrency') }}</p> }
               }
-              @defer (on viewport) { <app-invitation-panel [groups]="groups()" [user]="user" [workerUrl]="workerUrl" (joined)="onInvitationJoined()" /> }
+              @defer (on viewport) { <app-qr-invitation-panel [groups]="groups()" [user]="user" [workerUrl]="workerUrl" /> }
               @placeholder { <p class="mt-6 text-sm text-slate-600" role="status">{{ t('loadingInvites') }}</p> }
             }
             @if (workerUrl && firebaseApp && groups().length) {
@@ -173,9 +189,17 @@ import { language, locale, setLanguage, t } from './shared/utils/i18n';
               <div id="account" tabindex="-1">@defer (on viewport) { <app-profile-panel [user]="user" [firebaseApp]="firebaseApp" /> }
               @placeholder { <p class="mt-6 text-sm text-slate-600" role="status">{{ t('loadingProfile') }}</p> }</div>
             }
+            }
           }
           <button class="mt-6 rounded-lg border border-slate-300 px-4 py-2" type="button" (click)="logout()">{{ t('logout') }}</button>
         } @else {
+          @if (pendingInvite()) {
+            <aside class="mt-3 rounded-2xl bg-pop-lavender p-4 text-sm text-pop-text" role="status">
+              <strong class="block">{{ qrText().received }}</strong>
+              <span>{{ qrText().signIn }}</span>
+              <button class="mt-2 block min-h-11 font-bold text-pop-primary-dark underline" type="button" (click)="declineInvite()">{{ qrText().decline }}</button>
+            </aside>
+          }
           <p class="mt-3 text-pop-muted">{{ t('testSpace') }}</p>
           <div class="mt-6 flex flex-wrap gap-1 rounded-xl bg-pop-lavender p-1 text-sm" role="group" [attr.aria-label]="t('welcome')">
             <button class="min-h-11 rounded-lg px-3 py-2 font-bold focus-visible:outline-2 focus-visible:outline-pop-primary" type="button" [attr.aria-pressed]="mode() === 'login'" [class.bg-white]="mode() === 'login'" [class.shadow-sm]="mode() === 'login'" (click)="mode.set('login')">{{ t('connection') }}</button>
@@ -215,6 +239,8 @@ export class App implements OnInit, OnDestroy {
   readonly busy = signal(false);
   readonly showPassword = signal(false);
   readonly message = signal('');
+  readonly pendingInvite = signal<string | null>(null);
+  readonly qrText = computed(() => qrInvitationText[language()]);
   readonly online = signal(typeof navigator === 'undefined' ? true : navigator.onLine);
   @HostListener('window:online') onOnline(): void { this.online.set(true); }
   @HostListener('window:offline') onOffline(): void { this.online.set(false); }
@@ -259,6 +285,7 @@ export class App implements OnInit, OnDestroy {
   readonly heading = () => this.mode() === 'register' ? t('registerHeading') : this.mode() === 'reset' ? t('resetHeading') : t('welcome');
 
   async ngOnInit(): Promise<void> {
+    if (typeof window !== 'undefined') this.pendingInvite.set(capturePendingInvite(window.location, window.history, window.sessionStorage));
     setLanguage(language());
     try {
       const response = await fetch('/app-config.json', { cache: 'no-store' });
@@ -328,6 +355,24 @@ export class App implements OnInit, OnDestroy {
     finally { this.busy.set(false); }
   }
   async logout(): Promise<void> { this.groups.set([]); await this.auth?.logout(); }
+  async refreshVerification(): Promise<void> {
+    this.busy.set(true);
+    try { await this.auth?.refreshVerification(); }
+    catch { this.message.set(t('actionFailed')); }
+    finally { this.busy.set(false); }
+  }
+  async resendVerification(): Promise<void> {
+    this.busy.set(true);
+    try { await this.auth?.resendVerification(); this.message.set(t('verifySent')); }
+    catch { this.message.set(t('actionFailed')); }
+    finally { this.busy.set(false); }
+  }
+  declineInvite(): void { if (typeof window !== 'undefined') clearPendingInvite(window.sessionStorage); this.pendingInvite.set(null); }
+  async onQrJoined(groupId: string): Promise<void> {
+    this.declineInvite();
+    await this.loadGroups();
+    if (this.groups().some(group => group.id === groupId)) this.selectedGroupId.set(groupId);
+  }
   onExpenseSaved(): void { this.expenseRevision.update(value => value + 1); }
   onExpenseEdit(target: { groupId: string; entry: ExpenseHistoryEntry }): void {
     this.editingExpense.set(target);

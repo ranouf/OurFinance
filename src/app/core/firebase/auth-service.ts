@@ -34,6 +34,20 @@ export class AuthService {
     await sendPasswordResetEmail(this.auth, email);
   }
 
+  async refreshVerification(): Promise<void> {
+    const user = this.auth.currentUser;
+    if (!user) return;
+    await user.reload();
+    this.user.set(null);
+    this.user.set(this.auth.currentUser);
+  }
+
+  async resendVerification(): Promise<void> {
+    const user = this.auth.currentUser;
+    if (!user || user.emailVerified) return;
+    await sendEmailVerification(user);
+  }
+
   async logout(): Promise<void> {
     await signOut(this.auth);
   }

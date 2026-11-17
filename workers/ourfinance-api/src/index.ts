@@ -8,6 +8,7 @@ import type { CloudinaryEnv } from './cloudinary';
 import { readMember } from './firestore';
 import { readLimitedJson, RequestBodyError } from './request-body';
 import { acceptInvitation, createInvitation, InvitationError } from './invitations';
+import { acceptQrInvitation, createQrInvitation, listQrInvitations, previewQrInvitation, revokeQrInvitation, QrInvitationError } from './qr-invitations';
 import { createSettlement, SettlementError } from './settlements';
 import { createImportBatch, undoImportBatch, ImportError } from './import-batches';
 import { writeCategory, CategoryError } from './custom-categories';
@@ -35,6 +36,8 @@ export interface Env extends Partial<CloudinaryEnv> {
   MEDIA_POC_GROUP_ID?: string;
   ENABLE_INVITATION_POC?: string;
   INVITATION_POC_GROUP_ID?: string;
+  ENABLE_QR_INVITATION_POC?: string;
+  QR_INVITATION_POC_GROUP_ID?: string;
   ENABLE_SETTLEMENT_POC?: string;
   SETTLEMENT_POC_GROUP_ID?: string;
   ENABLE_IMPORT_POC?: string;
@@ -52,6 +55,7 @@ export interface Env extends Partial<CloudinaryEnv> {
 export async function handleRequest(request: Request, env: Env): Promise<Response> {
   const origin = request.headers.get('Origin');
   const headers = new Headers({ 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+  headers.set('Referrer-Policy', 'no-referrer');
   if (origin && origin !== env.ALLOWED_ORIGIN) return new Response(JSON.stringify({ error: 'Origine refusée' }), { status: 403, headers });
   if (origin) headers.set('Access-Control-Allow-Origin', origin);
   headers.set('Vary', 'Origin');
@@ -236,6 +240,54 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     } catch (error) {
       const status = error instanceof SettlementError ? error.status : error instanceof RequestBodyError ? 400 : 503;
       const code = error instanceof SettlementError || error instanceof RequestBodyError ? error.code : 'settlement_unavailable';
+      return new Response(JSON.stringify({ error: code }), { status, headers });
+    }
+  }
+  const qrCreate = /^\/groups\/([A-Za-z0-9_-]{1,128})\/qr-invitations$/.exec(url.pathname);
+  const qrRevoke = /^\/groups\/([A-Za-z0-9_-]{1,128})\/qr-invitations\/([A-Za-z0-9_-]{1,128})\/revoke$/.exec(url.pathname);
+  if (request.method === 'GET' && qrCreate) {
+    if (env.ENABLE_QR_INVITATION_POC !== 'true' || env.QR_INVITATION_POC_GROUP_ID !== qrCreate[1] || !env.FIREBASE_SERVICE_ACCOUNT_JSON) return new Response(JSON.stringify({ error: 'Invitations QR non configurées' }), { status: 503, headers });
+    let identity: { uid: string; email: string };
+    try { identity = await verifyFirebaseVerifiedIdentity(bearerToken(request), env.FIREBASE_PROJECT_ID); }
+    catch { return new Response(JSON.stringify({ error: 'Non authentifié' }), { status: 401, headers }); }
+    try {
+      const result = await listQrInvitations(qrCreate[1], identity.uid, { FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT_JSON: env.FIREBASE_SERVICE_ACCOUNT_JSON, QR_INVITATION_POC_GROUP_ID: env.QR_INVITATION_POC_GROUP_ID }, url.searchParams.get('pageToken') ?? '');
+      return new Response(JSON.stringify(result), { status: 200, headers });
+    } catch (error) {
+      const status = error instanceof QrInvitationError ? error.status : 503;
+      return new Response(JSON.stringify({ error: error instanceof QrInvitationError ? error.code : 'invitation_unavailable' }), { status, headers });
+    }
+  }
+  if (request.method === 'POST' && (qrCreate || qrRevoke || url.pathname === '/qr-invitations/preview' || url.pathname === '/qr-invitations/accept')) {
+    if (env.ENABLE_QR_INVITATION_POC !== 'true' || !env.QR_INVITATION_POC_GROUP_ID || !env.FIREBASE_SERVICE_ACCOUNT_JSON) return new Response(JSON.stringify({ error: 'Invitations QR non configurées' }), { status: 503, headers });
+    let identity: { uid: string; email: string };
+    try { identity = await verifyFirebaseVerifiedIdentity(bearerToken(request), env.FIREBASE_PROJECT_ID); }
+    catch { return new Response(JSON.stringify({ error: 'Non authentifié' }), { status: 401, headers }); }
+    const qrEnv = { FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT_JSON: env.FIREBASE_SERVICE_ACCOUNT_JSON, QR_INVITATION_POC_GROUP_ID: env.QR_INVITATION_POC_GROUP_ID };
+    try {
+      if (qrRevoke) {
+        await revokeQrInvitation(qrRevoke[2], identity.uid, qrRevoke[1], qrEnv);
+        return new Response(null, { status: 204, headers });
+      }
+      const body = await readLimitedJson(request, 1024);
+      if (!body || typeof body !== 'object') throw new QrInvitationError(400, 'invalid_invitation');
+      if (qrCreate) {
+        const created = await createQrInvitation(body, identity.uid, qrCreate[1], qrEnv);
+        const link = new URL('/join', env.ALLOWED_ORIGIN);
+        if (link.protocol !== 'https:') throw new QrInvitationError(503, 'origin_unavailable');
+        link.hash = new URLSearchParams({ invite: created.token }).toString();
+        return new Response(JSON.stringify({ invitationId: created.invitationId, link: link.toString(), expiresAt: created.expiresAt }), { status: 201, headers });
+      }
+      const token = (body as Record<string, unknown>)['token'];
+      if (url.pathname === '/qr-invitations/preview') {
+        const preview = await previewQrInvitation(token, identity.uid, identity.email, qrEnv);
+        return new Response(JSON.stringify(preview), { status: 200, headers });
+      }
+      const groupId = await acceptQrInvitation(token, identity.uid, identity.email, qrEnv);
+      return new Response(JSON.stringify({ groupId }), { status: 200, headers });
+    } catch (error) {
+      const status = error instanceof QrInvitationError ? error.status : error instanceof RequestBodyError ? 400 : 503;
+      const code = error instanceof QrInvitationError || error instanceof RequestBodyError ? error.code : 'invitation_unavailable';
       return new Response(JSON.stringify({ error: code }), { status, headers });
     }
   }
