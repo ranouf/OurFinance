@@ -29,7 +29,7 @@ button:disabled { cursor: not-allowed; }
 .dashboard-action-lavender { background: linear-gradient(120deg, #f1e8ff 0%, #ded4ff 100%); color: #271252; }
 .dashboard-action-icon { display: flex; width: 3.35rem; height: 3.35rem; flex: none; align-items: center; justify-content: center; border-radius: 50%; background: #ffffffd9; color: #6041cf; box-shadow: 0 3px 12px #5032a221; }
 .dashboard-action-icon svg { width: 2.1rem; height: 2.1rem; }
-.dashboard-action-icon-coral { background: #fff; color: #ff6957; }
+.dashboard-action-icon-coral { background: #ff7458; color: #fff; box-shadow: 0 3px 14px #d6423570; }
 .dashboard-action-qr { width: 1.85rem; height: 1.85rem; flex: none; margin-left: auto; color: #7954dd; }
 @media (max-width: 639px) { .dashboard-action { min-height: 5.25rem; } .dashboard-action strong { font-size: 1.1rem; } }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }

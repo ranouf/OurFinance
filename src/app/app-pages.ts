@@ -121,7 +121,7 @@ export class LoginPage { readonly app = inject(App); readonly t = t; }
         </nav>
         <div class="order-1 mt-5 grid gap-4 sm:order-2 lg:grid-cols-3">
           <section class="order-2 min-w-0 rounded-[1.7rem] border border-pop-border bg-white p-4 shadow-[0_9px_25px_#6455ec12] lg:order-1" [attr.aria-label]="t('whoOwes')">
-            <h2 class="flex items-center gap-2 text-lg font-black"><span class="text-pop-primary-dark" aria-hidden="true">⚖</span>{{ t('whoOwes') }}</h2>
+            <h2 class="flex items-center gap-2 text-lg font-black"><svg class="size-5 shrink-0 text-pop-primary-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v17M5 7h14M4 7l-3 7h6L4 7Zm16 0-3 7h6l-3-7ZM7 20h10" /></svg>{{ t('whoOwes') }}</h2>
             @if (app.balanceBusy()) { <p class="mt-4 text-sm" role="status">{{ t('loadingBalances') }}</p> }
             @else if (app.balanceError()) { <p class="mt-4 text-sm" role="status">{{ t('balancesUnavailable') }}</p> }
             @else if (!app.dashboardMemberBalances().length) { <p class="mt-4 text-sm text-pop-muted">{{ t('noBalance') }}</p> }
@@ -132,7 +132,7 @@ export class LoginPage { readonly app = inject(App); readonly t = t; }
             </ul> }
           </section>
           <section class="order-1 min-w-0 rounded-[1.7rem] border border-pop-border bg-white p-4 shadow-[0_9px_25px_#6455ec12] lg:order-2" [attr.aria-label]="t('recentExpenses')">
-            <div class="flex items-center justify-between gap-2"><h2 class="flex min-w-0 items-center gap-2 text-lg font-black"><span class="text-pop-primary-dark" aria-hidden="true">◷</span>{{ t('recentExpenses') }}</h2><a class="shrink-0 text-xs font-bold text-pop-primary-dark" routerLink="/expenses">{{ t('viewAll') }} →</a></div>
+            <div class="flex items-center justify-between gap-2"><h2 class="flex min-w-0 items-center gap-2 text-lg font-black"><svg class="size-5 shrink-0 text-pop-primary-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>{{ t('recentExpenses') }}</h2><a class="shrink-0 text-xs font-bold text-pop-primary-dark" routerLink="/expenses">{{ t('viewAll') }} →</a></div>
             <div class="mt-3 divide-y divide-pop-border">
               @if (app.recentExpensesBusy()) { <p class="py-3 text-sm" role="status">{{ t('loadingExpenseHistory') }}</p> }
               @else if (app.recentExpensesError()) { <p class="py-3 text-sm" role="status">{{ t('historyUnavailable') }}</p> }
@@ -141,7 +141,7 @@ export class LoginPage { readonly app = inject(App); readonly t = t; }
             </div>
           </section>
           <section class="order-3 min-w-0 rounded-[1.7rem] border border-pop-border bg-white p-4 shadow-[0_9px_25px_#6455ec12]" [attr.aria-label]="t('byCategory')">
-            <div class="flex items-center justify-between gap-2"><h2 class="flex min-w-0 items-center gap-2 text-base font-black"><span class="text-pop-primary-dark" aria-hidden="true">◉</span>{{ t('byCategory') }}</h2><a class="shrink-0 text-xs font-bold text-pop-primary-dark" routerLink="/statistics">{{ t('viewAll') }} →</a></div>
+            <div class="flex items-center justify-between gap-2"><h2 class="flex min-w-0 items-center gap-2 text-base font-black"><svg class="size-5 shrink-0 text-pop-primary-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="12" height="12" rx="3"/><rect x="9" y="9" width="12" height="12" rx="3"/></svg>{{ t('byCategory') }}</h2><a class="shrink-0 text-xs font-bold text-pop-primary-dark" routerLink="/statistics">{{ t('viewAll') }} →</a></div>
             @if (app.balanceBusy()) { <p class="mt-4 text-sm" role="status">{{ t('loadingStatistics') }}</p> }
             @else if (app.balanceError()) { <p class="mt-4 text-sm" role="status">{{ t('balancesUnavailable') }}</p> }
             @else if (!app.dashboardCategories().length) { <p class="mt-4 text-sm text-pop-muted">{{ t('noRecentExpenses') }}</p> }
