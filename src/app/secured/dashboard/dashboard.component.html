@@ -14,13 +14,13 @@
           <input id="dashboard-expense-search" class="min-w-0 flex-1 py-2 text-sm outline-none" type="search" name="dashboardExpenseSearch" [(ngModel)]="search" [placeholder]="t('searchExpenses')" />
           <button class="rounded-xl bg-pop-lavender px-3 py-1.5 text-sm font-bold text-pop-primary-dark hover:bg-pop-primary hover:text-white focus-visible:outline-2 focus-visible:outline-pop-primary" type="submit">{{ t('search') }}</button>
         </form>
-        <section class="dashboard-cloud relative mt-3 overflow-hidden rounded-[1.8rem] bg-pop-primary text-white shadow-[0_12px_30px_#6455ec30] sm:mt-5" [attr.aria-label]="t('myBalance')">
+        <section class="dashboard-cloud relative mt-3 overflow-hidden rounded-[1.8rem] bg-pop-primary text-white shadow-[0_12px_30px_#6455ec30] sm:mt-5 sm:overflow-visible" [attr.aria-label]="t('myBalance')">
           <div class="relative min-h-44 px-5 pb-20 pt-5 sm:hidden">
             <div class="relative z-10 max-w-[54%]"><p class="text-xl font-black leading-tight">{{ t('dashboardHello') }}{{ app.firstName() ? ' ' + app.firstName() : '' }} ! 👋</p><p class="mt-2 text-xs text-white/90">{{ t('dashboardIntro') }}</p><p class="mt-3 text-xs font-bold">{{ group.name }} · {{ group.currency }}</p></div>
             <img class="pointer-events-none absolute inset-0 h-full w-full origin-right scale-[1.6] object-cover object-right opacity-95" src="/illustrations/cafe-hero-mobile.webp" alt="" />
             <div class="pointer-events-none absolute inset-0 bg-gradient-to-r from-pop-primary via-pop-primary/50 to-transparent"></div>
           </div>
-          <div class="hidden min-h-64 grid-cols-[52%_48%] sm:grid">
+          <div class="hidden min-h-64 grid-cols-[52%_48%] sm:grid sm:overflow-hidden sm:rounded-[1.8rem]">
             <div class="relative overflow-hidden"><img class="absolute inset-0 h-full w-full object-cover object-[16%_45%]" src="/illustrations/cafe-hero-mobile.webp" alt="" /><div class="absolute inset-y-0 right-0 w-20 bg-gradient-to-r from-transparent to-pop-primary"></div></div>
             <div class="dashboard-group-panel relative flex min-w-0 flex-col justify-center px-5 py-5 lg:px-7">
               <a class="relative z-10 flex min-w-0 items-center gap-2 text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white" routerLink="/groups"><span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-white/20" aria-hidden="true"><svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="/illustrations/lucide-actions.svg#user-round-plus" /></svg></span><h1 class="min-w-0 truncate text-xl font-black lg:text-2xl">{{ group.name }}</h1><span class="text-xl" aria-hidden="true">⌄</span></a>
@@ -39,6 +39,7 @@
               @if (app.balanceBusy()) { <p class="relative z-10 mt-4" role="status">{{ t('loadingBalances') }}</p> } @else if (app.balanceError()) { <p class="relative z-10 mt-4" role="status">{{ t('balancesUnavailable') }}</p> } @else { <div class="relative z-10 mt-4 grid grid-cols-[1.05fr_1fr] gap-3"><div class="flex min-w-0 flex-col justify-center"><span class="block text-xs text-white/85">{{ t('myBalance') }}</span><strong class="mt-1 break-words text-2xl font-black lg:text-[1.8rem]">@if (app.selectedBalancePositive()) { + }{{ app.selectedBalance() }} <small class="text-sm font-bold">{{ group.currency }}</small></strong></div><div class="min-w-0 space-y-2 border-l border-white/40 pl-3"><div class="flex items-center justify-between gap-2"><span class="flex min-w-0 items-center gap-1 text-[11px] text-white/85"><span class="dashboard-metric-icon bg-emerald-400" aria-hidden="true">↗</span>{{ t('groupTotal') }}</span><strong class="text-sm font-black">{{ app.groupSpent() }}</strong></div><div class="flex items-center justify-between gap-2"><span class="flex min-w-0 items-center gap-1 text-[11px] text-white/85"><span class="dashboard-metric-icon bg-rose-400" aria-hidden="true">↗</span>{{ t('totalRepayments') }}</span><strong class="text-sm font-black">{{ app.settlementTotal() }}</strong></div></div></div> }
             </div>
           </div>
+          <img class="pointer-events-none absolute -right-2 top-16 hidden h-28 w-9 sm:block" src="/illustrations/dashboard-cloud-edge.svg" alt="" aria-hidden="true" />
           <div class="absolute bottom-3 right-3 z-10 flex -space-x-2 sm:hidden" [attr.aria-label]="t('whoOwes')">
             @for (item of app.dashboardMemberBalances(); track item.userId) {
               @if (app.dashboardMemberName(item.userId); as name) {
