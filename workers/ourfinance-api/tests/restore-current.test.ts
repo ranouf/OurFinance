@@ -6,7 +6,7 @@ import { readCurrentRestore, RestoreCurrentError } from '../src/restore-current'
 const restoreId = '123e4567-e89b-42d3-a456-426614174000';
 
 async function fixture(options: { groupStatus?: string; memberStatus?: string; role?: string; jobStatus?: string;
-  restoreOwnerId?: string; jobOwnerId?: string; lastRestoreId?: string; missingJob?: boolean; } = {}) {
+  restoreOwnerId?: string; jobOwnerId?: string; lastRestoreId?: string; pendingCleanupRestoreId?: string; missingJob?: boolean; } = {}) {
   const { privateKey } = await generateKeyPair('RS256', { extractable: true });
   const env = { FIREBASE_PROJECT_ID: 'ourfinance-test', FIREBASE_SERVICE_ACCOUNT_JSON: JSON.stringify({
     project_id: 'ourfinance-test', client_email: 'test@ourfinance-test.iam.gserviceaccount.com', private_key: await exportPKCS8(privateKey),
@@ -37,6 +37,7 @@ async function fixture(options: { groupStatus?: string; memberStatus?: string; r
       ownerId: { stringValue: 'alice' }, status: { stringValue: options.groupStatus ?? 'restoring' },
       restoreId: { stringValue: restoreId }, restoreOwnerId: { stringValue: options.restoreOwnerId ?? 'alice' },
       ...(options.lastRestoreId ? { lastRestoreId: { stringValue: options.lastRestoreId } } : {}),
+      ...(options.pendingCleanupRestoreId ? { pendingCleanupRestoreId: { stringValue: options.pendingCleanupRestoreId } } : {}),
     } });
     throw new Error(`Unexpected request: ${url}`);
   };
@@ -88,4 +89,12 @@ test('a pruned completed journal does not block an active group', async () => {
   deepStrictEqual(await readCurrentRestore('alice', 'group-a', state.env, state.transport), { status: 'active' });
   strictEqual(state.jobReads, 1);
   strictEqual(state.rollbacks, 1);
+});
+
+test('owner can recover aborted cleanup after losing the tab, even when the job is completed but marker remains', async () => {
+  for (const jobStatus of ['cleanup_pending', 'completed']) {
+    const state = await fixture({ groupStatus: 'active', pendingCleanupRestoreId: restoreId, jobStatus });
+    deepStrictEqual(await readCurrentRestore('alice', 'group-a', state.env, state.transport), { status: 'cleanup_pending', restoreId });
+    strictEqual(state.rollbacks, 1);
+  }
 });

@@ -11,6 +11,7 @@ async function fixture(role: 'owner' | 'member' = 'owner') {
     project_id: 'ourfinance-test', client_email: 'test@ourfinance-test.iam.gserviceaccount.com', private_key: await exportPKCS8(privateKey),
   }) };
   let status = 'active';
+  let pendingCleanupRestoreId: string | undefined;
   let commits = 0;
   let rollbacks = 0;
   let jobFields: Record<string, unknown> = {};
@@ -22,6 +23,7 @@ async function fixture(role: 'owner' | 'member' = 'owner') {
     if (url.includes('/groups/g/members/alice?')) return Response.json({ fields: { status: { stringValue: 'active' }, role: { stringValue: role } } });
     if (url.includes(`/groups/g/restoreJobs/${restoreId}?`)) return Response.json({ fields: { ownerId: { stringValue: 'alice' }, status: { stringValue: 'staging' }, newPublicIds: { arrayValue: { values: [] } } } });
     if (url.includes('/groups/g?')) return Response.json({ fields: { status: { stringValue: status }, currencyCode: { stringValue: 'CAD' },
+      ...(pendingCleanupRestoreId ? { pendingCleanupRestoreId: { stringValue: pendingCleanupRestoreId } } : {}),
       ...(status === 'restoring' ? { restoreId: { stringValue: restoreId }, restoreOwnerId: { stringValue: 'alice' } } : {}) } });
     if (url.endsWith(':commit')) {
       commits++;
@@ -30,11 +32,13 @@ async function fixture(role: 'owner' | 'member' = 'owner') {
       strictEqual(body.writes[1].update.name.endsWith(`/groups/g/restoreJobs/${restoreId}`), true);
       jobFields = body.writes[1].update.fields;
       status = body.writes[0].update.fields.status.stringValue;
+      pendingCleanupRestoreId = body.writes[0].update.fields.pendingCleanupRestoreId?.stringValue;
       return Response.json({});
     }
     throw new Error('Requête inattendue');
   };
-  return { env, transport: transport as typeof fetch, get status() { return status; }, get commits() { return commits; }, get rollbacks() { return rollbacks; }, get jobFields() { return jobFields; } };
+  return { env, transport: transport as typeof fetch, get status() { return status; }, get pendingCleanupRestoreId() { return pendingCleanupRestoreId; },
+    get commits() { return commits; }, get rollbacks() { return rollbacks; }, get jobFields() { return jobFields; } };
 }
 
 test('owner locks original group and can abort before replacing documents', async () => {
@@ -43,7 +47,10 @@ test('owner locks original group and can abort before replacing documents', asyn
   strictEqual(state.status, 'restoring');
   await abortRestoreLock('alice', 'g', restoreId, state.env, state.transport);
   strictEqual(state.status, 'active');
+  strictEqual(state.pendingCleanupRestoreId, restoreId);
   strictEqual(state.commits, 2);
+  await rejects(beginRestoreLock('alice', 'g', '223e4567-e89b-42d3-a456-426614174000', 'CAD', [], state.env, state.transport),
+    (error: unknown) => error instanceof RestoreLockError && error.status === 409);
 });
 
 test('ordinary member cannot lock a group and transaction rolls back', async () => {

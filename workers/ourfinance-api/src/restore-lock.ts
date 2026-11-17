@@ -43,7 +43,7 @@ async function changeLock(uid: string, groupId: string, restoreId: string, curre
     const memberFields = member?.['fields'] as Record<string, { stringValue?: string }> | undefined;
     if (memberFields?.['status']?.stringValue !== 'active' || memberFields['role']?.stringValue !== 'owner') throw new RestoreLockError(403, 'owner_required');
     if (currency !== null) {
-      if (groupFields?.['status']?.stringValue !== 'active' || groupFields['restoreId'] ||
+      if (groupFields?.['status']?.stringValue !== 'active' || groupFields['restoreId'] || groupFields['pendingCleanupRestoreId'] ||
           (groupFields['currencyCode']?.stringValue ?? groupFields['currency']?.stringValue) !== currency) throw new RestoreLockError(409, 'group_changed');
     } else if (groupFields?.['status']?.stringValue !== 'restoring' || groupFields['restoreId']?.stringValue !== restoreId ||
         groupFields['restoreOwnerId']?.stringValue !== uid) throw new RestoreLockError(409, 'restore_not_owned');
@@ -53,8 +53,8 @@ async function changeLock(uid: string, groupId: string, restoreId: string, curre
     if (currency === null && (jobFields?.['ownerId']?.stringValue !== uid || jobFields['status']?.stringValue !== 'staging')) throw new RestoreLockError(409, 'restore_job_changed');
     const fields = currency !== null
       ? { status: { stringValue: 'restoring' }, restoreId: { stringValue: restoreId }, restoreOwnerId: { stringValue: uid }, restoringAt: { timestampValue: new Date().toISOString() } }
-      : { status: { stringValue: 'active' } };
-    const updateMask = currency !== null ? Object.keys(fields) : ['status', 'restoreId', 'restoreOwnerId', 'restoringAt'];
+      : { status: { stringValue: 'active' }, pendingCleanupRestoreId: { stringValue: restoreId } };
+    const updateMask = currency !== null ? Object.keys(fields) : ['status', 'restoreId', 'restoreOwnerId', 'restoringAt', 'pendingCleanupRestoreId'];
     const string = (value: string) => ({ stringValue: value });
     const jobWrite = currency !== null
       ? { update: { name: `${root}/${jobPath}`, fields: {

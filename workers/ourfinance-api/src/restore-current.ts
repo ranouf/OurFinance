@@ -48,6 +48,16 @@ export async function readCurrentRestore(uid: string, groupId: string, env: Rest
         memberFields['role']?.stringValue !== 'owner') throw new RestoreCurrentError(403, 'owner_required');
     const groupStatus = groupFields['status']?.stringValue;
     if (groupStatus !== 'active' && groupStatus !== 'restoring') throw new RestoreCurrentError(409, 'group_changed');
+    const pendingAbortId = groupFields['pendingCleanupRestoreId']?.stringValue;
+    if (groupStatus === 'active' && pendingAbortId) {
+      if (!uuidPattern.test(pendingAbortId)) throw new RestoreCurrentError(409, 'restore_state_invalid');
+      const abortedJob = await read(`groups/${groupId}/restoreJobs/${pendingAbortId}`);
+      if (abortedJob?.fields?.['ownerId']?.stringValue !== uid ||
+          !['cleanup_pending', 'completed'].includes(abortedJob.fields['status']?.stringValue ?? ''))
+        throw new RestoreCurrentError(409, 'restore_state_invalid');
+      // A completed job may still need its group marker cleared by the cleanup route.
+      return { status: 'cleanup_pending', restoreId: pendingAbortId };
+    }
     const restoreId = groupStatus === 'restoring'
       ? groupFields['restoreId']?.stringValue
       : groupFields['lastRestoreId']?.stringValue;

@@ -5,22 +5,32 @@ import { retryRestoreCleanup, RestoreCleanupError } from '../src/restore-cleanup
 
 const restoreId = '123e4567-e89b-42d3-a456-426614174000';
 
-async function fixture(role: 'owner' | 'member' = 'owner', count = 1) {
+async function fixture(role: 'owner' | 'member' = 'owner', count = 1, pendingMarker = false) {
   const { privateKey } = await generateKeyPair('RS256', { extractable: true });
   const env = { FIREBASE_PROJECT_ID: 'ourfinance-test', CLOUDINARY_CLOUD_NAME: 'synthetic', CLOUDINARY_API_KEY: 'synthetic', CLOUDINARY_API_SECRET: 'synthetic',
     FIREBASE_SERVICE_ACCOUNT_JSON: JSON.stringify({ project_id: 'ourfinance-test', client_email: 'test@ourfinance-test.iam.gserviceaccount.com', private_key: await exportPKCS8(privateKey) }) };
   let destroys = 0;
   let patches = 0;
+  let markerPatches = 0;
   let requests = 0;
   let oldPublicIds = Array.from({ length: count }, (_, index) => `ourfinance-test/g/e/old_${index}`);
   let status = 'cleanup_pending';
   let failNextPatch = false;
+  let failMarkerPatch = false;
   let missingUpdateTime = false;
   const transport = async (resource: string | URL | Request, init?: RequestInit) => {
     requests++;
     const url = String(resource);
     if (url.includes('oauth2.googleapis.com')) return Response.json({ access_token: 'synthetic-service-token' });
     if (url.endsWith('/image/destroy')) { destroys++; return Response.json({ result: 'ok' }); }
+    if (url.includes('/groups/g?') && init?.method === 'PATCH') {
+      markerPatches++;
+      strictEqual(new URL(url).searchParams.get('currentDocument.updateTime'), '2026-11-17T00:00:00Z');
+      strictEqual(new URL(url).searchParams.get('updateMask.fieldPaths'), 'pendingCleanupRestoreId');
+      if (failMarkerPatch) { failMarkerPatch = false; return Response.json({}, { status: 412 }); }
+      pendingMarker = false;
+      return Response.json({});
+    }
     if (url.includes(`/groups/g/restoreJobs/${restoreId}?`) && init?.method === 'PATCH') {
       patches++;
       strictEqual(new URL(url).searchParams.get('currentDocument.updateTime'), '2026-11-17T00:00:00Z');
@@ -30,7 +40,8 @@ async function fixture(role: 'owner' | 'member' = 'owner', count = 1) {
       if (fields.status) status = fields.status.stringValue;
       return Response.json({});
     }
-    if (url.endsWith('/groups/g')) return Response.json({ fields: { status: { stringValue: 'active' }, ownerId: { stringValue: 'alice' } } });
+    if (url.endsWith('/groups/g')) return Response.json({ updateTime: '2026-11-17T00:00:00Z', fields: { status: { stringValue: 'active' }, ownerId: { stringValue: 'alice' },
+      ...(pendingMarker ? { pendingCleanupRestoreId: { stringValue: restoreId } } : {}) } });
     if (url.endsWith('/groups/g/members/alice')) return Response.json({ fields: { status: { stringValue: 'active' }, role: { stringValue: role } } });
     if (url.endsWith(`/groups/g/restoreJobs/${restoreId}`)) return Response.json({ ...(missingUpdateTime ? {} : { updateTime: '2026-11-17T00:00:00Z' }), fields: {
       ownerId: { stringValue: 'alice' }, status: { stringValue: status },
@@ -39,7 +50,10 @@ async function fixture(role: 'owner' | 'member' = 'owner', count = 1) {
     } });
     throw new Error('Requête inattendue');
   };
-  return { env, transport: transport as typeof fetch, get destroys() { return destroys; }, get patches() { return patches; }, get requests() { return requests; }, get remaining() { return oldPublicIds.length; }, failPatch() { failNextPatch = true; }, omitUpdateTime() { missingUpdateTime = true; } };
+  return { env, transport: transport as typeof fetch, get destroys() { return destroys; }, get patches() { return patches; },
+    get markerPatches() { return markerPatches; }, get pendingMarker() { return pendingMarker; }, get requests() { return requests; },
+    get remaining() { return oldPublicIds.length; }, failPatch() { failNextPatch = true; },
+    failMarker() { failMarkerPatch = true; }, omitUpdateTime() { missingUpdateTime = true; } };
 }
 
 test('owner removes only old private assets and marks the cleanup job complete', async () => {
@@ -88,4 +102,24 @@ test('ordinary member cannot delete restore assets', async () => {
   await rejects(retryRestoreCleanup('alice', 'g', restoreId, state.env, state.transport),
     (error: unknown) => error instanceof RestoreCleanupError && error.status === 403);
   strictEqual(state.destroys, 0);
+});
+
+test('aborted cleanup marker survives a bounded batch and is cleared after completion', async () => {
+  const state = await fixture('owner', 25, true);
+  deepStrictEqual(await retryRestoreCleanup('alice', 'g', restoreId, state.env, state.transport), { removed: 20, pending: true });
+  strictEqual(state.pendingMarker, true);
+  deepStrictEqual(await retryRestoreCleanup('alice', 'g', restoreId, state.env, state.transport), { removed: 5, pending: false });
+  strictEqual(state.pendingMarker, false);
+  strictEqual(state.markerPatches, 1);
+});
+
+test('completed cleanup retries clearing a marker after a precondition conflict', async () => {
+  const state = await fixture('owner', 1, true);
+  state.failMarker();
+  await rejects(retryRestoreCleanup('alice', 'g', restoreId, state.env, state.transport),
+    (error: unknown) => error instanceof RestoreCleanupError && error.status === 409);
+  strictEqual(state.pendingMarker, true);
+  deepStrictEqual(await retryRestoreCleanup('alice', 'g', restoreId, state.env, state.transport), { removed: 0, pending: false });
+  strictEqual(state.pendingMarker, false);
+  strictEqual(state.markerPatches, 2);
 });
