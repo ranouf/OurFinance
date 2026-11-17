@@ -35,7 +35,7 @@ class NavIcon { @Input({ required: true }) name = ''; }
             <a class="pop-nav-link" routerLink="/account" routerLinkActive="pop-nav-active"><app-nav-icon name="account" />{{ t('navAccount') }}</a>
           </nav>
           <div class="mt-auto h-36" aria-hidden="true"></div>
-          <img class="pointer-events-none absolute bottom-0 left-0 w-52" src="/illustrations/sidebar-plant-chair.svg" alt="" />
+          <img class="pointer-events-none absolute -bottom-2 -left-2 w-52" src="/illustrations/sidebar-plant-chair.webp" alt="" />
         </aside>
       }
       <div [class.lg:pl-56]="signedIn">
