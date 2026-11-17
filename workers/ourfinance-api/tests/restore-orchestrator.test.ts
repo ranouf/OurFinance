@@ -83,8 +83,19 @@ test('media staging failure aborts the lock and retries asset cleanup', async ()
   const events: string[] = [];
   const ops = operations(events);
   ops.stage = async () => { events.push('stage'); throw new Error('cloudinary'); };
-  await rejects(restoreGroupFromPackage('alice', 'g', restoreId, await archive(), env, fetch, ops));
+  await rejects(restoreGroupFromPackage('alice', 'g', restoreId, await archive(), env, fetch, ops),
+    (error: unknown) => error instanceof RestoreOrchestrationError && error.code === 'restore_failed' && error.stage === 'media');
   deepStrictEqual(events, ['begin', 'stage', 'abort', 'cleanup']);
+});
+
+test('failed rollback reports only the safe recovery stage', async () => {
+  const events: string[] = [];
+  const ops = operations(events);
+  ops.stage = async () => { events.push('stage'); throw new Error('sensitive upstream detail'); };
+  ops.abort = async () => { events.push('abort'); throw new Error('sensitive rollback detail'); };
+  await rejects(restoreGroupFromPackage('alice', 'g', restoreId, await archive(), env, fetch, ops),
+    (error: unknown) => error instanceof RestoreOrchestrationError && error.code === 'recovery_required' && error.stage === 'abort');
+  deepStrictEqual(events, ['begin', 'stage', 'abort']);
 });
 
 test('lost lock response leaves the group locked for explicit recovery', async () => {

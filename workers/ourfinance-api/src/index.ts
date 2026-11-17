@@ -135,7 +135,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         error instanceof RestoreLockError || error instanceof RestoreCleanupError ? error.status : 503;
       const code = error instanceof RestoreOrchestrationError || error instanceof RestoreLockError || error instanceof RestoreCleanupError
         ? error.code : 'restore_unavailable';
-      return new Response(JSON.stringify({ error: code }), { status, headers });
+      return new Response(JSON.stringify({ error: code, ...(error instanceof RestoreOrchestrationError && error.stage ? { stage: error.stage } : {}) }), { status, headers });
     }
   }
   const backupPreferencesMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/backup\/preferences$/.exec(url.pathname);
