@@ -6,12 +6,21 @@ export class RestoreLockError extends Error {
 }
 const idPattern = /^[A-Za-z0-9_-]{1,128}$/;
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const shaPattern = /^[0-9a-f]{64}$/;
+export interface PreparedRestoreManifest {
+  readonly manifestSha256: string;
+  readonly receiptSha256: readonly string[];
+  readonly receiptFormats: readonly ('jpg' | 'png')[];
+}
 
-async function changeLock(uid: string, groupId: string, restoreId: string, currency: string | null, expectedPublicIds: readonly string[], env: RestoreLockEnv, transport: typeof fetch): Promise<void> {
+async function changeLock(uid: string, groupId: string, restoreId: string, currency: string | null, expectedPublicIds: readonly string[], env: RestoreLockEnv, transport: typeof fetch, prepared?: PreparedRestoreManifest): Promise<void> {
   if (!idPattern.test(uid) || !idPattern.test(groupId) || !uuidPattern.test(restoreId)) throw new RestoreLockError(400, 'invalid_restore');
   const expectedPrefix = new RegExp(`^ourfinance-test/${groupId}/[A-Za-z0-9_-]{1,128}/restore_${restoreId}/[A-Za-z0-9_-]{1,128}$`, 'i');
-  if (currency !== null && (expectedPublicIds.length > 25 || new Set(expectedPublicIds).size !== expectedPublicIds.length ||
+  if (currency !== null && (expectedPublicIds.length > (prepared ? 100 : 25) || new Set(expectedPublicIds).size !== expectedPublicIds.length ||
       expectedPublicIds.some(id => !expectedPrefix.test(id)))) throw new RestoreLockError(400, 'invalid_media');
+  if (prepared && (!shaPattern.test(prepared.manifestSha256) || prepared.receiptSha256.length !== expectedPublicIds.length ||
+      prepared.receiptFormats.length !== expectedPublicIds.length || prepared.receiptFormats.some(value => value !== 'jpg' && value !== 'png') ||
+      prepared.receiptSha256.some(value => !shaPattern.test(value)))) throw new RestoreLockError(400, 'invalid_media');
   const root = `projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents`;
   const token = await serviceAccessToken(env.FIREBASE_SERVICE_ACCOUNT_JSON, env.FIREBASE_PROJECT_ID, transport);
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
@@ -51,6 +60,12 @@ async function changeLock(uid: string, groupId: string, restoreId: string, curre
       ? { update: { name: `${root}/${jobPath}`, fields: {
         ownerId: string(uid), status: string('staging'), createdAt: { timestampValue: new Date().toISOString() },
         oldPublicIds: { arrayValue: { values: [] } }, newPublicIds: { arrayValue: { values: expectedPublicIds.map(string) } },
+        ...(prepared ? {
+          manifestSha256: string(prepared.manifestSha256),
+          receiptSha256: { arrayValue: { values: prepared.receiptSha256.map(string) } },
+          receiptFormats: { arrayValue: { values: prepared.receiptFormats.map(string) } },
+          stagedIndices: { arrayValue: { values: [] } },
+        } : {}),
       } }, currentDocument: { exists: false } }
       : { update: { name: `${root}/${jobPath}`, fields: {
         status: string('cleanup_pending'), oldPublicIds: { arrayValue: { values: jobFields?.['newPublicIds']?.arrayValue?.values ?? [] } },
@@ -71,6 +86,13 @@ async function changeLock(uid: string, groupId: string, restoreId: string, curre
 export async function beginRestoreLock(uid: string, groupId: string, restoreId: string, currency: string, expectedPublicIds: readonly string[], env: RestoreLockEnv, transport: typeof fetch = fetch): Promise<void> {
   if (!Intl.supportedValuesOf('currency').includes(currency)) throw new RestoreLockError(400, 'invalid_currency');
   await changeLock(uid, groupId, restoreId, currency, expectedPublicIds, env, transport);
+}
+
+/** Prepared restore records receipt digests before media is uploaded in separate Worker requests. */
+export async function beginPreparedRestoreLock(uid: string, groupId: string, restoreId: string, currency: string,
+  expectedPublicIds: readonly string[], manifest: PreparedRestoreManifest, env: RestoreLockEnv, transport: typeof fetch = fetch): Promise<void> {
+  if (!Intl.supportedValuesOf('currency').includes(currency)) throw new RestoreLockError(400, 'invalid_currency');
+  await changeLock(uid, groupId, restoreId, currency, expectedPublicIds, env, transport, manifest);
 }
 
 /** Abort is safe only before the replacement commit; it leaves old group documents intact. */

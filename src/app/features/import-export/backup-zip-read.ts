@@ -16,7 +16,7 @@ function readStoredBackupZip(bytes: Uint8Array): Map<string, Uint8Array> {
   const count = view.getUint16(end + 10, true);
   const centralSize = view.getUint32(end + 12, true);
   const centralStart = view.getUint32(end + 16, true);
-  if (count < 2 || count > 27 || count !== view.getUint16(end + 8, true) || centralStart + centralSize !== end) throw new Error('Index ZIP invalide');
+  if (count < 2 || count > 102 || count !== view.getUint16(end + 8, true) || centralStart + centralSize !== end) throw new Error('Index ZIP invalide');
   const files = new Map<string, Uint8Array>();
   let position = centralStart;
   for (let index = 0; index < count; index++) {

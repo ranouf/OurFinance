@@ -30,7 +30,7 @@ function operations(events: string[], outcome: 'committed' | 'locked' = 'locked'
     inventory: async () => { events.push('inventory'); return { groupDocuments: ['groups/g'], userDocuments: [], receiptPublicIds: [] }; },
     commit: async () => { events.push('commit'); return []; },
     outcome: async () => { events.push('outcome'); return outcome; },
-    cleanup: async () => { events.push('cleanup'); return 0; },
+    cleanup: async () => { events.push('cleanup'); return { removed: 0, pending: false }; },
   };
 }
 
@@ -77,6 +77,15 @@ test('post-commit media cleanup failure is reported as retryable', async () => {
   ops.cleanup = async () => { events.push('cleanup'); throw new Error('cloudinary'); };
   const result = await restoreGroupFromPackage('alice', 'g', restoreId, await archive(), env, fetch, ops);
   strictEqual(result.cleanupPending, true);
+});
+
+test('post-commit cleanup with remaining batches is reported as pending', async () => {
+  const events: string[] = [];
+  const ops = operations(events);
+  ops.cleanup = async () => { events.push('cleanup'); return { removed: 20, pending: true }; };
+  const result = await restoreGroupFromPackage('alice', 'g', restoreId, await archive(), env, fetch, ops);
+  strictEqual(result.cleanupPending, true);
+  deepStrictEqual(events, ['begin', 'stage', 'inventory', 'commit', 'cleanup']);
 });
 
 test('media staging failure aborts the lock and retries asset cleanup', async () => {

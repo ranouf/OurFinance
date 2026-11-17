@@ -32,7 +32,7 @@ function encodeStoredBackupZip(value: { readonly manifest: object; readonly grou
     { name: 'group.json', bytes: encoder.encode(value.groupJson) },
     ...value.receipts.map(receipt => ({ name: receipt.filename, bytes: receipt.bytes })),
   ];
-  if (files.length > 27 || files.some(file => file.name.includes('..') || file.name.startsWith('/') || file.name.includes('\\'))) {
+  if (files.length > 102 || files.some(file => file.name.includes('..') || file.name.startsWith('/') || file.name.includes('\\'))) {
     throw new Error('Fichiers de sauvegarde invalides');
   }
   const entries: FileEntry[] = files.map(file => ({ ...file, nameBytes: encoder.encode(file.name), crc: crc32(file.bytes), offset: 0 }));

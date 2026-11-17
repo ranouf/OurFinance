@@ -55,7 +55,7 @@ async function packageFromGroupJson(
   if (group.group.id !== groupId) throw new Error('Groupe de sauvegarde différent');
   const active = group.receipts.filter(row => row.status === 'active');
   const groupBytes = new TextEncoder().encode(groupJson);
-  if (groupBytes.byteLength > 10_000_000 || active.length > 25) throw new Error('Lot de sauvegarde trop volumineux');
+  if (groupBytes.byteLength > 10_000_000 || active.length > 100) throw new Error('Lot de sauvegarde trop volumineux');
   const receipts: ExportedReceipt[] = [];
   const assets = new Map(group.receiptAssets.map(row => [`${row.expenseId}/${row.attachmentId}`, row.publicId]));
   for (const row of active) {
@@ -64,6 +64,10 @@ async function packageFromGroupJson(
     if (current?.data['publicId'] !== assets.get(`${row.expenseId}/${row.attachmentId}`) || current?.data['status'] !== 'active') {
       throw new Error('Reçu modifié pendant la sauvegarde');
     }
+  }
+  // Leave space for the ZIP manifest and headers so every offered archive fits the restore endpoint.
+  if (groupBytes.byteLength + receipts.reduce((sum, row) => sum + row.bytes.byteLength, 0) > 19_000_000) {
+    throw new Error('Lot de sauvegarde trop volumineux');
   }
   if ((await reader.read(`groups/${groupId}/members/${user.uid}`))?.data['status'] !== 'active') throw new Error('Membre révoqué pendant la sauvegarde');
   const manifest: BackupManifestV2 = {

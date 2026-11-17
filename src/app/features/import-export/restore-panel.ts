@@ -61,11 +61,19 @@ interface RestoreDiffCounts { readonly create: number; readonly replace: number;
         }
         @if (message()) {
           <p class="text-sm" role="status">{{ t(message()!) }}
-            @if (message() === 'restoreUncertain') { <span class="break-all">{{ attemptId() }}</span> }
+            @if (message() === 'restoreUncertain' || message() === 'restorePreparedUncertain') { <span class="break-all">{{ attemptId() }}</span> }
           </p>
+          @if (message() === 'restorePreparedUncertain') {
+            <button class="rounded-lg border border-teal-700 px-4 py-2 text-teal-800 disabled:opacity-50" type="button"
+              [disabled]="busy()" (click)="restore()">{{ t('restorePreparedRetry') }}</button>
+          }
           @if (message() === 'restoreDone' || message() === 'restoreCleanupPending') {
             <button class="rounded-lg border border-teal-700 px-4 py-2 text-teal-800" type="button"
               (click)="reload()">{{ t('restoreReload') }}</button>
+            @if (message() === 'restoreCleanupPending') {
+              <button class="ml-2 rounded-lg border border-teal-700 px-4 py-2 text-teal-800 disabled:opacity-50" type="button"
+                [disabled]="busy()" (click)="retryCleanup()">{{ t('restoreCleanupRetry') }}</button>
+            }
           }
         }
       </div>
@@ -82,7 +90,8 @@ export class RestorePanel {
   readonly busy = signal(false);
   readonly preview = signal<RestorePreflightV2 | null>(null);
   readonly diff = signal<RestoreDiffCounts | null>(null);
-  readonly message = signal<'restoreInvalid' | 'restoreUnavailable' | 'restoreDone' | 'restoreCleanupPending' | 'restoreUncertain' | null>(null);
+  readonly message = signal<'restoreInvalid' | 'restoreUnavailable' | 'restoreDone' | 'restoreCleanupPending' |
+    'restoreUncertain' | 'restorePreparedUncertain' | null>(null);
   readonly attemptId = signal('');
   groupId = '';
   confirmation = '';
@@ -90,6 +99,9 @@ export class RestorePanel {
   private archive?: Uint8Array;
   private previewGroupId?: string;
   private previewUid?: string;
+  private attemptGroupId?: string;
+  private preparedAttemptId?: string;
+  private commitAttemptId?: string;
 
   selectedGroupName(): string { return this.groups.find(group => group.id === this.groupId)?.name ?? ''; }
   reload(): void { window.location.reload(); }
@@ -100,6 +112,9 @@ export class RestorePanel {
     this.confirmation = '';
     this.message.set(null);
     this.attemptId.set('');
+    this.attemptGroupId = undefined;
+    this.preparedAttemptId = undefined;
+    this.commitAttemptId = undefined;
   }
   selectFile(event: Event): void {
     this.selectedFile = (event.target as HTMLInputElement).files?.[0];
@@ -156,28 +171,76 @@ export class RestorePanel {
     if (this.busy() || !user?.emailVerified || !group || user.uid !== group.ownerId || !this.archive || !this.preview() || !this.diff() ||
         !this.workerUrl || this.confirmation !== group.name || this.previewGroupId !== group.id || this.previewUid !== user.uid) return;
     const archive = this.archive;
+    const retryPrepared = this.message() === 'restorePreparedUncertain' && this.preview()?.receiptCount && this.preview()!.receiptCount > 25;
     this.busy.set(true);
     this.message.set(null);
-    const restoreId = crypto.randomUUID();
+    const restoreId = retryPrepared && this.attemptId() ? this.attemptId() : crypto.randomUUID();
     this.attemptId.set(restoreId);
+    this.attemptGroupId = group.id;
     try {
       const url = new URL(`/groups/${encodeURIComponent(group.id)}/backup/restores/${restoreId}`, this.workerUrl);
       if (url.protocol !== 'https:') throw new Error('insecure_url');
-      const copy = new Uint8Array(archive.byteLength);
-      copy.set(archive);
-      const response = await fetch(url, {
-        method: 'POST', headers: { Authorization: `Bearer ${await user.getIdToken()}`, 'Content-Type': 'application/zip' },
-        body: copy.buffer, cache: 'no-store',
-      });
+      const token = await user.getIdToken();
+      const sendZip = async (path: string): Promise<Response> => {
+        const copy = new Uint8Array(archive.byteLength);
+        copy.set(archive);
+        return fetch(new URL(path, url), { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/zip' },
+          body: copy.buffer, cache: 'no-store' });
+      };
+      const contents = await decodeBackupZipV2(archive);
+      let response: Response;
+      if (contents.receipts.length > 25) {
+        if (this.preparedAttemptId !== restoreId && this.commitAttemptId !== restoreId) {
+          const prepared = await sendZip(`${url.pathname}/prepare`);
+          if (prepared.status !== 201) throw new Error('prepare_failed');
+          this.preparedAttemptId = restoreId;
+        }
+        if (this.commitAttemptId !== restoreId) {
+          for (const [index, receipt] of contents.receipts.entries()) {
+            const copy = new Uint8Array(receipt.bytes.byteLength);
+            copy.set(receipt.bytes);
+            const staged = await fetch(new URL(`${url.pathname}/receipts/${index}`, url), { method: 'POST',
+              headers: { Authorization: `Bearer ${token}`, 'Content-Type': receipt.contentType }, body: copy.buffer, cache: 'no-store' });
+            if (!staged.ok) throw new Error('stage_failed');
+          }
+          this.commitAttemptId = restoreId;
+        }
+        response = await sendZip(`${url.pathname}/commit`);
+      } else {
+        response = await sendZip(url.pathname);
+      }
       if (response.status === 200 || response.status === 202) {
         this.clearPreview();
+        this.attemptId.set(restoreId);
+        this.attemptGroupId = group.id;
         this.message.set(response.status === 202 ? 'restoreCleanupPending' : 'restoreDone');
       } else {
         const body = await response.json().catch(() => null) as { error?: string } | null;
-        this.message.set(body?.error === 'recovery_required' ? 'restoreUncertain' :
+        if (body?.error === 'receipts_not_staged') this.commitAttemptId = undefined;
+        this.message.set(contents.receipts.length > 25 ? 'restorePreparedUncertain' : body?.error === 'recovery_required' ? 'restoreUncertain' :
           response.status === 503 ? 'restoreUnavailable' : 'restoreInvalid');
       }
-    } catch { this.message.set('restoreUncertain'); }
+    } catch { this.message.set(this.preview()?.receiptCount && this.preview()!.receiptCount > 25 ? 'restorePreparedUncertain' : 'restoreUncertain'); }
+    finally { this.busy.set(false); }
+  }
+
+  async retryCleanup(): Promise<void> {
+    const user = this.user;
+    const restoreId = this.attemptId();
+    const groupId = this.attemptGroupId;
+    if (this.busy() || !user?.emailVerified || !groupId || !restoreId || !this.workerUrl || this.message() !== 'restoreCleanupPending') return;
+    this.busy.set(true);
+    try {
+      const url = new URL(`/groups/${encodeURIComponent(groupId)}/backup/restores/${restoreId}/cleanup`, this.workerUrl);
+      if (url.protocol !== 'https:') throw new Error('insecure_url');
+      const token = await user.getIdToken();
+      for (let index = 0; index < 50; index++) {
+        const response = await fetch(url, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
+        if (response.status === 204) { this.message.set('restoreDone'); return; }
+        if (response.status !== 202) throw new Error('cleanup_failed');
+      }
+      this.message.set('restoreCleanupPending');
+    } catch { this.message.set('restoreCleanupPending'); }
     finally { this.busy.set(false); }
   }
 }
