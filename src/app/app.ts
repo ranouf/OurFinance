@@ -42,7 +42,7 @@ export class App implements OnInit, OnDestroy {
   });
   readonly qrText = computed(() => qrInvitationText[language()]);
   readonly authRedirect = computed(() => {
-    this.routeEvent();
+    if (!this.routeEvent()) return null;
     if (this.state() !== 'ready') return null;
     return authDestination(this.auth?.ready() ?? false, this.router.url.split('?')[0], this.auth?.user() ?? null, !!this.pendingInvite());
   });

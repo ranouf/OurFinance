@@ -34,6 +34,37 @@
     </div>
   </section>
 
+  <section id="inputs" class="scroll-mt-6 rounded-3xl border border-pop-border bg-white p-5 shadow-sm" [attr.aria-label]="formText[language()].inputs">
+    <h2 class="text-xl font-extrabold">{{ formText[language()].inputs }}</h2>
+    <div class="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      <app-field controlId="demo-text" [label]="formText[language()].text"><app-input controlId="demo-text" type="text" [formControl]="textControl" /></app-field>
+      <app-field controlId="demo-number" [label]="formText[language()].number"><app-input controlId="demo-number" type="number" [formControl]="numberControl" /></app-field>
+      <app-field controlId="demo-email" [label]="formText[language()].email"><app-input controlId="demo-email" type="email" autocomplete="email" [formControl]="emailControl" [invalid]="emailControl.invalid && emailControl.touched" describedBy="demo-email-error" /><app-control-errors errorId="demo-email-error" [control]="emailControl" /></app-field>
+      <app-field controlId="demo-phone" [label]="formText[language()].phone"><app-input controlId="demo-phone" type="tel" autocomplete="tel" [formControl]="phoneControl" /></app-field>
+      <app-field controlId="demo-password" [label]="formText[language()].password"><app-input controlId="demo-password" type="password" autocomplete="new-password" [formControl]="passwordControl" /></app-field>
+      <app-field controlId="demo-search" [label]="formText[language()].search"><app-input controlId="demo-search" type="search" [formControl]="searchControl" /></app-field>
+      <app-field controlId="demo-url" [label]="formText[language()].url"><app-input controlId="demo-url" type="url" [formControl]="urlControl" /></app-field>
+      <app-field controlId="demo-date" [label]="formText[language()].date"><app-input controlId="demo-date" type="date" [formControl]="dateControl" /></app-field>
+      <app-field controlId="demo-time" [label]="formText[language()].time"><app-input controlId="demo-time" type="time" [formControl]="timeControl" /></app-field>
+      <app-field controlId="demo-select" [label]="formText[language()].select"><app-select controlId="demo-select" [formControl]="selectControl" [options]="[{ value: 'cad', label: 'CAD' }, { value: 'eur', label: 'EUR' }, { value: 'jpy', label: 'JPY' }]" /></app-field>
+      <app-field controlId="demo-textarea" [label]="formText[language()].textarea"><app-textarea controlId="demo-textarea" [formControl]="textareaControl" /></app-field>
+    </div>
+  </section>
+
+  <section id="choices" class="scroll-mt-6 rounded-3xl border border-pop-border bg-white p-5 shadow-sm" [attr.aria-label]="formText[language()].controls">
+    <h2 class="text-xl font-extrabold">{{ formText[language()].controls }}</h2>
+    <div class="mt-4 flex flex-wrap items-center gap-x-8 gap-y-3">
+      <app-checkbox controlId="demo-checkbox" [label]="formText[language()].checkbox" [formControl]="checkboxControl" />
+      <app-toggle controlId="demo-toggle" [label]="formText[language()].toggle" [formControl]="toggleControl" />
+      <app-radio-group name="demo-split-mode" [label]="formText[language()].radio" [formControl]="radioControl" [options]="[{ value: 'equal', label: formText[language()].equal }, { value: 'exact', label: formText[language()].exact }]" />
+    </div>
+  </section>
+
+  <section id="calendar" class="scroll-mt-6 rounded-3xl border border-pop-border bg-white p-5 shadow-sm" [attr.aria-label]="formText[language()].calendar">
+    <h2 class="text-xl font-extrabold">{{ formText[language()].calendar }}</h2>
+    <div class="mt-4"><app-calendar [label]="formText[language()].calendar" [formControl]="calendarControl" /></div>
+  </section>
+
   <section id="alerts" class="scroll-mt-6 rounded-3xl border border-pop-border bg-white p-5 shadow-sm" [attr.aria-label]="text[language()].alerts">
     <h2 class="text-xl font-extrabold">{{ text[language()].alerts }}</h2>
     <div class="mt-4 grid gap-3 sm:grid-cols-3">
