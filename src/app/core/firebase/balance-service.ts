@@ -22,7 +22,7 @@ export class BalanceService {
       const data = item.data();
       if (data['deleted'] === true) continue;
       if (!Array.isArray(data['payments']) || !Array.isArray(data['allocations'])) { incompleteCount++; continue; }
-      expenses.push({ groupId, currency: String(data['currency']), date: String(data['date']), amountMinor: Number(data['amountMinor']), payments: data['payments'], allocations: data['allocations'] });
+      expenses.push({ groupId, currency: String(data['currency']), date: String(data['date']), amountMinor: Number(data['amountMinor']), categoryId: String(data['categoryId'] ?? 'other'), categoryLabel: typeof data['categoryLabel'] === 'string' ? data['categoryLabel'] : undefined, payments: data['payments'], allocations: data['allocations'] });
     }
     const settlements: SettlementLedgerEntry[] = settlementDocs.docs.filter(item => item.data()['deleted'] !== true).map(item => {
       const data = item.data();

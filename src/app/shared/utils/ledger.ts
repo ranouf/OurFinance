@@ -5,6 +5,8 @@ export interface ExpenseLedgerEntry {
   readonly currency: string;
   readonly date: string;
   readonly amountMinor: number;
+  readonly categoryId?: string;
+  readonly categoryLabel?: string;
   readonly payments: readonly Allocation[];
   readonly allocations: readonly Allocation[];
   readonly deleted?: boolean;
