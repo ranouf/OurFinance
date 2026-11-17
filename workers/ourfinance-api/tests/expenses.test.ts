@@ -181,7 +181,8 @@ test('suppression de dépense archive les reçus dans la transaction puis détru
   strictEqual(destroyed, true);
 });
 
-test('un échec Cloudinary après commit peut être repris sans recréer la dépense', async () => {
+test('un échec ou quota Cloudinary après commit peut être repris sans recréer la dépense', async () => {
+  for (const upstreamStatus of [503, 429]) {
   const { privateKey } = await generateKeyPair('RS256', { extractable: true });
   const env = { FIREBASE_PROJECT_ID: 'ourfinance-test', FIREBASE_SERVICE_ACCOUNT_JSON: JSON.stringify({ project_id: 'ourfinance-test', client_email: 'test@ourfinance-test.iam.gserviceaccount.com', private_key: await exportPKCS8(privateKey) }), CLOUDINARY_CLOUD_NAME: 'test-cloud', CLOUDINARY_API_KEY: 'synthetic-key', CLOUDINARY_API_SECRET: 'synthetic-secret' };
   const attachmentId = 'receipt_1';
@@ -201,16 +202,18 @@ test('un échec Cloudinary après commit peut être repris sans recréer la dép
     if (url.includes('?transaction=')) return Response.json({ fields: { status: { stringValue: 'active' }, currencyCode: { stringValue: 'CAD' } } });
     if (url.endsWith(':commit')) { commits++; deleted = true; pending = true; return Response.json({}); }
     if (url.includes('api.cloudinary.com') && url.endsWith('/image/destroy')) {
-      if (!failedOnce) { failedOnce = true; return Response.json({}, { status: 503 }); }
+      if (!failedOnce) { failedOnce = true; return Response.json({}, { status: upstreamStatus }); }
       return Response.json({ result: 'not found' });
     }
     if (url.endsWith(':rollback')) return Response.json({});
     throw new Error(`Requête inattendue: ${url}`);
   };
-  await rejects(mutateExpense({ expectedRevision: 0 }, 'alice', 'g1', input.idempotencyKey, 'DELETE', env, transport as typeof fetch), (error: unknown) => error instanceof ExpenseError && error.code === 'media_cleanup_failed');
+  await rejects(mutateExpense({ expectedRevision: 0 }, 'alice', 'g1', input.idempotencyKey, 'DELETE', env, transport as typeof fetch),
+    (error: unknown) => error instanceof ExpenseError && error.code === (upstreamStatus === 429 ? 'provider_quota_exceeded' : 'media_cleanup_failed'));
   strictEqual(deleted, true);
   strictEqual(pending, true);
   await mutateExpense({ expectedRevision: 0 }, 'alice', 'g1', input.idempotencyKey, 'DELETE', env, transport as typeof fetch);
   strictEqual(commits, 1);
   strictEqual(pending, false);
+  }
 });
