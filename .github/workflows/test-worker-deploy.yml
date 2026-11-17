@@ -1,0 +1,102 @@
+name: Deploy test Worker manually
+on:
+  pull_request:
+    paths:
+      - .github/workflows/test-worker-deploy.yml
+      - workers/ourfinance-api/**
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Full 40-character commit SHA to deploy on TEST
+        required: true
+        type: string
+      coordination_comment:
+        description: URL of the active TEST reservation in issue 30
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  worker_dry_run:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Check the TEST bundle without credentials
+        run: |
+          cat > workers/ourfinance-api/wrangler.ci.toml <<'EOF'
+          name = "ourfinance-api-dev"
+          main = "src/index.ts"
+          compatibility_date = "2026-11-15"
+          workers_dev = true
+
+          [vars]
+          FIREBASE_PROJECT_ID = "ourfinance-test"
+          ALLOWED_ORIGIN = "https://ourfinance-test.web.app"
+          EOF
+          npx --yes wrangler@4.164.0 deploy --dry-run --config workers/ourfinance-api/wrangler.ci.toml
+  worker_test:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && github.actor == 'ranouf'
+    runs-on: ubuntu-latest
+    environment: test
+    concurrency:
+      group: ourfinance-worker-test
+      cancel-in-progress: false
+    steps:
+      - name: Check exact SHA and reservation
+        env:
+          TARGET_SHA: ${{ inputs.sha }}
+          RESERVATION: ${{ inputs.coordination_comment }}
+        run: |
+          [[ "$TARGET_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$RESERVATION" =~ ^https://github\.com/ranouf/OurFinance/issues/30#issuecomment-[0-9]+$ ]]
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.sha }}
+          persist-credentials: false
+      - name: Verify checked-out commit
+        env:
+          TARGET_SHA: ${{ inputs.sha }}
+        run: test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck:worker && npm run test:worker
+      - name: Write isolated deployment configuration
+        run: |
+          cat > workers/ourfinance-api/wrangler.ci.toml <<'EOF'
+          name = "ourfinance-api-dev"
+          main = "src/index.ts"
+          compatibility_date = "2026-11-15"
+          workers_dev = true
+
+          [vars]
+          FIREBASE_PROJECT_ID = "ourfinance-test"
+          ALLOWED_ORIGIN = "https://ourfinance-test.web.app"
+          EOF
+      - name: Deploy only the test Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_TEST_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_TEST_ACCOUNT_ID }}
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          npx --yes wrangler@4.164.0 deploy --config workers/ourfinance-api/wrangler.ci.toml
+      - name: Verify health and disabled restore route
+        run: |
+          base='https://ourfinance-api-dev.ur-inance.workers.dev'
+          for attempt in 1 2 3 4 5 6; do
+            health="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' "$base/health")"
+            disabled="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' "$base/groups/ci-disabled/backup/restores/current")"
+            if [[ "$health" == 200 && "$disabled" == 503 ]]; then exit 0; fi
+            sleep 5
+          done
+          echo "TEST Worker smoke failed: health=$health, restore=$disabled" >&2
+          exit 1

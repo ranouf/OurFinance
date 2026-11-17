@@ -1,0 +1,17 @@
+# Déploiement manuel du Worker TEST
+
+Le workflow `Deploy test Worker manually` publie **uniquement** `ourfinance-api-dev` sur le domaine `workers.dev`. Il ne déploie ni Hosting, ni Firestore, ni la production.
+
+## Prérequis
+
+1. Réserver `ourfinance-api-dev` et `ourfinance-test` dans l'[issue #30](https://github.com/ranouf/OurFinance/issues/30), avec le PR et le SHA complet. Ne pas lancer deux essais sur la pile simultanément.
+2. Configurer dans l'environnement GitHub `test` le secret `CLOUDFLARE_TEST_API_TOKEN`, limité au compte Cloudflare de TEST et à la modification du seul Worker `ourfinance-api-dev`, ainsi que la variable non secrète `CLOUDFLARE_TEST_ACCOUNT_ID`. Aucun jeton ni valeur de secret dans le dépôt ou l'issue.
+3. Conserver `FIREBASE_SERVICE_ACCOUNT_JSON`, `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` et `CLOUDINARY_API_SECRET` dans les secrets **Cloudflare** du Worker. Le workflow ne les lit pas.
+
+## Exécution et résultat attendu
+
+Lancer `Deploy test Worker manually` depuis `main`, avec le SHA complet à 40 caractères et l'URL du commentaire de réservation de l'issue #30. Le workflow valide le SHA, récupère ce commit, exécute typecheck et tests Worker, écrit une configuration TEST fixe, puis déploie avec Wrangler. Cette configuration n'inclut aucun flag POC et désactive donc les routes d'essai après publication.
+
+Le smoke test exige `/health` **200** et `/groups/ci-disabled/backup/restores/current` **503**. Vérifier dans le run la version du Worker et le SHA demandé, puis seulement activer temporairement les flags nécessaires à l'essai fictif selon son protocole. Nettoyer les données et assets fictifs, retirer les flags et libérer la pile dans l'issue #30.
+
+Le premier lancement du workflow doit rester un essai sur TEST avec son jeton limité. Si le secret ou la variable manque, le workflow échoue avant déploiement. Ne pas considérer un build ou un `--dry-run` local comme une preuve de publication réelle.
