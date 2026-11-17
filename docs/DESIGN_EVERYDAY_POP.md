@@ -2,6 +2,12 @@
 
 **Décision produit du 16 novembre 2026.** Cette direction remplace le style générique de la PR #101 (cartes turquoise, grande carte blanche centrale, sections empilées) et la mascotte jaune initialement proposée. **Ne pas modifier les règles métier ni les calculs financiers pour appliquer ce thème.**
 
+## Références V2 prioritaires (17 novembre 2026)
+
+**Décision produit la plus récente** : [trois maquettes Everyday Pop V2](design-references/README.md#dernier-choix-validé--everyday-pop-v2--priorité-sur-les-anciennes-maquettes-dashboard) : dashboard desktop avec amis au café et grands panneaux (dettes, dépenses, catégories), dashboard mobile avec **couple à table et rose rouge**, et connexion mobile avec scène de café complète. Ces références V2 **remplacent les compositions plus anciennes** sur les écrans concernés, mais pas les données/services métier.
+
+Lors des PR UI, comparer **les captures Playwright à 1280×800 et 390×844** directement aux maquettes, documenter les écarts, puis corriger. Le style illustratif attendu est vectoriel-cartoon coloré. Les images de fond seules ne garantissent pas la conformité : observer **toute la structure, la hiérarchie, les actions, la navigation et les graphiques**.
+
 ## 1. Référence visuelle et assets livrés
 
 Les illustrations vectorielles **SVG authentiques** sont versionnées dans `public/illustrations/` :
