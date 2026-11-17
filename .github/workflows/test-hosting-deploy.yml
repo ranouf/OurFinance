@@ -41,9 +41,14 @@ jobs:
       - uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.TEST_FIREBASE_DEPLOY_SA_JSON }}
+      - name: Deploy Hosting preview for a branch
+        if: github.ref_name != 'main'
+        run: npx firebase-tools hosting:channel:deploy "preview-${GITHUB_RUN_ID}" --project ourfinance-test --expires 1d --non-interactive
       - name: Deploy Hosting to test only
+        if: github.ref_name == 'main'
         run: npx firebase-tools deploy --only hosting --project ourfinance-test --non-interactive
       - name: Verify deployed Hosting headers
+        if: github.ref_name == 'main'
         run: |
           verify_path() {
             local path="$1" headers
