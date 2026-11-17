@@ -29,6 +29,7 @@ import { UiTable } from '../../shared/components/ui-table/ui-table';
 import { UiTabs } from '../../shared/components/ui-tabs/ui-tabs';
 import { UiTooltip } from '../../shared/components/ui-tooltip/ui-tooltip';
 import { language } from '../../shared/utils/i18n';
+import { galleryAmount, galleryDate } from './gallery-format';
 
 const galleryText = {
   fr: {
@@ -78,6 +79,8 @@ export class GalleryComponent {
   readonly kitText = kitText;
   readonly patternText = patternText;
   readonly demoText = demoText;
+  readonly demoAmount = galleryAmount;
+  readonly demoDate = galleryDate;
   activeTab = 'all';
   activePage = 1;
   activePeriod = 'months';
