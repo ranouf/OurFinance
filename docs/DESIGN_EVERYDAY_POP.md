@@ -47,6 +47,10 @@ Les **huit maquettes approuvées** (Connexion, Dashboard/Groupes, Dépenses, Sta
 - Les illustrations sont **fortes sur la connexion** et **ponctuelles sur le dashboard**, jamais derrière des montants ou des formulaires complexes.
 - Aucun mascotte ronde jaune géante à la place de la terrasse. Ne pas faire de l'illustration une bannière géante sur tous les écrans.
 
+## UI Kit de composants et variants (référence complémentaire)
+
+Le [catalogue visuel interactif Everyday Pop V2](ui-kit/README.md) fournit trois écrans de **composants génériques** (Fondations/actions, Formulaires/sélection, Navigation/données/overlays), six captures desktop/mobile et une proposition de variantes Angular. Il sert de **référence de composants** pour Codex Cloud et local, sans remplacer les **maquettes d'écrans** de `docs/design-references/` ni modifier les règles métier. La page Emprez citée comme inspiration n'a pas pu être consultée ; ne pas attribuer l'inventaire proposé à Emprez sans nouvelle preuve.
+
 ## 3. Design tokens (base de travail)
 
 | Rôle | Valeur |
