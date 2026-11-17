@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240" viewBox="0 0 240 240" role="img" aria-label="home"><defs>
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240" viewBox="24 14 192 192" role="img" aria-label="home"><defs>
 <linearGradient id="sky" x2=".9" y2="1"><stop stop-color="#4833cf"/><stop offset=".58" stop-color="#7958ed"/><stop offset="1" stop-color="#b29af6"/></linearGradient>
 <linearGradient id="awning" x2="0" y2="1"><stop stop-color="#fffaf1"/><stop offset="1" stop-color="#ffe8df"/></linearGradient>
 <linearGradient id="beer" x2="0" y2="1"><stop stop-color="#ffe071"/><stop offset="1" stop-color="#efaa29"/></linearGradient>

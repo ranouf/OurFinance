@@ -4,7 +4,7 @@
         <div class="grid gap-3 sm:grid-cols-2">
           @for (group of app.groups(); track group.id) {
             <button class="flex min-h-20 items-center gap-3 rounded-2xl border bg-white p-4 text-left shadow-sm" [class.border-pop-primary]="app.selectedGroupId() === group.id" [class.border-pop-border]="app.selectedGroupId() !== group.id" type="button" (click)="app.selectedGroupId.set(group.id)">
-              <img class="h-12 w-12" src="/illustrations/category-home.svg" alt="" /><span class="min-w-0 flex-1"><strong class="block break-words">{{ group.name }}</strong><small class="text-pop-muted">{{ group.memberCount ?? 1 }} {{ t('membersCount') }}</small></span><span class="rounded-full bg-pop-lavender px-2 py-1 text-xs font-bold">{{ group.currency }}</span>
+              <img class="size-14 shrink-0" src="/illustrations/category-home.svg" alt="" /><span class="min-w-0 flex-1"><strong class="block break-words">{{ group.name }}</strong><small class="text-pop-muted">{{ group.memberCount ?? 1 }} {{ t('membersCount') }}</small></span><span class="rounded-full bg-pop-lavender px-2 py-1 text-xs font-bold">{{ group.currency }}</span>
             </button>
           }
         </div>
