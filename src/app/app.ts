@@ -6,6 +6,7 @@ import { filter } from 'rxjs';
 import { getAuth } from 'firebase/auth';
 import { AppShell } from './shared/components/app-shell/app-shell';
 import { AuthService } from './core/firebase/auth-service';
+import { authDestination } from './core/firebase/auth-route';
 import { FirebaseWebConfig, createFirebaseApp } from './core/firebase/firebase-config';
 import type { GroupService } from './core/firebase/group-service';
 import type { FirebaseApp } from 'firebase/app';
@@ -27,6 +28,13 @@ import { language, locale, setLanguage, t } from './shared/utils/i18n';
       @if (!online()) { <p class="mx-auto max-w-6xl rounded-xl bg-amber-50 p-3 text-sm text-amber-900" role="status">{{ t('offline') }}</p> }
       @if (state() === 'loading') { <p class="mx-auto max-w-6xl p-6" role="status">{{ t('loadingConfig') }}</p> }
       @else if (state() === 'unconfigured') { <p class="mx-auto max-w-6xl p-6" role="status">{{ t('missingConfig') }}</p> }
+      @else if (!auth?.ready()) {
+        <div class="mx-auto flex min-h-[55vh] max-w-sm flex-col items-center justify-center px-6 text-center" role="status" aria-live="polite">
+          <img src="/illustrations/ourfinance-mark.svg" width="52" height="52" alt="" />
+          <p class="mt-4 text-base font-bold text-pop-primary-dark">{{ t('loadingSession') }}</p>
+          <span class="mt-4 h-1.5 w-28 overflow-hidden rounded-full bg-pop-lavender" aria-hidden="true"><span class="block h-full w-1/2 animate-pulse rounded-full bg-pop-primary"></span></span>
+        </div>
+      }
       @else { <router-outlet /> }
     </app-shell>
   `
@@ -124,12 +132,12 @@ export class App implements OnInit, OnDestroy {
     effect(() => {
       this.routeEvent();
       if (this.state() !== 'ready') return;
+      const authReady = this.auth?.ready() ?? false;
       const user = this.auth?.user();
       const invite = this.pendingInvite();
       const path = this.router.url.split('?')[0];
-      if (invite && user?.emailVerified && path !== '/join') void this.router.navigateByUrl('/join');
-      else if ((!user || !user.emailVerified) && path !== '/login' && path !== '/join') void this.router.navigateByUrl('/login');
-      else if (user?.emailVerified && !invite && (path === '/login' || path === '/join')) void this.router.navigateByUrl('/dashboard');
+      const destination = authDestination(authReady, path, user ?? null, !!invite);
+      if (destination) void this.router.navigateByUrl(destination);
     });
   }
   email = '';
