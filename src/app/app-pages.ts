@@ -27,8 +27,8 @@ import { ProfilePanel } from './features/profile/profile-panel';
     <div class="mx-auto max-w-5xl overflow-hidden rounded-[1.7rem] bg-white shadow-[0_18px_50px_#30275214] lg:grid lg:min-h-[690px] lg:grid-cols-[1.1fr_1fr]">
       <div class="relative overflow-hidden bg-pop-primary lg:flex lg:flex-col lg:justify-end">
         <div class="flex items-center gap-2 bg-white px-5 py-3 lg:hidden"><img src="/illustrations/ourfinance-mark.svg" width="34" height="34" alt="" /><span class="text-lg font-black text-pop-primary-dark">ourfinance.</span></div>
-        <img class="h-44 w-full object-cover object-[center_62%] sm:h-64 lg:h-full lg:min-h-[690px] lg:object-center" src="/illustrations/cafe-hero.webp" alt="" />
-        <div class="hidden lg:absolute lg:inset-x-0 lg:top-0 lg:block lg:bg-gradient-to-b lg:from-pop-primary lg:via-pop-primary/90 lg:to-transparent lg:p-8 lg:pb-44 lg:text-white">
+        <img class="h-56 w-full object-cover object-[center_62%] sm:h-64 lg:h-full lg:min-h-[690px] lg:object-center" src="/illustrations/cafe-hero.webp" alt="" />
+        <div class="hidden lg:absolute lg:inset-x-0 lg:top-0 lg:block lg:bg-gradient-to-b lg:from-pop-primary/95 lg:via-pop-primary/75 lg:to-transparent lg:p-8 lg:pb-44 lg:text-white">
           <p class="flex items-center gap-2 text-2xl font-black"><img src="/illustrations/ourfinance-mark.svg" width="42" height="42" alt="" />ourfinance.</p>
           <p class="mt-10 max-w-sm text-4xl font-black leading-tight">{{ t('loginHeroLead') }} <span class="text-pop-sun">{{ t('loginHeroHighlight') }}</span></p>
         </div>
@@ -104,16 +104,16 @@ export class LoginPage { readonly app = inject(App); readonly t = t; }
             <a class="mt-4 inline-block text-sm font-bold underline" routerLink="/groups">{{ t('viewGroup') }} →</a>
           </div>
         </section>
-        <div class="mt-4 hidden grid-cols-2 gap-3 sm:grid sm:grid-cols-3">
-          <a class="rounded-2xl bg-pop-lavender p-4" routerLink="/statistics"><span aria-hidden="true">◔</span><span class="mt-2 block text-xs font-bold text-pop-muted">{{ t('myBalance') }}</span><strong>{{ app.balanceBusy() ? t('loadingBalances') : app.balanceError() ? t('balancesUnavailable') : app.selectedBalance() }}</strong></a>
-          <a class="rounded-2xl bg-pop-peach p-4" routerLink="/groups"><span aria-hidden="true">♧</span><span class="mt-2 block text-xs font-bold text-pop-muted">{{ t('membersCount') }}</span><strong>{{ group.memberCount ?? 1 }}</strong></a>
-          <a class="hidden rounded-2xl bg-pop-mint-soft p-4 sm:block" routerLink="/groups"><span aria-hidden="true">♧</span><span class="mt-2 block text-xs font-bold text-pop-muted">{{ t('myGroups') }}</span><strong>{{ app.groups().length }}</strong></a>
+        <div class="mt-4 hidden grid-cols-3 gap-3 sm:grid">
+          <a class="flex min-w-0 items-center gap-3 rounded-2xl bg-pop-lavender p-4" routerLink="/statistics"><span class="text-3xl" aria-hidden="true">🛒</span><span class="min-w-0"><span class="block text-xs font-bold text-pop-muted">{{ t('monthlyExpenses') }}</span><strong class="block truncate">{{ app.balanceBusy() ? t('loadingBalances') : app.balanceError() ? t('balancesUnavailable') : app.monthlySpent() }}</strong></span></a>
+          <a class="flex min-w-0 items-center gap-3 rounded-2xl bg-pop-peach p-4" routerLink="/statistics"><span class="text-3xl" aria-hidden="true">🪙</span><span class="min-w-0"><span class="block text-xs font-bold text-pop-muted">{{ t('paidByMe') }}</span><strong class="block truncate">{{ app.balanceBusy() ? t('loadingBalances') : app.balanceError() ? t('balancesUnavailable') : app.monthlyPaid() }}</strong></span></a>
+          <a class="flex min-w-0 items-center gap-3 rounded-2xl bg-pop-mint-soft p-4" routerLink="/groups"><span class="text-3xl" aria-hidden="true">👥</span><span class="min-w-0"><span class="block text-xs font-bold text-pop-muted">{{ t('myGroups') }}</span><strong class="block truncate">{{ app.groups().length }}</strong></span></a>
         </div>
         <div class="mt-6 flex items-center justify-between"><h2 class="text-xl font-black">{{ t('myGroups') }}</h2><a class="text-sm font-bold text-pop-primary-dark" routerLink="/groups">{{ t('viewAll') }} →</a></div>
         <div class="mt-3 grid gap-3 sm:grid-cols-2">
           @for (item of app.groups(); track item.id) {
             <button class="flex min-h-20 items-center gap-3 rounded-2xl border border-pop-border bg-white p-4 text-left" type="button" [attr.aria-pressed]="app.selectedGroupId() === item.id" (click)="app.selectedGroupId.set(item.id)">
-              <img class="h-11 w-11" [src]="$index % 2 ? '/illustrations/category-travel.svg' : '/illustrations/category-home.svg'" alt="" /><span class="min-w-0 flex-1"><strong class="block break-words">{{ item.name }}</strong><small class="text-pop-muted">{{ item.memberCount ?? 1 }} {{ t('membersCount') }}</small></span><span class="rounded-full bg-pop-lavender px-2 py-1 text-xs font-bold">{{ item.currency }}</span>
+              <img class="h-11 w-11" [src]="$index % 2 ? '/illustrations/category-travel.svg' : '/illustrations/category-home.svg'" alt="" /><span class="min-w-0 flex-1"><strong class="block break-words">{{ item.name }}</strong><small class="text-pop-muted">{{ item.memberCount ?? 1 }} {{ t('membersCount') }}</small></span><span class="flex shrink-0 flex-col items-end gap-1"><span class="rounded-full bg-pop-lavender px-2 py-1 text-xs font-bold">{{ item.currency }}</span>@if (item.id === app.selectedGroupId() && !app.balanceBusy() && !app.balanceError()) { <strong class="text-xs" [class.text-emerald-700]="app.selectedBalanceMinor() > 0" [class.text-pop-coral]="app.selectedBalanceMinor() < 0">{{ app.selectedBalance() }}</strong> }</span>
             </button>
           }
         </div>
@@ -234,7 +234,7 @@ export class StatisticsPage { readonly app = inject(App); readonly t = t; }
       @if (app.firebaseApp && app.auth?.user(); as user) {
         <app-profile-panel [user]="user" [firebaseApp]="app.firebaseApp" />
         @if (app.groups().length) {
-          <app-activity-history [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [revision]="app.expenseRevision() + app.settlementRevision() + app.categoryRevision() + app.commentRevision()" />
+          <div id="activity"><app-activity-history [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [revision]="app.expenseRevision() + app.settlementRevision() + app.categoryRevision() + app.commentRevision()" /></div>
           <app-export-panel [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" />
           @if (app.workerUrl) { <app-import-panel [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" />
             <app-restore-panel [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" /> }

@@ -39,10 +39,13 @@ class NavIcon { @Input({ required: true }) name = ''; }
       }
       <div [class.lg:pl-56]="signedIn">
         @if (signedIn) {
-          <header class="bg-white/80 lg:hidden">
+          <header class="bg-white/90 lg:hidden">
             <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
               <a class="flex items-center gap-1.5" routerLink="/dashboard"><img src="/illustrations/ourfinance-mark.svg" width="34" height="34" alt="" /><strong class="text-base font-black text-pop-primary-dark">ourfinance.</strong></a>
-              <span class="rounded-full bg-pop-lavender px-2.5 py-1 text-[10px] font-bold text-pop-primary-dark">{{ t('testEnvironment') }}</span>
+              <div class="flex items-center gap-2">
+                <a class="flex h-10 w-10 items-center justify-center rounded-xl bg-pop-lavender text-pop-primary-dark focus-visible:outline-2 focus-visible:outline-pop-primary" routerLink="/account" fragment="activity" [attr.aria-label]="t('recentActivity')"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></svg></a>
+                <a class="flex h-10 w-10 items-center justify-center rounded-full bg-pop-coral font-black text-white focus-visible:outline-2 focus-visible:outline-pop-primary" routerLink="/account" [attr.aria-label]="t('navAccount')">{{ userInitial }}</a>
+              </div>
             </div>
           </header>
         }
@@ -71,4 +74,4 @@ class NavIcon { @Input({ required: true }) name = ''; }
     .pop-bottom-link:focus-visible { outline:2px solid var(--color-pop-primary); outline-offset:2px; }
   `],
 })
-export class AppShell { @Input() signedIn = false; readonly t = t; }
+export class AppShell { @Input() signedIn = false; @Input() userInitial = '?'; readonly t = t; }

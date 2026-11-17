@@ -14,6 +14,7 @@ import { formatMinorExact } from './shared/utils/currency';
 import { Group } from './core/firebase/group-model';
 import { capturePendingInvite, clearPendingInvite } from './core/firebase/pending-invite';
 import type { ExpenseHistoryEntry } from './core/firebase/expense-service';
+import { dashboardMetrics } from './features/dashboard/dashboard-metrics';
 import { qrInvitationText } from './features/groups/qr-invitation-text';
 import { language, locale, setLanguage, t } from './shared/utils/i18n';
 
@@ -21,7 +22,7 @@ import { language, locale, setLanguage, t } from './shared/utils/i18n';
   selector: 'app-root',
   imports: [AppShell, RouterOutlet],
   template: `
-    <app-shell [signedIn]="!!auth?.user()">
+    <app-shell [signedIn]="!!auth?.user()" [userInitial]="userInitial()">
       @if (!online()) { <p class="mx-auto max-w-6xl rounded-xl bg-amber-50 p-3 text-sm text-amber-900" role="status">{{ t('offline') }}</p> }
       @if (state() === 'loading') { <p class="mx-auto max-w-6xl p-6" role="status">{{ t('loadingConfig') }}</p> }
       @else if (state() === 'unconfigured') { <p class="mx-auto max-w-6xl p-6" role="status">{{ t('missingConfig') }}</p> }
@@ -53,14 +54,19 @@ export class App implements OnInit, OnDestroy {
   readonly groupsError = signal(false);
   readonly selectedGroupId = signal('');
   readonly selectedGroup = computed(() => this.groups().find(group => group.id === this.selectedGroupId()));
-  readonly firstName = computed(() => this.auth?.user()?.displayName?.trim().split(/\s+/)[0] ?? '');
+  readonly firstName = computed(() => { this.state(); return this.auth?.user()?.displayName?.trim().split(/\s+/)[0] ?? ''; });
+  readonly userInitial = computed(() => { this.state(); return (this.auth?.user()?.displayName?.trim() || this.auth?.user()?.email || '?').charAt(0).toLocaleUpperCase(locale()); });
   readonly balanceBusy = signal(false);
   readonly balanceError = signal(false);
   readonly selectedBalanceMinor = signal<bigint>(0n);
+  readonly monthlySpentMinor = signal<bigint>(0n);
+  readonly monthlyPaidMinor = signal<bigint>(0n);
   readonly recentExpenses = signal<ExpenseHistoryEntry[]>([]);
   readonly recentExpensesBusy = signal(false);
   readonly recentExpensesError = signal(false);
   readonly selectedBalance = computed(() => this.selectedGroup() ? formatMinorExact(this.selectedBalanceMinor(), this.selectedGroup()!.currency, locale()) : '');
+  readonly monthlySpent = computed(() => this.selectedGroup() ? formatMinorExact(this.monthlySpentMinor(), this.selectedGroup()!.currency, locale()) : '');
+  readonly monthlyPaid = computed(() => this.selectedGroup() ? formatMinorExact(this.monthlyPaidMinor(), this.selectedGroup()!.currency, locale()) : '');
   formatRecentExpense(entry: ExpenseHistoryEntry): string { return formatMinorExact(BigInt(entry.amountMinor), entry.currency, locale()); }
   readonly balanceLabel = computed(() => this.selectedBalanceMinor() > 0n ? t('receivable') : this.selectedBalanceMinor() < 0n ? t('payable') : t('balanced'));
   private balanceRequestId = 0;
@@ -158,9 +164,14 @@ export class App implements OnInit, OnDestroy {
     this.balanceError.set(false);
     try {
       const { BalanceService } = await import('./core/firebase/balance-service');
-      const result = await new BalanceService(this.firebaseApp!).load(group.id);
+      const entries = await new BalanceService(this.firebaseApp!).entries(group.id);
       if (requestId !== this.balanceRequestId) return;
-      this.selectedBalanceMinor.set(result.totals.find(row => row.userId === this.auth?.user()?.uid && row.currency === group.currency)?.balanceMinor ?? 0n);
+      const today = new Date();
+      const month = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+      const metrics = dashboardMetrics(entries.expenses, entries.settlements, group.id, group.currency, this.auth?.user()?.uid ?? '', month);
+      this.selectedBalanceMinor.set(metrics.balanceMinor);
+      this.monthlySpentMinor.set(metrics.monthlySpentMinor);
+      this.monthlyPaidMinor.set(metrics.monthlyPaidMinor);
     } catch {
       if (requestId === this.balanceRequestId) this.balanceError.set(true);
     } finally {
