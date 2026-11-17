@@ -1,6 +1,6 @@
 import { Component, ElementRef, ViewChild, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { App } from './app';
 import { t } from './shared/utils/i18n';
 import { categoryById, categoryColorClass } from './shared/utils/categories';
@@ -100,7 +100,7 @@ export class LoginPage {
 }
 
 @Component({
-  imports: [RouterLink, GroupOverview],
+  imports: [FormsModule, RouterLink, GroupOverview],
   template: `
     <div class="mx-auto max-w-5xl">
       @if (app.selectedGroup()) { <div class="hidden items-start justify-between gap-3 sm:flex">
@@ -112,7 +112,13 @@ export class LoginPage {
       } @else if (app.groupsError()) {
         <p class="mt-6 rounded-2xl border border-pop-border bg-white p-6" role="alert">{{ t('groupsUnavailable') }}</p>
       } @else if (app.selectedGroup(); as group) {
-        <section class="relative mt-3 overflow-hidden rounded-[1.8rem] bg-pop-primary text-white shadow-[0_12px_30px_#6455ec30] sm:mt-5" [attr.aria-label]="t('myBalance')">
+        <form class="mt-3 flex min-h-11 items-center gap-2 rounded-2xl border border-pop-border bg-white px-3 shadow-sm sm:mt-5" (ngSubmit)="searchExpenses()" role="search">
+          <svg class="size-5 shrink-0 text-pop-primary-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7"/><path d="m16 16 5 5"/></svg>
+          <label class="sr-only" for="dashboard-expense-search">{{ t('searchExpenses') }}</label>
+          <input id="dashboard-expense-search" class="min-w-0 flex-1 py-2 text-sm outline-none" type="search" name="dashboardExpenseSearch" [(ngModel)]="search" [placeholder]="t('searchExpenses')" />
+          <button class="rounded-xl bg-pop-lavender px-3 py-1.5 text-sm font-bold text-pop-primary-dark hover:bg-pop-primary hover:text-white focus-visible:outline-2 focus-visible:outline-pop-primary" type="submit">{{ t('search') }}</button>
+        </form>
+        <section class="dashboard-cloud relative mt-3 overflow-hidden rounded-[1.8rem] bg-pop-primary text-white shadow-[0_12px_30px_#6455ec30] sm:mt-5" [attr.aria-label]="t('myBalance')">
           <div class="relative min-h-44 px-5 pb-20 pt-5 sm:hidden">
             <div class="relative z-10 max-w-[54%]"><p class="text-xl font-black leading-tight">{{ t('dashboardHello') }}{{ app.firstName() ? ' ' + app.firstName() : '' }} ! 👋</p><p class="mt-2 text-xs text-white/90">{{ t('dashboardIntro') }}</p><p class="mt-3 text-xs font-bold">{{ group.name }} · {{ group.currency }}</p></div>
             <img class="pointer-events-none absolute inset-0 h-full w-full origin-left scale-[1.38] object-cover object-left opacity-90" src="/illustrations/cafe-hero-mobile.webp" alt="" />
@@ -123,6 +129,16 @@ export class LoginPage {
             <div class="flex min-w-0 flex-col justify-center px-5 py-6 lg:px-8"><p class="text-xs font-bold uppercase tracking-wider text-white/75">{{ t('myGroups') }} · {{ group.currency }}</p><h1 class="mt-1 break-words text-2xl font-black lg:text-4xl">{{ group.name }}</h1><p class="mt-2 text-sm text-white/80">{{ group.memberCount ?? 1 }} {{ t('membersCount') }}</p>
               @if (app.balanceBusy()) { <p class="mt-5" role="status">{{ t('loadingBalances') }}</p> } @else if (app.balanceError()) { <p class="mt-5" role="status">{{ t('balancesUnavailable') }}</p> } @else { <div class="mt-5 grid grid-cols-2 gap-3"><div><span class="block text-xs text-white/80">{{ t('myBalance') }}</span><strong class="text-xl lg:text-2xl">{{ app.selectedBalance() }}</strong></div><div><span class="block text-xs text-white/80">{{ t('groupTotal') }}</span><strong class="text-xl lg:text-2xl">{{ app.groupSpent() }}</strong></div><div><span class="block text-xs text-white/80">{{ t('totalRepayments') }}</span><strong class="text-xl lg:text-2xl">{{ app.settlementTotal() }}</strong></div></div> }
             </div>
+          </div>
+          <div class="absolute bottom-3 right-3 z-10 flex -space-x-2 sm:bottom-4 sm:right-4" [attr.aria-label]="t('whoOwes')">
+            @for (item of app.dashboardMemberBalances(); track item.userId) {
+              @if (app.dashboardMemberName(item.userId); as name) {
+                <span class="group relative flex size-9 items-center justify-center rounded-full border-2 border-white bg-pop-peach text-sm font-black text-pop-primary-dark shadow-md outline-none focus-visible:ring-2 focus-visible:ring-pop-sun" tabindex="0" [attr.aria-label]="name + ' · ' + app.formatDashboardMinor(item.balanceMinor)">
+                  {{ name.slice(0, 1).toLocaleUpperCase() }}
+                  <span class="pointer-events-none absolute bottom-full right-0 mb-2 hidden min-w-max rounded-xl bg-pop-text px-3 py-2 text-xs font-bold text-white shadow-lg group-hover:block group-focus:block">{{ name }} · {{ app.formatDashboardMinor(item.balanceMinor) }}</span>
+                </span>
+              }
+            }
           </div>
         </section>
         <div class="mt-4 flex max-w-full min-w-0 snap-x gap-3 overflow-x-auto pb-1 sm:hidden" [attr.aria-label]="t('myGroups')">
@@ -194,7 +210,13 @@ export class LoginPage {
 })
 export class DashboardPage {
   readonly app = inject(App);
+  private readonly router = inject(Router);
   readonly t = t;
+  search = '';
+  searchExpenses(): void {
+    const search = this.search.trim();
+    if (search) void this.router.navigate(['/expenses'], { queryParams: { search } });
+  }
   readonly categoryColorClass = categoryColorClass;
   categoryIcon(id: string): string { return categoryById(id).icon; }
   categoryPercent(amount: bigint): number {

@@ -1,4 +1,4 @@
-import { Component, Input } from '@angular/core';
+import { Component, ElementRef, EventEmitter, HostListener, Input, Output, ViewChild } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { t } from '../../utils/i18n';
 
@@ -40,13 +40,19 @@ class NavIcon { @Input({ required: true }) name = ''; }
       }
       <div [class.lg:pl-56]="signedIn">
         @if (signedIn) {
-          <header class="bg-white/90 lg:hidden">
-            <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-              <a class="flex items-center gap-1.5" routerLink="/dashboard"><img src="/illustrations/ourfinance-mark.svg" width="34" height="34" alt="" /><strong class="text-base font-black text-pop-primary-dark">ourfinance.</strong></a>
-              <div class="flex items-center gap-2">
-                <a class="flex h-10 w-10 items-center justify-center rounded-xl bg-pop-lavender text-pop-primary-dark focus-visible:outline-2 focus-visible:outline-pop-primary" routerLink="/account" fragment="activity" [attr.aria-label]="t('recentActivity')"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></svg></a>
-                <a class="flex h-10 w-10 items-center justify-center rounded-full bg-pop-coral font-black text-white focus-visible:outline-2 focus-visible:outline-pop-primary" routerLink="/account" [attr.aria-label]="t('navAccount')">{{ userInitial }}</a>
-              </div>
+          <header class="relative z-40 bg-white/90">
+            <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-7 lg:px-8">
+              <a class="flex items-center gap-1.5 lg:hidden" routerLink="/dashboard"><img src="/illustrations/ourfinance-mark.svg" width="34" height="34" alt="" /><strong class="text-base font-black text-pop-primary-dark">ourfinance.</strong></a>
+              <span class="hidden font-black text-pop-primary-dark lg:block">{{ t('navHome') }}</span>
+              <details #profileMenu class="relative group">
+                <summary class="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-2xl px-1 focus-visible:outline-2 focus-visible:outline-pop-primary [&::-webkit-details-marker]:hidden" [attr.aria-label]="t('navAccount')">
+                  <span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-pop-coral font-black text-white" aria-hidden="true">{{ userInitial }}</span><span class="hidden max-w-40 truncate text-sm font-bold sm:inline">{{ userName }}</span><span class="hidden text-pop-primary-dark sm:inline" aria-hidden="true">⌄</span>
+                </summary>
+                <div class="absolute right-0 top-full z-50 mt-2 min-w-44 rounded-2xl border border-pop-border bg-white p-2 shadow-xl">
+                  <a class="block rounded-xl px-3 py-2 text-sm font-bold hover:bg-pop-lavender focus-visible:outline-2 focus-visible:outline-pop-primary" routerLink="/account">{{ t('preferences') }}</a>
+                  <button class="block w-full rounded-xl px-3 py-2 text-left text-sm font-bold hover:bg-pop-lavender focus-visible:outline-2 focus-visible:outline-pop-primary" type="button" (click)="signOut.emit()">{{ t('logout') }}</button>
+                </div>
+              </details>
             </div>
           </header>
         }
@@ -75,4 +81,19 @@ class NavIcon { @Input({ required: true }) name = ''; }
     .pop-bottom-link:focus-visible { outline:2px solid var(--color-pop-primary); outline-offset:2px; }
   `],
 })
-export class AppShell { @Input() signedIn = false; @Input() hasGroups = false; @Input() userInitial = '?'; readonly t = t; }
+export class AppShell {
+  @Input() signedIn = false;
+  @Input() hasGroups = false;
+  @Input() userInitial = '?';
+  @Input() userName = '';
+  @Output() signOut = new EventEmitter<void>();
+  @ViewChild('profileMenu') profileMenu?: ElementRef<HTMLDetailsElement>;
+  readonly t = t;
+  @HostListener('document:click', ['$event']) closeMenuOutside(event: MouseEvent): void {
+    const menu = this.profileMenu?.nativeElement;
+    if (menu && !menu.contains(event.target as Node)) menu.open = false;
+  }
+  @HostListener('document:keydown.escape') closeMenuOnEscape(): void {
+    if (this.profileMenu?.nativeElement) this.profileMenu.nativeElement.open = false;
+  }
+}

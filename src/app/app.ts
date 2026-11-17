@@ -16,6 +16,7 @@ import { Group } from './core/firebase/group-model';
 import { capturePendingInvite, clearPendingInvite } from './core/firebase/pending-invite';
 import type { ExpenseHistoryEntry } from './core/firebase/expense-service';
 import { dashboardMetrics } from './features/dashboard/dashboard-metrics';
+import { loadSharedMemberProfiles } from './core/firebase/member-profile-service';
 import { categoryLabel } from './shared/utils/category-label';
 import { qrInvitationText } from './features/groups/qr-invitation-text';
 import { language, locale, setLanguage, t } from './shared/utils/i18n';
@@ -24,7 +25,7 @@ import { language, locale, setLanguage, t } from './shared/utils/i18n';
   selector: 'app-root',
   imports: [AppShell, RouterOutlet],
   template: `
-    <app-shell [signedIn]="!!auth?.user()" [hasGroups]="groups().length > 0" [userInitial]="userInitial()">
+    <app-shell [signedIn]="!!auth?.user()" [hasGroups]="groups().length > 0" [userInitial]="userInitial()" [userName]="auth?.user()?.displayName || auth?.user()?.email || ''" (signOut)="logout()">
       @if (!online()) { <p class="mx-auto max-w-6xl rounded-xl bg-amber-50 p-3 text-sm text-amber-900" role="status">{{ t('offline') }}</p> }
       @if (state() === 'loading') { <p class="mx-auto max-w-6xl p-6" role="status">{{ t('loadingConfig') }}</p> }
       @else if (state() === 'unconfigured') { <p class="mx-auto max-w-6xl p-6" role="status">{{ t('missingConfig') }}</p> }
@@ -78,6 +79,10 @@ export class App implements OnInit, OnDestroy {
   readonly monthlyPaidMinor = signal<bigint>(0n);
   readonly settlementTotalMinor = signal<bigint>(0n);
   readonly dashboardMemberBalances = signal<readonly { userId: string; balanceMinor: bigint }[]>([]);
+  readonly dashboardMemberNames = signal<Record<string, string>>({});
+  dashboardMemberName(userId: string): string | null {
+    return userId === this.auth?.user()?.uid ? (this.auth?.user()?.displayName || null) : this.dashboardMemberNames()[userId] || null;
+  }
   readonly dashboardCategories = signal<readonly { id: string; label?: string; amountMinor: bigint }[]>([]);
   readonly recentExpenses = signal<ExpenseHistoryEntry[]>([]);
   readonly recentExpensesBusy = signal(false);
@@ -195,6 +200,7 @@ export class App implements OnInit, OnDestroy {
     const requestId = ++this.balanceRequestId;
     this.balanceBusy.set(true);
     this.balanceError.set(false);
+    this.dashboardMemberNames.set({});
     try {
       const { BalanceService } = await import('./core/firebase/balance-service');
       const entries = await new BalanceService(this.firebaseApp!).entries(group.id);
@@ -209,6 +215,12 @@ export class App implements OnInit, OnDestroy {
       this.settlementTotalMinor.set(metrics.settlementTotalMinor);
       this.dashboardMemberBalances.set(metrics.memberBalances);
       this.dashboardCategories.set(metrics.categories);
+      const currentUser = this.auth?.user();
+      if (this.workerUrl && currentUser) {
+        void loadSharedMemberProfiles(this.workerUrl, group.id, currentUser).then(profiles => {
+          if (requestId === this.balanceRequestId) this.dashboardMemberNames.set(Object.fromEntries(profiles.filter(item => item.displayName).map(item => [item.userId, item.displayName!])))
+        }).catch(() => { /* Names are optional until the protected profile route is available. */ });
+      }
     } catch {
       if (requestId === this.balanceRequestId) this.balanceError.set(true);
     } finally {
