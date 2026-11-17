@@ -10,7 +10,7 @@ Le workflow `Deploy test Worker manually` publie **uniquement** `ourfinance-api-
 
 ## Exécution et résultat attendu
 
-Lancer `Deploy test Worker manually` depuis `main`, avec le SHA complet à 40 caractères et l'URL du commentaire de réservation de l'issue #30. Le workflow valide le SHA, récupère ce commit, exécute typecheck et tests Worker, écrit une configuration TEST fixe, puis déploie avec Wrangler. Cette configuration n'inclut aucun flag POC et désactive donc les routes d'essai après publication.
+Lancer `Deploy test Worker manually` depuis `main`, avec le SHA complet à 40 caractères et l'URL du commentaire de réservation de l'issue #30. Le workflow valide le SHA et exige un descendant du socle API `#139` avant toute publication, récupère ce commit, exécute typecheck et tests Worker, écrit une configuration TEST fixe, puis déploie avec Wrangler. Cette configuration n'inclut aucun flag POC et désactive donc les routes d'essai après publication.
 
 Le smoke test exige `/health` **200** et `/groups/ci-disabled/backup/restores/current` **503**. Vérifier dans le run la version du Worker et le SHA demandé, puis seulement activer temporairement les flags nécessaires à l'essai fictif selon son protocole. Nettoyer les données et assets fictifs, retirer les flags et libérer la pile dans l'issue #30.
 
