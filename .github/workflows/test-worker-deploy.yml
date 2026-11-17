@@ -60,8 +60,10 @@ jobs:
           comment_id="${RESERVATION##*issuecomment-}"
           gh api "repos/ranouf/OurFinance/issues/comments/$comment_id" |
             jq -e --arg sha "$TARGET_SHA" '
+              now as $checked | (.created_at | fromdateiso8601) as $reserved |
               .user.login == "ranouf" and
               .issue_url == "https://api.github.com/repos/ranouf/OurFinance/issues/30" and
+              $reserved <= $checked and ($checked - $reserved) <= 3600 and
               (.body | contains($sha) and (ascii_downcase | contains("test")) and
                 (contains("réserv") or contains("reserv")))
             ' >/dev/null
