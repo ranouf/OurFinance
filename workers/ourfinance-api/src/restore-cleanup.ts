@@ -36,6 +36,7 @@ export async function retryRestoreCleanup(uid: string, groupId: string, restoreI
     /^ourfinance-test\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+\/(?:restore_[0-9a-f-]+\/)?[A-Za-z0-9_-]+$/i.test(id);
   if (!Array.isArray(old) || !Array.isArray(current) || old.length > 1000 || old.some(id => !valid(id)) || current.some(id => !valid(id)) ||
       old.some(id => current.includes(id))) throw new RestoreCleanupError(503, 'invalid_cleanup_journal');
+  if (typeof job.updateTime !== 'string' || !job.updateTime) throw new RestoreCleanupError(503, 'invalid_cleanup_journal');
   const batch = old.slice(0, cleanupBatchSize);
   for (const publicId of batch) await destroyAuthenticated(publicId!, env, transport);
   const remaining = old.slice(batch.length);
@@ -43,7 +44,7 @@ export async function retryRestoreCleanup(uid: string, groupId: string, restoreI
   const mask = completed ? ['status', 'completedAt', 'oldPublicIds'] : ['oldPublicIds'];
   const url = new URL(`https://firestore.googleapis.com/v1/${root}/groups/${groupId}/restoreJobs/${restoreId}`);
   for (const field of mask) url.searchParams.append('updateMask.fieldPaths', field);
-  if (job.updateTime) url.searchParams.set('currentDocument.updateTime', job.updateTime);
+  url.searchParams.set('currentDocument.updateTime', job.updateTime);
   const fields = completed
     ? { status: { stringValue: 'completed' }, completedAt: { timestampValue: new Date().toISOString() }, oldPublicIds: { arrayValue: { values: [] } } }
     : { oldPublicIds: { arrayValue: { values: remaining.map(publicId => ({ stringValue: publicId })) } } };

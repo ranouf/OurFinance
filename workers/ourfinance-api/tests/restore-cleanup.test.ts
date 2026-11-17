@@ -14,6 +14,7 @@ async function fixture(role: 'owner' | 'member' = 'owner', count = 1) {
   let oldPublicIds = Array.from({ length: count }, (_, index) => `ourfinance-test/g/e/old_${index}`);
   let status = 'cleanup_pending';
   let failNextPatch = false;
+  let missingUpdateTime = false;
   const transport = async (resource: string | URL | Request, init?: RequestInit) => {
     const url = String(resource);
     if (url.includes('oauth2.googleapis.com')) return Response.json({ access_token: 'synthetic-service-token' });
@@ -29,14 +30,14 @@ async function fixture(role: 'owner' | 'member' = 'owner', count = 1) {
     }
     if (url.endsWith('/groups/g')) return Response.json({ fields: { status: { stringValue: 'active' }, ownerId: { stringValue: 'alice' } } });
     if (url.endsWith('/groups/g/members/alice')) return Response.json({ fields: { status: { stringValue: 'active' }, role: { stringValue: role } } });
-    if (url.endsWith(`/groups/g/restoreJobs/${restoreId}`)) return Response.json({ updateTime: '2026-11-17T00:00:00Z', fields: {
+    if (url.endsWith(`/groups/g/restoreJobs/${restoreId}`)) return Response.json({ ...(missingUpdateTime ? {} : { updateTime: '2026-11-17T00:00:00Z' }), fields: {
       ownerId: { stringValue: 'alice' }, status: { stringValue: status },
       oldPublicIds: { arrayValue: { values: oldPublicIds.map(stringValue => ({ stringValue })) } },
       newPublicIds: { arrayValue: { values: [{ stringValue: `ourfinance-test/g/e/restore_${restoreId}/a` }] } },
     } });
     throw new Error('Requête inattendue');
   };
-  return { env, transport: transport as typeof fetch, get destroys() { return destroys; }, get patches() { return patches; }, get remaining() { return oldPublicIds.length; }, failPatch() { failNextPatch = true; } };
+  return { env, transport: transport as typeof fetch, get destroys() { return destroys; }, get patches() { return patches; }, get remaining() { return oldPublicIds.length; }, failPatch() { failNextPatch = true; }, omitUpdateTime() { missingUpdateTime = true; } };
 }
 
 test('owner removes only old private assets and marks the cleanup job complete', async () => {
@@ -67,6 +68,15 @@ test('lost progress write retains journal and retries idempotent media deletion'
   deepStrictEqual(await retryRestoreCleanup('alice', 'g', restoreId, state.env, state.transport), { removed: 20, pending: true });
   strictEqual(state.remaining, 1);
   strictEqual(state.destroys, 40);
+});
+
+test('cleanup refuses a job without a Firestore write precondition', async () => {
+  const state = await fixture();
+  state.omitUpdateTime();
+  await rejects(retryRestoreCleanup('alice', 'g', restoreId, state.env, state.transport),
+    (error: unknown) => error instanceof RestoreCleanupError && error.code === 'invalid_cleanup_journal');
+  strictEqual(state.destroys, 0);
+  strictEqual(state.patches, 0);
 });
 
 test('ordinary member cannot delete restore assets', async () => {
