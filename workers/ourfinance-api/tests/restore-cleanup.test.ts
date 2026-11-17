@@ -11,11 +11,13 @@ async function fixture(role: 'owner' | 'member' = 'owner', count = 1) {
     FIREBASE_SERVICE_ACCOUNT_JSON: JSON.stringify({ project_id: 'ourfinance-test', client_email: 'test@ourfinance-test.iam.gserviceaccount.com', private_key: await exportPKCS8(privateKey) }) };
   let destroys = 0;
   let patches = 0;
+  let requests = 0;
   let oldPublicIds = Array.from({ length: count }, (_, index) => `ourfinance-test/g/e/old_${index}`);
   let status = 'cleanup_pending';
   let failNextPatch = false;
   let missingUpdateTime = false;
   const transport = async (resource: string | URL | Request, init?: RequestInit) => {
+    requests++;
     const url = String(resource);
     if (url.includes('oauth2.googleapis.com')) return Response.json({ access_token: 'synthetic-service-token' });
     if (url.endsWith('/image/destroy')) { destroys++; return Response.json({ result: 'ok' }); }
@@ -37,7 +39,7 @@ async function fixture(role: 'owner' | 'member' = 'owner', count = 1) {
     } });
     throw new Error('Requête inattendue');
   };
-  return { env, transport: transport as typeof fetch, get destroys() { return destroys; }, get patches() { return patches; }, get remaining() { return oldPublicIds.length; }, failPatch() { failNextPatch = true; }, omitUpdateTime() { missingUpdateTime = true; } };
+  return { env, transport: transport as typeof fetch, get destroys() { return destroys; }, get patches() { return patches; }, get requests() { return requests; }, get remaining() { return oldPublicIds.length; }, failPatch() { failNextPatch = true; }, omitUpdateTime() { missingUpdateTime = true; } };
 }
 
 test('owner removes only old private assets and marks the cleanup job complete', async () => {
@@ -49,7 +51,9 @@ test('owner removes only old private assets and marks the cleanup job complete',
 
 test('cleanup resumes in bounded batches and never loses its journal', async () => {
   const state = await fixture('owner', 45);
+  const before = state.requests;
   deepStrictEqual(await retryRestoreCleanup('alice', 'g', restoreId, state.env, state.transport), { removed: 20, pending: true });
+  strictEqual(state.requests - before < 50, true);
   strictEqual(state.remaining, 25);
   deepStrictEqual(await retryRestoreCleanup('alice', 'g', restoreId, state.env, state.transport), { removed: 20, pending: true });
   strictEqual(state.remaining, 5);
