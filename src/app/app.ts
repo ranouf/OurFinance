@@ -95,7 +95,7 @@ import { language, locale, setLanguage, t } from './shared/utils/i18n';
                     <li>
                       <button class="flex min-h-20 w-full min-w-0 items-center gap-3 rounded-2xl border bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-pop-primary" [class.border-pop-primary]="selectedGroupId() === group.id" [class.border-pop-border]="selectedGroupId() !== group.id" type="button" (click)="selectedGroupId.set(group.id)">
                         <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-pop-peach text-lg font-extrabold text-pop-primary-dark" aria-hidden="true">{{ group.name.slice(0, 1).toUpperCase() }}</span>
-                        <span class="min-w-0 flex-1 break-words font-bold">{{ group.name }}</span>
+                        <span class="min-w-0 flex-1 break-words"><strong class="block">{{ group.name }}</strong>@if (group.memberCount !== undefined) { <span class="mt-1 block text-xs font-semibold text-pop-muted">{{ group.memberCount }} {{ group.memberCount === 1 ? t('memberCount') : t('membersCount') }}</span> }</span>
                         <span class="shrink-0 rounded-full bg-pop-lavender px-2.5 py-1 text-xs font-extrabold text-pop-primary-dark">{{ group.currency }}</span>
                       </button>
                     </li>
