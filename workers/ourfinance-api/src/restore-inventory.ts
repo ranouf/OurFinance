@@ -1,4 +1,5 @@
 import { serviceAccessToken } from './service-account';
+import { listExpenseDescendants } from './firestore-descendants';
 
 export interface RestoreInventoryEnv { readonly FIREBASE_PROJECT_ID: string; readonly FIREBASE_SERVICE_ACCOUNT_JSON: string }
 export interface LiveRestoreInventory {
@@ -89,19 +90,19 @@ export async function collectLiveRestoreInventory(uid: string, groupId: string, 
     const groupDocuments = [`groups/${groupId}`, ...pages.flatMap(page => page.map(row => row.name!.slice(`${root}/`.length)))];
     const members = pages[0].map(row => row.name!.slice(row.name!.lastIndexOf('/') + 1));
     if (!members.includes(uid)) throw new RestoreInventoryError(503, 'invalid_members');
+    const [comments, attachments] = await Promise.all([
+      listExpenseDescendants(root, groupId, 'comments', transaction, headers, transport),
+      listExpenseDescendants(root, groupId, 'attachments', transaction, headers, transport),
+    ]);
+    count += [...comments.values(), ...attachments.values()].reduce((sum, rows) => sum + rows.length, 0);
+    if (count > 5000) throw new RestoreInventoryError(409, 'inventory_too_large');
     const receiptPublicIds: string[] = [];
-    for (const expense of pages[2]) {
-      const expensePath = expense.name!.slice(`${root}/`.length);
-      await assertCollections(expensePath, new Set(['comments', 'attachments']));
-      for (const name of ['comments', 'attachments']) {
-        for (const row of await list(`${expensePath}/${name}`)) {
-          groupDocuments.push(row.name!.slice(`${root}/`.length));
-          if (name === 'attachments') {
-            const publicId = row.fields?.['publicId']?.stringValue;
-            if (publicId) receiptPublicIds.push(publicId);
-          }
-        }
-      }
+    for (const rows of comments.values()) for (const row of rows) groupDocuments.push(row.name.slice(`${root}/`.length));
+    for (const rows of attachments.values()) for (const row of rows) {
+      groupDocuments.push(row.name.slice(`${root}/`.length));
+      const fields = row.fields as Record<string, Field> | undefined;
+      const publicId = fields?.['publicId']?.stringValue;
+      if (publicId) receiptPublicIds.push(publicId);
     }
     const userDocuments: string[] = [];
     for (const memberId of members) {
