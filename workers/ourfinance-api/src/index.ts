@@ -449,7 +449,10 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const body = await readLimitedJson(request, 4096);
       const groupId = await createGroup(body, uid, { FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT_JSON: env.FIREBASE_SERVICE_ACCOUNT_JSON });
       return new Response(JSON.stringify({ groupId }), { status: 201, headers });
-    } catch { return new Response(JSON.stringify({ error: 'Création impossible' }), { status: 400, headers }); }
+    } catch (error) {
+      if (error instanceof ProviderQuotaError) return new Response(JSON.stringify({ error: error.message }), { status: 503, headers });
+      return new Response(JSON.stringify({ error: 'Création impossible' }), { status: 400, headers });
+    }
   }
   const currencyMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/currency$/.exec(url.pathname);
   if (currencyMatch && request.method === 'PATCH') {
