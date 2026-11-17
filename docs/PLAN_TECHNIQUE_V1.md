@@ -21,7 +21,7 @@ OurFinance est une application de suivi et de partage de dépenses, accessible s
 - Statistiques interactives par groupe : plage personnalisée **Jours / Mois / Années** dans un seul sélecteur déroulant, graphiques par catégorie, comparaison des paiements et parts dues par membre, évolution temporelle, écarts et soldes.
 - Historique, recherche, catalogue de catégories illustrées, catégories personnalisées collaboratives, reçus, remboursements, import/export.
 - Application disponible **en français, anglais et japonais dès la V1** : langue initiale selon le navigateur, changement immédiat dans les paramètres, préférence sauvegardée.
-- Code Angular moderne, composants réutilisables dans `shared`, Tailwind et CSS personnalisé minimal ; **design system cohérent et UX soignée** sur mobile et ordinateur.
+- Code Angular moderne, composants réutilisables dans `shared`, Tailwind et CSS personnalisé minimal ; **direction visuelle Everyday Pop validée** (voir [`docs/DESIGN_EVERYDAY_POP.md`](DESIGN_EVERYDAY_POP.md)), responsive desktop/mobile et illustrations SVG originales dans `public/illustrations/`.
 - Déploiement automatisé à partir de GitHub, environnements isolés et contrôle de sécurité sur PR.
 
 ### Exemples de groupes, non codés en dur
@@ -213,6 +213,8 @@ Le formulaire propose une icône lors du choix d'une catégorie, affiche l'icôn
 
 ## 10. Écrans V1
 
+**Direction graphique obligatoire : [Everyday Pop](DESIGN_EVERYDAY_POP.md).** Elle remplace le style générique/turquoise de la PR #101 et la mascotte ronde jaune. Utiliser les **SVG vectoriels locaux** de `public/illustrations/` : terrasse de café avec groupe d'amis et bières jaunes, couple avec rose rouge, chaises de bistrot, bulles de catégories/devises. Aucun texte, aucune enseigne de bistrot ni tour Eiffel dans les illustrations. L'interface conserve les libellés FR/EN/JA traduisibles séparément. Les quatre parcours **Connexion, Dashboard/Groupes, Dépenses et Statistiques** doivent chacun être soignés **sur desktop ET sur mobile**.
+
 1. **Connexion / inscription / mot de passe oublié**.
 2. **Mes groupes** : liste, devise propre à chaque groupe, soldes, groupe personnel ou partagé, invitation, archivage.
 3. **Détail d'un groupe** : membres, filtres, opérations regroupées par date, devise fixe visible, solde, bouton d'ajout.
@@ -254,6 +256,10 @@ Navigation fixe adaptée aux petits écrans (Groupes, Amis, Statistiques/Activit
 - Prévoir textes longs, polices compatibles japonais, retours à la ligne, accessibilité, pluriels et tests des trois langues. Noms des catégories personnalisées conservés tels que saisis.
 
 ### Design system et qualité UI/UX (V1 / M1–M6)
+
+- **Spécification de référence : [`docs/DESIGN_EVERYDAY_POP.md`](DESIGN_EVERYDAY_POP.md).** Design validé : violet lumineux, corail, jaune, menthe, fond lavande très clair, typographie ronde et moderne ; carte héro de solde compacte, illustration de terrasse en connexion, groupes en cartes, listes de dépenses lisibles, graphiques interactifs.
+- Les illustrations sont des **fichiers SVG locaux** dans `public/illustrations/` : desktop/mobile, marque et bulles décoratives de catégories. Ne jamais ajouter les captures privées Splitwise au dépôt ; ne pas remplacer les SVG par des images raster encodées dans des SVG.
+- **Important pour Codex Cloud et local :** relire ce plan et la spécification Everyday Pop depuis `main` avant toute tâche UI ; les branches en cours (#101, #100, #105 notamment) peuvent contenir une UI antérieure, dont on conserve les fonctionnalités mais pas nécessairement le style.
 
 - Définir dès M1 tokens de couleurs, typographie, espacements, rayons, états de composants, grilles et animations discrètes ; Tailwind/Lucide et composants Angular `shared` réutilisables, CSS personnalisé minimal.
 - Expérience **mobile-first**, navigation tactile, sélection de dates confortable, formulaires rapides, graphiques lisibles, feedback explicite des sauvegardes et erreurs, chargement progressif, empty states soignés.
@@ -417,12 +423,12 @@ tools/
 | Jalons | Travaux | Critère de fin |
 |---|---|---|
 | **M0 — faisabilité** | POC Firebase Auth/Firestore Spark, Worker Free, Cloudinary `authenticated`, calculs atomiques et règles d'accès, quotas ; évaluation de l'extension/exports officiels | Dépense test sécurisée, image privée accessible au membre autorisé et refusée à un tiers, coût nul démontré |
-| **M1 — fondation** | Angular/Tailwind/PWA, **design system**, infrastructure **i18n FR/EN/JA**, POC bibliothèque de graphiques, Firebase Hosting, Firestore Emulator, CI GitHub, Worker, environnements séparés | Site installable, composants UI de base, traductions chargées, PR validées, preview isolée |
-| **M2 — comptes/groupes** | Google/email, récupération native, profil, **détection navigateur + préférence de langue modifiable**, groupes libres à **devise unique obligatoire**, invitations par lien, Security Rules | Groupes à 1/2/3 membres ; devise choisie à la création, langue persistée, aucune fuite inter-groupes |
-| **M3 — dépenses** | Catalogue global de catégories traduites, catégories personnalisées collaboratives, catalogue ISO pour **choix de devise par groupe**, montants strictement dans cette devise, paiements/parts, cinq répartitions, mémorisation personnelle | Dépenses exactes sans conversion ; devise verrouillée après première transaction ; split réutilisé sans imposer 60/40 |
-| **M4 — finances** | Remboursements dans la devise du groupe, soldes exacts, **sélecteur dropdown Jours/Mois/Années**, indicateurs, camembert catégories, barres payé vs dû par membre, courbe temporelle, filtres et interactions | Montants exacts, écarts expliqués, graphiques et bornes de période testés, mobile et desktop |
+| **M1 — fondation** | Angular/Tailwind/PWA, **design system Everyday Pop et marque SVG**, **connexion desktop/mobile illustrée**, shell/navigation responsive, infrastructure **i18n FR/EN/JA**, POC bibliothèque de graphiques, Firebase Hosting, Firestore Emulator, CI GitHub, Worker, environnements séparés | Site installable, connexion et shell cohérents desktop/mobile, traductions chargées, PR validées, preview isolée |
+| **M2 — comptes/groupes** | Google/email, récupération native, profil, **détection navigateur + préférence de langue modifiable**, **dashboard et cartes de groupes Everyday Pop desktop/mobile**, groupes libres à **devise unique obligatoire**, invitations par lien, Security Rules | Dashboard et groupes responsive à 1/2/3 membres ; devise choisie à la création, langue persistée, aucune fuite inter-groupes |
+| **M3 — dépenses** | **Historique et éditeur Everyday Pop desktop/mobile**, catalogue global de catégories traduites, catégories personnalisées collaboratives, catalogue ISO pour **choix de devise par groupe**, montants strictement dans cette devise, paiements/parts, cinq répartitions, mémorisation personnelle | Dépenses exactes sans conversion ; éditeur mobile rapide ; devise verrouillée après première transaction ; split réutilisé sans imposer 60/40 |
+| **M4 — finances** | Remboursements dans la devise du groupe, soldes exacts, **statistiques Everyday Pop desktop/mobile**, **sélecteur dropdown Jours/Mois/Années**, indicateurs, camembert catégories, barres payé vs dû par membre, courbe temporelle, filtres et interactions | Montants exacts, écarts expliqués, graphiques et bornes de période testés, mobile et desktop |
 | **M5 — import/photos** | Reçus Cloudinary privés, export natif OurFinance, import Splitwise CSV/JSON **sans conversion et avec séparation des devises incompatibles**, extension d'aide aux exports, dédoublonnage | Migration rapprochée, fichiers privés, devises source préservées et erreurs signalées |
-| **M6 — production** | E2E, audit Firestore Rules/Worker/IAM, sauvegarde/restauration, **tests UX/i18n FR/EN/JA**, graphiques et sélecteur mobile/desktop, performances, Android/iOS, déploiement | Groupes indépendants, 3 langues, graphiques accessibles, validation utilisateur |
+| **M6 — production** | E2E, audit Firestore Rules/Worker/IAM, sauvegarde/restauration, **revue visuelle Everyday Pop desktop/mobile**, tests UX/i18n FR/EN/JA, graphiques et sélecteur mobile/desktop, performances, Android/iOS, déploiement | Groupes indépendants, 3 langues, identité Everyday Pop homogène, graphiques accessibles, validation utilisateur |
 
 ### Definition of Done V1
 
@@ -438,7 +444,7 @@ tools/
 - [ ] Les statistiques sont filtrées **par groupe** et par période choisie via **un dropdown à onglets Jours/Mois/Années** (début/fin inclusifs, Annuler/Appliquer) ; camembert par catégorie, comparaison payé vs dû par membre, évolution temporelle et indicateurs exacts.
 - [ ] Photos Cloudinary privées (`authenticated`) visibles seulement aux membres autorisés, avec signature/stream protégé et exportables avec leur dépense.
 - [ ] CSV Splitwise importé avec historique, anomalies et rapprochement des soldes.
-- [ ] PWA installable et responsive, design system soigné, graphiques et sélection de dates accessibles, sans traitement silencieux de données privées en dehors du groupe.
+- [ ] PWA installable et responsive, **design Everyday Pop cohérent sur Connexion, Dashboard/Groupes, Dépenses et Statistiques en desktop et mobile**, SVG locaux, graphiques et sélection de dates accessibles, sans traitement silencieux de données privées en dehors du groupe.
 - [ ] UI entièrement disponible en **français, anglais et japonais**, avec langue initiale selon le navigateur, choix dans les paramètres, préférence persistée et changement immédiat.
 - [ ] Pipeline PR et déploiement GitHub vers Firebase Hosting/Firestore/Worker validés ; sauvegardes documentées.
 - [ ] La V1 fonctionne sur Firebase Spark + Cloudinary Free + Worker Free **sans carte bancaire ni facturation requise**, et les quotas sont surveillés.
@@ -463,5 +469,5 @@ tools/
 3. **Splitwise :** disposer d'un échantillon CSV non sensible (et éventuellement JSON de sauvegarde) pour vérifier le degré de fidélité de l'import ; confirmer la portée de l'extension après revue des conditions du service. Les transactions de devise incompatible sont séparées ou refusées, jamais converties.
 4. **Accès GitHub :** envisager de rendre `OurFinance` privé si des exemples ou fixtures de données personnelles doivent être conservés ; éviter tout jeu de données réel dans un dépôt public.
 5. **Domaine :** garder le domaine Firebase gratuit au démarrage ; sous-domaine `carnould.com` facultatif, via BookMyName, après la mise en production.
-6. **Décisions produit confirmées (16/11/2026) :** une seule devise stricte par groupe, sans conversion ; statistiques avec dropdown Jours/Mois/Années et graphiques interactifs ; FR/EN/JA dès la V1 ; design system et UX mobile-first. Ces décisions **remplacent** les anciennes exigences multidevises par dépense et les anciennes mentions « anglais/japonais prévus plus tard ».
+6. **Décisions produit confirmées (16/11/2026) :** une seule devise stricte par groupe, sans conversion ; statistiques avec dropdown Jours/Mois/Années et graphiques interactifs ; FR/EN/JA dès la V1 ; **direction UI Everyday Pop** (voir `docs/DESIGN_EVERYDAY_POP.md`) avec SVG de terrasse de café, design system et UX mobile-first. Ces décisions **remplacent** les anciennes exigences multidevises par dépense, les anciennes mentions « anglais/japonais prévus plus tard » et le style générique de la PR #101.
 

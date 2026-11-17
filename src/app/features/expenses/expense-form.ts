@@ -16,7 +16,7 @@ import type { SplitMode } from '../../shared/utils/split-engine';
 @Component({
   selector: 'app-expense-form', imports: [FormsModule],
   template: `
-    <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-5" aria-label="Nouvelle dépense">
+    <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-5" [attr.aria-label]="editing ? 'Modifier la dépense' : 'Nouvelle dépense'">
       <h2 class="text-lg font-semibold">{{ editing ? 'Modifier la dépense' : 'Nouvelle dépense' }}</h2>
       @if (editing) { <p class="mt-1 text-sm text-slate-600">Seul l’auteur peut modifier cette dépense.</p> }
       <p class="mt-1 text-sm text-slate-600">Choisissez une répartition pour cette dépense. La préférence du groupe est proposée seulement après une dépense enregistrée.</p>
@@ -62,7 +62,7 @@ import type { SplitMode } from '../../shared/utils/split-engine';
                 <div class="mt-3 flex items-center gap-3">
                   <label class="flex min-w-0 flex-1 items-center gap-2 text-sm"><input class="shrink-0" type="checkbox" [name]="'selected-' + i" [(ngModel)]="row.selected" /><span class="min-w-0 break-all">{{ row.userId === user?.uid ? 'Moi' : row.userId }}</span></label>
                   @if (draft.kind !== 'equal' && row.selected) {
-                    <input class="w-24 rounded-lg border border-slate-300 p-2 text-right" [name]="'value-' + i" [(ngModel)]="row.value" inputmode="decimal" [attr.aria-label]="'Valeur pour ' + row.userId" [placeholder]="draft.kind === 'percentage' ? '%' : draft.kind === 'shares' ? 'parts' : draft.currency" />
+                    <input class="w-24 rounded-lg border border-slate-300 p-2 text-right" [name]="'value-' + i" [(ngModel)]="row.value" inputmode="decimal" [attr.aria-label]="'Valeur pour ' + (row.userId === user?.uid ? 'Moi' : row.userId)" [placeholder]="draft.kind === 'percentage' ? '%' : draft.kind === 'shares' ? 'parts' : draft.currency" />
                   }
                 </div>
               }
