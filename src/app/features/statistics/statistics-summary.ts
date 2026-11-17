@@ -1,4 +1,4 @@
-import { Component, Input, OnChanges, SimpleChanges, signal } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { FirebaseApp } from 'firebase/app';
 import type { User } from 'firebase/auth';
@@ -27,29 +27,35 @@ interface CurrencyStatistics {
   imports: [FormsModule, PeriodPicker, StatisticsCharts],
   template: `
     <section class="mt-6 rounded-3xl border border-pop-border bg-pop-surface p-5 text-pop-text shadow-sm md:p-7" [attr.aria-label]="text('title')">
-      <div class="mb-5 h-1.5 w-14 rounded-full bg-pop-sun" aria-hidden="true"></div>
-      <h2 class="text-2xl font-extrabold tracking-tight">{{ text('title') }}</h2>
-      <p class="mt-1 text-sm text-pop-muted">{{ text('intro') }}</p>
-      <label class="mt-5 block text-sm font-bold">{{ text('group') }}
-        <select class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="statisticsGroup" [(ngModel)]="selectedGroupId" (ngModelChange)="refresh()">
-          <option value="">{{ text('chooseGroup') }}</option>
-          @for (group of groups; track group.id) { <option [value]="group.id">{{ group.name }}</option> }
-        </select>
-      </label>
+      <div class="mb-5 hidden h-1.5 w-14 rounded-full bg-pop-sun sm:block" aria-hidden="true"></div>
+      <h2 class="sr-only text-2xl font-extrabold tracking-tight sm:not-sr-only">{{ text('title') }}</h2>
+      <p class="sr-only mt-1 text-sm text-pop-muted sm:not-sr-only">{{ text('intro') }}</p>
+      <div class="grid gap-3 sm:grid-cols-2 sm:items-end">
+        @if (groups.length > 1) { <label class="mt-5 block text-sm font-bold">{{ text('group') }}
+            <select class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="statisticsGroup" [(ngModel)]="selectedGroupId" (ngModelChange)="onGroupChange()">
+              <option value="">{{ text('chooseGroup') }}</option>
+              @for (group of groups; track group.id) { <option [value]="group.id">{{ group.name }}</option> }
+            </select>
+          </label> }
+        @if (selectedGroupId) { <app-period-picker [range]="range" (rangeChange)="setRange($event)" /> }
+      </div>
       @if (selectedGroupId) {
-        <app-period-picker [range]="range" (rangeChange)="setRange($event)" />
         <button class="mt-3 min-h-11 rounded-xl bg-pop-primary px-5 py-2 text-sm font-bold text-white hover:bg-pop-primary-dark disabled:opacity-50" type="button" [disabled]="busy()" (click)="refresh()">{{ text('refresh') }}</button>
         @for (row of statistics(); track row.currency) {
           <div class="mt-5 border-t border-pop-border pt-5 text-sm">
             <h3 class="font-extrabold text-pop-primary-dark">{{ row.currency }}</h3>
-            <dl class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
-              <div class="rounded-2xl bg-pop-lavender p-4"><dt class="text-pop-muted">{{ text('spent') }}</dt><dd class="mt-2 break-words text-lg font-extrabold">{{ amount(row.spentMinor, row.currency) }}</dd></div>
-              <div class="rounded-2xl bg-pop-peach p-4"><dt class="text-pop-muted">{{ text('settled') }}</dt><dd class="mt-2 break-words text-lg font-extrabold">{{ amount(row.settledMinor, row.currency) }}</dd></div>
-              <div class="rounded-2xl bg-pop-mint-soft p-4"><dt class="text-pop-muted">{{ text('paid') }}</dt><dd class="mt-2 break-words text-lg font-extrabold">{{ amount(row.myPaidMinor, row.currency) }}</dd></div>
-              <div class="rounded-2xl bg-pop-lavender p-4"><dt class="text-pop-muted">{{ text('owed') }}</dt><dd class="mt-2 break-words text-lg font-extrabold">{{ amount(row.myOwedMinor, row.currency) }}</dd></div>
-              <div class="col-span-2 rounded-2xl bg-pop-primary p-4 text-white sm:col-span-1"><dt>{{ text('balance') }}</dt><dd class="mt-2 break-words text-lg font-extrabold">{{ amount(row.myBalanceMinor, row.currency) }}</dd></div>
+            <dl class="mt-3 grid grid-cols-2 gap-3 md:grid-cols-3">
+              <div class="rounded-2xl bg-pop-lavender p-4 max-[359px]:p-3"><dt class="text-pop-muted">{{ text('spent') }}</dt><dd class="mt-2 break-words text-lg font-extrabold max-[359px]:text-sm">{{ amount(row.spentMinor, row.currency) }}</dd></div>
+              <div class="rounded-2xl bg-pop-peach p-4 max-[359px]:p-3"><dt class="text-pop-muted">{{ text('paid') }}</dt><dd class="mt-2 break-words text-lg font-extrabold max-[359px]:text-sm">{{ amount(row.myPaidMinor, row.currency) }}</dd></div>
+              <div class="col-span-2 rounded-2xl bg-pop-mint-soft p-4 md:col-span-1"><dt class="text-pop-muted">{{ text('balance') }}</dt><dd class="mt-2 break-words text-lg font-extrabold">{{ amount(row.myBalanceMinor, row.currency) }}</dd></div>
             </dl>
             @if (charts()[row.currency]; as chart) { <app-statistics-charts [data]="chart" [currency]="row.currency" [userId]="user?.uid ?? ''" /> }
+            <details class="mt-3 rounded-xl border border-pop-border px-4 py-3"><summary class="cursor-pointer font-bold text-pop-primary-dark">{{ text('moreMeasures') }}</summary>
+              <dl class="mt-3 grid gap-3 sm:grid-cols-2">
+                <div><dt class="text-pop-muted">{{ text('settled') }}</dt><dd class="font-extrabold">{{ amount(row.settledMinor, row.currency) }}</dd></div>
+                <div><dt class="text-pop-muted">{{ text('owed') }}</dt><dd class="font-extrabold">{{ amount(row.myOwedMinor, row.currency) }}</dd></div>
+              </dl>
+            </details>
           </div>
         } @empty { @if (!busy() && !message()) { <p class="mt-5 rounded-2xl bg-pop-lavender p-5 text-sm text-pop-muted">{{ text('empty') }}</p> } }
         @if (incompleteCount()) { <p class="mt-3 text-sm text-amber-800">{{ incompleteCount() }} {{ text('incomplete') }}</p> }
@@ -59,7 +65,9 @@ interface CurrencyStatistics {
   `,
 })
 export class StatisticsSummary implements OnChanges {
+  @Output() readonly groupChange = new EventEmitter<string>();
   @Input({ required: true }) groups: Group[] = [];
+  @Input() preferredGroupId = '';
   @Input({ required: true }) firebaseApp?: FirebaseApp;
   @Input({ required: true }) user?: User;
   @Input() revision = 0;
@@ -78,9 +86,14 @@ export class StatisticsSummary implements OnChanges {
 
   ngOnChanges(changes: SimpleChanges): void {
     if (this.firebaseApp) this.service = new BalanceService(this.firebaseApp);
+    if (this.selectedGroupId !== this.preferredGroupId && this.groups.some(group => group.id === this.preferredGroupId)) {
+      this.selectedGroupId = this.preferredGroupId;
+      void this.refresh();
+    }
     if (changes['revision'] && !changes['revision'].firstChange && this.selectedGroupId) void this.refresh();
   }
   amount(value: bigint, currency: string): string { return formatMinorExact(value, currency, locale()); }
+  onGroupChange(): void { this.groupChange.emit(this.selectedGroupId); void this.refresh(); }
   setRange(range: AppliedRange): void { this.range = range; this.recompute(); }
   async refresh(): Promise<void> {
     const groupId = this.selectedGroupId;

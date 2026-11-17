@@ -295,7 +295,7 @@ export class ExpensesPage { readonly app = inject(App); readonly t = t; readonly
     <div class="mx-auto max-w-5xl"><header class="mb-5"><p class="text-sm font-bold text-pop-muted">{{ app.selectedGroup()?.name }} · {{ app.selectedGroup()?.currency }}</p><h1 class="text-3xl font-black">{{ t('navStatistics') }}</h1></header>
       @if (app.firebaseApp && app.auth?.user(); as user) {
         @if (app.groups().length) {
-          <app-statistics-summary [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [revision]="app.expenseRevision() + app.settlementRevision()" />
+          <app-statistics-summary [groups]="app.groups()" [preferredGroupId]="app.selectedGroupId()" [user]="user" [firebaseApp]="app.firebaseApp" [revision]="app.expenseRevision() + app.settlementRevision()" (groupChange)="app.selectedGroupId.set($event)" />
           <app-balance-summary [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [revision]="app.expenseRevision() + app.settlementRevision()" />
           @if (app.workerUrl) { <app-settlement-form [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" (saved)="app.onSettlementSaved()" />
             <app-settlement-history [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" [revision]="app.settlementRevision()" /> }
