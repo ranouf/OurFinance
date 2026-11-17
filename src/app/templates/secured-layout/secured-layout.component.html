@@ -1,1 +1,1 @@
-<app-shell [signedIn]="true" [hasGroups]="app.groups().length > 0" [userInitial]="app.userInitial()"><router-outlet /></app-shell>
+<app-shell [signedIn]="true" [hasGroups]="app.groups().length > 0" [userInitial]="app.userInitial()" [userName]="app.auth?.user()?.displayName || app.auth?.user()?.email || ''" [pageTitle]="app.pageTitle()" (signOut)="app.logout()"><router-outlet /></app-shell>

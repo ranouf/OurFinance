@@ -1,0 +1,11 @@
+@if (!online()) { <p class="mx-auto max-w-6xl rounded-xl bg-amber-50 p-3 text-sm text-amber-900" role="status">{{ t('offline') }}</p> }
+@if (state() === 'loading') { <p class="mx-auto max-w-6xl p-6" role="status">{{ t('loadingConfig') }}</p> }
+@else if (state() === 'unconfigured') { <p class="mx-auto max-w-6xl p-6" role="status">{{ t('missingConfig') }}</p> }
+@else if (!auth?.ready() || authRedirect()) {
+  <div class="mx-auto flex min-h-[55vh] max-w-sm flex-col items-center justify-center px-6 text-center" role="status" aria-live="polite">
+    <img src="/illustrations/ourfinance-mark.svg" width="52" height="52" alt="" />
+    <p class="mt-4 text-base font-bold text-pop-primary-dark">{{ t('loadingSession') }}</p>
+    <span class="mt-4 h-1.5 w-28 overflow-hidden rounded-full bg-pop-lavender" aria-hidden="true"><span class="block h-full w-1/2 animate-pulse rounded-full bg-pop-primary"></span></span>
+  </div>
+}
+@else { <router-outlet /> }

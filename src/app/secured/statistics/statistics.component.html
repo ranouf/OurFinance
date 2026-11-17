@@ -1,0 +1,10 @@
+    <div class="mx-auto max-w-5xl"><header class="mb-5"><p class="text-sm font-bold text-pop-muted">{{ app.selectedGroup()?.name }} · {{ app.selectedGroup()?.currency }}</p><h1 class="text-3xl font-black">{{ t('navStatistics') }}</h1></header>
+      @if (app.firebaseApp && app.auth?.user(); as user) {
+        @if (app.groups().length) {
+          <app-statistics-summary [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [revision]="app.expenseRevision() + app.settlementRevision()" />
+          <app-balance-summary [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [revision]="app.expenseRevision() + app.settlementRevision()" />
+          @if (app.workerUrl) { <app-settlement-form [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" (saved)="app.onSettlementSaved()" />
+            <app-settlement-history [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" [revision]="app.settlementRevision()" /> }
+        } @else { <p class="rounded-2xl bg-white p-5">{{ t('noGroups') }}</p> }
+      }
+    </div>

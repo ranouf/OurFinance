@@ -1,0 +1,11 @@
+    <div class="mx-auto max-w-5xl">
+      <header class="mb-5"><p class="text-sm font-bold text-pop-muted">{{ app.selectedGroup()?.name }} · {{ app.selectedGroup()?.currency }}</p><h1 class="text-3xl font-black">{{ t('navExpenses') }}</h1></header>
+      @if (app.workerUrl && app.firebaseApp && app.auth?.user(); as user) {
+        @if (app.groups().length) {
+          <div class="grid gap-5 xl:grid-cols-[1fr_18rem]">
+            <app-expense-history class="min-w-0" [groups]="app.groups()" [firebaseApp]="app.firebaseApp" [user]="user" [workerUrl]="app.workerUrl" [revision]="app.expenseRevision()" [categoryRevision]="app.categoryRevision()" (commented)="app.onCommentAdded()" (editRequested)="app.onExpenseEdit($event)" (deleted)="app.onExpenseSaved()" />
+            <app-expense-form id="expense-editor" [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" [categoryRevision]="app.categoryRevision()" [editing]="app.editingExpense()" (saved)="app.onExpenseSaved()" (editCancelled)="app.editingExpense.set(undefined)" />
+          </div>
+        } @else { <p class="rounded-2xl bg-white p-5">{{ t('noGroups') }}</p> }
+      }
+    </div>
