@@ -48,3 +48,32 @@ test('Firestore REST runQuery pages only descendant receipts of the selected gro
     await fetch(`${base}:rollback`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ transaction }) });
   }
 });
+
+test('cleanup marker conflicts with a transaction activating the same receipt', async () => {
+  const journal = `${root}/groups/g/receiptUploadJobs/race`;
+  const attachment = `${root}/groups/g/expenses/e1/attachments/race`;
+  await environment.withSecurityRulesDisabled(async context => {
+    await setDoc(doc(context.firestore(), 'groups/g/receiptUploadJobs/race'), { status: 'uploading', publicId: 'ourfinance-test/g/e1/race' });
+  });
+  const headers = { 'Content-Type': 'application/json' };
+  const begin = await fetch(`${base}:beginTransaction`, { method: 'POST', headers, body: '{}' });
+  strictEqual(begin.status, 200);
+  const { transaction } = await begin.json();
+  const read = await fetch(`${base}/groups/g/receiptUploadJobs/race?transaction=${encodeURIComponent(transaction)}`);
+  strictEqual(read.status, 200);
+  const marked = await fetch(`${base}/groups/g/receiptUploadJobs/race?updateMask.fieldPaths=status&currentDocument.exists=true`, {
+    method: 'PATCH', headers, body: JSON.stringify({ fields: { status: { stringValue: 'cleanup_pending' } } }),
+  });
+  strictEqual(marked.status, 200);
+  const commit = await fetch(`${base}:commit`, { method: 'POST', headers,
+    body: JSON.stringify({ transaction, writes: [
+      { update: { name: attachment, fields: { status: { stringValue: 'active' } } }, currentDocument: { exists: false } },
+      { delete: journal, currentDocument: { exists: true } },
+    ] }),
+  });
+  strictEqual(commit.ok, false);
+  strictEqual((await fetch(`${base}/groups/g/expenses/e1/attachments/race`)).status, 404);
+  const after = await fetch(`${base}/groups/g/receiptUploadJobs/race`);
+  strictEqual(after.status, 200);
+  strictEqual((await after.json()).fields.status.stringValue, 'cleanup_pending');
+});
