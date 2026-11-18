@@ -40,6 +40,7 @@ export class ImportPanel {
   readonly nativeSource = signal<NativeSplitwiseCsv | null>(null);
   readonly nativeBatches = signal<PreparedImportBatch[]>([]);
   readonly nativeAlreadyImported = signal(0);
+  readonly nativeAlreadyUndone = signal(0);
   readonly members = signal<GroupMember[]>([]);
   readonly preview = signal<ImportPreviewV1 | null>(null);
   readonly reconciliation = signal<Reconciliation | null>(null);
@@ -56,6 +57,7 @@ export class ImportPanel {
   excludeForeign = false;
   private csv = '';
   private existingSourceIds = new Set<string>();
+  private undoneSourceIds = new Set<string>();
   private nativePreviewRequest = 0;
 
   ownedGroups(): Group[] { return this.groups.filter(group => group.ownerId === this.user?.uid); }
@@ -73,7 +75,7 @@ export class ImportPanel {
     const row = /^Ligne (\d+) :/.exec(error);
     return row ? `${this.text('row')} ${row[1]} : ${importErrorText(error.includes('impacts') ? 'impacts' : 'row')}` : importErrorText('file');
   }
-  clearPreview(): void { this.nativePreviewRequest++; this.preview.set(null); this.reconciliation.set(null); this.nativeBatches.set([]); this.nativeAlreadyImported.set(0); this.impactHeaders.set(this.impactHeaders().filter(header => this.impactCandidates().includes(header))); }
+  clearPreview(): void { this.nativePreviewRequest++; this.preview.set(null); this.reconciliation.set(null); this.nativeBatches.set([]); this.nativeAlreadyImported.set(0); this.nativeAlreadyUndone.set(0); this.impactHeaders.set(this.impactHeaders().filter(header => this.impactCandidates().includes(header))); }
 
   async loadFile(event: Event): Promise<void> {
     this.clearPreview(); this.headers.set([]); this.nativeSource.set(null); this.csv = ''; this.message.set(''); this.sourceGroupId = '';
@@ -97,7 +99,7 @@ export class ImportPanel {
   }
 
   async loadGroup(): Promise<void> {
-    this.clearPreview(); this.members.set([]); this.batches.set([]); this.existingSourceIds.clear(); this.message.set('');
+    this.clearPreview(); this.members.set([]); this.batches.set([]); this.existingSourceIds.clear(); this.undoneSourceIds.clear(); this.message.set('');
     const groupId = this.groupId;
     if (!this.selectedGroup() || !this.firebaseApp || !this.user || !this.workerUrl) return;
     this.busy.set(true);
@@ -109,6 +111,7 @@ export class ImportPanel {
       if (this.groupId !== groupId) return;
       this.members.set(members.filter(member => member.status === 'active'));
       this.existingSourceIds = new Set(imported.map(record => String(record.data['sourceId'])));
+      this.undoneSourceIds = new Set(imported.filter(record => record.data['status'] === 'undone').map(record => String(record.data['sourceId'])));
       await this.refreshBatches();
     } catch { this.message.set('unavailable'); }
     finally { this.busy.set(false); }
@@ -204,9 +207,10 @@ export class ImportPanel {
       const mapping = Object.fromEntries(source.participants.map(person => [person, this.memberMapping[person]]));
       const batches = await prepareNativeImportBatches(source, this.sourceGroupId.trim(), group.id, group.currency, mapping);
       if (request !== this.nativePreviewRequest) return;
-      const { pending, alreadyImported } = pendingNativeImportBatches(batches, this.existingSourceIds);
+      const { pending, alreadyImported, alreadyUndone } = pendingNativeImportBatches(batches, this.existingSourceIds, this.undoneSourceIds);
       this.nativeAlreadyImported.set(alreadyImported);
-      if (!pending.length) { this.message.set('nativeAllImported'); return; }
+      this.nativeAlreadyUndone.set(alreadyUndone);
+      if (!pending.length) { this.message.set(alreadyUndone ? 'nativeReserved' : 'nativeAllImported'); return; }
       this.nativeBatches.set(pending);
     } catch { this.message.set('invalidFile'); }
     finally { this.busy.set(false); }
@@ -215,7 +219,7 @@ export class ImportPanel {
   async undo(batchId: string): Promise<void> {
     if (!this.user || !this.workerUrl || !this.groupId || this.busy()) return;
     this.busy.set(true); this.message.set('');
-    try { await new ImportService(this.workerUrl).undo(this.user, this.groupId, batchId); this.message.set('undone'); this.undoConfirmId.set(''); await this.refreshBatches(); }
+    try { await new ImportService(this.workerUrl).undo(this.user, this.groupId, batchId); this.undoConfirmId.set(''); await this.loadGroup(); if (this.message() !== 'unavailable') this.message.set('undone'); }
     catch { this.message.set('undoFailed'); }
     finally { this.busy.set(false); }
   }
