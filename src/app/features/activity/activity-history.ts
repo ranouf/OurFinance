@@ -7,6 +7,7 @@ import { ActivityService, type ActivityEntry } from '../../core/firebase/activit
 import type { Group } from '../../core/firebase/group-model';
 import { loadSharedMemberProfiles } from '../../core/firebase/member-profile-service';
 import { locale, t, type MessageKey } from '../../shared/utils/i18n';
+import { activityGroupForChange } from './activity-group';
 
 const labels: Record<string, MessageKey> = {
   expense_created: 'expenseCreated',
@@ -73,9 +74,10 @@ export class ActivityHistory implements OnChanges {
 
   ngOnChanges(changes: SimpleChanges): void {
     if (this.firebaseApp) this.service = new ActivityService(this.firebaseApp);
-    if ((changes['groups'] || changes['preferredGroupId']) && !this.groups.some(group => group.id === this.selectedGroupId)) {
-      this.selectedGroupId = this.groups.some(group => group.id === this.preferredGroupId) ? this.preferredGroupId : '';
-      void this.refresh();
+    if (changes['groups'] || changes['preferredGroupId']) {
+      const next = activityGroupForChange(this.selectedGroupId, this.preferredGroupId, this.groups.map(group => group.id),
+        !!changes['preferredGroupId'] && changes['preferredGroupId'].previousValue !== changes['preferredGroupId'].currentValue);
+      if (next !== this.selectedGroupId) { this.selectedGroupId = next; void this.refresh(); }
     }
     if (changes['revision'] && !changes['revision'].firstChange && this.selectedGroupId) void this.refresh();
   }
