@@ -60,11 +60,11 @@ class NavIcon { @Input({ required: true }) name = ''; }
         <main class="mx-auto max-w-6xl px-4 py-5 sm:px-7 sm:py-8" [class.pb-28]="signedIn" [class.lg:px-8]="signedIn"><ng-content /></main>
       </div>
       @if (signedIn) {
-        <nav class="fixed inset-x-0 bottom-0 z-30 border-t border-pop-border bg-white/95 px-2 pt-1.5 pb-[calc(.4rem+env(safe-area-inset-bottom))] shadow-[0_-8px_30px_#30275212] lg:hidden" [attr.aria-label]="t('navLabel')">
+        <nav class="fixed inset-x-0 bottom-0 z-30 border-t border-pop-border bg-white px-2 pt-1.5 pb-[calc(.4rem+env(safe-area-inset-bottom))] shadow-[0_-8px_30px_#30275212] lg:hidden" [attr.aria-label]="t('navLabel')">
           <div class="mx-auto grid max-w-lg grid-cols-5 gap-1">
             <a class="pop-bottom-link" routerLink="/dashboard" routerLinkActive="pop-bottom-active"><app-nav-icon name="home" />{{ t('navHome') }}</a>
             <a class="pop-bottom-link" routerLink="/groups" routerLinkActive="pop-bottom-active"><app-nav-icon name="groups" />{{ t('navGroups') }}</a>
-            <a class="pop-bottom-link" [routerLink]="hasGroups ? '/expenses' : '/groups'" routerLinkActive="pop-bottom-active" [attr.aria-label]="hasGroups ? t('navAdd') : t('createGroup')"><span class="flex h-11 w-11 items-center justify-center rounded-full bg-pop-coral text-2xl text-white shadow-md" aria-hidden="true">＋</span>{{ t('navAdd') }}</a>
+            <a class="pop-bottom-link" [routerLink]="hasGroups ? '/expenses' : '/groups'" routerLinkActive="pop-bottom-active" [attr.aria-label]="hasGroups ? t('navAdd') : t('createGroup')"><span class="flex h-11 w-11 items-center justify-center rounded-full bg-pop-coral text-2xl text-white shadow-md" aria-hidden="true">＋</span></a>
             <a class="pop-bottom-link" routerLink="/statistics" routerLinkActive="pop-bottom-active"><app-nav-icon name="statistics" />{{ t('navStatistics') }}</a>
             <a class="pop-bottom-link" routerLink="/account" routerLinkActive="pop-bottom-active"><app-nav-icon name="account" />{{ t('navAccount') }}</a>
           </div>
