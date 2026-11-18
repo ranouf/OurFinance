@@ -108,7 +108,7 @@ export function serializeGroupExportV2(value: GroupExportV2): string {
     throw new Error('Commentaires de sauvegarde invalides');
   }
   const comments = value.comments.map(row => ({ expenseId: row.expenseId, id: row.id, authorId: row.authorId, text: row.text, createdAt: row.createdAt }));
-  const actions = new Set(['expense_created', 'expense_updated', 'expense_deleted', 'settlement_recorded', 'comment_created', 'import_created', 'import_undone', 'category_created', 'category_updated', 'category_archived', 'category_reactivated', 'member_revoked', 'group_archived']);
+  const actions = new Set(['expense_created', 'expense_updated', 'expense_deleted', 'settlement_recorded', 'comment_created', 'import_created', 'import_undone', 'category_created', 'category_updated', 'category_archived', 'category_reactivated', 'member_revoked', 'group_archived', 'group_updated']);
   const settlementIds = new Set(group.settlements.map(row => row.id));
   const categoryIds = new Set(group.categories.map(row => row.id));
   const batchIds = new Set(group.importedRecords.map(row => row.batchId));
@@ -121,7 +121,7 @@ export function serializeGroupExportV2(value: GroupExportV2): string {
         (row.action.startsWith('import_') && !batchIds.has(row.batchId ?? '')) ||
         (row.action.startsWith('category_') && !categoryIds.has(row.categoryId ?? '')) ||
         (row.action === 'member_revoked' && !members.has(row.targetId ?? '')) ||
-        (row.action === 'group_archived' && row.targetId !== undefined) ||
+        ((row.action === 'group_archived' || row.action === 'group_updated') && row.targetId !== undefined) ||
         ['expenseId', 'commentId', 'settlementId', 'batchId', 'categoryId', 'targetId'].some(key => {
           const item = row[key as keyof typeof row];
           return item !== undefined && (typeof item !== 'string' || !idPattern.test(item));

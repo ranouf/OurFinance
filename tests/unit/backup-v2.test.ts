@@ -40,6 +40,22 @@ async function packageFixture(): Promise<BackupPackageV2> {
   };
 }
 
+test('V2 archive accepts a metadata edit event and preserves its group fields', async () => {
+  const changed: GroupExportV2 = { ...group,
+    group: { ...group.group, name: 'Duplex', iconId: 'home', color: 'violet', description: 'Frais' },
+    activity: [...group.activity, { id: 'group_123', actorId: 'alice', action: 'group_updated', at: '2026-11-16T18:00:00.000Z' }],
+  };
+  const groupJson = serializeGroupExportV2(changed);
+  strictEqual(JSON.parse(groupJson).group.iconId, 'home');
+  strictEqual(JSON.parse(groupJson).activity[1].action, 'group_updated');
+  const original = await packageFixture();
+  const bytes = new TextEncoder().encode(groupJson);
+  const backup = { ...original, groupJson, manifest: { ...original.manifest,
+    groupJson: { ...original.manifest.groupJson, sha256: await sha256Hex(bytes), byteLength: bytes.byteLength } } };
+  await verifyBackupPackageV2(backup);
+  throws(() => serializeGroupExportV2({ ...changed, activity: [...changed.activity.slice(0, 1), { ...changed.activity[1], targetId: 'other' }] }));
+});
+
 test('V2 ZIP preserves member preference and private receipt bytes', async () => {
   const backup = await packageFixture();
   const decoded = await decodeBackupZipV2(await encodeBackupZipV2(backup));
