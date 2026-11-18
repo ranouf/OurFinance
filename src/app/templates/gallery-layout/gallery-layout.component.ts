@@ -1,6 +1,6 @@
 import { Component, HostListener } from '@angular/core';
 import { RouterLink, RouterOutlet } from '@angular/router';
-import { language } from '../../shared/utils/i18n';
+import { language, setLanguage } from '../../shared/utils/i18n';
 
 const labels = {
   fr: { nav: 'Navigation des composants', components: 'Composants', foundations: 'Fondations et actions', forms: 'Formulaires et sélection', patterns: 'Navigation et données', business: 'Composants métier', responsive: 'Responsive et tokens', guides: 'Guides et pratiques', buttons: 'Boutons', fields: 'Champs', inputs: 'Saisies', choices: 'Choix', calendar: 'Calendrier', alerts: 'Messages', badges: 'Badges', qr: 'Invitation QR' },
@@ -15,6 +15,7 @@ const labels = {
 })
 export class GalleryLayoutComponent {
   readonly language = language;
+  readonly setLanguage = setLanguage;
   readonly labels = labels;
   activeSection = 'foundations';
 

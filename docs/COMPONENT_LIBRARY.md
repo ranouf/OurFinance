@@ -1,6 +1,6 @@
 # Bibliothèque de composants Everyday Pop
 
-La galerie Angular est accessible à `/ui/components` avec `npm start`. Elle est chargée à la demande et n'est pas exposée dans le build de production. Elle utilise uniquement des exemples fictifs et ne requiert pas de connexion.
+La galerie Angular est accessible à `/ui/components` avec `npm start`. Elle est chargée à la demande et n'est pas exposée dans le build de production. Elle utilise uniquement des exemples fictifs et ne requiert pas de connexion. Un sélecteur FR/EN/JA dans son menu permet de vérifier chaque langue.
 
 Les composants réutilisables sont dans `src/app/shared/components/`. La galerie présente les fondations visuelles, boutons, badges, chips, alertes, toasts, cartes, champs et contrôles de formulaire, ainsi que les patrons de navigation, listes, tableau, pagination, dialogue, accordéon, états vides et chargement. Les compositions métier montrées en fin de galerie sont des exemples ; elles ne sont pas utilisées par les pages existantes dans cette PR.
 

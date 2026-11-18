@@ -5,6 +5,11 @@
       <span class="flex flex-col leading-tight"><strong class="text-[20px] font-black tracking-tight text-pop-primary-dark">OurFinance</strong><small class="text-[11px] font-extrabold text-pop-muted">UI Kit</small></span>
     </a>
     <span class="ml-11 mt-1 inline-flex rounded-full bg-pop-lavender px-2 py-0.5 text-[10px] font-extrabold text-pop-primary-dark">Everyday Pop V2</span>
+    <div class="mt-4 flex gap-1" role="group" aria-label="Language / Langue / 言語">
+      <button type="button" class="min-h-11 rounded-lg px-2 text-xs font-bold focus-visible:outline-2 focus-visible:outline-pop-primary" [class.bg-pop-lavender]="language() === 'fr'" [attr.aria-pressed]="language() === 'fr'" (click)="setLanguage('fr')">FR</button>
+      <button type="button" class="min-h-11 rounded-lg px-2 text-xs font-bold focus-visible:outline-2 focus-visible:outline-pop-primary" [class.bg-pop-lavender]="language() === 'en'" [attr.aria-pressed]="language() === 'en'" (click)="setLanguage('en')">EN</button>
+      <button type="button" class="min-h-11 rounded-lg px-2 text-xs font-bold focus-visible:outline-2 focus-visible:outline-pop-primary" [class.bg-pop-lavender]="language() === 'ja'" [attr.aria-pressed]="language() === 'ja'" (click)="setLanguage('ja')">JA</button>
+    </div>
     <nav class="mt-4 grid grid-cols-2 gap-1 text-[11px] font-extrabold sm:grid-cols-3 lg:grid-cols-1 lg:gap-0.5" [attr.aria-label]="labels[language()].nav">
       <a class="gallery-nav-link" [class.gallery-nav-active]="activeSection === 'foundations'" href="/ui/components#foundations" (click)="activeSection = 'foundations'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><use href="/illustrations/gallery-nav-icons.svg#home" /></svg>{{ labels[language()].foundations }}</a>
       <a class="gallery-nav-link" [class.gallery-nav-active]="activeSection === 'forms'" href="/ui/components#forms" (click)="activeSection = 'forms'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><use href="/illustrations/gallery-nav-icons.svg#form" /></svg>{{ labels[language()].forms }}</a>
