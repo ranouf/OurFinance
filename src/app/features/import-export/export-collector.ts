@@ -79,7 +79,7 @@ export async function collectGroupExportV1(reader: ExportReader, user: Pick<User
   if (!user.emailVerified || !/^[A-Za-z0-9_-]{1,128}$/.test(groupId)) throw new Error('Export non autorisé');
   const root = `groups/${groupId}`;
   const group = await reader.read(root);
-  if (!group || group.data['status'] !== 'active') throw new Error('Groupe indisponible');
+  if (!group || !['active', 'archived'].includes(String(group.data['status']))) throw new Error('Groupe indisponible');
   const ownMembership = await reader.read(`${root}/members/${user.uid}`);
   if (ownMembership?.data['status'] !== 'active') throw new Error('Membre inactif');
 

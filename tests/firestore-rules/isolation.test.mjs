@@ -41,7 +41,7 @@ test('revoked and unauthenticated users cannot read', async () => {
   await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), 'groups/a/expenses/e1')));
 });
 
-test('archived group denies even its former owner while retaining documents', async () => {
+test('archived group keeps read-only history for active members', async () => {
   await env.withSecurityRulesDisabled(async context => {
     const db = context.firestore();
     await setDoc(doc(db, 'groups/archived'), { name: 'Archived fixture', status: 'archived' });
@@ -49,8 +49,10 @@ test('archived group denies even its former owner while retaining documents', as
     await setDoc(doc(db, 'groups/archived/expenses/historical'), { amountMinor: 100 });
   });
   const owner = env.authenticatedContext('alice').firestore();
-  await assertFails(getDoc(doc(owner, 'groups/archived')));
-  await assertFails(getDoc(doc(owner, 'groups/archived/expenses/historical')));
+  await assertSucceeds(getDoc(doc(owner, 'groups/archived')));
+  await assertSucceeds(getDoc(doc(owner, 'groups/archived/expenses/historical')));
+  await assertFails(setDoc(doc(owner, 'groups/archived/expenses/new'), { amountMinor: 100 }));
+  await assertFails(getDoc(doc(env.authenticatedContext('bob').firestore(), 'groups/archived/expenses/historical')));
   await env.withSecurityRulesDisabled(async context => {
     await assertSucceeds(getDoc(doc(context.firestore(), 'groups/archived/expenses/historical')));
   });

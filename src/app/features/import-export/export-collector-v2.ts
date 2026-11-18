@@ -46,7 +46,7 @@ async function collectGroupExportV2WithPreferences(
   })));
   const activity = (await reader.list(`groups/${groupId}/activity`)).map(item => ({ id: item.id,
     actorId: item.data['actorId'] as string, action: item.data['action'] as string, at: timestamp(item.data['at']),
-    ...Object.fromEntries(['expenseId', 'commentId', 'settlementId', 'batchId', 'categoryId']
+    ...Object.fromEntries(['expenseId', 'commentId', 'settlementId', 'batchId', 'categoryId', 'targetId']
       .filter(key => item.data[key] !== undefined).map(key => [key, item.data[key]])),
   }));
   const owner = group.members.find(member => member.role === 'owner' && member.status === 'active');
