@@ -63,13 +63,14 @@ jobs:
         uses: google-github-actions/auth@v3
         with:
           credentials_json: ${{ secrets.TEST_FIREBASE_DEPLOY_SA_JSON }}
-          token_format: access_token
+          create_credentials_file: true
+          export_environment_variables: true
+      - uses: google-github-actions/setup-gcloud@v3
       - name: Read only the TEST Hosting sites
-        env:
-          GOOGLE_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
         run: |
-          test -n "$GOOGLE_ACCESS_TOKEN"
+          google_access_token="$(gcloud auth print-access-token --quiet)"
+          test -n "$google_access_token"
           status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
-            --header "Authorization: Bearer $GOOGLE_ACCESS_TOKEN" \
+            --header "Authorization: Bearer $google_access_token" \
             'https://firebasehosting.googleapis.com/v1beta1/projects/ourfinance-test/sites?pageSize=1')"
           test "$status" = 200
