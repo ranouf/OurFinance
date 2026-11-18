@@ -1,5 +1,5 @@
-# M4 — finances : état
+# M4 — finances : état au 18 novembre 2026
 
-Un calcul dérivé reconstitue les soldes par groupe, devise et utilisateur à partir des paiements, parts et règlements, avec filtres de dates et exclusion des suppressions logiques. Il utilise `BigInt` pour les totaux et vérifie la conservation des dépenses. Les règlements partiels sont couverts par tests.
+Les soldes sont dérivés par groupe, devise et personne avec `BigInt`, en tenant compte des paiements, parts, remboursements et suppressions logiques. Les routes Worker de règlements, les vues de statistiques et les filtres de période existent. L'[essai TEST #144](https://github.com/ranouf/OurFinance/issues/30#issuecomment-6967293793) a vérifié les remboursements et l'isolation de deux groupes CAD/JPY ; aucun total entre devises n'est inventé.
 
-L'interface de remboursement/statistiques, les conversions à taux explicite, la persistance et les tests de concurrence restent à faire. Aucun solde multidevise n'est additionné. Le critère de fin M4 reste ouvert.
+Les écrans Statistiques et leurs ajustements de lisibilité restent dans les PR UI [#132](https://github.com/ranouf/OurFinance/pull/132) et [#147](https://github.com/ranouf/OurFinance/pull/147), à réempiler et valider visuellement. Le plan V1 prévoit une conversion seulement à taux explicite ; aucune conversion implicite n'est implémentée ni revendiquée. Les statistiques, règlements et éventuelles conversions doivent être rejoués sur le SHA UI final, y compris les périodes libres et la concurrence. Le critère M4 complet reste ouvert.

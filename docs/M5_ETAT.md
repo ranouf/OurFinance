@@ -1,7 +1,7 @@
-# M5 — import et photos : état
+# M5 — import et photos : état au 18 novembre 2026
 
-Un parseur CSV local et un aperçu versionné permettent un mapping explicite de colonnes, signalent doublons et lignes invalides, et marquent chaque répartition historique comme indéterminée. Le format CSV réel Splitwise n'a pas été fourni ; aucune correspondance implicite n'est inventée. Aucune donnée n'est transmise.
+L'import CSV Splitwise et le variant historique exact conservent les impacts nets et la précision d'origine sans inventer de payeurs ou de conversion. Le Worker valide les lots, l'anti-doublon et l'annulation ; les exports JSON/CSV et ZIP V2 préservent les chaînes exactes. Les essais fictifs [#127](https://github.com/ranouf/OurFinance/pull/127) et [#144](https://github.com/ranouf/OurFinance/issues/30#issuecomment-6967293793) ont couvert import valide, doublon, annulation, rapprochement, export et restauration.
 
-La persistance, le rapprochement de soldes, l'annulation de batch, l'export natif, l'extension et le stockage privé Cloudinary restent à faire. Les pièces jointes nécessitent le POC M0. Le critère de fin M5 reste ouvert.
+Les reçus Cloudinary `authenticated` sont servis via le Worker après vérification du groupe ; propriétaire/membre 200, tiers/révoqué 403 et URL non signée 401 ont été observés sur TEST. La sauvegarde/restauration V2 a été éprouvée avec 30 PNG fictifs, puis les reprises d'uploads orphelins ont été ajoutées par [#153](https://github.com/ranouf/OurFinance/pull/153). Un ZIP V2 synthétique de 18 761 771 octets a obtenu un aperçu 200 ; la limite de 20 000 001 octets donne 413 sans écriture. Les pannes fournisseurs globales, la course Firestore réelle et le déclencheur UI de reprise après fermeture d'onglet restent suivis dans [#149](https://github.com/ranouf/OurFinance/issues/149).
 
-Les clés de provenance sont composées de `(groupId, sourceId)` ; l'appelant transmet les clés existantes dans ce format JSON pour garantir le dédoublonnage par groupe.
+L'aide Chrome Manifest V3 aux exports officiels Splitwise n'est pas implémentée : son bénéfice et ses permissions minimales sont suivis dans [#173](https://github.com/ranouf/OurFinance/issues/173). Le format de sauvegarde `group-v2-partial` n'exporte pas les comptes Firebase Auth. Le critère M5 complet reste ouvert jusqu'au raccordement UI final et aux validations restantes.

@@ -1,5 +1,5 @@
-# M3 — dépenses : état
+# M3 — dépenses : état au 18 novembre 2026
 
-Le moteur pur calcule les cinq méthodes de partage en unités mineures entières, avec arrondi déterministe et validation des sommes/payeurs/membres. Le catalogue de devises vient d'`Intl.supportedValuesOf('currency')` et l'exposant de `Intl.NumberFormat`. Une préférence personnelle `(utilisateur, groupe)` est seulement proposée si les membres de la configuration sont toujours actifs.
+Le moteur monétaire utilise des unités mineures entières et valide les cinq modes de partage, les payeurs, les membres et la conservation des montants. Le Worker persiste les dépenses par transaction ; catégories, historique, commentaires et préférence de dernière répartition par utilisateur/groupe sont implémentés. Les essais TEST de la [pile intégrée #144](https://github.com/ranouf/OurFinance/issues/30#issuecomment-6967293793) ont couvert deux groupes CAD/JPY, dépenses, catégories et refus tiers/révoqué, sans addition interdevises.
 
-Le formulaire, la persistance atomique par Worker, les catégories illustrées, l'historique et l'intégration des préférences ne sont pas encore implémentés. Le critère de fin M3 reste ouvert.
+Le formulaire et l'historique existent dans la pile UI ; leur présentation Everyday Pop est encore en PR brouillon ([#124](https://github.com/ranouf/OurFinance/pull/124), [#131](https://github.com/ranouf/OurFinance/pull/131)) et attend la validation visuelle. Les parcours connectés doivent être rejoués sur le SHA UI intégré, notamment les cinq répartitions et la préférence personnelle après changement de groupe. Le critère de fin M3 n'est pas déclaré satisfait par les seules preuves serveur.
