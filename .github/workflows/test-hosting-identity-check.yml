@@ -1,0 +1,75 @@
+name: Check test Hosting identity manually
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Full 40-character main commit SHA to verify on TEST
+        required: true
+        type: string
+      coordination_comment:
+        description: URL of the exact-line active TEST reservation in issue 30
+        required: true
+        type: string
+permissions:
+  contents: read
+  issues: read
+  actions: read
+jobs:
+  hosting_identity_test:
+    if: github.ref == 'refs/heads/main' && github.actor == 'ranouf' && github.triggering_actor == 'ranouf'
+    runs-on: ubuntu-latest
+    environment: test
+    concurrency:
+      group: ourfinance-test-deploy
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Check exact SHA and active TEST reservation
+        env:
+          TARGET_SHA: ${{ inputs.sha }}
+          RESERVATION: ${{ inputs.coordination_comment }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          [[ "$TARGET_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+          [[ "$RESERVATION" =~ ^https://github\.com/ranouf/OurFinance/issues/30#issuecomment-[0-9]+$ ]]
+          comment_file="$(mktemp)"
+          trap 'rm -f "$comment_file"' EXIT
+          comment_id="${RESERVATION##*issuecomment-}"
+          gh api "repos/ranouf/OurFinance/issues/comments/$comment_id" > "$comment_file"
+          bash scripts/verify-test-reservation.sh "$TARGET_SHA" "$comment_file"
+      - name: Require successful PR validation on exact SHA
+        env:
+          TARGET_SHA: ${{ inputs.sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/ranouf/OurFinance/actions/runs?head_sha=$TARGET_SHA&per_page=100" |
+            jq -e --arg sha "$TARGET_SHA" '
+              [.workflow_runs[] | select(.head_sha == $sha and .path == ".github/workflows/pr-validation.yml")]
+              | first | .conclusion == "success"
+            ' >/dev/null
+      - name: Check dedicated TEST service account without printing it
+        env:
+          TEST_FIREBASE_DEPLOY_SA_JSON: ${{ secrets.TEST_FIREBASE_DEPLOY_SA_JSON }}
+        run: |
+          test -n "$TEST_FIREBASE_DEPLOY_SA_JSON"
+          jq -e '.type == "service_account" and
+            .project_id == "ourfinance-test" and
+            .client_email == "ourfinance-hosting-test@ourfinance-test.iam.gserviceaccount.com"' \
+            <<< "$TEST_FIREBASE_DEPLOY_SA_JSON" >/dev/null
+      - id: auth
+        uses: google-github-actions/auth@v3
+        with:
+          credentials_json: ${{ secrets.TEST_FIREBASE_DEPLOY_SA_JSON }}
+          token_format: access_token
+      - name: Read only the TEST Hosting sites
+        env:
+          GOOGLE_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+        run: |
+          test -n "$GOOGLE_ACCESS_TOKEN"
+          status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
+            --header "Authorization: Bearer $GOOGLE_ACCESS_TOKEN" \
+            'https://firebasehosting.googleapis.com/v1beta1/projects/ourfinance-test/sites?pageSize=1')"
+          test "$status" = 200
