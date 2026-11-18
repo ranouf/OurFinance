@@ -11,20 +11,26 @@ import {
   where,
   type DocumentData,
   type DocumentSnapshot,
+  type QuerySnapshot,
 } from 'firebase/firestore';
-import { Group } from './group-model';
+import { Group, GroupMember } from './group-model';
 
 export interface GroupRepository {
   memberships(app: FirebaseApp, uid: string): Promise<readonly string[]>;
   group(app: FirebaseApp, groupId: string): Promise<DocumentSnapshot<DocumentData>>;
   memberCount(app: FirebaseApp, groupId: string): Promise<number>;
+  members?(app: FirebaseApp, groupId: string): Promise<QuerySnapshot<DocumentData>>;
 }
+
+const readGroupMembers = (app: FirebaseApp, groupId: string) =>
+  getDocs(collection(getFirestore(app), 'groups', groupId, 'members'));
 
 const firestoreGroupRepository: GroupRepository = {
   memberships: async (app, uid) => (await getDocs(collection(getFirestore(app), 'users', uid, 'groupMemberships'))).docs.map(item => item.id),
   group: (app, groupId) => getDoc(doc(getFirestore(app), 'groups', groupId)),
   memberCount: async (app, groupId) => (await getCountFromServer(query(
     collection(getFirestore(app), 'groups', groupId, 'members'), where('status', '==', 'active')))).data().count,
+  members: readGroupMembers,
 };
 
 export class GroupService {
@@ -107,6 +113,15 @@ export class GroupService {
             ? 'currency_disabled'
             : 'currency_failed',
       );
+  }
+
+  async members(groupId: string): Promise<GroupMember[]> {
+    const snapshot = await (this.repository.members ?? readGroupMembers)(this.app, groupId);
+    return snapshot.docs.map(item => ({
+      userId: item.id,
+      role: item.data()['role'] === 'owner' ? 'owner' : 'member',
+      status: item.data()['status'] === 'active' ? 'active' : 'revoked',
+    }));
   }
 
   async revokeMember(user: User, groupId: string, memberId: string): Promise<void> {

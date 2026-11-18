@@ -6,6 +6,7 @@ import { t } from './shared/utils/i18n';
 import { categoryById, categoryColorClass } from './shared/utils/categories';
 import { GroupOverview } from './features/groups/group-overview';
 import { GroupCurrencyPanel } from './features/groups/group-currency-panel';
+import { GroupLifecyclePanel } from './features/groups/group-lifecycle-panel';
 import { QrInvitationPanel } from './features/groups/qr-invitation-panel';
 import { InviteAcceptanceCard } from './features/groups/invite-acceptance-card';
 import { CategoryManager } from './features/categories/category-manager';
@@ -230,7 +231,7 @@ export class DashboardPage {
 }
 
 @Component({
-  imports: [FormsModule, GroupCurrencyPanel, QrInvitationPanel, CategoryManager],
+  imports: [FormsModule, GroupCurrencyPanel, GroupLifecyclePanel, QrInvitationPanel, CategoryManager],
   template: `
     <div class="mx-auto max-w-5xl space-y-6">
       <header class="relative overflow-hidden rounded-[1.8rem] bg-pop-primary px-6 py-7 text-white shadow-[0_12px_30px_#6455ec30] sm:min-h-52 sm:px-9 sm:py-10">
@@ -257,6 +258,7 @@ export class DashboardPage {
         </form>
       } @else { <p class="rounded-xl bg-amber-50 p-4 text-sm text-amber-900" role="status">{{ t('groupServiceMissing') }}</p> }
       @if (app.workerUrl && app.auth?.user(); as user) {
+        @if (app.firebaseApp && app.selectedGroup(); as selected) { <app-group-lifecycle-panel [group]="selected" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" (changed)="app.onInvitationJoined()" /> }
         @if (app.firebaseApp && app.groups().length) { <app-group-currency-panel [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" (changed)="app.onInvitationJoined()" /> }
         <app-qr-invitation-panel [groups]="app.groups()" [user]="user" [workerUrl]="app.workerUrl" />
         @if (app.firebaseApp && app.groups().length) { <app-category-manager [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" (changed)="app.onCategoryChanged()" /> }
