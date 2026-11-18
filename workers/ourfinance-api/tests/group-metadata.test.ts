@@ -12,6 +12,7 @@ test('metadata uses a bounded renderable catalogue and keeps legacy creation val
   for (const metadata of [{ name: 'x', iconId: '<svg>' }, { name: 'x', color: '#fff' }, { name: 'x', description: 'x'.repeat(501) }, { name: 'x', currency: 'JPY' }]) {
     throws(() => validateGroupMetadata(metadata), /invalid_group_metadata/);
   }
+  throws(() => validateNewGroup({ name: 'x', currency: 'CAD', ownerId: 'attacker' }), /Groupe invalide/);
 });
 
 async function fixture(role = 'owner', status = 'active', groupStatus = 'active') {

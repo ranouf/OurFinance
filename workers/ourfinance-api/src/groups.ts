@@ -8,6 +8,7 @@ export interface GroupEnv { readonly FIREBASE_PROJECT_ID: string; readonly FIREB
 export function validateNewGroup(value: unknown): NewGroup {
   if (!value || typeof value !== 'object') throw new Error('Groupe invalide');
   const input = value as Record<string, unknown>;
+  if (Object.keys(input).some(key => !['name', 'currency', 'iconId', 'color', 'description'].includes(key))) throw new Error('Groupe invalide');
   const metadata = validateGroupMetadata({ name: input['name'], iconId: input['iconId'], color: input['color'], description: input['description'] });
   if (typeof input['currency'] !== 'string' || !/^[A-Z]{3}$/.test(input['currency']) ||
       !Intl.supportedValuesOf('currency').includes(input['currency'])) throw new Error('Groupe invalide');
