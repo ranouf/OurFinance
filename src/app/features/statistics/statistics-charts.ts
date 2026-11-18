@@ -22,7 +22,7 @@ const circumference = 2 * Math.PI * 40;
               @for (slice of data.categories; track slice.id; let index = $index) {
                 <circle cx="50" cy="50" r="40" fill="none" [attr.stroke]="color(index)" stroke-width="16" [attr.stroke-dasharray]="dash(slice)" [attr.stroke-dashoffset]="offset(index)" transform="rotate(-90 50 50)" />
               }
-              <text x="50" y="53" text-anchor="middle" class="fill-pop-text text-[10px] font-bold">{{ data.categories.length }} {{ text('categoryCount') }}</text>
+              <text x="50" y="53" text-anchor="middle" class="fill-pop-text text-[10px] font-bold">{{ amount(data.totalMinor) }}</text>
             </svg>
             <ul class="w-full min-w-0 space-y-1 min-[360px]:flex-1">
               @for (slice of data.categories; track slice.id; let index = $index) {
