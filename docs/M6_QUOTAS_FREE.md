@@ -1,0 +1,18 @@
+# M6 — surveillance des quotas Free
+
+Ce protocole concerne d'abord `ourfinance-test` et `ourfinance-api-dev`. Il ne prouve pas que les consommations actuelles sont sous les seuils : les compteurs du projet doivent être lus et datés par une personne ayant accès aux consoles. Ne jamais publier IP, jeton, nom de reçu, montant ou donnée Splitwise dans les relevés.
+
+| Fournisseur | Mesure à relever sur TEST | Source officielle |
+| --- | --- | --- |
+| Firestore Spark | Plan et édition de la base, lectures/écritures/suppressions de la période, stockage et quotas affichés. Vérifier la période de remise à zéro dans la console plutôt que supposer une fenêtre commune aux autres services. | [Usage et limites](https://firebase.google.com/docs/firestore/quotas), [surveiller l'activité](https://firebase.google.com/docs/firestore/monitor-usage) |
+| Cloudflare Workers Free | Requêtes du seul `ourfinance-api-dev`, invocations en erreur, dépassements CPU et proximité de la limite quotidienne du compte. La limite applicative 120 requêtes/60 s par IP ne remplace pas le quota global du plan. | [Limites Workers](https://developers.cloudflare.com/workers/platform/limits/), [métriques et analytics](https://developers.cloudflare.com/workers/observability/metrics-and-analytics/) |
+| Cloudinary Free | Crédits consommés sur la fenêtre glissante affichée, stockage, bande passante, transformations et éventuels avertissements de la Console. Un HTTP 420/429 ne suffit pas à identifier seul le quota épuisé. | [Suivre les crédits](https://cloudinary.com/documentation/developer_onboarding_faq_track_credits), [méthode Admin API `usage`](https://cloudinary.com/documentation/admin_api) |
+
+## Relevé et réaction
+
+1. Avant un essai TEST important et après son nettoyage, relever date/heure, plan, fenêtre, compteur, limite et pourcentage pour les trois services. Consigner seulement ces agrégats dans [#159](https://github.com/ranouf/OurFinance/issues/159) et le lien de réservation dans [#30](https://github.com/ranouf/OurFinance/issues/30). Une API de lecture peut être utilisée si son droit minimal et son coût sont vérifiés ; sinon utiliser la Console.
+2. Proposer un avertissement à **70 %** et une intervention à **90 %** de chaque limite observée. Ce sont des seuils opérationnels à valider sur les compteurs réels, pas des quotas fournisseurs. À 70 %, inspecter la tendance et les fixtures ; à 90 %, suspendre les essais générateurs de trafic, nettoyer les données fictives et vérifier la fenêtre de remise à zéro avant de reprendre.
+3. Distinguer `429 rate_limited` (limite par IP du Worker, `Retry-After: 60`) de `503 provider_quota_exceeded` (Firestore/Cloudinary en amont) et des erreurs de plateforme Cloudflare avant exécution du Worker. Ne pas journaliser l'IP ou la réponse brute du fournisseur pour diagnostiquer. Le test réel du premier cas est dans [#30](https://github.com/ranouf/OurFinance/issues/30#issuecomment-6968108757) ; il ne prouve pas les quotas quotidiens.
+4. Vérifier dans chaque console s'il existe une alerte compatible avec le plan Free et faire un essai contrôlé de sa réception sans générer une charge coûteuse. Si l'alerte n'est pas disponible ou testable, noter cette limite et désigner un contrôle manuel daté. Un tableau de bord consultable seul ne constitue pas une alerte.
+
+La décision de seuils, le responsable, la fréquence et la preuve de réception restent ouverts dans #159. Toute politique de production doit être réévaluée avec le plan et les compteurs de l'environnement cible ; aucune promotion de plan payant ni publication production n'est prévue par ce document.
