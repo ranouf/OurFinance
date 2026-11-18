@@ -150,6 +150,7 @@ jobs:
             'GET /groups/ci-disabled/member-profiles'
             'GET /groups/ci-disabled/backup/snapshot'
             'GET /groups/ci-disabled/backup/restores/current'
+            'GET /groups/ci-disabled/backup/restores/123e4567-e89b-42d3-a456-426614174000/outcome'
           )
           for attempt in 1 2 3 4 5 6; do
             health="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' "$base/health")"
