@@ -40,6 +40,7 @@ jobs:
           [vars]
           FIREBASE_PROJECT_ID = "ourfinance-test"
           ALLOWED_ORIGIN = "https://ourfinance-test.web.app"
+          ALLOWED_SECONDARY_ORIGIN = "https://ourfinance-test.firebaseapp.com"
 
           [[ratelimits]]
           name = "API_RATE_LIMITER"
@@ -117,6 +118,7 @@ jobs:
           [vars]
           FIREBASE_PROJECT_ID = "ourfinance-test"
           ALLOWED_ORIGIN = "https://ourfinance-test.web.app"
+          ALLOWED_SECONDARY_ORIGIN = "https://ourfinance-test.firebaseapp.com"
 
           [[ratelimits]]
           name = "API_RATE_LIMITER"
@@ -159,8 +161,14 @@ jobs:
               status="$(curl --silent --show-error --request "$method" --output /dev/null --write-out '%{http_code}' "$base$path")"
               if [[ "$status" != 503 ]]; then failed="$method $path: $status"; break; fi
             done
-            if [[ "$health" == 200 && -z "$failed" ]]; then exit 0; fi
+            cors_failed=''
+            for origin in https://ourfinance-test.web.app https://ourfinance-test.firebaseapp.com; do
+              response_headers="$(curl --silent --show-error --dump-header - --output /dev/null --header "Origin: $origin" "$base/health" | tr -d '\r')"
+              if ! printf '%s\n' "$response_headers" | grep -Fxiq "access-control-allow-origin: $origin"; then cors_failed="$origin"; break; fi
+            done
+            rejected="$(curl --silent --show-error --header 'Origin: https://untrusted.example' --output /dev/null --write-out '%{http_code}' "$base/health")"
+            if [[ "$health" == 200 && -z "$failed" && -z "$cors_failed" && "$rejected" == 403 ]]; then exit 0; fi
             sleep 5
           done
-          echo "TEST Worker smoke failed: health=$health, route=$failed" >&2
+          echo "TEST Worker smoke failed: health=$health, route=$failed, cors=$cors_failed, rejected=$rejected" >&2
           exit 1
