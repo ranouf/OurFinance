@@ -8,6 +8,7 @@ const restoreId = '123e4567-e89b-42d3-a456-426614174000';
 async function fixture(role: 'owner' | 'member' = 'owner', count = 1, pendingMarker = false, overrides: {
   groupStatus?: string; groupOwner?: string; memberStatus?: string; jobOwner?: string; jobStatus?: string;
   oldPublicIds?: string[]; newPublicIds?: string[]; missingGroup?: boolean; missingMember?: boolean; missingJob?: boolean;
+  missingOldIds?: boolean; missingNewIds?: boolean;
 } = {}) {
   const { privateKey } = await generateKeyPair('RS256', { extractable: true });
   const env = { FIREBASE_PROJECT_ID: 'ourfinance-test', CLOUDINARY_CLOUD_NAME: 'synthetic', CLOUDINARY_API_KEY: 'synthetic', CLOUDINARY_API_SECRET: 'synthetic',
@@ -51,8 +52,8 @@ async function fixture(role: 'owner' | 'member' = 'owner', count = 1, pendingMar
     if (url.endsWith('/groups/g/members/alice')) return overrides.missingMember ? Response.json({}, { status: 404 }) : Response.json({ fields: { status: { stringValue: overrides.memberStatus ?? 'active' }, role: { stringValue: role } } });
     if (url.endsWith(`/groups/g/restoreJobs/${restoreId}`)) return overrides.missingJob ? Response.json({}, { status: 404 }) : Response.json({ ...(missingUpdateTime ? {} : { updateTime: '2026-11-17T00:00:00Z' }), fields: {
       ownerId: { stringValue: overrides.jobOwner ?? 'alice' }, status: { stringValue: status },
-      oldPublicIds: { arrayValue: { values: oldPublicIds.map(stringValue => ({ stringValue })) } },
-      newPublicIds: { arrayValue: { values: (overrides.newPublicIds ?? [`ourfinance-test/g/e/restore_${restoreId}/a`]).map(stringValue => ({ stringValue })) } },
+      ...(overrides.missingOldIds ? {} : { oldPublicIds: { arrayValue: { values: oldPublicIds.map(stringValue => ({ stringValue })) } } }),
+      ...(overrides.missingNewIds ? {} : { newPublicIds: { arrayValue: { values: (overrides.newPublicIds ?? [`ourfinance-test/g/e/restore_${restoreId}/a`]).map(stringValue => ({ stringValue })) } } }),
     } });
     throw new Error('Requête inattendue');
   };
@@ -142,6 +143,10 @@ test('cleanup rejects absent or changed owner and journal before deleting media'
     [{ jobStatus: 'staging' }, 409, 'cleanup_not_pending'],
     [{ oldPublicIds: ['ourfinance-test/other/e/a'] }, 503, 'invalid_cleanup_journal'],
     [{ oldPublicIds: ['ourfinance-test/g/e/restore_123e4567-e89b-42d3-a456-426614174000/a'] }, 503, 'invalid_cleanup_journal'],
+    [{ missingOldIds: true }, 503, 'invalid_cleanup_journal'],
+    [{ missingNewIds: true }, 503, 'invalid_cleanup_journal'],
+    [{ oldPublicIds: Array.from({ length: 1001 }, (_, i) => `ourfinance-test/g/e/old_${i}`) }, 503, 'invalid_cleanup_journal'],
+    [{ newPublicIds: ['ourfinance-test/other/e/a'] }, 503, 'invalid_cleanup_journal'],
   ] as const) {
     const state = await fixture('owner', 1, false, overrides);
     await rejects(retryRestoreCleanup('alice', 'g', restoreId, state.env, state.transport),

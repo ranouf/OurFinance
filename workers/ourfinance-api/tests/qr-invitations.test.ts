@@ -190,3 +190,23 @@ test('revoking an already accepted invitation never rewrites membership', async 
     (error: unknown) => error instanceof QrInvitationError && error.status === 409);
   strictEqual(f.docs.get('groups/g1/members/guest')?.status.stringValue, 'active');
 });
+
+test('QR preview and revocation reject stale token pointers and malformed expiry metadata', async () => {
+  const f = await fixture();
+  const created = await createQrInvitation({}, 'owner', 'g1', f.env, f.transport);
+  const invitePath = `groups/g1/invitations/${created.invitationId}`;
+  const tokenPath = [...f.docs.keys()].find(path => path.startsWith('invitationTokens/'))!;
+  const tokenDoc = f.docs.get(tokenPath)!;
+  tokenDoc['invitationId'] = { stringValue: '../wrong' };
+  await rejects(previewQrInvitation(created.token, 'guest', 'guest@example.com', f.env, f.transport),
+    (error: unknown) => error instanceof QrInvitationError && error.code === 'invitation_unavailable');
+  tokenDoc['invitationId'] = { stringValue: created.invitationId };
+  f.docs.get(invitePath)!['expiresAt'] = { timestampValue: 'not-a-date' };
+  await rejects(previewQrInvitation(created.token, 'guest', 'guest@example.com', f.env, f.transport),
+    (error: unknown) => error instanceof QrInvitationError && error.code === 'invitation_expired');
+  f.docs.get(invitePath)!['expiresAt'] = { timestampValue: created.expiresAt };
+  f.docs.get(invitePath)!['tokenHash'] = { stringValue: 'bad-hash' };
+  await rejects(revokeQrInvitation(created.invitationId, 'owner', 'g1', f.env, f.transport),
+    (error: unknown) => error instanceof QrInvitationError && error.status === 503);
+  strictEqual(f.docs.get(invitePath)?.status.stringValue, 'active');
+});

@@ -261,4 +261,36 @@ test('30 synthetic private receipts roundtrip through V2 ZIP and prepared lock',
   });
   strictEqual(committed, 30);
   deepStrictEqual(result, { restoreId, cleanupPending: true });
+  const inventory = async () => ({ groupDocuments: ['groups/g'], userDocuments: [], receiptPublicIds: [] });
+  const failedCommit = async (): Promise<readonly string[]> => { throw new Error('lost commit response'); };
+  deepStrictEqual(await commitPreparedRestore('alice', 'g', restoreId, decoded, state.env, transport as typeof fetch, {
+    inventory, commit: failedCommit, outcome: async () => 'committed',
+  }), { restoreId, cleanupPending: true });
+  await rejects(commitPreparedRestore('alice', 'g', restoreId, decoded, state.env, transport as typeof fetch, {
+    inventory, commit: failedCommit, outcome: async () => 'locked',
+  }), (error: unknown) => error instanceof PreparedRestoreError && error.code === 'restore_not_committed');
+  await rejects(commitPreparedRestore('alice', 'g', restoreId, decoded, state.env, transport as typeof fetch, {
+    inventory, commit: failedCommit, outcome: async () => { throw new Error('outcome unavailable'); },
+  }), (error: unknown) => error instanceof PreparedRestoreError && error.code === 'recovery_required');
+  const missingJob = (async (resource: string | URL | Request, init?: RequestInit) =>
+    String(resource).endsWith(`/groups/g/restoreJobs/${restoreId}`) ? Response.json({}, { status: 404 }) : state.transport(resource, init)) as typeof fetch;
+  deepStrictEqual(await commitPreparedRestore('alice', 'g', restoreId, decoded, state.env, missingJob, {
+    inventory, commit: failedCommit, outcome: async () => 'committed',
+  }), { restoreId, cleanupPending: true });
+  await rejects(commitPreparedRestore('alice', 'g', restoreId, decoded, state.env, missingJob, {
+    inventory, commit: failedCommit, outcome: async () => 'locked',
+  }), (error: unknown) => error instanceof PreparedRestoreError && error.status === 409);
+  for (const mismatch of [
+    { manifest: 'b'.repeat(64), ids, digests: decoded.manifest.receipts.map(row => row.sha256), formats: ids.map(() => 'png'), stages: ids.map((_, index) => String(index)) },
+    { manifest: fingerprint, ids: ids.slice(1), digests: decoded.manifest.receipts.map(row => row.sha256).slice(1), formats: ids.slice(1).map(() => 'png'), stages: ids.slice(1).map((_, index) => String(index)) },
+    { manifest: fingerprint, ids, digests: ids.map(() => 'b'.repeat(64)), formats: ids.map(() => 'png'), stages: ids.map((_, index) => String(index)) },
+    { manifest: fingerprint, ids, digests: decoded.manifest.receipts.map(row => row.sha256), formats: ids.map(() => 'jpg'), stages: ids.map((_, index) => String(index)) },
+    { manifest: fingerprint, ids, digests: decoded.manifest.receipts.map(row => row.sha256), formats: ids.map(() => 'png'), stages: ids.slice(1).map((_, index) => String(index)) },
+    { manifest: fingerprint, ids, digests: decoded.manifest.receipts.map(row => row.sha256), formats: ids.map(() => 'png'), stages: ids.map((_, index) => String(ids.length - index - 1)) },
+  ]) {
+    state.setJob(mismatch.ids, mismatch.digests, mismatch.formats, mismatch.manifest, mismatch.stages);
+    await rejects(commitPreparedRestore('alice', 'g', restoreId, decoded, state.env, state.transport, {
+      inventory, commit: failedCommit, outcome: async () => 'locked',
+    }), (error: unknown) => error instanceof PreparedRestoreError && error.code === 'receipts_not_staged');
+  }
 });

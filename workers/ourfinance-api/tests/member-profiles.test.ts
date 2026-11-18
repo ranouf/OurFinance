@@ -90,3 +90,63 @@ test('bounds active profile reads below the Workers Free subrequest limit', asyn
     (error: unknown) => error instanceof MemberProfileError && error.status === 413);
   strictEqual(profileReads, 0);
 });
+
+test('profile list omits blank or excessive names and rejects invalid member paths', async () => {
+  const env = await fixture();
+  for (const name of ['   ', 'x'.repeat(81)]) {
+    const transport = (async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.includes('oauth2.googleapis.com')) return Response.json({ access_token: 'service-token' });
+      if (url.endsWith('/groups/group-a/members/alice')) return Response.json({ fields: { role: { stringValue: 'member' }, status: { stringValue: 'active' } } });
+      if (url.includes('/groups/group-a/members?')) return Response.json({ documents: [{ name: 'projects/x/documents/groups/group-a/members/alice', fields: { status: { stringValue: 'active' } } }] });
+      if (url.endsWith('/users/alice')) return Response.json({ fields: { displayName: { stringValue: name } } });
+      throw new Error(url);
+    }) as typeof fetch;
+    deepStrictEqual(await listSharedMemberProfiles('group-a', 'alice', 'id-token', env, transport), [{ userId: 'alice' }]);
+  }
+  const invalid = (async (input: string | URL | Request) => {
+    const url = String(input);
+    if (url.includes('oauth2.googleapis.com')) return Response.json({ access_token: 'service-token' });
+    if (url.endsWith('/groups/group-a/members/alice')) return Response.json({ fields: { role: { stringValue: 'member' }, status: { stringValue: 'active' } } });
+    if (url.includes('/groups/group-a/members?')) return Response.json({ documents: [{ name: 'projects/x/documents/groups/group-a/members/bad%id', fields: { status: { stringValue: 'active' } } }] });
+    throw new Error(url);
+  }) as typeof fetch;
+  await rejects(listSharedMemberProfiles('group-a', 'alice', 'id-token', env, invalid),
+    (error: unknown) => error instanceof MemberProfileError && error.code === 'member_invalid');
+});
+
+test('member profiles page safely and reject an unavailable private profile', async () => {
+  const env = await fixture();
+  let pages = 0;
+  const transport = (async (input: string | URL | Request) => {
+    const url = String(input);
+    if (url.includes('oauth2.googleapis.com')) return Response.json({ access_token: 'service-token' });
+    if (url.endsWith('/groups/group-a/members/alice')) return Response.json({ fields: { role: { stringValue: 'owner' }, status: { stringValue: 'active' } } });
+    if (url.includes('/groups/group-a/members?')) {
+      pages++;
+      return pages === 1 ? Response.json({ documents: [], nextPageToken: 'next' }) : Response.json({ documents: [
+        { name: 'projects/x/documents/groups/group-a/members/alice', fields: { status: { stringValue: 'active' } } },
+      ] });
+    }
+    if (url.endsWith('/users/alice')) return Response.json({}, { status: 503 });
+    throw new Error(url);
+  }) as typeof fetch;
+  await rejects(listSharedMemberProfiles('group-a', 'alice', 'id-token', env, transport),
+    (error: unknown) => error instanceof MemberProfileError && error.code === 'profile_unavailable');
+  strictEqual(pages, 2);
+});
+
+test('member profile listing stops after five pages even if Firestore keeps returning a cursor', async () => {
+  const env = await fixture();
+  let pages = 0;
+  const transport = (async (input: string | URL | Request) => {
+    const url = String(input);
+    if (url.includes('oauth2.googleapis.com')) return Response.json({ access_token: 'service-token' });
+    if (url.endsWith('/groups/group-a/members/alice')) return Response.json({ fields: { role: { stringValue: 'owner' }, status: { stringValue: 'active' } } });
+    if (url.includes('/groups/group-a/members?')) { pages++; return Response.json({ documents: [], nextPageToken: `page_${pages}` }); }
+    throw new Error(url);
+  }) as typeof fetch;
+  await rejects(listSharedMemberProfiles('group-a', 'alice', 'id-token', env, transport),
+    (error: unknown) => error instanceof MemberProfileError && error.code === 'group_too_large');
+  strictEqual(pages, 5);
+});

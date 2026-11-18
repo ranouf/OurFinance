@@ -98,6 +98,27 @@ test('inventory pages 936 synthetic expenses under the Worker Free subrequest bu
   strictEqual(state.requests < 45, true);
 });
 
+test('inventory refuses a transaction with more than 5000 documents', async () => {
+  const state = await fixture('owner', false, false, 5001);
+  await rejects(collectLiveRestoreInventory('alice', 'g', state.env, state.transport),
+    (error: unknown) => error instanceof RestoreInventoryError && error.code === 'inventory_too_large');
+  strictEqual(state.rollbacks, 1);
+});
+
+test('inventory stops a repeated collection cursor instead of looping indefinitely', async () => {
+  const state = await fixture();
+  let pages = 0;
+  const transport = (async (resource: string | URL | Request, init?: RequestInit) => {
+    const url = String(resource);
+    if (url.includes('/groups/g:listCollectionIds')) { pages++; return Response.json({ collectionIds: ['members'], nextPageToken: 'same' }); }
+    return state.transport(resource, init);
+  }) as typeof fetch;
+  await rejects(collectLiveRestoreInventory('alice', 'g', state.env, transport),
+    (error: unknown) => error instanceof RestoreInventoryError && error.code === 'inventory_too_large');
+  strictEqual(pages, 100);
+  strictEqual(state.rollbacks, 1);
+});
+
 test('invalid paths fail before service account access', async () => {
   const state = await fixture();
   for (const [uid, groupId, restoreId] of [['bad/uid', 'g', undefined], ['alice', 'bad/group', undefined], ['alice', 'g', 'invalid']]) {
@@ -120,4 +141,21 @@ test('failed rollback after successful read leaves the inventory result availabl
   const result = await collectLiveRestoreInventory('alice', 'g', state.env, state.transport);
   strictEqual(result.groupDocuments.includes('groups/g'), true);
   strictEqual(state.rollbacks, 1);
+});
+
+test('inventory fails closed for missing owner and malformed pages without publishing document names', async () => {
+  const state = await fixture();
+  const scenarios: readonly [string, Response, number, string][] = [
+    ['/groups/g?transaction=', Response.json({}, { status: 404 }), 403, 'owner_required'],
+    ['/groups/g/members/alice?transaction=', Response.json({}, { status: 404 }), 403, 'owner_required'],
+    ['/groups/g/expenses?', Response.json({ documents: 'invalid' }), 503, 'invalid_inventory'],
+    ['/groups/g/expenses?', Response.json({ documents: [{ name: 'outside/expense' }] }), 503, 'invalid_inventory'],
+    ['/groups/g/expenses?', Response.json({ documents: [{ name: 'projects/ourfinance-test/databases/(default)/documents/groups/g/expenses/../escape' }] }), 503, 'invalid_inventory'],
+  ];
+  for (const [suffix, result, status, code] of scenarios) {
+    const transport = (async (resource: string | URL | Request, init?: RequestInit) =>
+      String(resource).includes(suffix) ? result.clone() : state.transport(resource, init)) as typeof fetch;
+    await rejects(collectLiveRestoreInventory('alice', 'g', state.env, transport),
+      (error: unknown) => error instanceof RestoreInventoryError && error.status === status && error.code === code);
+  }
 });

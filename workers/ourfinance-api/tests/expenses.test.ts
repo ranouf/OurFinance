@@ -79,6 +79,15 @@ test('expense mutations reject malformed revision or redirected identity before 
   ] as const) await rejects(mutateExpense(body, uid, groupId, expenseId, 'DELETE', env, transport), ExpenseError);
 });
 
+test('expense creation rejects redirected group and caller before obtaining a service token', async () => {
+  const env = { FIREBASE_PROJECT_ID: 'ourfinance-test', FIREBASE_SERVICE_ACCOUNT_JSON: 'unused' };
+  const transport = (async () => { throw new Error('No network expected'); }) as typeof fetch;
+  await rejects(createExpense(input, 'bad/uid', 'g1', env, transport),
+    (error: unknown) => error instanceof ExpenseError && error.code === 'invalid_group');
+  await rejects(createExpense(input, 'alice', '../group', env, transport),
+    (error: unknown) => error instanceof ExpenseError && error.code === 'invalid_group');
+});
+
 test('expense transactions fail closed on absent group, member, category and conflicting commit', async () => {
   const { privateKey } = await generateKeyPair('RS256', { extractable: true });
   const env = { FIREBASE_PROJECT_ID: 'ourfinance-test', FIREBASE_SERVICE_ACCOUNT_JSON: JSON.stringify({ project_id: 'ourfinance-test', client_email: 'test@ourfinance-test.iam.gserviceaccount.com', private_key: await exportPKCS8(privateKey) }) };
@@ -114,7 +123,11 @@ test('expense deletion refuses malformed receipt inventories and unavailable cle
   const scenarios: readonly [unknown, string][] = [
     [{ documents: 'invalid' }, 'invalid_receipts'],
     [{ nextPageToken: 'more' }, 'too_many_receipts'],
+    [{ documents: Array.from({ length: 51 }, (_, i) => ({ name: `${root}/item_${i}` })) }, 'too_many_receipts'],
     [{ documents: [{ name: 'outside/receipt', fields: {} }] }, 'invalid_receipts'],
+    [{ documents: [{ name: `${root}/a` }] }, 'invalid_receipts'],
+    [{ documents: [{ name: `${root}/bad%id`, fields: { status: { stringValue: 'active' }, type: { stringValue: 'authenticated' }, publicId: { stringValue: `ourfinance-test/g1/${input.idempotencyKey}/bad%id` } } }] }, 'invalid_receipts'],
+    [{ documents: [{ name: `${root}/a`, fields: { status: { stringValue: 'active' }, publicId: { stringValue: `ourfinance-test/g1/${input.idempotencyKey}/a` } } }] }, 'invalid_receipts'],
     [{ documents: [{ name: `${root}/a`, fields: { status: { stringValue: 'active' }, type: { stringValue: 'authenticated' }, publicId: { stringValue: 'outside/g1/e/a' } } }] }, 'invalid_receipts'],
     [{ documents: [{ name: `${root}/a`, fields: { status: { stringValue: 'active' }, type: { stringValue: 'authenticated' }, publicId: { stringValue: `ourfinance-test/g1/${input.idempotencyKey}/a` } } }] }, 'media_cleanup_unavailable'],
   ];
@@ -137,6 +150,35 @@ test('expense deletion refuses malformed receipt inventories and unavailable cle
       (error: unknown) => error instanceof ExpenseError && error.code === code);
     strictEqual(commits, 0, code);
     strictEqual(rollbacks, 1, code);
+  }
+});
+
+test('expense updates reject changed group, member, author, revision and category before commit', async () => {
+  const { privateKey } = await generateKeyPair('RS256', { extractable: true });
+  const env = { FIREBASE_PROJECT_ID: 'ourfinance-test', FIREBASE_SERVICE_ACCOUNT_JSON: JSON.stringify({ project_id: 'ourfinance-test', client_email: 'test@ourfinance-test.iam.gserviceaccount.com', private_key: await exportPKCS8(privateKey) }) };
+  const categoryId = 'custom_123e4567-e89b-42d3-a456-426614174000';
+  const cases: readonly [string, string][] = [
+    ['group', 'group_inactive'], ['currency', 'currency_mismatch'], ['member', 'member_inactive'],
+    ['author', 'author_required'], ['revision', 'revision_conflict'], ['deleted', 'expense_deleted'],
+    ['category', 'category_unavailable'],
+  ];
+  for (const [scenario, code] of cases) {
+    let commits = 0;
+    const transport = (async (resource: string | URL | Request) => {
+      const url = String(resource);
+      if (url.includes('oauth2.googleapis.com')) return Response.json({ access_token: 'service-token' });
+      if (url.endsWith(':beginTransaction')) return Response.json({ transaction: 'txn' });
+      if (url.endsWith(':rollback')) return Response.json({});
+      if (url.endsWith(':commit')) { commits++; return Response.json({}); }
+      if (url.includes('/categories/')) return scenario === 'category' ? Response.json({}, { status: 404 }) : Response.json({ fields: { status: { stringValue: 'active' }, name: { stringValue: 'Fictif' }, iconId: { stringValue: 'home' }, color: { stringValue: 'sky' } } });
+      if (url.includes('/expenses/') && url.includes('?transaction=')) return Response.json({ fields: { createdBy: { stringValue: scenario === 'author' ? 'other' : 'alice' }, deleted: { booleanValue: scenario === 'deleted' }, revision: { integerValue: scenario === 'revision' ? '1' : '0' }, categoryId: { stringValue: 'other' } } });
+      if (url.includes('/members/')) return Response.json({ fields: { status: { stringValue: scenario === 'member' ? 'revoked' : 'active' } } });
+      if (url.includes('/groups/g1?')) return Response.json({ fields: { status: { stringValue: scenario === 'group' ? 'archived' : 'active' }, currencyCode: { stringValue: scenario === 'currency' ? 'JPY' : 'CAD' } } });
+      throw new Error(`Unexpected request ${url}`);
+    }) as typeof fetch;
+    await rejects(mutateExpense({ ...input, categoryId, expectedRevision: 0 }, 'alice', 'g1', input.idempotencyKey, 'PATCH', env, transport),
+      (error: unknown) => error instanceof ExpenseError && error.code === code);
+    strictEqual(commits, 0, scenario);
   }
 });
 test('expense transaction reads active group/members and atomically writes expense, preference, activity', async () => {

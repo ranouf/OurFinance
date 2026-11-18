@@ -3,7 +3,7 @@ import { rejects, strictEqual } from 'node:assert';
 import { exportPKCS8, generateKeyPair } from 'jose';
 import { changeGroupCurrency, GroupCurrencyError } from '../src/group-currency';
 
-async function fixture(options: { owner?: boolean; locked?: boolean; archivedExpense?: boolean; archivedSettlement?: boolean; importedHistory?: boolean; missingGroup?: boolean; missingMember?: boolean; legacyCurrency?: boolean; failCommit?: boolean } = {}) {
+async function fixture(options: { owner?: boolean; locked?: boolean; archivedExpense?: boolean; archivedSettlement?: boolean; importedHistory?: boolean; missingGroup?: boolean; missingMember?: boolean; legacyCurrency?: boolean; failCommit?: boolean; missingTransaction?: boolean; failBegin?: boolean } = {}) {
   const { privateKey } = await generateKeyPair('RS256', { extractable: true });
   const env = { FIREBASE_PROJECT_ID: 'ourfinance-test', FIREBASE_SERVICE_ACCOUNT_JSON: JSON.stringify({ project_id: 'ourfinance-test', client_email: 'test@ourfinance-test.iam.gserviceaccount.com', private_key: await exportPKCS8(privateKey) }) };
   let commit: any;
@@ -12,7 +12,7 @@ async function fixture(options: { owner?: boolean; locked?: boolean; archivedExp
     const url = String(resource);
     if (url.includes('oauth2.googleapis.com')) return Response.json({ access_token: 'service-token' });
     strictEqual(new Headers(init?.headers).get('Authorization'), 'Bearer service-token');
-    if (url.endsWith(':beginTransaction')) return Response.json({ transaction: 'txn' });
+    if (url.endsWith(':beginTransaction')) return Response.json(options.missingTransaction ? {} : { transaction: 'txn' }, { status: options.failBegin ? 409 : 200 });
     if (url.endsWith(':rollback')) { rollbacks++; return Response.json({}); }
     if (url.endsWith(':commit')) { commit = JSON.parse(String(init?.body)); return Response.json({ writeResults: [{}] }, { status: options.failCommit ? 409 : 200 }); }
     if (url.includes('/members/alice?')) return options.missingMember ? Response.json({}, { status: 404 }) : Response.json({ fields: { status: { stringValue: 'active' }, role: { stringValue: options.owner === false ? 'member' : 'owner' } } });
@@ -78,4 +78,17 @@ test('legacy currency and retained settlement or import history respect the perm
   await rejects(changeGroupCurrency({ currencyCode: 'JPY' }, 'alice', 'g1', conflict.env, conflict.transport),
     (error: unknown) => error instanceof GroupCurrencyError && error.code === 'transaction_conflict');
   strictEqual(conflict.rollbacks(), 1);
+});
+
+test('currency change does not proceed without a valid Firestore transaction', async () => {
+  for (const [options, code] of [
+    [{ missingTransaction: true }, 'transaction_unavailable'],
+    [{ failBegin: true }, 'transaction_conflict'],
+  ] as const) {
+    const state = await fixture(options);
+    await rejects(changeGroupCurrency({ currencyCode: 'JPY' }, 'alice', 'g1', state.env, state.transport),
+      (error: unknown) => error instanceof GroupCurrencyError && error.code === code);
+    strictEqual(state.commit(), undefined);
+    strictEqual(state.rollbacks(), 0);
+  }
 });
