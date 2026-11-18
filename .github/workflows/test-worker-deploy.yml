@@ -107,7 +107,7 @@ jobs:
         env:
           RATE_LIMIT_NAMESPACE_ID: ${{ vars.CLOUDFLARE_TEST_RATE_LIMIT_NAMESPACE_ID }}
         run: |
-          [[ "$RATE_LIMIT_NAMESPACE_ID" =~ ^[0-9]+$ ]]
+          test "$RATE_LIMIT_NAMESPACE_ID" = '7491201'
           cat > workers/ourfinance-api/wrangler.ci.toml <<'EOF'
           name = "ourfinance-api-dev"
           main = "src/index.ts"
@@ -133,7 +133,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_TEST_ACCOUNT_ID }}
         run: |
           test -n "$CLOUDFLARE_API_TOKEN"
-          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          test "$CLOUDFLARE_ACCOUNT_ID" = 'ee6efc358047574c12f44e1411e0bf71'
           npx --yes wrangler@4.164.0 deploy --config workers/ourfinance-api/wrangler.ci.toml
       - name: Verify health and privileged routes disabled by default
         run: |
