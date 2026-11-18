@@ -12,23 +12,36 @@ test('settlement parser requires sender identity, distinct recipient and exact m
   ]) throws(() => parseSettlement({ ...input, ...changed }, 'alice'), SettlementError);
 });
 
-async function fixture(revoked = false, conflict = false, groupCurrency = 'CAD') {
+test('settlement parser rejects missing records, unsafe IDs and invalid dates', () => {
+  for (const value of [null, 'text', {}, { ...input, date: '2026-11-16T00:00:00Z' },
+    { ...input, toUserId: 'bad/id' }, { ...input, toUserId: 42 }, { ...input, amountMinor: Number.MAX_SAFE_INTEGER + 1 }]) {
+    throws(() => parseSettlement(value, 'alice'), SettlementError);
+  }
+  throws(() => parseSettlement(input, 'bad/uid'), SettlementError);
+});
+
+async function fixture(revoked = false, conflict = false, groupCurrency = 'CAD', options: {
+  groupStatus?: string; currencyLocked?: boolean; beginStatus?: number; missingTransaction?: boolean;
+  readStatus?: number; rollbackThrows?: boolean;
+} = {}) {
   const { privateKey } = await generateKeyPair('RS256', { extractable: true });
   const env = { FIREBASE_PROJECT_ID: 'ourfinance-test', FIREBASE_SERVICE_ACCOUNT_JSON: JSON.stringify({ project_id: 'ourfinance-test', client_email: 'test@ourfinance-test.iam.gserviceaccount.com', private_key: await exportPKCS8(privateKey) }) };
   const reads: string[] = [];
   let commit: any;
   let rollbacks = 0;
-  const transport = async (resource: string | URL | Request, options?: RequestInit) => {
+  const transport = async (resource: string | URL | Request, init?: RequestInit) => {
     const url = String(resource);
     if (url.includes('oauth2.googleapis.com')) return Response.json({ access_token: 'service-token' });
-    strictEqual(new Headers(options?.headers).get('Authorization'), 'Bearer service-token');
-    if (url.endsWith(':beginTransaction')) return Response.json({ transaction: 'txn' });
-    if (url.endsWith(':rollback')) { rollbacks++; return Response.json({}); }
+    strictEqual(new Headers(init?.headers).get('Authorization'), 'Bearer service-token');
+    if (url.endsWith(':beginTransaction')) return Response.json(options.missingTransaction ? {} : { transaction: 'txn' }, { status: options.beginStatus ?? 200 });
+    if (url.endsWith(':rollback')) { rollbacks++; if (options.rollbackThrows) throw new Error('network'); return Response.json({}); }
     if (url.includes('?transaction=')) {
       reads.push(url);
-      return Response.json({ fields: { status: { stringValue: revoked && url.includes('/members/bob') ? 'revoked' : 'active' }, currencyCode: { stringValue: groupCurrency } } });
+      if (options.readStatus) return Response.json({}, { status: options.readStatus });
+      return Response.json({ fields: { status: { stringValue: url.includes('/members/bob') && revoked ? 'revoked' : url.includes('/groups/g1?') ? options.groupStatus ?? 'active' : 'active' },
+        currencyCode: { stringValue: groupCurrency }, ...(options.currencyLocked ? { currencyLockedAt: { stringValue: '2026-11-18' } } : {}) } });
     }
-    if (url.endsWith(':commit')) { commit = JSON.parse(String(options?.body)); return conflict ? Response.json({ error: 'conflict' }, { status: 409 }) : Response.json({ writeResults: [{}, {}] }); }
+    if (url.endsWith(':commit')) { commit = JSON.parse(String(init?.body)); return conflict ? Response.json({ error: 'conflict' }, { status: 409 }) : Response.json({ writeResults: [{}, {}] }); }
     throw new Error('Requête inattendue');
   };
   return { env, reads, transport: transport as typeof fetch, committed: () => commit, rollbacks: () => rollbacks };
@@ -67,4 +80,27 @@ test('a settlement in another currency is rejected before any write', async () =
   await rejects(createSettlement(input, 'alice', 'g1', f.env, f.transport), (error: unknown) => error instanceof SettlementError && error.code === 'currency_mismatch');
   strictEqual(f.committed(), undefined);
   strictEqual(f.rollbacks(), 1);
+});
+
+test('transaction refuses inactive group and malformed or unavailable Firestore state', async () => {
+  const inactive = await fixture(false, false, 'CAD', { groupStatus: 'archived' });
+  await rejects(createSettlement(input, 'alice', 'g1', inactive.env, inactive.transport),
+    (error: unknown) => error instanceof SettlementError && error.code === 'group_inactive');
+  strictEqual(inactive.rollbacks(), 1);
+  for (const options of [{ beginStatus: 503 }, { missingTransaction: true }, { readStatus: 503 }]) {
+    const f = await fixture(false, false, 'CAD', options);
+    await rejects(createSettlement(input, 'alice', 'g1', f.env, f.transport), SettlementError);
+    strictEqual(f.committed(), undefined);
+  }
+});
+
+test('existing currency lock is preserved and a failed rollback keeps original conflict', async () => {
+  const locked = await fixture(false, false, 'CAD', { currencyLocked: true });
+  await createSettlement(input, 'alice', 'g1', locked.env, locked.transport);
+  strictEqual(locked.committed().writes.length, 2);
+  const conflicted = await fixture(false, true, 'CAD', { rollbackThrows: true });
+  await rejects(createSettlement(input, 'alice', 'g1', conflicted.env, conflicted.transport),
+    (error: unknown) => error instanceof SettlementError && error.code === 'transaction_conflict');
+  strictEqual(conflicted.rollbacks(), 1);
+  await rejects(createSettlement(input, 'alice', 'bad/group', locked.env, locked.transport), SettlementError);
 });
