@@ -1,6 +1,7 @@
 import { bearerToken, verifyFirebaseIdToken, verifyFirebaseVerifiedEmail, verifyFirebaseVerifiedIdentity } from './auth';
 import { createGroup } from './groups';
 import { changeGroupCurrency, GroupCurrencyError } from './group-currency';
+import { changeGroupLifecycle, GroupLifecycleError } from './group-lifecycle';
 import { createExpense, ExpenseError, mutateExpense } from './expenses';
 import { handleMedia, handleMediaCleanup } from './media';
 import { MediaDiagnosticError } from './media-diagnostic';
@@ -39,6 +40,8 @@ export interface Env extends Partial<CloudinaryEnv> {
   ENABLE_GROUP_CREATION?: string;
   ENABLE_GROUP_CURRENCY_POC?: string;
   GROUP_CURRENCY_POC_GROUP_ID?: string;
+  ENABLE_GROUP_LIFECYCLE_POC?: string;
+  GROUP_LIFECYCLE_POC_GROUP_ID?: string;
   ENABLE_MEDIA_POC?: string;
   ENABLE_EXPENSE_POC?: string;
   EXPENSE_POC_GROUP_ID?: string;
@@ -528,6 +531,27 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     } catch (error) {
       if (error instanceof ProviderQuotaError) return new Response(JSON.stringify({ error: error.message }), { status: 503, headers });
       return new Response(JSON.stringify({ error: 'Création impossible' }), { status: 400, headers });
+    }
+  }
+  const archiveMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/archive$/.exec(url.pathname);
+  const revokeMemberMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/members\/([A-Za-z0-9_-]{1,128})\/revoke$/.exec(url.pathname);
+  if ((archiveMatch || revokeMemberMatch) && request.method === 'POST') {
+    const groupId = (archiveMatch ?? revokeMemberMatch)![1];
+    if (!routeEnabled(env, env.ENABLE_GROUP_LIFECYCLE_POC, env.GROUP_LIFECYCLE_POC_GROUP_ID, groupId) || !env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+      return new Response(JSON.stringify({ error: 'Cycle de vie non configuré' }), { status: 503, headers });
+    }
+    let uid: string;
+    try { uid = await verifyFirebaseVerifiedEmail(bearerToken(request), env.FIREBASE_PROJECT_ID); }
+    catch { return new Response(JSON.stringify({ error: 'Non authentifié' }), { status: 401, headers }); }
+    try {
+      await changeGroupLifecycle(archiveMatch ? 'archive_group' : 'revoke_member', groupId, uid, revokeMemberMatch?.[2],
+        { FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT_JSON: env.FIREBASE_SERVICE_ACCOUNT_JSON });
+      return new Response(null, { status: 204, headers });
+    } catch (error) {
+      if (error instanceof ProviderQuotaError) return new Response(JSON.stringify({ error: error.message }), { status: 503, headers });
+      const status = error instanceof GroupLifecycleError ? error.status : 503;
+      const code = error instanceof GroupLifecycleError ? error.code : 'group_unavailable';
+      return new Response(JSON.stringify({ error: code }), { status, headers });
     }
   }
   const currencyMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/currency$/.exec(url.pathname);

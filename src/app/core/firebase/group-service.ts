@@ -108,4 +108,33 @@ export class GroupService {
             : 'currency_failed',
       );
   }
+
+  async revokeMember(user: User, groupId: string, memberId: string): Promise<void> {
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(memberId)) throw new Error('Identifiant membre invalide');
+    await this.lifecycle(user, groupId, `/members/${encodeURIComponent(memberId)}/revoke`);
+  }
+
+  async archive(user: User, groupId: string): Promise<void> {
+    await this.lifecycle(user, groupId, '/archive');
+  }
+
+  private async lifecycle(user: User, groupId: string, suffix: string): Promise<void> {
+    if (!user.emailVerified || !this.workerUrl || !/^[A-Za-z0-9_-]{1,128}$/.test(groupId))
+      throw new Error('Cycle de vie indisponible');
+    const url = new URL(`/groups/${encodeURIComponent(groupId)}${suffix}`, this.workerUrl);
+    if (url.protocol !== 'https:') throw new Error('URL Worker non sécurisée');
+    const response = await this.transport(url, {
+      method: 'POST', headers: { Authorization: `Bearer ${await user.getIdToken()}` },
+    });
+    if (!response.ok) {
+      const body: unknown = await response.json().catch(() => ({}));
+      const code = body && typeof body === 'object' && 'error' in body && typeof body.error === 'string'
+        ? body.error : 'group_unavailable';
+      throw new GroupLifecycleRequestError(response.status, code);
+    }
+  }
+}
+
+export class GroupLifecycleRequestError extends Error {
+  constructor(readonly status: number, readonly code: string) { super(code); }
 }

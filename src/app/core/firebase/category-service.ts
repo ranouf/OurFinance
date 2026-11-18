@@ -1,15 +1,25 @@
 import type { FirebaseApp } from 'firebase/app';
 import type { User } from 'firebase/auth';
-import { collection, getDocs, getFirestore } from 'firebase/firestore';
+import { collection, getDocs, getFirestore, type DocumentData, type QuerySnapshot } from 'firebase/firestore';
 import { categoryColors, categoryIcons, type CategoryColor, type CategoryIcon, type CustomCategory } from '../../shared/utils/categories';
 
 export interface CategoryDraft { name: string; iconId: CategoryIcon; color: CategoryColor; status: 'active' | 'archived'; }
 
+export interface CategoryRepository {
+  list(app: FirebaseApp, groupId: string): Promise<QuerySnapshot<DocumentData>>;
+}
+
+const firestoreCategoryRepository: CategoryRepository = {
+  list: (app, groupId) => getDocs(collection(getFirestore(app), 'groups', groupId, 'categories')),
+};
+
 export class CategoryService {
-  constructor(private readonly app: FirebaseApp, private readonly workerUrl: string) {}
+  constructor(private readonly app: FirebaseApp, private readonly workerUrl: string,
+    private readonly repository: CategoryRepository = firestoreCategoryRepository,
+    private readonly transport: typeof fetch = (...args) => fetch(...args)) {}
 
   async list(groupId: string): Promise<CustomCategory[]> {
-    const snapshot = await getDocs(collection(getFirestore(this.app), 'groups', groupId, 'categories'));
+    const snapshot = await this.repository.list(this.app, groupId);
     return snapshot.docs.map((item): CustomCategory => {
       const data = item.data();
       const icon = categoryIcons.find(entry => entry.id === data['iconId']) ?? categoryIcons.at(-1)!;
@@ -33,7 +43,7 @@ export class CategoryService {
     const path = method === 'POST' ? `/groups/${encodeURIComponent(groupId)}/categories` : `/groups/${encodeURIComponent(groupId)}/categories/${encodeURIComponent(categoryId)}`;
     const url = new URL(path, this.workerUrl);
     if (url.protocol !== 'https:') throw new Error('URL Worker non sécurisée');
-    const response = await fetch(url, { method, headers: { Authorization: `Bearer ${await user.getIdToken()}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const response = await this.transport(url, { method, headers: { Authorization: `Bearer ${await user.getIdToken()}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     if (!response.ok) throw new Error(response.status === 503 ? 'Gestion des catégories désactivée sur cet environnement' : `Enregistrement refusé (HTTP ${response.status})`);
   }
 }

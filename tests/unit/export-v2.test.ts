@@ -71,6 +71,16 @@ test('V2 rejects activity from an outsider or an unknown action', () => {
   throws(() => serializeGroupExportV2({ ...fixture, activity: [{ ...event, action: 'unknown' }] }));
 });
 
+test('V2 preserves group lifecycle audit with a valid member target', () => {
+  const activity = [
+    { id: 'revoke', actorId: 'alice', action: 'member_revoked', targetId: 'bob', at: exportedAt },
+    { id: 'archive', actorId: 'alice', action: 'group_archived', at: exportedAt },
+  ];
+  const output = JSON.parse(serializeGroupExportV2({ ...fixture, activity }));
+  deepStrictEqual(output.activity, activity);
+  throws(() => serializeGroupExportV2({ ...fixture, activity: [{ ...activity[0], targetId: 'outsider' }] }));
+});
+
 test('V2 requires each import batch and its exact archived record IDs', () => {
   const record = { id: 'record', sourceId: 'synthetic-001', batchId: 'batch', date: '2026-11-01', description: 'Fictif',
     currency: 'CAD', amountMinor: 101, netImpactsMinor: { alice: 101, bob: -101 }, splitStatus: 'undetermined' as const, status: 'active' as const };

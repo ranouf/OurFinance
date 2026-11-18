@@ -10,7 +10,7 @@ export interface GroupExportV2 extends Omit<GroupExportV1, 'version'> {
   readonly receiptAssets: readonly { readonly expenseId: string; readonly attachmentId: string; readonly publicId: string }[];
   readonly comments: readonly { readonly expenseId: string; readonly id: string; readonly authorId: string; readonly text: string; readonly createdAt: string }[];
   readonly activity: readonly { readonly id: string; readonly actorId: string; readonly action: string; readonly at: string;
-    readonly expenseId?: string; readonly commentId?: string; readonly settlementId?: string; readonly batchId?: string; readonly categoryId?: string }[];
+    readonly expenseId?: string; readonly commentId?: string; readonly settlementId?: string; readonly batchId?: string; readonly categoryId?: string; readonly targetId?: string }[];
   readonly importBatches: readonly { readonly id: string; readonly ownerId: string; readonly status: 'active' | 'undone'; readonly source: 'splitwise_csv';
     readonly recordIds: readonly string[]; readonly createdAt: string; readonly undoneAt: string | null }[];
   /** One row per member, including members who have never saved a split. */
@@ -108,7 +108,7 @@ export function serializeGroupExportV2(value: GroupExportV2): string {
     throw new Error('Commentaires de sauvegarde invalides');
   }
   const comments = value.comments.map(row => ({ expenseId: row.expenseId, id: row.id, authorId: row.authorId, text: row.text, createdAt: row.createdAt }));
-  const actions = new Set(['expense_created', 'expense_updated', 'expense_deleted', 'settlement_recorded', 'comment_created', 'import_created', 'import_undone', 'category_created', 'category_updated', 'category_archived', 'category_reactivated']);
+  const actions = new Set(['expense_created', 'expense_updated', 'expense_deleted', 'settlement_recorded', 'comment_created', 'import_created', 'import_undone', 'category_created', 'category_updated', 'category_archived', 'category_reactivated', 'member_revoked', 'group_archived']);
   const settlementIds = new Set(group.settlements.map(row => row.id));
   const categoryIds = new Set(group.categories.map(row => row.id));
   const batchIds = new Set(group.importedRecords.map(row => row.batchId));
@@ -120,7 +120,9 @@ export function serializeGroupExportV2(value: GroupExportV2): string {
         (row.action === 'settlement_recorded' && !settlementIds.has(row.settlementId ?? '')) ||
         (row.action.startsWith('import_') && !batchIds.has(row.batchId ?? '')) ||
         (row.action.startsWith('category_') && !categoryIds.has(row.categoryId ?? '')) ||
-        ['expenseId', 'commentId', 'settlementId', 'batchId', 'categoryId'].some(key => {
+        (row.action === 'member_revoked' && !members.has(row.targetId ?? '')) ||
+        (row.action === 'group_archived' && row.targetId !== undefined) ||
+        ['expenseId', 'commentId', 'settlementId', 'batchId', 'categoryId', 'targetId'].some(key => {
           const item = row[key as keyof typeof row];
           return item !== undefined && (typeof item !== 'string' || !idPattern.test(item));
         }))) throw new Error('Activité de sauvegarde invalide');
@@ -129,7 +131,8 @@ export function serializeGroupExportV2(value: GroupExportV2): string {
     ...(row.commentId === undefined ? {} : { commentId: row.commentId }),
     ...(row.settlementId === undefined ? {} : { settlementId: row.settlementId }),
     ...(row.batchId === undefined ? {} : { batchId: row.batchId }),
-    ...(row.categoryId === undefined ? {} : { categoryId: row.categoryId }) }));
+    ...(row.categoryId === undefined ? {} : { categoryId: row.categoryId }),
+    ...(row.targetId === undefined ? {} : { targetId: row.targetId }) }));
   const recordIdsByBatch = new Map<string, string[]>();
   for (const row of group.importedRecords) recordIdsByBatch.set(row.batchId, [...(recordIdsByBatch.get(row.batchId) ?? []), row.id]);
   if (!Array.isArray(value.importBatches) || new Set(value.importBatches.map(row => row?.id)).size !== value.importBatches.length ||

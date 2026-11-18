@@ -97,7 +97,7 @@ export async function collectBackupSnapshotV2(uid: string, groupId: string, env:
     };
     const group = await reader.read(`groups/${groupId}`);
     const caller = await reader.read(`groups/${groupId}/members/${uid}`);
-    if (group?.data['status'] !== 'active' || caller?.data['status'] !== 'active' || caller.data['role'] !== 'owner') {
+    if (!['active', 'archived'].includes(String(group?.data['status'])) || caller?.data['status'] !== 'active' || caller.data['role'] !== 'owner') {
       throw new BackupSnapshotError(403, 'owner_required');
     }
     return await collectGroupExportV2FromReader(reader, { uid, emailVerified: true }, groupId);
