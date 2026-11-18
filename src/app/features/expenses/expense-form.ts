@@ -22,7 +22,7 @@ import { expenseMessage, expenseText } from './expense-text';
       <h2 class="text-2xl font-extrabold tracking-tight">{{ editing ? text('editExpense') : text('newExpense') }}</h2>
       @if (editing) { <p class="mt-1 text-sm text-pop-muted">{{ text('authorOnly') }}</p> }
       <p class="mt-2 text-sm leading-6 text-pop-muted">{{ text('splitHelp') }}</p>
-      <form class="mt-6 grid gap-4" (ngSubmit)="save()">
+      <form class="mt-6 grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4" (ngSubmit)="save()">
         <label class="block text-sm font-bold">{{ text('group') }}
           <select class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 text-pop-text focus-visible:outline-2 focus-visible:outline-pop-primary" name="group" [(ngModel)]="selectedGroupId" (ngModelChange)="loadGroup()" [disabled]="!!editing" required>
             <option value="">{{ text('chooseGroup') }}</option>
@@ -50,11 +50,24 @@ import { expenseMessage, expenseText } from './expense-text';
             </select>
           </label>
           @if (members().length) {
-            <label class="block text-sm font-bold">{{ text('paidBy') }}
-              <select class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 text-pop-text focus-visible:outline-2 focus-visible:outline-pop-primary" name="payer" [(ngModel)]="draft.payerId" required>
-                @for (member of members(); track member.userId) { <option [value]="member.userId">{{ member.userId === user?.uid ? text('me') : member.userId }}</option> }
-              </select>
-            </label>
+            @if (members().length > 1) { <label class="flex min-h-11 items-center gap-2 text-sm font-bold"><input class="size-5 accent-pop-primary focus-visible:outline-2 focus-visible:outline-pop-primary" type="checkbox" name="multiplePayers" [(ngModel)]="draft.multiplePayers" />{{ text('multiplePayers') }}</label> }
+            @if (!draft.multiplePayers) {
+              <label class="block text-sm font-bold">{{ text('paidBy') }}
+                <select class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 text-pop-text focus-visible:outline-2 focus-visible:outline-pop-primary" name="payer" [(ngModel)]="draft.payerId" required>
+                  @for (member of members(); track member.userId) { <option [value]="member.userId">{{ member.userId === user?.uid ? text('me') : member.userId }}</option> }
+                </select>
+              </label>
+            } @else {
+              <fieldset class="rounded-2xl border border-pop-border bg-pop-lavender p-4">
+                <legend class="px-2 text-sm font-extrabold text-pop-primary-dark">{{ text('paidBy') }}</legend>
+                @for (row of draft.paymentRows; track row.userId; let i = $index) {
+                  <div class="mt-3 flex min-h-11 items-center gap-3 rounded-xl bg-pop-surface px-3 py-2">
+                    <label class="flex min-w-0 flex-1 items-center gap-2 text-sm"><input class="size-5 shrink-0 accent-pop-primary focus-visible:outline-2 focus-visible:outline-pop-primary" type="checkbox" [name]="'payer-selected-' + i" [(ngModel)]="row.selected" /><span class="min-w-0 break-all">{{ row.userId === user?.uid ? text('me') : row.userId }}</span></label>
+                    @if (row.selected) { <input class="min-h-11 w-24 rounded-xl border border-pop-border p-2 text-right focus-visible:outline-2 focus-visible:outline-pop-primary" [name]="'payer-value-' + i" [(ngModel)]="row.value" inputmode="decimal" [attr.aria-label]="text('paymentFor') + ' ' + (row.userId === user?.uid ? text('me') : row.userId)" [placeholder]="draft.currency" /> }
+                  </div>
+                }
+              </fieldset>
+            }
             <fieldset class="rounded-2xl border border-pop-border bg-pop-lavender p-4">
               <legend class="px-2 text-sm font-extrabold text-pop-primary-dark">{{ text('split') }}</legend>
               <select class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 text-pop-text focus-visible:outline-2 focus-visible:outline-pop-primary" name="mode" [(ngModel)]="draft.kind" (ngModelChange)="clearValues()" [attr.aria-label]="text('splitMethod')">
@@ -138,7 +151,7 @@ export class ExpenseForm implements OnChanges {
     this.customCategories.set(items);
     if (!this.availableCategories().some(category => category.id === this.draft.categoryId)) this.draft.categoryId = 'other';
   }
-  private emptyDraft(): ExpenseDraft { return { description: '', amount: '', currency: 'CAD', date: new Date().toISOString().slice(0, 10), categoryId: 'other', payerId: '', kind: 'equal', rows: [] }; }
+  private emptyDraft(): ExpenseDraft { return { description: '', amount: '', currency: 'CAD', date: new Date().toISOString().slice(0, 10), categoryId: 'other', payerId: '', multiplePayers: false, paymentRows: [], kind: 'equal', rows: [] }; }
   private decimal(amount: number): string {
     const digits = minorDigits(this.draft.currency);
     const absolute = Math.abs(amount);
@@ -160,6 +173,7 @@ export class ExpenseForm implements OnChanges {
       this.members.set(members);
       this.draft.payerId = members.find(member => member.userId === this.user?.uid)?.userId ?? members[0]?.userId ?? '';
       this.draft.rows = members.map(member => ({ userId: member.userId, selected: false, value: '' }));
+      this.draft.paymentRows = members.map(member => ({ userId: member.userId, selected: false, value: '' }));
       const preference = this.editing?.groupId === groupId ? this.editing.entry.splitMode : await this.service.preference(this.user, groupId, new Set(members.map(member => member.userId)));
       if (this.selectedGroupId === groupId && preference) {
         if (this.editing?.groupId === groupId) {
@@ -169,6 +183,8 @@ export class ExpenseForm implements OnChanges {
           this.draft.date = entry.date;
           this.draft.categoryId = entry.categoryId;
           this.draft.payerId = entry.payments[0]?.userId ?? '';
+          this.draft.multiplePayers = entry.payments.length > 1;
+          this.draft.paymentRows.forEach(row => { const payment = entry.payments.find(item => item.userId === row.userId); row.selected = !!payment; row.value = payment ? this.decimal(payment.amountMinor) : ''; });
         }
         this.applyPreference(preference);
         this.changeDetector.markForCheck();

@@ -5,7 +5,7 @@ export type ModeKind = SplitMode['kind'];
 export interface SplitRow { userId: string; selected: boolean; value: string; }
 export interface ExpenseDraft {
   description: string; amount: string; currency: string; date: string; categoryId: string;
-  payerId: string; kind: ModeKind; rows: SplitRow[];
+  payerId: string; multiplePayers: boolean; paymentRows: SplitRow[]; kind: ModeKind; rows: SplitRow[];
 }
 
 /** Decimal input is converted by string operations, never floating point multiplication. */
@@ -21,7 +21,7 @@ export function parseMinor(text: string, currency: string, signed = false): numb
 
 export function prepareExpense(draft: ExpenseDraft, activeIds: ReadonlySet<string>): { amountMinor: number; payments: Allocation[]; splitMode: SplitMode; allocations: Allocation[] } {
   const amountMinor = parseMinor(draft.amount, draft.currency);
-  if (amountMinor <= 0 || !activeIds.has(draft.payerId)) throw new Error('Montant ou payeur invalide');
+  if (amountMinor <= 0 || (!draft.multiplePayers && !activeIds.has(draft.payerId))) throw new Error('Montant ou payeur invalide');
   const rows = draft.rows.filter(row => row.selected);
   if (!rows.length || rows.some(row => !activeIds.has(row.userId)) || new Set(rows.map(row => row.userId)).size !== rows.length) throw new Error('Choisissez des membres actifs');
   const number = (value: string) => {
@@ -39,7 +39,12 @@ export function prepareExpense(draft: ExpenseDraft, activeIds: ReadonlySet<strin
     case 'adjustment': splitMode = { kind: 'adjustment', adjustments: rows.map(row => ({ userId: row.userId, amountMinor: parseMinor(row.value, draft.currency, true) })) }; break;
   }
   const allocations = splitAmount(amountMinor, splitMode);
-  const payments = [{ userId: draft.payerId, amountMinor }];
+  const paymentRows = draft.paymentRows.filter(row => row.selected);
+  if (draft.multiplePayers && (!paymentRows.length || paymentRows.some(row => !activeIds.has(row.userId)) || new Set(paymentRows.map(row => row.userId)).size !== paymentRows.length)) throw new Error('Choisissez des payeurs actifs');
+  const payments = draft.multiplePayers
+    ? paymentRows.map(row => ({ userId: row.userId, amountMinor: parseMinor(row.value, draft.currency) }))
+    : [{ userId: draft.payerId, amountMinor }];
+  if (draft.multiplePayers && (payments.some(row => row.amountMinor <= 0) || payments.reduce((sum, row) => sum + BigInt(row.amountMinor), 0n) !== BigInt(amountMinor))) throw new Error('La somme des paiements doit égaler le montant');
   validateExpense(amountMinor, payments, allocations, activeIds);
   return { amountMinor, payments, splitMode, allocations };
 }
