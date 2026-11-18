@@ -14,6 +14,8 @@ type PreparedImportRecord = ImportRecordBase & ({
   readonly sourceCostExact: string;
   readonly sourcePrecision: number;
   readonly netImpactsExact: Readonly<Record<string, string>>;
+  readonly sourceCategory: string;
+  readonly sourceOccurrence: number;
 });
 
 export interface PreparedImportBatch {
@@ -42,6 +44,14 @@ export function pendingNativeImportBatches(batches: readonly PreparedImportBatch
 }
 
 const documentId = /^[A-Za-z0-9_-]{1,128}$/;
+
+function canonicalDecimal(value: string): string {
+  const negative = value.startsWith('-');
+  const [whole, fraction = ''] = value.replace(/^-/, '').split('.');
+  const trimmedFraction = fraction.replace(/0+$/, '');
+  const normalized = `${BigInt(whole)}${trimmedFraction ? `.${trimmedFraction}` : ''}`;
+  return normalized === '0' ? '0' : `${negative ? '-' : ''}${normalized}`;
+}
 const batchIdPattern = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
 
 /** Fail closed: incomplete previews and ambiguous account mapping never reach the Worker. */
@@ -105,18 +115,19 @@ export async function prepareNativeImportBatches(
   const occurrences = new Map<string, number>();
   const records: PreparedImportRecord[] = [];
   for (const row of source.rows) {
-    if (row.description.length > 160) throw new Error('Description historique trop longue');
-    const signature = JSON.stringify([sourceGroupId, row.date, row.description, row.category, row.cost, row.currency,
-      source.participants.map(person => row.impacts[person])]);
+    if (row.description.length > 160 || row.category.length > 120) throw new Error('Libellé historique trop long');
+    const canonical = [row.date, row.description.trim(), row.category.trim(), row.currency, canonicalDecimal(row.cost)] as const;
+    const signature = JSON.stringify(canonical);
     const occurrence = occurrences.get(signature) ?? 0;
     occurrences.set(signature, occurrence + 1);
-    const bytes = new TextEncoder().encode(JSON.stringify([signature, occurrence]));
+    const bytes = new TextEncoder().encode(JSON.stringify([...canonical, occurrence]));
     const hash = await crypto.subtle.digest('SHA-256', bytes);
     const sourceId = `native_${[...new Uint8Array(hash)].map(byte => byte.toString(16).padStart(2, '0')).join('')}`;
     const sourcePrecision = Math.max((row.cost.split('.')[1] ?? '').length,
       ...source.participants.map(person => (row.impacts[person].split('.')[1] ?? '').length));
     records.push({ sourceId, date: row.date, description: row.description, currency: row.currency,
       sourceCostExact: row.cost, sourcePrecision,
+      sourceCategory: row.category, sourceOccurrence: occurrence,
       netImpactsExact: Object.fromEntries(source.participants.map(person => [memberMapping[person], row.impacts[person]])) });
   }
   const batches: PreparedImportBatch[] = [];
