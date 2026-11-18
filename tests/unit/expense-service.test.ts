@@ -102,3 +102,32 @@ test('unverified users, insecure Worker, disabled route and malformed success ca
   f.reply(Response.json({ error: 'denied' }, { status: 403 }));
   await rejects(f.service.mutate(user, 'group-a', 'expense-1', 'PATCH', {}), /HTTP 403/);
 });
+
+test('history preserves category fallback, optional arrays and full-page pagination', async () => {
+  const rows = Array.from({ length: 20 }, (_, index) => row(`e${index}`, {
+    description: 'Fictif', date: '2026-11-18', amountMinor: 101, currency: 'CAD',
+  }));
+  const f = fixture(rows);
+  const result = await f.service.history('g');
+  strictEqual(result.hasMore, true);
+  strictEqual(result.last?.id, 'e19');
+  strictEqual(result.entries[0].categoryId, 'other');
+  strictEqual(result.entries[0].categoryLabel.length > 0, true);
+  deepStrictEqual(result.entries[0].payments, []);
+  deepStrictEqual(result.entries[0].allocations, []);
+  strictEqual(result.entries[0].revision, 0);
+  strictEqual(result.entries[0].splitMode, undefined);
+  deepStrictEqual(f.calls, ['history:g:::']);
+});
+
+test('mutations reject unverified identity, insecure endpoint and disabled Worker', async () => {
+  const f = fixture();
+  await rejects(f.service.mutate({ ...user, emailVerified: false } as User, 'g', 'e', 'DELETE', {}), /courriel/);
+  strictEqual(f.requests.length, 0);
+  const insecure = new ExpenseService(app, 'http://worker.example', f.repository);
+  await rejects(insecure.mutate(user, 'g', 'e', 'PATCH', {}), /sécurisée/);
+  f.reply(Response.json({ error: 'disabled' }, { status: 503 }));
+  await rejects(f.service.mutate(user, 'g', 'e', 'DELETE', {}), /désactivée/);
+  f.reply(Response.json({ error: 'forbidden' }, { status: 403 }));
+  await rejects(f.service.create(user, 'g', {}), /HTTP 403/);
+});

@@ -13,6 +13,44 @@ test('expense parser rejects malformed and unbalanced inputs', () => {
   throws(() => parseExpense({ ...input, categoryId: 'unknown' }), ExpenseError);
   strictEqual(parseExpense({ ...input, categoryId: 'education' }).categoryId, 'education');
 });
+
+test('expense parser rejects every malformed identifier, amount and payment boundary', () => {
+  const invalid = [
+    null, 'text', {},
+    { ...input, idempotencyKey: 'not-a-v4-uuid' },
+    { ...input, description: ' ' },
+    { ...input, description: 'x'.repeat(161) },
+    { ...input, categoryId: 1 },
+    { ...input, currency: 'ZZZ' },
+    { ...input, date: '16-11-2026' },
+    { ...input, amountMinor: 0 },
+    { ...input, amountMinor: Number.MAX_SAFE_INTEGER + 1 },
+    { ...input, payments: [] },
+    { ...input, payments: Array.from({ length: 21 }, () => ({ userId: 'alice', amountMinor: 1 })) },
+    { ...input, splitMode: null },
+  ];
+  for (const value of invalid) throws(() => parseExpense(value), ExpenseError);
+  for (const payments of [[null], [{ userId: 'bad/id', amountMinor: 101 }], [{ userId: 'alice', amountMinor: 1.5 }],
+    [{ userId: 'alice', amountMinor: 50 }, { userId: 'alice', amountMinor: 51 }]]) {
+    throws(() => parseExpense({ ...input, payments }), ExpenseError);
+  }
+});
+
+test('expense parser validates all split modes and rejects malformed participants', () => {
+  const modes = [
+    { kind: 'equal', users: ['alice', 'bob'] },
+    { kind: 'exact', amounts: [{ userId: 'alice', amountMinor: 51 }, { userId: 'bob', amountMinor: 50 }] },
+    { kind: 'percentage', weightsBasisPoints: [{ userId: 'alice', value: 5000 }, { userId: 'bob', value: 5000 }] },
+    { kind: 'shares', weights: [{ userId: 'alice', value: 1 }, { userId: 'bob', value: 1 }] },
+    { kind: 'adjustment', adjustments: [{ userId: 'alice', amountMinor: 0 }, { userId: 'bob', amountMinor: 0 }] },
+  ];
+  for (const splitMode of modes) strictEqual(parseExpense({ ...input, splitMode }).splitMode, splitMode);
+  for (const splitMode of [
+    { kind: 'unknown' }, { kind: 'equal', users: [] }, { kind: 'equal', users: ['bad/id'] },
+    { kind: 'exact', amounts: 'bad' }, { kind: 'percentage', weightsBasisPoints: [] },
+    { kind: 'shares', weights: [] }, { kind: 'adjustment', adjustments: [] },
+  ]) throws(() => parseExpense({ ...input, splitMode }), ExpenseError);
+});
 test('expense transaction reads active group/members and atomically writes expense, preference, activity', async () => {
   const { privateKey } = await generateKeyPair('RS256', { extractable: true });
   const service = JSON.stringify({ project_id: 'ourfinance-test', client_email: 'test@ourfinance-test.iam.gserviceaccount.com', private_key: await exportPKCS8(privateKey) });

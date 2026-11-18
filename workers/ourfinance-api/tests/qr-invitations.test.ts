@@ -149,3 +149,44 @@ test('expiry cleanup tolerates a concurrent transaction conflict and retries on 
   strictEqual(f.docs.get(`groups/g1/invitations/${created.invitationId}`)?.status.stringValue, 'expired');
   strictEqual([...f.docs.keys()].some(path => path.startsWith('invitationTokens/')), false);
 });
+
+test('QR input rejects malformed target email, group scope and token before storage', async () => {
+  const f = await fixture();
+  for (const targetEmail of [42, 'bad', `${'x'.repeat(255)}@example.com`]) {
+    await rejects(createQrInvitation({ targetEmail }, 'owner', 'g1', f.env, f.transport),
+      (error: unknown) => error instanceof QrInvitationError && error.status === 400);
+  }
+  await rejects(createQrInvitation({}, 'bad/uid', 'g1', f.env, f.transport), QrInvitationError);
+  await rejects(createQrInvitation({}, 'owner', 'g2', f.env, f.transport),
+    (error: unknown) => error instanceof QrInvitationError && error.status === 403);
+  await rejects(previewQrInvitation('short', 'guest', 'guest@example.com', f.env, f.transport), QrInvitationError);
+  await rejects(acceptQrInvitation(123, 'guest', 'guest@example.com', f.env, f.transport), QrInvitationError);
+  await rejects(revokeQrInvitation('bad/id', 'owner', 'g1', f.env, f.transport), QrInvitationError);
+  await rejects(listQrInvitations('g1', 'owner', f.env, 'x'.repeat(1025), f.transport), QrInvitationError);
+  strictEqual(f.commits.length, 0);
+});
+
+test('existing active and revoked members cannot consume a new invitation', async () => {
+  const f = await fixture();
+  const created = await createQrInvitation({}, 'owner', 'g1', f.env, f.transport);
+  f.docs.set('groups/g1/members/guest', { role: { stringValue: 'member' }, status: { stringValue: 'active' } });
+  await rejects(previewQrInvitation(created.token, 'guest', 'guest@example.com', f.env, f.transport),
+    (error: unknown) => error instanceof QrInvitationError && error.status === 409);
+  await rejects(acceptQrInvitation(created.token, 'guest', 'guest@example.com', f.env, f.transport),
+    (error: unknown) => error instanceof QrInvitationError && error.status === 409);
+  f.docs.get('groups/g1/members/guest')!['status'] = { stringValue: 'revoked' };
+  await rejects(previewQrInvitation(created.token, 'guest', 'guest@example.com', f.env, f.transport),
+    (error: unknown) => error instanceof QrInvitationError && error.status === 403);
+  await rejects(acceptQrInvitation(created.token, 'guest', 'guest@example.com', f.env, f.transport),
+    (error: unknown) => error instanceof QrInvitationError && error.status === 403);
+  strictEqual(f.commits.length, 1);
+});
+
+test('revoking an already accepted invitation never rewrites membership', async () => {
+  const f = await fixture();
+  const created = await createQrInvitation({}, 'owner', 'g1', f.env, f.transport);
+  await acceptQrInvitation(created.token, 'guest', 'guest@example.com', f.env, f.transport);
+  await rejects(revokeQrInvitation(created.invitationId, 'owner', 'g1', f.env, f.transport),
+    (error: unknown) => error instanceof QrInvitationError && error.status === 409);
+  strictEqual(f.docs.get('groups/g1/members/guest')?.status.stringValue, 'active');
+});

@@ -102,6 +102,37 @@ test('lost stage progress is recoverable by uploading the same verified bytes ag
   strictEqual(state.uploads, 2);
 });
 
+test('prepared receipt job rejects invalid identifiers and inconsistent staged metadata', async () => {
+  const state = await fixture();
+  await rejects(readPreparedRestoreJob('bad/uid', 'g', restoreId, state.env, state.transport), PreparedRestoreError);
+  await rejects(readPreparedRestoreJob('alice', 'g', 'wrong', state.env, state.transport), PreparedRestoreError);
+  strictEqual(state.requests, 0);
+  const invalidJobs: readonly [string[], string[], string[], string, string[]][] = [
+    [[publicId, publicId], [digest, digest], ['png', 'png'], 'a'.repeat(64), []],
+    [[publicId], ['bad'], ['png'], 'a'.repeat(64), []],
+    [[publicId], [digest], ['gif'], 'a'.repeat(64), []],
+    [[publicId], [digest], ['png'], 'bad', []],
+    [[publicId], [digest], ['png'], 'a'.repeat(64), ['1']],
+    [[publicId], [digest], ['png'], 'a'.repeat(64), ['0', '0']],
+    [['ourfinance-test/other/e/a'], [digest], ['png'], 'a'.repeat(64), []],
+  ];
+  for (const [ids, digests, formats, manifest, indices] of invalidJobs) {
+    state.setJob(ids, digests, formats, manifest, indices);
+    await rejects(readPreparedRestoreJob('alice', 'g', restoreId, state.env, state.transport),
+      (error: unknown) => error instanceof PreparedRestoreError && error.code === 'invalid_restore_job');
+  }
+});
+
+test('staging rejects invalid index, bytes and format before media upload', async () => {
+  const state = await fixture();
+  for (const index of [-1, 1.5, 1]) {
+    await rejects(stagePreparedRestoreReceipt('alice', 'g', restoreId, index, png, 'png', state.env, state.transport), PreparedRestoreError);
+  }
+  await rejects(stagePreparedRestoreReceipt('alice', 'g', restoreId, 0, new Uint8Array(2_000_001), 'png', state.env, state.transport), PreparedRestoreError);
+  await rejects(stagePreparedRestoreReceipt('alice', 'g', restoreId, 0, png, 'jpg', state.env, state.transport), PreparedRestoreError);
+  strictEqual(state.uploads, 0);
+});
+
 test('30 synthetic private receipts roundtrip through V2 ZIP and prepared lock', async () => {
   const at = '2026-11-17T00:00:00.000Z';
   const expenses = Array.from({ length: 30 }, (_, index) => ({ id: `e${index}`, date: '2026-11-16', description: 'Fictif', currency: 'CAD',
