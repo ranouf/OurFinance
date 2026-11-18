@@ -166,3 +166,42 @@ test('exact historical variant refuses rounding, imbalance and mixed representat
     { ...row, sourceCategory: null },
   ]) throws(() => parseImportBatch({ batchId, records: [invalid] }, groupId), ImportError);
 });
+
+test('batch parser rejects malformed envelope, records and legacy impact maps', () => {
+  const row = input.records[0];
+  for (const value of [null, 'text', {}, { ...input, batchId: 'bad' }, { ...input, records: [] },
+    { ...input, records: Array.from({ length: 11 }, () => row) }, { ...input, records: [null] }]) {
+    throws(() => parseImportBatch(value, groupId), ImportError);
+  }
+  throws(() => parseImportBatch(input, 'bad/group'), ImportError);
+  for (const changed of [
+    { sourceId: '' }, { sourceId: 'x'.repeat(129) }, { description: ' ' }, { description: 'x'.repeat(161) },
+    { date: '2026-02-31' }, { currency: 'ZZZ' }, { amountMinor: 0 }, { amountMinor: 1.5 },
+    { netImpactsMinor: [] }, { netImpactsMinor: {} }, { netImpactsMinor: { 'bad/id': 1, alex: -1 } },
+    { netImpactsMinor: { alex: 1, bob: 0 } }, { netImpactsMinor: { alex: 1.5, bob: -1.5 } },
+  ]) throws(() => parseImportBatch({ batchId, records: [{ ...row, ...changed }] }, groupId), ImportError);
+});
+
+test('exact parser refuses invalid precision, categories, IDs and impact representation', () => {
+  const row = exactInput.records[0];
+  for (const changed of [
+    { sourcePrecision: 13 }, { sourcePrecision: -1 }, { sourcePrecision: 1.5 },
+    { sourceCostExact: '0.00' }, { sourceCostExact: 'invalid' },
+    { sourceCategory: 'x'.repeat(121) }, { sourceOccurrence: 1.5 },
+    { netImpactsExact: [] }, { netImpactsExact: {} },
+    { netImpactsExact: { 'bad/id': '1.00', alex: '-1.00' } },
+    { netImpactsExact: { alex: '1.00', camille: 'bad' } },
+  ]) throws(() => parseImportBatch({ batchId, records: [{ ...row, ...changed }] }, groupId), ImportError);
+});
+
+test('undo requires a valid batch and its unchanged active records', async () => {
+  const f = await fixture();
+  await rejects(undoImportBatch('bad', 'alex', groupId, f.env, f.transport), ImportError);
+  await rejects(undoImportBatch(batchId, 'alex', groupId, f.env, f.transport),
+    (error: unknown) => error instanceof ImportError && error.code === 'batch_unavailable');
+  await createImportBatch(input, 'alex', groupId, f.env, f.transport);
+  const record = [...f.docs.entries()].find(([path]) => path.includes('/importedRecords/'))!;
+  record[1].status.stringValue = 'undone';
+  await rejects(undoImportBatch(batchId, 'alex', groupId, f.env, f.transport),
+    (error: unknown) => error instanceof ImportError && error.code === 'record_changed');
+});

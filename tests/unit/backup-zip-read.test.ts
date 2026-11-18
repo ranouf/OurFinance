@@ -44,3 +44,60 @@ test('refuses corrupted ZIP bytes, trailing comments and truncated archives', as
   const comment = new Uint8Array(zip.length + 1); comment.set(zip);
   await rejects(decodeBackupZipV1(comment));
 });
+
+test('rejects unsupported ZIP metadata before exposing archived documents', async () => {
+  const zip = await encodeBackupZipV1(await fixture());
+  const end = zip.length - 22;
+  const source = new DataView(zip.buffer, zip.byteOffset, zip.byteLength);
+  const centralStart = source.getUint32(end + 16, true);
+  const cases: readonly [number, number, number][] = [
+    [end + 4, 2, 1], // split archive
+    [end + 10, 2, 1], // incomplete central file count
+    [centralStart, 4, 0], // central directory signature
+    [centralStart + 10, 2, 8], // compressed entry
+    [centralStart + 12, 2, 8], // encrypted/unsupported entry
+    [centralStart + 20, 4, 1], // length differs from local record
+  ];
+  for (const [offset, width, value] of cases) {
+    const changed = Uint8Array.from(zip);
+    const view = new DataView(changed.buffer);
+    if (width === 2) view.setUint16(offset, value, true);
+    else view.setUint32(offset, value, true);
+    await rejects(decodeBackupZipV1(changed));
+  }
+});
+
+test('rejects local/header disagreement, unsafe filenames and payload corruption', async () => {
+  const zip = await encodeBackupZipV1(await fixture());
+  const end = zip.length - 22;
+  const source = new DataView(zip.buffer, zip.byteOffset, zip.byteLength);
+  const central = source.getUint32(end + 16, true);
+  const local = source.getUint32(central + 42, true);
+  const nameLength = source.getUint16(central + 28, true);
+  const cases: readonly [number, number, number][] = [
+    [central + 8, 2, 0], // UTF-8 flag required
+    [central + 28, 2, 0xffff], // central filename outside archive
+    [central + 30, 2, 1], // unsupported extra data
+    [central + 32, 2, 1], // unsupported comment
+    [central + 24, 4, 1], // compressed size mismatch
+    [central + 42, 4, central], // local header outside stored data
+    [local + 6, 2, 0], // local UTF-8 flag required
+    [local + 8, 2, 8], // local compression
+    [local + 26, 2, nameLength + 1], // local filename mismatch
+    [local + 14, 4, 0], // CRC mismatch
+    [local + 18, 4, 1], // local payload size mismatch
+  ];
+  for (const [offset, width, value] of cases) {
+    const changed = Uint8Array.from(zip);
+    const view = new DataView(changed.buffer);
+    if (width === 2) view.setUint16(offset, value, true);
+    else view.setUint32(offset, value, true);
+    await rejects(decodeBackupZipV1(changed));
+  }
+  const unsafe = Uint8Array.from(zip);
+  unsafe[central + 46] = '.'.charCodeAt(0);
+  await rejects(decodeBackupZipV1(unsafe));
+  const corrupted = Uint8Array.from(zip);
+  corrupted[local + 30 + nameLength] ^= 1;
+  await rejects(decodeBackupZipV1(corrupted));
+});

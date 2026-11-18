@@ -92,3 +92,25 @@ test('uses currencyCode and refuses an old transaction in another currency', asy
     [{ ...collections[path][0], data: { ...collections[path][0].data, currency: 'JPY' } }] : reader.list(path) };
   await rejects(collectGroupExportV1(mixed, user, 'group_test'), /Règlement/);
 });
+
+test('fails closed on missing group, inactive membership and malformed historical fields', async () => {
+  await rejects(collectGroupExportV1(reader, user, '../other'), /autorisé/);
+  for (const status of [null, 'deleted']) {
+    const unavailable: ExportReader = { ...reader, read: async path => path === root
+      ? status === null ? null : { id: 'group_test', data: { ...docs[root]!.data, status } }
+      : reader.read(path) };
+    await rejects(collectGroupExportV1(unavailable, user, 'group_test'), /indisponible/);
+  }
+  const inactive: ExportReader = { ...reader, read: async path => path.endsWith('/members/member_a')
+    ? { ...member, data: { ...member.data, status: 'revoked' } } : reader.read(path) };
+  await rejects(collectGroupExportV1(inactive, user, 'group_test'), /inactif/);
+  for (const imported of [
+    { ...collections[`${root}/importedRecords`][0].data, netImpactsMinor: [1] },
+    { ...collections[`${root}/importedRecords`][0].data, netImpactsMinor: { member_a: '50' } },
+    { ...collections[`${root}/importedRecords`][0].data, sourceCostExact: '1.00' },
+  ]) {
+    const invalid: ExportReader = { ...reader, list: async path => path === `${root}/importedRecords`
+      ? [{ id: 'import_1', data: imported }] : reader.list(path) };
+    await rejects(collectGroupExportV1(invalid, user, 'group_test'));
+  }
+});

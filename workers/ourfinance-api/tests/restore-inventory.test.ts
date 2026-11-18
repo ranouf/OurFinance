@@ -3,7 +3,8 @@ import { deepStrictEqual, rejects, strictEqual } from 'node:assert';
 import { generateKeyPair, exportPKCS8 } from 'jose';
 import { collectLiveRestoreInventory, RestoreInventoryError } from '../src/restore-inventory';
 
-async function fixture(role: 'owner' | 'member' = 'owner', unknownCollection = false, restoring = false, expenseCount = 1) {
+async function fixture(role: 'owner' | 'member' = 'owner', unknownCollection = false, restoring = false, expenseCount = 1,
+  failure?: 'begin' | 'missing-transaction' | 'malformed-collections' | 'malformed-members' | 'member-read' | 'rollback') {
   const { privateKey } = await generateKeyPair('RS256', { extractable: true });
   const env = { FIREBASE_PROJECT_ID: 'ourfinance-test', FIREBASE_SERVICE_ACCOUNT_JSON: JSON.stringify({
     project_id: 'ourfinance-test', client_email: 'test@ourfinance-test.iam.gserviceaccount.com', private_key: await exportPKCS8(privateKey),
@@ -19,11 +20,13 @@ async function fixture(role: 'owner' | 'member' = 'owner', unknownCollection = f
     if (url.pathname.endsWith(':beginTransaction')) {
       deepStrictEqual(JSON.parse(String(init?.body)), { options: { readOnly: {} } });
       readOnlyBegins++;
+      if (failure === 'begin') return Response.json({}, { status: 503 });
+      if (failure === 'missing-transaction') return Response.json({});
       return Response.json({ transaction: 'txn' });
     }
-    if (url.pathname.endsWith(':rollback')) { rollbacks++; return Response.json({}); }
+    if (url.pathname.endsWith(':rollback')) { rollbacks++; if (failure === 'rollback') throw new Error('network'); return Response.json({}); }
     const path = url.pathname.slice(`/v1/${root}/`.length);
-    if (path === 'groups/g:listCollectionIds') return Response.json({ collectionIds: unknownCollection ? ['expenses', 'unexpected'] : ['members', 'expenses'] });
+    if (path === 'groups/g:listCollectionIds') return Response.json({ collectionIds: failure === 'malformed-collections' ? 'members' : unknownCollection ? ['expenses', 'unexpected'] : ['members', 'expenses'] });
     if (path === 'groups/g:runQuery') {
       const body = JSON.parse(String(init?.body));
       strictEqual(body.transaction, 'txn');
@@ -32,8 +35,8 @@ async function fixture(role: 'owner' | 'member' = 'owner', unknownCollection = f
     }
     if (path === 'groups/g') return Response.json({ fields: { status: { stringValue: restoring ? 'restoring' : 'active' },
       ...(restoring ? { restoreId: { stringValue: '123e4567-e89b-42d3-a456-426614174000' } } : {}) } });
-    if (path === 'groups/g/members/alice') return Response.json({ fields: { status: { stringValue: 'active' }, role: { stringValue: role } } });
-    if (path === 'groups/g/members') return Response.json({ documents: [{ name: `${root}/groups/g/members/alice` }] });
+    if (path === 'groups/g/members/alice') return failure === 'member-read' ? Response.json({}, { status: 403 }) : Response.json({ fields: { status: { stringValue: 'active' }, role: { stringValue: role } } });
+    if (path === 'groups/g/members') return Response.json({ documents: failure === 'malformed-members' ? [{ name: `${root}/groups/g/members/bad/extra` }] : [{ name: `${root}/groups/g/members/alice` }] });
     if (path === 'groups/g/expenses') {
       const start = Number(url.searchParams.get('pageToken') ?? '0');
       return Response.json({ documents: Array.from({ length: Math.min(100, expenseCount - start) }, (_, offset) => {
@@ -93,4 +96,66 @@ test('inventory pages 936 synthetic expenses under the Worker Free subrequest bu
   const result = await collectLiveRestoreInventory('alice', 'g', state.env, state.transport);
   strictEqual(result.groupDocuments.filter(path => path.startsWith('groups/g/expenses/')).length, 937);
   strictEqual(state.requests < 45, true);
+});
+
+test('inventory refuses a transaction with more than 5000 documents', async () => {
+  const state = await fixture('owner', false, false, 5001);
+  await rejects(collectLiveRestoreInventory('alice', 'g', state.env, state.transport),
+    (error: unknown) => error instanceof RestoreInventoryError && error.code === 'inventory_too_large');
+  strictEqual(state.rollbacks, 1);
+});
+
+test('inventory stops a repeated collection cursor instead of looping indefinitely', async () => {
+  const state = await fixture();
+  let pages = 0;
+  const transport = (async (resource: string | URL | Request, init?: RequestInit) => {
+    const url = String(resource);
+    if (url.includes('/groups/g:listCollectionIds')) { pages++; return Response.json({ collectionIds: ['members'], nextPageToken: 'same' }); }
+    return state.transport(resource, init);
+  }) as typeof fetch;
+  await rejects(collectLiveRestoreInventory('alice', 'g', state.env, transport),
+    (error: unknown) => error instanceof RestoreInventoryError && error.code === 'inventory_too_large');
+  strictEqual(pages, 100);
+  strictEqual(state.rollbacks, 1);
+});
+
+test('invalid paths fail before service account access', async () => {
+  const state = await fixture();
+  for (const [uid, groupId, restoreId] of [['bad/uid', 'g', undefined], ['alice', 'bad/group', undefined], ['alice', 'g', 'invalid']]) {
+    await rejects(collectLiveRestoreInventory(uid!, groupId!, state.env, state.transport, restoreId),
+      (error: unknown) => error instanceof RestoreInventoryError && error.status === 400);
+  }
+  strictEqual(state.requests, 0);
+});
+
+test('transaction and inventory response failures are rejected without writes', async () => {
+  for (const failure of ['begin', 'missing-transaction', 'malformed-collections', 'malformed-members', 'member-read'] as const) {
+    const state = await fixture('owner', false, false, 1, failure);
+    await rejects(collectLiveRestoreInventory('alice', 'g', state.env, state.transport), RestoreInventoryError);
+    strictEqual(state.rollbacks, failure === 'begin' || failure === 'missing-transaction' ? 0 : 1);
+  }
+});
+
+test('failed rollback after successful read leaves the inventory result available', async () => {
+  const state = await fixture('owner', false, false, 1, 'rollback');
+  const result = await collectLiveRestoreInventory('alice', 'g', state.env, state.transport);
+  strictEqual(result.groupDocuments.includes('groups/g'), true);
+  strictEqual(state.rollbacks, 1);
+});
+
+test('inventory fails closed for missing owner and malformed pages without publishing document names', async () => {
+  const state = await fixture();
+  const scenarios: readonly [string, Response, number, string][] = [
+    ['/groups/g?transaction=', Response.json({}, { status: 404 }), 403, 'owner_required'],
+    ['/groups/g/members/alice?transaction=', Response.json({}, { status: 404 }), 403, 'owner_required'],
+    ['/groups/g/expenses?', Response.json({ documents: 'invalid' }), 503, 'invalid_inventory'],
+    ['/groups/g/expenses?', Response.json({ documents: [{ name: 'outside/expense' }] }), 503, 'invalid_inventory'],
+    ['/groups/g/expenses?', Response.json({ documents: [{ name: 'projects/ourfinance-test/databases/(default)/documents/groups/g/expenses/../escape' }] }), 503, 'invalid_inventory'],
+  ];
+  for (const [suffix, result, status, code] of scenarios) {
+    const transport = (async (resource: string | URL | Request, init?: RequestInit) =>
+      String(resource).includes(suffix) ? result.clone() : state.transport(resource, init)) as typeof fetch;
+    await rejects(collectLiveRestoreInventory('alice', 'g', state.env, transport),
+      (error: unknown) => error instanceof RestoreInventoryError && error.status === status && error.code === code);
+  }
 });

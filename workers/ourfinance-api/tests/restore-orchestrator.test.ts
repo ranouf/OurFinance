@@ -143,3 +143,25 @@ test('lost commit response with durable marker continues only to cleanup', async
   deepStrictEqual(events, ['begin', 'stage', 'inventory', 'commit', 'outcome', 'cleanup']);
   strictEqual(result.cleanupPending, false);
 });
+
+test('failed lock with no durable lock proof never aborts or stages media', async () => {
+  for (const outcomeFails of [false, true]) {
+    const events: string[] = [];
+    const ops = operations(events);
+    ops.begin = async () => { events.push('begin'); throw new Error('network'); };
+    ops.outcome = async () => { events.push('outcome'); if (outcomeFails) throw new Error('network'); return 'committed'; };
+    await rejects(restoreGroupFromPackage('alice', 'g', restoreId, await archive(), env, fetch, ops),
+      (error: unknown) => error instanceof RestoreOrchestrationError && error.code === 'restore_failed' && error.stage === 'lock');
+    deepStrictEqual(events, ['begin', 'outcome']);
+  }
+});
+
+test('failed abort cleanup leaves a durable recovery requirement', async () => {
+  const events: string[] = [];
+  const ops = operations(events);
+  ops.stage = async () => { events.push('stage'); throw new Error('media'); };
+  ops.cleanup = async () => { events.push('cleanup'); return { removed: 1, pending: true }; };
+  await rejects(restoreGroupFromPackage('alice', 'g', restoreId, await archive(), env, fetch, ops),
+    (error: unknown) => error instanceof RestoreOrchestrationError && error.code === 'recovery_required' && error.stage === 'abort');
+  deepStrictEqual(events, ['begin', 'stage', 'abort', 'cleanup']);
+});

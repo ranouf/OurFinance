@@ -49,3 +49,19 @@ test('does not return a package when the member is revoked after receipt downloa
   } };
   await rejects(buildBackupPackageV1(revoked, user, 'group_test', 'https://worker.example', transport), /révoqué/);
 });
+
+test('rejects manifest substitutions and missing private receipt without accepting matching hashes', async () => {
+  const original = await buildBackupPackageV1(reader, user, 'group_test', 'https://worker.example', transport);
+  const altered = [
+    { ...original, manifest: { ...original.manifest, format: 'Other' as typeof original.manifest.format } },
+    { ...original, manifest: { ...original.manifest, version: 2 as typeof original.manifest.version } },
+    { ...original, manifest: { ...original.manifest, scope: 'full' as typeof original.manifest.scope } },
+    { ...original, manifest: { ...original.manifest, groupId: 'other' } },
+    { ...original, manifest: { ...original.manifest, exportedAt: '2020-01-01T00:00:00.000Z' } },
+    { ...original, manifest: { ...original.manifest, groupJson: { ...original.manifest.groupJson, byteLength: 1 } } },
+    { ...original, manifest: { ...original.manifest, receipts: [{ ...original.manifest.receipts[0], attachmentId: 'other' }] } },
+    { ...original, manifest: { ...original.manifest, receipts: [{ ...original.manifest.receipts[0], contentType: 'image/jpeg' as const }] } },
+    { ...original, receipts: [{ ...original.receipts[0], filename: 'other.png' }] },
+  ];
+  for (const candidate of altered) await rejects(verifyBackupPackageV1(candidate));
+});

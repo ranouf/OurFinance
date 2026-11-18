@@ -102,6 +102,101 @@ test('lost stage progress is recoverable by uploading the same verified bytes ag
   strictEqual(state.uploads, 2);
 });
 
+test('prepared receipt job rejects invalid identifiers and inconsistent staged metadata', async () => {
+  const state = await fixture();
+  await rejects(readPreparedRestoreJob('bad/uid', 'g', restoreId, state.env, state.transport), PreparedRestoreError);
+  await rejects(readPreparedRestoreJob('alice', 'g', 'wrong', state.env, state.transport), PreparedRestoreError);
+  strictEqual(state.requests, 0);
+  const invalidJobs: readonly [string[], string[], string[], string, string[]][] = [
+    [[publicId, publicId], [digest, digest], ['png', 'png'], 'a'.repeat(64), []],
+    [[publicId], ['bad'], ['png'], 'a'.repeat(64), []],
+    [[publicId], [digest], ['gif'], 'a'.repeat(64), []],
+    [[publicId], [digest], ['png'], 'bad', []],
+    [[publicId], [digest], ['png'], 'a'.repeat(64), ['1']],
+    [[publicId], [digest], ['png'], 'a'.repeat(64), ['0', '0']],
+    [['ourfinance-test/other/e/a'], [digest], ['png'], 'a'.repeat(64), []],
+  ];
+  for (const [ids, digests, formats, manifest, indices] of invalidJobs) {
+    state.setJob(ids, digests, formats, manifest, indices);
+    await rejects(readPreparedRestoreJob('alice', 'g', restoreId, state.env, state.transport),
+      (error: unknown) => error instanceof PreparedRestoreError && error.code === 'invalid_restore_job');
+  }
+});
+
+test('prepared job fails closed for missing owner membership and changed restore lock', async () => {
+  const state = await fixture();
+  const scenarios: readonly [string, Response, number, string][] = [
+    ['/members/alice', Response.json({}, { status: 404 }), 403, 'owner_required'],
+    ['/groups/g/restoreJobs/', Response.json({}, { status: 404 }), 409, 'restore_unavailable'],
+    ['/groups/g', Response.json({ fields: { ownerId: { stringValue: 'other' } } }), 403, 'owner_required'],
+    ['/groups/g', Response.json({ fields: { ownerId: { stringValue: 'alice' }, status: { stringValue: 'active' } } }), 409, 'restore_state_changed'],
+    ['/members/alice', Response.json({ fields: { role: { stringValue: 'member' }, status: { stringValue: 'active' } } }), 403, 'owner_required'],
+    ['/groups/g/restoreJobs/', Response.json({ fields: { ownerId: { stringValue: 'alice' }, status: { stringValue: 'completed' } } }), 409, 'restore_state_changed'],
+  ];
+  for (const [path, response, status, code] of scenarios) {
+    const transport = (async (resource: string | URL | Request, init?: RequestInit) => {
+      const url = String(resource);
+      if (url.includes('oauth2.googleapis.com')) return state.transport(resource, init);
+      if (path === '/groups/g' ? new URL(url).pathname.endsWith(path) : url.includes(path)) return response.clone();
+      return state.transport(resource, init);
+    }) as typeof fetch;
+    await rejects(readPreparedRestoreJob('alice', 'g', restoreId, state.env, transport),
+      (error: unknown) => error instanceof PreparedRestoreError && error.status === status && error.code === code);
+  }
+});
+
+test('prepared job refuses incomplete and out-of-range stage metadata', async () => {
+  const state = await fixture();
+  for (const [ids, digests, formats, manifest, indices] of [
+    [[publicId], [], ['png'], 'a'.repeat(64), []],
+    [[publicId], [digest], [], 'a'.repeat(64), []],
+    [[publicId], [digest], ['png'], 'a'.repeat(64), ['-1']],
+    [[publicId], [digest], ['png'], 'a'.repeat(64), ['01']],
+    [[publicId], [digest], ['png'], 'a'.repeat(64), ['100']],
+    [[publicId], [digest], ['png'], 'a'.repeat(64), ['not-an-index']],
+    [[publicId], [digest], ['jpg'], 'a'.repeat(64), ['0', '0']],
+  ] as const) {
+    state.setJob([...ids], [...digests], [...formats], manifest, [...indices]);
+    await rejects(readPreparedRestoreJob('alice', 'g', restoreId, state.env, state.transport),
+      (error: unknown) => error instanceof PreparedRestoreError && error.code === 'invalid_restore_job');
+  }
+});
+
+test('prepared job refuses missing Firestore fields and malformed list values', async () => {
+  const state = await fixture();
+  const base = { updateTime: '2026-11-17T00:00:00Z', fields: {
+    ownerId: { stringValue: 'alice' }, status: { stringValue: 'staging' }, manifestSha256: { stringValue: 'a'.repeat(64) },
+    newPublicIds: { arrayValue: { values: [{ stringValue: publicId }] } },
+    receiptSha256: { arrayValue: { values: [{ stringValue: digest }] } },
+    receiptFormats: { arrayValue: { values: [{ stringValue: 'png' }] } },
+    stagedIndices: { arrayValue: { values: [] as { stringValue?: string }[] } },
+  } };
+  const variants = [
+    { ...base, updateTime: undefined },
+    { ...base, fields: { ...base.fields, newPublicIds: { arrayValue: { values: [{ stringValue: 'other' }] } } } },
+    { ...base, fields: { ...base.fields, receiptSha256: { arrayValue: { values: [{ stringValue: undefined }] } } } },
+    { ...base, fields: { ...base.fields, receiptFormats: { arrayValue: { values: [{ stringValue: 'gif' }] } } } },
+    { ...base, fields: { ...base.fields, stagedIndices: { arrayValue: { values: [{ stringValue: undefined }] } } } },
+    { ...base, fields: { ...base.fields, manifestSha256: { stringValue: 'bad' } } },
+  ];
+  for (const document of variants) {
+    const transport = (async (resource: string | URL | Request, init?: RequestInit) =>
+      String(resource).endsWith(`/groups/g/restoreJobs/${restoreId}`) ? Response.json(document) : state.transport(resource, init)) as typeof fetch;
+    await rejects(readPreparedRestoreJob('alice', 'g', restoreId, state.env, transport),
+      (error: unknown) => error instanceof PreparedRestoreError && error.code === 'invalid_restore_job');
+  }
+});
+
+test('staging rejects invalid index, bytes and format before media upload', async () => {
+  const state = await fixture();
+  for (const index of [-1, 1.5, 1]) {
+    await rejects(stagePreparedRestoreReceipt('alice', 'g', restoreId, index, png, 'png', state.env, state.transport), PreparedRestoreError);
+  }
+  await rejects(stagePreparedRestoreReceipt('alice', 'g', restoreId, 0, new Uint8Array(2_000_001), 'png', state.env, state.transport), PreparedRestoreError);
+  await rejects(stagePreparedRestoreReceipt('alice', 'g', restoreId, 0, png, 'jpg', state.env, state.transport), PreparedRestoreError);
+  strictEqual(state.uploads, 0);
+});
+
 test('30 synthetic private receipts roundtrip through V2 ZIP and prepared lock', async () => {
   const at = '2026-11-17T00:00:00.000Z';
   const expenses = Array.from({ length: 30 }, (_, index) => ({ id: `e${index}`, date: '2026-11-16', description: 'Fictif', currency: 'CAD',
@@ -166,4 +261,36 @@ test('30 synthetic private receipts roundtrip through V2 ZIP and prepared lock',
   });
   strictEqual(committed, 30);
   deepStrictEqual(result, { restoreId, cleanupPending: true });
+  const inventory = async () => ({ groupDocuments: ['groups/g'], userDocuments: [], receiptPublicIds: [] });
+  const failedCommit = async (): Promise<readonly string[]> => { throw new Error('lost commit response'); };
+  deepStrictEqual(await commitPreparedRestore('alice', 'g', restoreId, decoded, state.env, transport as typeof fetch, {
+    inventory, commit: failedCommit, outcome: async () => 'committed',
+  }), { restoreId, cleanupPending: true });
+  await rejects(commitPreparedRestore('alice', 'g', restoreId, decoded, state.env, transport as typeof fetch, {
+    inventory, commit: failedCommit, outcome: async () => 'locked',
+  }), (error: unknown) => error instanceof PreparedRestoreError && error.code === 'restore_not_committed');
+  await rejects(commitPreparedRestore('alice', 'g', restoreId, decoded, state.env, transport as typeof fetch, {
+    inventory, commit: failedCommit, outcome: async () => { throw new Error('outcome unavailable'); },
+  }), (error: unknown) => error instanceof PreparedRestoreError && error.code === 'recovery_required');
+  const missingJob = (async (resource: string | URL | Request, init?: RequestInit) =>
+    String(resource).endsWith(`/groups/g/restoreJobs/${restoreId}`) ? Response.json({}, { status: 404 }) : state.transport(resource, init)) as typeof fetch;
+  deepStrictEqual(await commitPreparedRestore('alice', 'g', restoreId, decoded, state.env, missingJob, {
+    inventory, commit: failedCommit, outcome: async () => 'committed',
+  }), { restoreId, cleanupPending: true });
+  await rejects(commitPreparedRestore('alice', 'g', restoreId, decoded, state.env, missingJob, {
+    inventory, commit: failedCommit, outcome: async () => 'locked',
+  }), (error: unknown) => error instanceof PreparedRestoreError && error.status === 409);
+  for (const mismatch of [
+    { manifest: 'b'.repeat(64), ids, digests: decoded.manifest.receipts.map(row => row.sha256), formats: ids.map(() => 'png'), stages: ids.map((_, index) => String(index)) },
+    { manifest: fingerprint, ids: ids.slice(1), digests: decoded.manifest.receipts.map(row => row.sha256).slice(1), formats: ids.slice(1).map(() => 'png'), stages: ids.slice(1).map((_, index) => String(index)) },
+    { manifest: fingerprint, ids, digests: ids.map(() => 'b'.repeat(64)), formats: ids.map(() => 'png'), stages: ids.map((_, index) => String(index)) },
+    { manifest: fingerprint, ids, digests: decoded.manifest.receipts.map(row => row.sha256), formats: ids.map(() => 'jpg'), stages: ids.map((_, index) => String(index)) },
+    { manifest: fingerprint, ids, digests: decoded.manifest.receipts.map(row => row.sha256), formats: ids.map(() => 'png'), stages: ids.slice(1).map((_, index) => String(index)) },
+    { manifest: fingerprint, ids, digests: decoded.manifest.receipts.map(row => row.sha256), formats: ids.map(() => 'png'), stages: ids.map((_, index) => String(ids.length - index - 1)) },
+  ]) {
+    state.setJob(mismatch.ids, mismatch.digests, mismatch.formats, mismatch.manifest, mismatch.stages);
+    await rejects(commitPreparedRestore('alice', 'g', restoreId, decoded, state.env, state.transport, {
+      inventory, commit: failedCommit, outcome: async () => 'locked',
+    }), (error: unknown) => error instanceof PreparedRestoreError && error.code === 'receipts_not_staged');
+  }
 });

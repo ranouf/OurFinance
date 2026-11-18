@@ -101,3 +101,48 @@ test('non-quota outcome read failure keeps the generic unavailable signal', asyn
   await rejects(readRestoreOutcome('alice', 'g', restoreId, state.env, transport),
     (error: unknown) => error instanceof RestoreCommitError && error.status === 503 && error.code === 'outcome_unavailable');
 });
+
+test('commit refuses changed lock, job and staged asset before replacing the group', async () => {
+  for (const failure of ['group', 'job', 'asset', 'begin'] as const) {
+    const state = await fixture();
+    const transport = (async (resource: string | URL | Request, init?: RequestInit) => {
+      const url = String(resource);
+      if (failure === 'begin' && url.endsWith(':beginTransaction')) return Response.json({});
+      if (failure === 'group' && url.includes('/groups/g?transaction=')) return Response.json({ fields: {
+        status: { stringValue: 'active' }, ownerId: { stringValue: 'alice' }, currencyCode: { stringValue: 'CAD' },
+      } });
+      if ((failure === 'job' || failure === 'asset') && url.includes('/restoreJobs/') && url.includes('?transaction=')) return Response.json({ fields: {
+        ownerId: { stringValue: 'alice' }, status: { stringValue: failure === 'job' ? 'committed' : 'staging' },
+        newPublicIds: { arrayValue: { values: failure === 'asset' ? [{ stringValue: 'wrong' }] : [] } },
+      } });
+      return state.transport(resource, init);
+    }) as typeof fetch;
+    await rejects(commitGroupRestoreV2('alice', 'g', restoreId, backup, live, [], state.env, transport), RestoreCommitError);
+    strictEqual(state.commits, 0);
+    strictEqual(state.rollbacks, failure === 'begin' ? 0 : 1);
+  }
+});
+
+test('commit rejects a changed member inventory and a Firestore conflict', async () => {
+  const state = await fixture();
+  await rejects(commitGroupRestoreV2('alice', 'g', restoreId, backup,
+    { ...live, groupDocuments: ['groups/g'] }, [], state.env, state.transport),
+  (error: unknown) => error instanceof RestoreCommitError && error.code === 'members_changed');
+  strictEqual(state.rollbacks, 1);
+  const transport = (async (resource: string | URL | Request, init?: RequestInit) => String(resource).endsWith(':commit')
+    ? Response.json({}, { status: 409 }) : state.transport(resource, init)) as typeof fetch;
+  await rejects(commitGroupRestoreV2('alice', 'g', restoreId, backup, live, [], state.env, transport),
+    (error: unknown) => error instanceof RestoreCommitError && error.status === 409);
+  strictEqual(state.rollbacks, 2);
+});
+
+test('outcome refuses invalid path and a mismatched durable marker', async () => {
+  const state = await fixture();
+  await rejects(readRestoreOutcome('bad/uid', 'g', restoreId, state.env, state.transport), RestoreCommitError);
+  await rejects(readRestoreOutcome('alice', 'g', 'bad', state.env, state.transport), RestoreCommitError);
+  const transport = (async (resource: string | URL | Request, init?: RequestInit) => String(resource).endsWith('/groups/g')
+    ? Response.json({ fields: { status: { stringValue: 'active' }, lastRestoreId: { stringValue: 'other' }, ownerId: { stringValue: 'alice' } } })
+    : state.transport(resource, init)) as typeof fetch;
+  await rejects(readRestoreOutcome('alice', 'g', restoreId, state.env, transport),
+    (error: unknown) => error instanceof RestoreCommitError && error.code === 'restore_state_changed');
+});

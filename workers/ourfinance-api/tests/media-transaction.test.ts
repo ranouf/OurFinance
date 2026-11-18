@@ -125,3 +125,29 @@ test('révocation ou suppression concurrente interdit l’activation malgré un 
     strictEqual(state.rollbacks, 1);
   }
 });
+
+test('une transaction sans identifiant ou refusée ne publie aucun reçu', async () => {
+  for (const response of [Response.json({}, { status: 503 }), Response.json({})]) {
+    let calls = 0;
+    const transport = (async () => { calls++; return response.clone(); }) as typeof fetch;
+    await rejects(persistUploadedReceipt(...args, transport));
+    strictEqual(calls, 1);
+  }
+});
+
+test('une lecture transactionnelle en panne déclenche rollback sans commit', async () => {
+  for (const status of [404, 403, 429]) {
+    let commits = 0;
+    let rollbacks = 0;
+    const transport = (async (resource: string | URL | Request) => {
+      const url = String(resource);
+      if (url.endsWith(':beginTransaction')) return Response.json({ transaction: 'txn' });
+      if (url.endsWith(':rollback')) { rollbacks++; return Response.json({}); }
+      if (url.endsWith(':commit')) { commits++; return Response.json({}); }
+      return Response.json({}, { status });
+    }) as typeof fetch;
+    await rejects(persistUploadedReceipt(...args, transport));
+    strictEqual(commits, 0);
+    strictEqual(rollbacks, 1);
+  }
+});

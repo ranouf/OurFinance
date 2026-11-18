@@ -124,21 +124,22 @@ async function firestoreDocument(path: string, token: string, env: MediaEnv, tra
   return body.fields ?? null;
 }
 
-export async function handleMedia(request: Request, ids: { groupId: string; expenseId: string; attachmentId?: string }, env: MediaEnv, headers: Headers): Promise<Response> {
+export async function handleMedia(request: Request, ids: { groupId: string; expenseId: string; attachmentId?: string }, env: MediaEnv, headers: Headers,
+  transport: typeof fetch = fetch, verifyIdentity: typeof verifyFirebaseIdToken = verifyFirebaseIdToken): Promise<Response> {
   const { groupId, expenseId, attachmentId } = ids;
   if (![groupId, expenseId, ...(attachmentId ? [attachmentId] : [])].every(id => idPattern.test(id))) return Response.json({ error: 'Identifiant invalide' }, { status: 400, headers });
   let uid: string, token: string;
   try {
     token = bearerToken(request);
-    uid = await verifyFirebaseIdToken(token, env.FIREBASE_PROJECT_ID);
+    uid = await verifyIdentity(token, env.FIREBASE_PROJECT_ID);
   } catch { return Response.json({ error: 'Non authentifié' }, { status: 401, headers }); }
   let member;
-  try { member = await readMember(env.FIREBASE_PROJECT_ID, groupId, uid, token); }
+  try { member = await readMember(env.FIREBASE_PROJECT_ID, groupId, uid, token, transport); }
   catch (error) { if (error instanceof ProviderQuotaError) throw error; throw new MediaDiagnosticError('member_read'); }
   if (!member || member.status !== 'active') return Response.json({ error: 'Accès refusé' }, { status: 403, headers });
   const expensePath = `groups/${groupId}/expenses/${expenseId}`;
   let expense;
-  try { expense = await firestoreDocument(expensePath, token, env); }
+  try { expense = await firestoreDocument(expensePath, token, env, transport); }
   catch (error) { if (error instanceof ProviderQuotaError) throw error; throw new MediaDiagnosticError('expense_read'); }
   if (!expense || expense['deleted']?.booleanValue === true) return Response.json({ error: 'Dépense absente' }, { status: 404, headers });
 
@@ -152,20 +153,20 @@ export async function handleMedia(request: Request, ids: { groupId: string; expe
     catch { return Response.json({ error: 'Image invalide' }, { status: 400, headers }); }
     const id = crypto.randomUUID();
     const publicId = `${env.FIREBASE_PROJECT_ID}/${groupId}/${expenseId}/${id}`;
-    const accessToken = await serviceAccessToken(env.FIREBASE_SERVICE_ACCOUNT_JSON, env.FIREBASE_PROJECT_ID);
-    await createUploadJournal(groupId, expenseId, id, uid, publicId, format, accessToken, env);
+    const accessToken = await serviceAccessToken(env.FIREBASE_SERVICE_ACCOUNT_JSON, env.FIREBASE_PROJECT_ID, transport);
+    await createUploadJournal(groupId, expenseId, id, uid, publicId, format, accessToken, env, transport);
     try {
-      await uploadAuthenticated(bytes, format, publicId, env);
-      await persistUploadedReceipt(groupId, expenseId, id, uid, publicId, format, accessToken, env.FIREBASE_PROJECT_ID, fetch, uploadJournalPath(groupId, id));
+      await uploadAuthenticated(bytes, format, publicId, env, transport);
+      await persistUploadedReceipt(groupId, expenseId, id, uid, publicId, format, accessToken, env.FIREBASE_PROJECT_ID, transport, uploadJournalPath(groupId, id));
       return Response.json({ attachmentId: id }, { status: 201, headers });
     } catch (error) {
-      if (await recoverFailedUpload(groupId, expenseId, id, publicId, accessToken, env)) return Response.json({ attachmentId: id }, { status: 201, headers });
+      if (await recoverFailedUpload(groupId, expenseId, id, publicId, accessToken, env, transport)) return Response.json({ attachmentId: id }, { status: 201, headers });
       throw error;
     }
   }
   if ((request.method === 'GET' || request.method === 'DELETE') && attachmentId) {
     let meta;
-    try { meta = await firestoreDocument(`${expensePath}/attachments/${attachmentId}`, token, env); }
+    try { meta = await firestoreDocument(`${expensePath}/attachments/${attachmentId}`, token, env, transport); }
     catch (error) { if (error instanceof ProviderQuotaError) throw error; throw new MediaDiagnosticError('metadata_read'); }
     if (!meta || meta['type']?.stringValue !== 'authenticated' ||
         (meta['status']?.stringValue !== 'active' && !(request.method === 'DELETE' && meta['status']?.stringValue === 'deleted' && meta['cleanupPending']?.booleanValue === true))) {
@@ -176,14 +177,14 @@ export async function handleMedia(request: Request, ids: { groupId: string; expe
     const format = meta['format']?.stringValue;
     if (!authorizedReceiptPublicId(publicId, env.FIREBASE_PROJECT_ID, groupId, expenseId, attachmentId) || (format !== 'jpg' && format !== 'png')) return Response.json({ error: 'Métadonnées invalides' }, { status: 500, headers });
     if (request.method === 'DELETE') {
-      const accessToken = await serviceAccessToken(env.FIREBASE_SERVICE_ACCOUNT_JSON, env.FIREBASE_PROJECT_ID);
-      await deleteReceiptAsset(`${expensePath}/attachments/${attachmentId}`, publicId, meta['status']?.stringValue === 'deleted', accessToken, env);
+      const accessToken = await serviceAccessToken(env.FIREBASE_SERVICE_ACCOUNT_JSON, env.FIREBASE_PROJECT_ID, transport);
+      await deleteReceiptAsset(`${expensePath}/attachments/${attachmentId}`, publicId, meta['status']?.stringValue === 'deleted', accessToken, env, transport);
       return new Response(null, { status: 204, headers });
     }
     let url: URL;
     try { url = await authenticatedDownloadUrl(publicId, format, env); }
     catch { throw new MediaDiagnosticError('download_sign'); }
-    const upstream = await fetchCloudinaryPrivate(url);
+    const upstream = await fetchCloudinaryPrivate(url, transport);
     if (isProviderQuotaStatus(upstream.status)) throw new ProviderQuotaError();
     if (!upstream.ok) return Response.json({ error: 'Image indisponible' }, { status: 502, headers });
     headers.set('Content-Type', format === 'jpg' ? 'image/jpeg' : 'image/png');
@@ -196,14 +197,15 @@ export async function handleMedia(request: Request, ids: { groupId: string; expe
 }
 
 /** Explicit owner-only retry even when the original expense has since been deleted. */
-export async function handleMediaCleanup(request: Request, groupId: string, env: MediaEnv, headers: Headers): Promise<Response> {
+export async function handleMediaCleanup(request: Request, groupId: string, env: MediaEnv, headers: Headers,
+  transport: typeof fetch = fetch, verifyIdentity: typeof verifyFirebaseIdToken = verifyFirebaseIdToken): Promise<Response> {
   if (!idPattern.test(groupId)) return Response.json({ error: 'Identifiant invalide' }, { status: 400, headers });
   let uid: string, token: string;
-  try { token = bearerToken(request); uid = await verifyFirebaseIdToken(token, env.FIREBASE_PROJECT_ID); }
+  try { token = bearerToken(request); uid = await verifyIdentity(token, env.FIREBASE_PROJECT_ID); }
   catch { return Response.json({ error: 'Non authentifié' }, { status: 401, headers }); }
-  const member = await readMember(env.FIREBASE_PROJECT_ID, groupId, uid, token);
+  const member = await readMember(env.FIREBASE_PROJECT_ID, groupId, uid, token, transport);
   if (!member || member.status !== 'active' || member.role !== 'owner') return Response.json({ error: 'Accès refusé' }, { status: 403, headers });
-  const accessToken = await serviceAccessToken(env.FIREBASE_SERVICE_ACCOUNT_JSON, env.FIREBASE_PROJECT_ID);
-  const result = await cleanupUploadJournals(groupId, accessToken, env);
+  const accessToken = await serviceAccessToken(env.FIREBASE_SERVICE_ACCOUNT_JSON, env.FIREBASE_PROJECT_ID, transport);
+  const result = await cleanupUploadJournals(groupId, accessToken, env, transport);
   return Response.json(result, { status: result.pending ? 202 : 200, headers });
 }

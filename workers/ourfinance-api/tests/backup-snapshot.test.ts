@@ -3,7 +3,8 @@ import { rejects, strictEqual } from 'node:assert';
 import { generateKeyPair, exportPKCS8 } from 'jose';
 import { collectBackupSnapshotV2, BackupSnapshotError } from '../src/backup-snapshot';
 
-async function fixture(role: 'owner' | 'member' = 'owner', expenseCount = 0, groupStatus: 'active' | 'archived' = 'active') {
+async function fixture(role: 'owner' | 'member' = 'owner', expenseCount = 0, groupStatus: 'active' | 'archived' = 'active',
+  failure?: 'begin' | 'transaction' | 'bad-name' | 'bad-field' | 'unsafe-integer' | 'unsupported-field' | 'list' | 'rollback') {
   const { privateKey } = await generateKeyPair('RS256', { extractable: true });
   const env = { FIREBASE_PROJECT_ID: 'ourfinance-test', FIREBASE_SERVICE_ACCOUNT_JSON: JSON.stringify({
     project_id: 'ourfinance-test', client_email: 'test@ourfinance-test.iam.gserviceaccount.com', private_key: await exportPKCS8(privateKey),
@@ -17,9 +18,9 @@ async function fixture(role: 'owner' | 'member' = 'owner', expenseCount = 0, gro
     if (url.hostname === 'oauth2.googleapis.com') return Response.json({ access_token: 'synthetic-service-token' });
     if (url.pathname.endsWith(':beginTransaction')) {
       strictEqual(JSON.parse(String(init?.body)).options.readOnly !== undefined, true);
-      return Response.json({ transaction: 'snapshot-txn' });
+      return Response.json(failure === 'transaction' ? {} : { transaction: 'snapshot-txn' }, { status: failure === 'begin' ? 503 : 200 });
     }
-    if (url.pathname.endsWith(':rollback')) { rollbacks++; return Response.json({}); }
+    if (url.pathname.endsWith(':rollback')) { rollbacks++; if (failure === 'rollback') throw new Error('network'); return Response.json({}); }
     const query = url.pathname.endsWith(':runQuery');
     if ((query ? JSON.parse(String(init?.body)).transaction : url.searchParams.get('transaction')) !== 'snapshot-txn') throw new Error('Lecture hors transaction');
     transactionReads++;
@@ -35,9 +36,12 @@ async function fixture(role: 'owner' | 'member' = 'owner', expenseCount = 0, gro
       return Response.json([]);
     }
     const path = url.pathname.slice(`/v1/${root}/`.length);
-    if (path === 'groups/g') return Response.json(document(path, { status: { stringValue: groupStatus }, name: { stringValue: 'Fictif' }, currencyCode: { stringValue: 'CAD' } }));
+    if (path === 'groups/g') return Response.json(failure === 'bad-name' ? document('groups/other', {}) :
+      document(path, { status: { stringValue: groupStatus }, name: failure === 'bad-field' ? false : { stringValue: 'Fictif' },
+        currencyCode: { stringValue: 'CAD' }, ...(failure === 'unsafe-integer' ? { value: { integerValue: '9007199254740992' } } : {}),
+        ...(failure === 'unsupported-field' ? { value: { bytesValue: 'invalid' } } : {}) }));
     if (path === 'groups/g/members/alice') return Response.json(document(path, { status: { stringValue: 'active' }, role: { stringValue: role } }));
-    if (path === 'groups/g/members') return Response.json({ documents: [
+    if (path === 'groups/g/members') return Response.json({ documents: failure === 'list' ? 'invalid' : [
       document('groups/g/members/alice', { role: { stringValue: 'owner' }, status: { stringValue: 'active' } }),
       document('groups/g/members/bob', { role: { stringValue: 'member' }, status: { stringValue: 'revoked' } }),
     ] });
@@ -106,4 +110,31 @@ test('snapshot pages 936 synthetic expenses with a receipt and comment under the
   strictEqual(result.receipts.length, 1);
   strictEqual(result.comments.length, 1);
   strictEqual(state.transactionReads < 45, true);
+});
+
+test('snapshot refuses invalid paths and missing transaction before reading private data', async () => {
+  const state = await fixture();
+  await rejects(collectBackupSnapshotV2('bad/uid', 'g', state.env, state.transport), BackupSnapshotError);
+  await rejects(collectBackupSnapshotV2('alice', 'bad/group', state.env, state.transport), BackupSnapshotError);
+  strictEqual(state.transactionReads, 0);
+  for (const failure of ['begin', 'transaction'] as const) {
+    const broken = await fixture('owner', 0, 'active', failure);
+    await rejects(collectBackupSnapshotV2('alice', 'g', broken.env, broken.transport), BackupSnapshotError);
+    strictEqual(broken.rollbacks, 0);
+  }
+});
+
+test('snapshot rejects malformed Firestore names, values and collection pages', async () => {
+  for (const failure of ['bad-name', 'bad-field', 'unsafe-integer', 'unsupported-field', 'list'] as const) {
+    const broken = await fixture('owner', 0, 'active', failure);
+    await rejects(collectBackupSnapshotV2('alice', 'g', broken.env, broken.transport));
+    strictEqual(broken.rollbacks, 1);
+  }
+});
+
+test('failed read-only rollback preserves a valid exported snapshot', async () => {
+  const state = await fixture('owner', 0, 'active', 'rollback');
+  const result = JSON.parse(await collectBackupSnapshotV2('alice', 'g', state.env, state.transport));
+  strictEqual(result.snapshotMode, 'server_transaction');
+  strictEqual(state.rollbacks, 1);
 });

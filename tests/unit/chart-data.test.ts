@@ -38,3 +38,13 @@ test('l’évolution suit l’unité jours ou années choisie sans inclure une d
   deepStrictEqual(chartData(expenses, [], 'CAD', '2026-01-31', '2026-02-01', 'days').timeline.map(point => point.period), ['2026-01-31', '2026-02-01']);
   deepStrictEqual(chartData(expenses, [], 'CAD', '2026-02-01', '2026-12-31', 'years').timeline.map(point => [point.period, point.amountMinor]), [['2026', 200n]]);
 });
+
+test('les catégories identiques fusionnent et les dates sont triées sans mélanger les remboursements exclus', () => {
+  const repeated = [...expenses, { ...expenses[0], date: '2026-02-04', amountMinor: 50,
+    payments: [{ userId: 'a', amountMinor: 50 }], allocations: [{ userId: 'a', amountMinor: 50 }] }];
+  const result = chartData(repeated, [...settlements, { ...settlements[0], deleted: true, amountMinor: 999 }],
+    'CAD', '2026-01-01', '2026-12-31', 'days');
+  strictEqual(result.categories.find(row => row.id === 'groceries')?.amountMinor, 151n);
+  deepStrictEqual(result.timeline.map(row => row.period), ['2026-01-31', '2026-02-01', '2026-02-04']);
+  strictEqual(result.members.find(row => row.userId === 'a')?.settlementsReceivedMinor, 25n);
+});
