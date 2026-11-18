@@ -67,3 +67,21 @@ test('lost response is resolved only by the durable lastRestoreId marker', async
   strictEqual(await readRestoreOutcome('alice', 'g', restoreId, completed.env, completed.transport), 'committed');
   await rejects(readRestoreOutcome('alice', 'g', '223e4567-e89b-42d3-a456-426614174000', completed.env, completed.transport));
 });
+
+test('quota during either outcome read keeps the fixed public quota signal', async () => {
+  for (const path of ['/groups/g', '/groups/g/members/alice']) {
+    const state = await fixture();
+    const transport = (async (resource: string | URL | Request, init?: RequestInit) =>
+      String(resource).endsWith(path) ? new Response(null, { status: 429 }) : state.transport(resource, init)) as typeof fetch;
+    await rejects(readRestoreOutcome('alice', 'g', restoreId, state.env, transport),
+      (error: unknown) => error instanceof RestoreCommitError && error.status === 503 && error.code === 'provider_quota_exceeded');
+  }
+});
+
+test('non-quota outcome read failure keeps the generic unavailable signal', async () => {
+  const state = await fixture();
+  const transport = (async (resource: string | URL | Request, init?: RequestInit) =>
+    String(resource).endsWith('/groups/g') ? new Response(null, { status: 503 }) : state.transport(resource, init)) as typeof fetch;
+  await rejects(readRestoreOutcome('alice', 'g', restoreId, state.env, transport),
+    (error: unknown) => error instanceof RestoreCommitError && error.status === 503 && error.code === 'outcome_unavailable');
+});

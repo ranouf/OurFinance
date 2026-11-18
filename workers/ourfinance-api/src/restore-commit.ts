@@ -1,4 +1,4 @@
-import { unavailableCode } from './provider-quota';
+import { isProviderQuotaStatus, unavailableCode } from './provider-quota';
 import type { GroupExportV2 } from '../../../src/app/features/import-export/export-v2';
 import { serviceAccessToken } from './service-account';
 import type { LiveRestoreInventory } from './restore-inventory';
@@ -21,7 +21,9 @@ export async function readRestoreOutcome(uid: string, groupId: string, restoreId
     transport(`https://firestore.googleapis.com/v1/${root}/groups/${groupId}`, { headers }),
     transport(`https://firestore.googleapis.com/v1/${root}/groups/${groupId}/members/${uid}`, { headers }),
   ]);
-  if (!groupResponse.ok || !memberResponse.ok) throw new RestoreCommitError(503, 'outcome_unavailable');
+  if (!groupResponse.ok || !memberResponse.ok) throw new RestoreCommitError(503,
+    isProviderQuotaStatus(groupResponse.status) || isProviderQuotaStatus(memberResponse.status)
+      ? 'provider_quota_exceeded' : 'outcome_unavailable');
   const group = await groupResponse.json() as { fields?: Record<string, { stringValue?: string }> };
   const member = await memberResponse.json() as { fields?: Record<string, { stringValue?: string }> };
   if (member.fields?.['role']?.stringValue !== 'owner' || member.fields['status']?.stringValue !== 'active' ||
