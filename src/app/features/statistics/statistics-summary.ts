@@ -45,9 +45,9 @@ interface CurrencyStatistics {
           <div class="mt-5 border-t border-pop-border pt-5 text-sm">
             <h3 class="font-extrabold text-pop-primary-dark">{{ row.currency }}</h3>
             <dl class="mt-3 grid grid-cols-2 gap-3 md:grid-cols-3">
-              <div class="rounded-2xl bg-pop-lavender p-4 max-[359px]:p-3"><dt class="text-pop-muted">{{ text('spent') }}</dt><dd class="mt-2 break-words text-lg font-extrabold max-[359px]:text-sm">{{ amount(row.spentMinor, row.currency) }}</dd></div>
-              <div class="rounded-2xl bg-pop-peach p-4 max-[359px]:p-3"><dt class="text-pop-muted">{{ text('paid') }}</dt><dd class="mt-2 break-words text-lg font-extrabold max-[359px]:text-sm">{{ amount(row.myPaidMinor, row.currency) }}</dd></div>
-              <div class="col-span-2 rounded-2xl bg-pop-mint-soft p-4 md:col-span-1"><dt class="text-pop-muted">{{ text('balance') }}</dt><dd class="mt-2 break-words text-lg font-extrabold">{{ amount(row.myBalanceMinor, row.currency) }}</dd></div>
+              <div class="rounded-2xl bg-pop-lavender p-4 max-[359px]:p-3"><dt class="text-pop-muted">{{ text('spent') }}</dt><dd class="mt-2 break-words text-2xl font-extrabold max-[359px]:text-lg">{{ amount(row.spentMinor, row.currency) }}</dd></div>
+              <div class="rounded-2xl bg-pop-peach p-4 max-[359px]:p-3"><dt class="text-pop-muted">{{ text('paid') }}</dt><dd class="mt-2 break-words text-2xl font-extrabold max-[359px]:text-lg">{{ amount(row.myPaidMinor, row.currency) }}</dd></div>
+              <div class="col-span-2 rounded-2xl bg-pop-mint-soft p-4 md:col-span-1"><dt class="text-pop-muted">{{ text('balance') }}</dt><dd class="mt-2 break-words text-2xl font-extrabold">{{ amount(row.myBalanceMinor, row.currency) }}</dd></div>
             </dl>
             @if (charts()[row.currency]; as chart) { <app-statistics-charts [data]="chart" [currency]="row.currency" [userId]="user?.uid ?? ''" /> }
             <details class="mt-3 rounded-xl border border-pop-border px-4 py-3"><summary class="cursor-pointer font-bold text-pop-primary-dark">{{ text('moreMeasures') }}</summary>
