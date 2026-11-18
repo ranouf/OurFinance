@@ -4,14 +4,14 @@ Ce document distingue les contrôles observés sur `ourfinance-test` des décisi
 
 ## Accès observés sur TEST
 
-| Contrôle | Constat |
-| --- | --- |
-| Identité du Worker | Identité dédiée au projet `ourfinance-test` avec `roles/datastore.user`. Ce rôle couvre la base ; la vérification de groupe est faite par le Worker et les Firestore Security Rules côté client. |
-| Clé de service | Une clé utilisateur active, sans expiration automatique, a été observée lors de l'audit antérieur. Sa rotation et le retrait de l'ancienne clé restent à définir. |
-| Origine HTTP | Origine étrangère refusée 403. Une origine de preview n'est acceptée que par valeur exacte temporaire `ALLOWED_PREVIEW_ORIGIN`, retirée après l'essai. |
-| Profils des membres | `#134` au SHA `9ad3bee` : sans jeton 401, propriétaire/membre actif 200, tiers/révoqué 403 ; uniquement identifiants et noms actifs, aucun courriel ni champ privé. Flags/fixtures retirés, route 503. |
-| Firestore | Les Rules de la pile M6 antérieure ont été comparées à la release TEST active ; aucun index composite déclaré ou actif alors. Refaire le contrôle après tout changement. |
-| Hosting | `#121` au SHA `e4e6979` : preview isolée avec CSP, `no-referrer`, `nosniff`, `DENY` sur `/` et `/dashboard`, CSS chargé et aucune violation CSP de la page observée. Le site TEST principal n'a pas été remplacé par cet essai. |
+| Contrôle            | Constat                                                                                                                                                                                                                         |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Identité du Worker  | Identité dédiée au projet `ourfinance-test` avec `roles/datastore.user`. Ce rôle couvre la base ; la vérification de groupe est faite par le Worker et les Firestore Security Rules côté client.                                |
+| Clé de service      | Une clé utilisateur active, sans expiration automatique, a été observée lors de l'audit antérieur. Sa rotation et le retrait de l'ancienne clé restent à tester sur TEST selon le protocole ci-dessous.                         |
+| Origine HTTP        | Origine étrangère refusée 403. Une origine de preview n'est acceptée que par valeur exacte temporaire `ALLOWED_PREVIEW_ORIGIN`, retirée après l'essai.                                                                          |
+| Profils des membres | `#134` au SHA `9ad3bee` : sans jeton 401, propriétaire/membre actif 200, tiers/révoqué 403 ; uniquement identifiants et noms actifs, aucun courriel ni champ privé. Flags/fixtures retirés, route 503.                          |
+| Firestore           | Les Rules de la pile M6 antérieure ont été comparées à la release TEST active ; aucun index composite déclaré ou actif alors. Refaire le contrôle après tout changement.                                                        |
+| Hosting             | `#121` au SHA `e4e6979` : preview isolée avec CSP, `no-referrer`, `nosniff`, `DENY` sur `/` et `/dashboard`, CSS chargé et aucune violation CSP de la page observée. Le site TEST principal n'a pas été remplacé par cet essai. |
 
 ## Sauvegarde et restauration
 
@@ -21,9 +21,20 @@ La restauration du groupe d'origine et de ses préférences a réussi sur TEST a
 
 ## Décisions et contrôles avant production
 
-- Définir/tester la rotation de la clé de service et un accès de secours ; revoir les rôles IAM sur l'environnement cible.
+- Tester la rotation de la clé de service et le retour arrière sur TEST ; revoir les rôles IAM sur l'environnement cible.
 - Mesurer les quotas Firebase Spark, Cloudflare Free et Cloudinary Free et prévoir alertes/nettoyage des pièces orphelines.
 - Les tests locaux simulent déjà un échec d'upload Cloudinary, un échec d'inventaire Firestore, une réponse de commit perdue et un nettoyage différé ; le lecteur de flux est testé à 20 000 000 et 20 000 001 octets. Rejouer sur TEST, avec fixture fictive et nettoyage, les pannes contrôlées pertinentes et le rejet HTTP d'une archive de plus de 20 Mo. Ne pas confondre ces tests locaux avec un essai réel sur Worker TEST.
 - Rejouer Security Rules, reçus privés, révocation, invitations QR et refus intergroupes sur le SHA final intégré.
 - Valider Google OAuth, emails externes et domaines Auth autorisés sur le TEST final. La preview CSP éphémère n'a pas pu synchroniser son domaine Auth automatiquement.
 - Garder la décision de publication production distincte de la fusion des PR.
+
+## Rotation de l'identité Worker sur TEST — protocole à exécuter
+
+Ce protocole concerne uniquement `ourfinance-api-dev` et une identité dédiée à `ourfinance-test`. Il n'a **pas encore été exécuté**. La mise à jour d'un secret Cloudflare peut publier une nouvelle version du Worker : réserver TEST dans l'issue #30 et attendre la fin de tout autre essai avant de commencer.
+
+1. Avec une session administrative autorisée, inventorier les clés actives et les rôles IAM de l'identité TEST. Consigner uniquement les identifiants de clés non secrets et les rôles ; vérifier que l'identité n'a aucun accès de production. Avant de commencer, confirmer que la valeur de l'ancienne clé est disponible dans un coffre approuvé pour un éventuel retour arrière. Sinon, définir un autre retour arrière vérifiable. Garder l'ancienne clé active pendant l'essai.
+2. Créer une nouvelle clé pour **la même identité TEST**. Transférer sa valeur directement dans le secret Cloudflare `FIREBASE_SERVICE_ACCOUNT_JSON` du seul Worker TEST, sans la placer dans le dépôt, dans GitHub Actions, dans les logs, dans une capture ou dans un commentaire. Détruire les copies locales temporaires après le transfert.
+3. Sur le SHA Worker exact déployé, contrôler `/health` puis une opération fictive authentifiée nécessitant un jeton serveur Firestore et une lecture d'appartenance ; vérifier les droits propriétaire/membre et les refus tiers/révoqué. Une réponse `/health` 200 seule ne prouve pas que la nouvelle clé fonctionne. Consigner les codes HTTP, le SHA, l'identifiant non secret de la nouvelle clé et l'heure dans #30, puis nettoyer les fixtures.
+4. En cas d'échec, remettre l'ancienne valeur du secret depuis le coffre approuvé, vérifier de nouveau l'opération fictive et **ne pas désactiver l'ancienne clé**. Documenter l'échec sans valeur de secret. Après réussite complète, désactiver puis supprimer l'ancienne clé dans IAM, confirmer que la nouvelle opération fictive fonctionne encore et inventorier les clés actives restantes.
+
+La rotation de production, son accès de secours et les rôles IAM de l'environnement cible demandent une validation distincte. Ce protocole ne donne aucune autorisation de déploiement production.
