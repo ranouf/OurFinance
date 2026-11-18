@@ -15,7 +15,7 @@
     "typecheck:worker": "tsc -p tsconfig.worker.json",
     "lint:worker": "eslint workers/ourfinance-api/src workers/ourfinance-api/tests",
     "config:test": "node scripts/write-test-config.mjs",
-    "test:coverage": "node --import tsx --test --experimental-test-coverage --test-coverage-lines=80 --test-coverage-branches=80 --test-coverage-functions=80 tests/unit/*.test.ts workers/ourfinance-api/tests/*.test.ts"
+    "test:coverage": "node --import tsx --test --experimental-test-coverage --test-coverage-lines=90 --test-coverage-branches=80 --test-coverage-functions=90 tests/unit/*.test.ts workers/ourfinance-api/tests/*.test.ts"
   },
   "private": true,
   "packageManager": "npm@11.9.0",
