@@ -133,6 +133,18 @@ test('identical native rows use an occurrence to retain both legitimate rows', a
   strictEqual([...f.docs.keys()].filter(path => path.includes('/importedRecords/')).length, 2);
 });
 
+test('concurrent native imports reserve only one copy of a source', async () => {
+  const f = await fixture();
+  f.docs.get(`groups/${groupId}`)!.currencyCode.stringValue = 'JPY';
+  const attempts = await Promise.allSettled([
+    createImportBatch(exactInput, 'alex', groupId, f.env, f.transport),
+    createImportBatch({ ...exactInput, batchId: '123e4567-e89b-42d3-a456-426614174012' }, 'alex', groupId, f.env, f.transport),
+  ]);
+  strictEqual(attempts.filter(result => result.status === 'fulfilled').length, 1);
+  strictEqual(attempts.filter(result => result.status === 'rejected' && result.reason instanceof ImportError && result.reason.status === 409).length, 1);
+  strictEqual([...f.docs.keys()].filter(path => path.includes('/importedRecords/')).length, 1);
+});
+
 test('historical exact import refuses a revoked participant before writing', async () => {
   const f = await fixture();
   f.docs.get(`groups/${groupId}`)!.currencyCode.stringValue = 'JPY';
