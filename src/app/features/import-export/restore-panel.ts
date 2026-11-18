@@ -57,13 +57,14 @@ interface RestoreDiffCounts { readonly create: number; readonly replace: number;
                 [(ngModel)]="confirmation" autocomplete="off" />
             </label>
             <button class="mt-3 rounded-lg bg-rose-700 px-4 py-2 text-white disabled:opacity-50" type="button"
-              [disabled]="busy() || !diff() || confirmation !== selectedGroupName()" (click)="restore()">{{ t('restoreAction') }}</button>
+              [disabled]="busy() || !diff() || confirmation !== selectedGroupName() || message() === 'restoreUncertain' || message() === 'restoreQuotaUncertain'"
+              (click)="restore()">{{ t('restoreAction') }}</button>
           </div>
         }
         @if (message()) {
           <p [class]="message()?.includes('Quota') ? 'rounded-xl border border-pop-sun bg-pop-peach p-3 text-sm text-pop-text' : 'text-sm'"
             [attr.role]="message() === 'restoreDone' ? 'status' : 'alert'">{{ t(message()!) }}
-            @if (message() === 'restoreUncertain' || message() === 'restorePreparedUncertain' || message() === 'restorePreparedQuota') { <span class="break-all">{{ attemptId() }}</span> }
+            @if (message() === 'restoreUncertain' || message() === 'restoreQuotaUncertain' || message() === 'restorePreparedUncertain' || message() === 'restorePreparedQuota') { <span class="break-all">{{ attemptId() }}</span> }
           </p>
           @if (message() === 'restorePreparedUncertain' || message() === 'restorePreparedQuota') {
             <button class="rounded-lg border border-teal-700 px-4 py-2 text-teal-800 disabled:opacity-50" type="button"
@@ -172,7 +173,8 @@ export class RestorePanel {
   async restore(): Promise<void> {
     const user = this.user;
     const group = this.groups.find(item => item.id === this.groupId);
-    if (this.busy() || !user?.emailVerified || !group || user.uid !== group.ownerId || !this.archive || !this.preview() || !this.diff() ||
+    if (this.busy() || this.message() === 'restoreUncertain' || this.message() === 'restoreQuotaUncertain' ||
+        !user?.emailVerified || !group || user.uid !== group.ownerId || !this.archive || !this.preview() || !this.diff() ||
         !this.workerUrl || this.confirmation !== group.name || this.previewGroupId !== group.id || this.previewUid !== user.uid) return;
     const archive = this.archive;
     const retryPrepared = (this.message() === 'restorePreparedUncertain' || this.message() === 'restorePreparedQuota') &&
@@ -222,7 +224,7 @@ export class RestorePanel {
       } else {
         const body = await response.clone().json().catch(() => null) as { error?: string } | null;
         if (body?.error === 'receipts_not_staged') this.commitAttemptId = undefined;
-        this.message.set(await restoreFailure(response, contents.receipts.length > 25));
+        this.message.set(await restoreFailure(response, contents.receipts.length > 25, true));
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : '';

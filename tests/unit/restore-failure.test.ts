@@ -9,6 +9,8 @@ function failure(status: number, error: string): Response {
 test('un quota fournisseur garde un message distinct pour les petites et grandes archives', async () => {
   assert.equal(await restoreFailure(failure(503, 'provider_quota_exceeded'), false), 'restoreQuota');
   assert.equal(await restoreFailure(failure(503, 'provider_quota_exceeded'), true), 'restorePreparedQuota');
+  assert.equal(await restoreFailure(failure(503, 'provider_quota_exceeded'), false, true), 'restoreQuotaUncertain');
+  assert.equal(await restoreFailure(failure(503, 'provider_quota_exceeded'), true, true), 'restorePreparedQuota');
 });
 
 test('une reprise réellement incertaine conserve son avertissement', async () => {
