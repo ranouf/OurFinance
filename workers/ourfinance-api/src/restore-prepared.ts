@@ -2,6 +2,7 @@ import { sha256Hex } from '../../../src/app/features/import-export/backup-packag
 import { verifyBackupPackageV2, type BackupPackageV2 } from '../../../src/app/features/import-export/backup-package-v2';
 import type { GroupExportV2 } from '../../../src/app/features/import-export/export-v2';
 import { imageFormat, uploadAuthenticated, type CloudinaryEnv } from './cloudinary';
+import { unavailableCode } from './provider-quota';
 import { beginPreparedRestoreLock } from './restore-lock';
 import { collectLiveRestoreInventory } from './restore-inventory';
 import { commitGroupRestoreV2, readRestoreOutcome } from './restore-commit';
@@ -86,7 +87,7 @@ export async function readPreparedRestoreJob(uid: string, groupId: string, resto
   const read = async (path: string, missingStatus: 403 | 409 = 409): Promise<FirestoreDocument> => {
     const response = await transport(`https://firestore.googleapis.com/v1/${root}/${path}`, { headers });
     if (!response.ok) throw new PreparedRestoreError(response.status === 404 ? missingStatus : 503,
-      response.status === 404 && missingStatus === 403 ? 'owner_required' : 'restore_unavailable');
+      response.status === 404 && missingStatus === 403 ? 'owner_required' : unavailableCode(response, 'restore_unavailable'));
     return await response.json() as FirestoreDocument;
   };
   const [group, member, job] = await Promise.all([
@@ -138,7 +139,7 @@ export async function stagePreparedRestoreReceipt(uid: string, groupId: string, 
   url.searchParams.set('currentDocument.updateTime', job.updateTime);
   const response = await transport(url, { method: 'PATCH', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ fields: { stagedIndices: { arrayValue: { values: [...job.stagedIndices, index].sort((a, b) => a - b).map(value => ({ stringValue: String(value) })) } } } }) });
-  if (!response.ok) throw new PreparedRestoreError(response.status === 409 || response.status === 412 ? 409 : 503, 'stage_unavailable');
+  if (!response.ok) throw new PreparedRestoreError(response.status === 409 || response.status === 412 ? 409 : 503, unavailableCode(response, 'stage_unavailable'));
   return { staged: true };
 }
 

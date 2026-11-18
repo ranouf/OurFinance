@@ -1,3 +1,4 @@
+import { unavailableCode } from './provider-quota';
 import { serviceAccessToken } from './service-account';
 
 export interface BackupPreferencesEnv { readonly FIREBASE_PROJECT_ID: string; readonly FIREBASE_SERVICE_ACCOUNT_JSON: string; }
@@ -28,7 +29,7 @@ function selectedMembers(modeJson: string): string[] {
 }
 
 async function checked(response: Response): Promise<Record<string, unknown>> {
-  if (!response.ok) throw new BackupPreferencesError(response.status === 409 ? 409 : 503, response.status === 409 ? 'snapshot_conflict' : 'firestore_unavailable');
+  if (!response.ok) throw new BackupPreferencesError(response.status === 409 ? 409 : 503, response.status === 409 ? 'snapshot_conflict' : unavailableCode(response, 'firestore_unavailable'));
   return await response.json() as Record<string, unknown>;
 }
 

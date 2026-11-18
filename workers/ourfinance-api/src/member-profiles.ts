@@ -1,4 +1,5 @@
 import { readMember } from './firestore';
+import { unavailableCode } from './provider-quota';
 import { serviceAccessToken } from './service-account';
 
 export interface MemberProfileEnv { readonly FIREBASE_PROJECT_ID: string; readonly FIREBASE_SERVICE_ACCOUNT_JSON: string; }
@@ -24,7 +25,7 @@ export async function listSharedMemberProfiles(groupId: string, callerUid: strin
     url.searchParams.set('pageSize', '50');
     if (pageToken) url.searchParams.set('pageToken', pageToken);
     const response = await transport(url, { headers: { Authorization: `Bearer ${token}` } });
-    if (!response.ok) throw new MemberProfileError(503, 'members_unavailable');
+    if (!response.ok) throw new MemberProfileError(503, unavailableCode(response, 'members_unavailable'));
     const body = await response.json() as { documents?: FirestoreDoc[]; nextPageToken?: string };
     for (const member of body.documents ?? []) {
       if (member.fields?.['status']?.stringValue !== 'active') continue;
@@ -38,7 +39,7 @@ export async function listSharedMemberProfiles(groupId: string, callerUid: strin
   const profiles = await Promise.all(members.map(async userId => {
     const response = await transport(`${root}/users/${encodeURIComponent(userId)}`, { headers: { Authorization: `Bearer ${token}` } });
     if (response.status === 404) return { userId };
-    if (!response.ok) throw new MemberProfileError(503, 'profile_unavailable');
+    if (!response.ok) throw new MemberProfileError(503, unavailableCode(response, 'profile_unavailable'));
     const data = await response.json() as FirestoreDoc;
     const name = data.fields?.['displayName']?.stringValue?.trim();
     return name && name.length <= 80 ? { userId, displayName: name } : { userId };

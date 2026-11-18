@@ -1,3 +1,4 @@
+import { unavailableCode } from './provider-quota';
 import { serviceAccessToken } from './service-account';
 
 export interface RestoreLockEnv { readonly FIREBASE_PROJECT_ID: string; readonly FIREBASE_SERVICE_ACCOUNT_JSON: string }
@@ -25,7 +26,7 @@ async function changeLock(uid: string, groupId: string, restoreId: string, curre
   const token = await serviceAccessToken(env.FIREBASE_SERVICE_ACCOUNT_JSON, env.FIREBASE_PROJECT_ID, transport);
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
   const checked = async (response: Response) => {
-    if (!response.ok) throw new RestoreLockError(response.status === 409 ? 409 : 503, 'firestore_unavailable');
+    if (!response.ok) throw new RestoreLockError(response.status === 409 ? 409 : 503, unavailableCode(response, 'firestore_unavailable'));
     return await response.json() as Record<string, unknown>;
   };
   const begin = await checked(await transport(`https://firestore.googleapis.com/v1/${root}:beginTransaction`, { method: 'POST', headers, body: '{}' }));

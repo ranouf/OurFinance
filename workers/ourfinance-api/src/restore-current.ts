@@ -1,3 +1,4 @@
+import { unavailableCode } from './provider-quota';
 import { serviceAccessToken } from './service-account';
 
 export interface RestoreCurrentEnv {
@@ -30,14 +31,14 @@ export async function readCurrentRestore(uid: string, groupId: string, env: Rest
   const begin = await transport(`https://firestore.googleapis.com/v1/${root}:beginTransaction`, {
     method: 'POST', headers, body: JSON.stringify({ options: { readOnly: {} } }),
   });
-  if (!begin.ok) throw new RestoreCurrentError(503, 'firestore_unavailable');
+  if (!begin.ok) throw new RestoreCurrentError(503, unavailableCode(begin, 'firestore_unavailable'));
   const transaction = (await begin.json() as { transaction?: unknown }).transaction;
   if (typeof transaction !== 'string' || !transaction) throw new RestoreCurrentError(503, 'transaction_unavailable');
   try {
     const read = async (path: string): Promise<Document | null> => {
       const response = await transport(`https://firestore.googleapis.com/v1/${root}/${path}?transaction=${encodeURIComponent(transaction)}`, { headers });
       if (response.status === 404) return null;
-      if (!response.ok) throw new RestoreCurrentError(503, 'firestore_unavailable');
+      if (!response.ok) throw new RestoreCurrentError(503, unavailableCode(response, 'firestore_unavailable'));
       return await response.json() as Document;
     };
     const group = await read(`groups/${groupId}`);

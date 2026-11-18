@@ -4,6 +4,7 @@ import { sha256Hex } from '../../../src/app/features/import-export/backup-packag
 import type { BackupPackageV2 } from '../../../src/app/features/import-export/backup-package-v2';
 import { serializeGroupExportV2, type GroupExportV2 } from '../../../src/app/features/import-export/export-v2';
 import { restoreGroupFromPackage, RestoreOrchestrationError, type RestoreOperations } from '../src/restore-orchestrator';
+import { ProviderQuotaError } from '../src/provider-quota';
 
 const restoreId = '123e4567-e89b-42d3-a456-426614174000';
 const at = '2026-11-16T18:00:00.000Z';
@@ -94,6 +95,15 @@ test('media staging failure aborts the lock and retries asset cleanup', async ()
   ops.stage = async () => { events.push('stage'); throw new Error('cloudinary'); };
   await rejects(restoreGroupFromPackage('alice', 'g', restoreId, await archive(), env, fetch, ops),
     (error: unknown) => error instanceof RestoreOrchestrationError && error.code === 'restore_failed' && error.stage === 'media');
+  deepStrictEqual(events, ['begin', 'stage', 'abort', 'cleanup']);
+});
+
+test('quota during staging is reported after a successful abort and cleanup', async () => {
+  const events: string[] = [];
+  const ops = operations(events);
+  ops.stage = async () => { events.push('stage'); throw new ProviderQuotaError(); };
+  await rejects(restoreGroupFromPackage('alice', 'g', restoreId, await archive(), env, fetch, ops),
+    (error: unknown) => error instanceof RestoreOrchestrationError && error.code === 'provider_quota_exceeded' && error.stage === 'media');
   deepStrictEqual(events, ['begin', 'stage', 'abort', 'cleanup']);
 });
 

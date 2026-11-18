@@ -1,3 +1,4 @@
+import { unavailableCode } from './provider-quota';
 import { collectGroupExportV2FromReader } from '../../../src/app/features/import-export/export-collector-v2';
 import type { ExportDocument, ExportReader } from '../../../src/app/features/import-export/export-collector';
 import { serviceAccessToken } from './service-account';
@@ -36,7 +37,7 @@ export async function collectBackupSnapshotV2(uid: string, groupId: string, env:
   const token = await serviceAccessToken(env.FIREBASE_SERVICE_ACCOUNT_JSON, env.FIREBASE_PROJECT_ID, transport);
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
   const checked = async (response: Response) => {
-    if (!response.ok) throw new BackupSnapshotError(response.status === 409 ? 409 : 503, 'firestore_unavailable');
+    if (!response.ok) throw new BackupSnapshotError(response.status === 409 ? 409 : 503, unavailableCode(response, 'firestore_unavailable'));
     return await response.json() as Record<string, unknown>;
   };
   const begin = await checked(await transport(`https://firestore.googleapis.com/v1/${root}:beginTransaction`, {

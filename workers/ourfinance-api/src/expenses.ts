@@ -1,3 +1,4 @@
+import { ProviderQuotaError, unavailableCode } from './provider-quota';
 import { splitAmount, validateExpense, type Allocation, type SplitMode } from '../../../src/app/shared/utils/split-engine';
 import { categories, categoryById, categoryIcons, isCustomCategoryId, type CategoryColor, type CategoryDefinition } from '../../../src/app/shared/utils/categories';
 import { serviceAccessToken } from './service-account';
@@ -62,7 +63,7 @@ function modeUsers(mode: SplitMode): string[] {
 }
 
 async function json(response: Response): Promise<Record<string, unknown>> {
-  if (!response.ok) throw new ExpenseError(response.status === 409 ? 409 : 503, response.status === 409 ? 'transaction_conflict' : 'firestore_unavailable');
+  if (!response.ok) throw new ExpenseError(response.status === 409 ? 409 : 503, response.status === 409 ? 'transaction_conflict' : unavailableCode(response, 'firestore_unavailable'));
   return await response.json() as Record<string, unknown>;
 }
 
@@ -234,6 +235,6 @@ async function cleanupReceipts(receipts: readonly { name: string; publicId: stri
       await destroyAuthenticated(receipt.publicId, env, transport);
       const url = `https://firestore.googleapis.com/v1/${receipt.name}?updateMask.fieldPaths=cleanupPending`;
       await json(await transport(url, { method: 'PATCH', headers, body: JSON.stringify({ fields: { cleanupPending: { booleanValue: false } } }) }));
-    } catch { throw new ExpenseError(503, 'media_cleanup_failed'); }
+    } catch (error) { throw new ExpenseError(503, error instanceof ProviderQuotaError ? error.message : 'media_cleanup_failed'); }
   }
 }
