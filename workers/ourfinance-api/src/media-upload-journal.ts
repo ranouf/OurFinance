@@ -115,7 +115,11 @@ export async function cleanupUploadJournals(groupId: string, token: string, env:
       }
       await removeJournal(name, token, transport);
       cleaned++;
-    } catch { pending++; }
+    } catch (error) {
+      // A provider quota needs the public 503 signal; the journal stays durable for retry.
+      if (error instanceof ProviderQuotaError) throw error;
+      pending++;
+    }
   }
   return { cleaned, pending };
 }
