@@ -19,6 +19,20 @@ test('group creation reports a Firestore quota without exposing the upstream bod
     { FIREBASE_PROJECT_ID: 'ourfinance-test', FIREBASE_SERVICE_ACCOUNT_JSON: account }, transport as typeof fetch),
     (error: unknown) => error instanceof ProviderQuotaError && error.message === 'provider_quota_exceeded');
 });
+test('group creation reports an OAuth token quota before writing to Firestore', async () => {
+  const { privateKey } = await generateKeyPair('RS256', { extractable: true });
+  const account = JSON.stringify({ project_id: 'ourfinance-test', client_email: 'test@ourfinance-test.iam.gserviceaccount.com', private_key: await exportPKCS8(privateKey) });
+  let requests = 0;
+  const transport = async (input: string | URL | Request) => {
+    requests++;
+    strictEqual(String(input).includes('oauth2.googleapis.com'), true);
+    return Response.json({ message: 'private provider detail' }, { status: 429 });
+  };
+  await rejects(createGroup({ name: 'Personnel', currency: 'CAD' }, 'alice',
+    { FIREBASE_PROJECT_ID: 'ourfinance-test', FIREBASE_SERVICE_ACCOUNT_JSON: account }, transport as typeof fetch),
+    (error: unknown) => error instanceof ProviderQuotaError && error.message === 'provider_quota_exceeded');
+  strictEqual(requests, 1);
+});
 test('group, owner and personal reference are committed atomically', async () => {
   const { privateKey } = await generateKeyPair('RS256', { extractable: true });
   const account = JSON.stringify({ project_id: 'ourfinance-test', client_email: 'test@ourfinance-test.iam.gserviceaccount.com', private_key: await exportPKCS8(privateKey) });
