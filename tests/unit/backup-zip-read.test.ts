@@ -44,3 +44,25 @@ test('refuses corrupted ZIP bytes, trailing comments and truncated archives', as
   const comment = new Uint8Array(zip.length + 1); comment.set(zip);
   await rejects(decodeBackupZipV1(comment));
 });
+
+test('rejects unsupported ZIP metadata before exposing archived documents', async () => {
+  const zip = await encodeBackupZipV1(await fixture());
+  const end = zip.length - 22;
+  const source = new DataView(zip.buffer, zip.byteOffset, zip.byteLength);
+  const centralStart = source.getUint32(end + 16, true);
+  const cases: readonly [number, number, number][] = [
+    [end + 4, 2, 1], // split archive
+    [end + 10, 2, 1], // incomplete central file count
+    [centralStart, 4, 0], // central directory signature
+    [centralStart + 10, 2, 8], // compressed entry
+    [centralStart + 12, 2, 8], // encrypted/unsupported entry
+    [centralStart + 20, 4, 1], // length differs from local record
+  ];
+  for (const [offset, width, value] of cases) {
+    const changed = Uint8Array.from(zip);
+    const view = new DataView(changed.buffer);
+    if (width === 2) view.setUint16(offset, value, true);
+    else view.setUint32(offset, value, true);
+    await rejects(decodeBackupZipV1(changed));
+  }
+});
