@@ -15,8 +15,10 @@ function fixture(options: { deleted?: boolean; revoked?: boolean; conflict?: boo
       commits++;
       const body = JSON.parse(String(init?.body));
       strictEqual(body.transaction, 'txn');
-      strictEqual(body.writes[0].update.fields.type.stringValue, 'authenticated');
-      if (options.journal) strictEqual(body.writes[1].delete.endsWith('/groups/g/receiptUploadJobs/a'), true);
+      strictEqual(body.writes[0].update.name.endsWith('/groups/g/expenses/e'), true);
+      strictEqual(body.writes[0].updateMask.fieldPaths[0], 'receiptUpdatedAt');
+      strictEqual(body.writes[1].update.fields.type.stringValue, 'authenticated');
+      if (options.journal) strictEqual(body.writes[2].delete.endsWith('/groups/g/receiptUploadJobs/a'), true);
       return Response.json({}, { status: options.conflict ? 409 : 200 });
     }
     if (url.includes('/groups/g/members/alice?transaction=')) return Response.json({ fields: { status: { stringValue: options.revoked ? 'revoked' : 'active' } } });
