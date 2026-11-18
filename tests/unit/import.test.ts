@@ -85,6 +85,7 @@ test('lots natifs exacts : mapping explicite et identifiants stables, y compris 
   strictEqual(first[0].body.records[0].sourceId === first[0].body.records[1].sourceId, false);
   deepStrictEqual(first[0].body.records[0], { sourceId: first[0].body.records[0].sourceId, date: '2026-11-01',
     description: 'Trajet fictif', currency: 'JPY', sourceCostExact: '101.50', sourcePrecision: 2,
+    sourceCategory: 'Transport', sourceOccurrence: 0,
     netImpactsExact: { alex: '50.75', camille: '-50.75' } });
   await rejects(prepareNativeImportBatches(source, 'groupe-source', 'groupe-cible', 'CAD', mapping));
 });
