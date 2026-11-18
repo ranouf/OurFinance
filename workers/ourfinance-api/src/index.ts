@@ -26,7 +26,7 @@ import { commitPreparedRestore, prepareRestore, PreparedRestoreError, stagePrepa
 import { listSharedMemberProfiles, MemberProfileError } from './member-profiles';
 import { ProviderQuotaError } from './provider-quota';
 import { readCurrentRestore, RestoreCurrentError } from './restore-current';
-import { RestoreCommitError } from './restore-commit';
+import { readRestoreOutcome, RestoreCommitError } from './restore-commit';
 
 export interface Env extends Partial<CloudinaryEnv> {
   FIREBASE_PROJECT_ID: string;
@@ -134,6 +134,25 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       if (error instanceof ProviderQuotaError) return new Response(JSON.stringify({ error: error.message }), { status: 503, headers });
       return new Response(JSON.stringify({ error: error instanceof RestoreCurrentError ? error.code : 'restore_unavailable' }),
         { status: error instanceof RestoreCurrentError ? error.status : 503, headers });
+    }
+  }
+  const restoreOutcomeMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/backup\/restores\/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})\/outcome$/.exec(url.pathname);
+  if (restoreOutcomeMatch && request.method === 'GET') {
+    const [, groupId, restoreId] = restoreOutcomeMatch;
+    if (!routeEnabled(env, env.ENABLE_RESTORE_POC, env.RESTORE_POC_GROUP_ID, groupId) || !env.FIREBASE_SERVICE_ACCOUNT_JSON)
+      return new Response(JSON.stringify({ error: 'Restauration non configurée' }), { status: 503, headers });
+    let uid: string;
+    try { uid = await verifyFirebaseVerifiedEmail(bearerToken(request), env.FIREBASE_PROJECT_ID); }
+    catch { return new Response(JSON.stringify({ error: 'Non authentifié' }), { status: 401, headers }); }
+    try {
+      const outcome = await readRestoreOutcome(uid, groupId, restoreId,
+        { FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT_JSON: env.FIREBASE_SERVICE_ACCOUNT_JSON });
+      return new Response(JSON.stringify({ restoreId, outcome }), { status: 200, headers });
+    } catch (error) {
+      if (error instanceof ProviderQuotaError) return new Response(JSON.stringify({ error: error.message }), { status: 503, headers });
+      const status = error instanceof RestoreCommitError ? error.status : 503;
+      const code = error instanceof RestoreCommitError ? error.code : 'outcome_unavailable';
+      return new Response(JSON.stringify({ error: code }), { status, headers });
     }
   }
   const restorePreviewMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/backup\/preview$/.exec(url.pathname);
