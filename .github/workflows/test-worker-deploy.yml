@@ -146,6 +146,7 @@ jobs:
             'POST /groups/ci-disabled/qr-invitations'
             'POST /qr-invitations/preview'
             'POST /groups/ci-disabled/expenses/e/attachments'
+            'POST /groups/ci-disabled/receipt-upload-jobs/cleanup'
             'GET /groups/ci-disabled/member-profiles'
             'GET /groups/ci-disabled/backup/snapshot'
             'GET /groups/ci-disabled/backup/restores/current'

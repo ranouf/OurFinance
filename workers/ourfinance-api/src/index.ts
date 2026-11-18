@@ -2,7 +2,7 @@ import { bearerToken, verifyFirebaseIdToken, verifyFirebaseVerifiedEmail, verify
 import { createGroup } from './groups';
 import { changeGroupCurrency, GroupCurrencyError } from './group-currency';
 import { createExpense, ExpenseError, mutateExpense } from './expenses';
-import { handleMedia } from './media';
+import { handleMedia, handleMediaCleanup } from './media';
 import { MediaDiagnosticError } from './media-diagnostic';
 import type { CloudinaryEnv } from './cloudinary';
 import { readMember } from './firestore';
@@ -438,6 +438,15 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const status = error instanceof InvitationError ? error.status : error instanceof RequestBodyError ? 400 : 503;
       const code = error instanceof InvitationError || error instanceof RequestBodyError ? error.code : 'invitation_unavailable';
       return new Response(JSON.stringify({ error: code }), { status, headers });
+    }
+  }
+  const mediaCleanupMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/receipt-upload-jobs\/cleanup$/.exec(url.pathname);
+  if (mediaCleanupMatch && request.method === 'POST') {
+    if (!routeEnabled(env, env.ENABLE_MEDIA_POC, env.MEDIA_POC_GROUP_ID, mediaCleanupMatch[1]) || !env.FIREBASE_SERVICE_ACCOUNT_JSON || !env.CLOUDINARY_CLOUD_NAME || !env.CLOUDINARY_API_KEY || !env.CLOUDINARY_API_SECRET) return new Response(JSON.stringify({ error: 'Médias non configurés' }), { status: 503, headers });
+    try { return await handleMediaCleanup(request, mediaCleanupMatch[1], env as Required<Env>, headers); }
+    catch (error) {
+      if (error instanceof ProviderQuotaError) return new Response(JSON.stringify({ error: error.message }), { status: 503, headers });
+      return new Response(JSON.stringify({ error: 'Média indisponible' }), { status: 502, headers });
     }
   }
   const mediaMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/expenses\/([A-Za-z0-9_-]{1,128})\/attachments(?:\/([A-Za-z0-9_-]{1,128}))?$/.exec(url.pathname);

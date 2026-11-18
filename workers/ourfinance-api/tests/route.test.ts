@@ -28,6 +28,14 @@ test('group creation remains disabled by default even with server identity', asy
   const response = await handleRequest(new Request('https://worker.example/groups', { method: 'POST', headers: { Origin: env.ALLOWED_ORIGIN } }), { ...env, FIREBASE_SERVICE_ACCOUNT_JSON: 'configured' });
   strictEqual(response.status, 503);
 });
+test('receipt upload recovery remains disabled without an explicit test group', async () => {
+  const configured = { ...env, FIREBASE_SERVICE_ACCOUNT_JSON: 'configured', CLOUDINARY_CLOUD_NAME: 'configured', CLOUDINARY_API_KEY: 'configured', CLOUDINARY_API_SECRET: 'configured' };
+  const response = await handleRequest(new Request('https://worker.example/groups/g/receipt-upload-jobs/cleanup', { method: 'POST' }), configured);
+  strictEqual(response.status, 503);
+  const enabled = { ...configured, ENABLE_MEDIA_POC: 'true', MEDIA_POC_GROUP_ID: 'g' };
+  const unauthenticated = await handleRequest(new Request('https://worker.example/groups/g/receipt-upload-jobs/cleanup', { method: 'POST' }), enabled);
+  strictEqual(unauthenticated.status, 401);
+});
 test('explicit V1 mode opens privileged routes for multiple groups but still requires identity', async () => {
   const configured = { ...env, ENABLE_API_V1: 'true', FIREBASE_SERVICE_ACCOUNT_JSON: 'configured',
     API_RATE_LIMITER: { limit: async () => ({ success: true }) },
