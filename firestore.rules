@@ -5,7 +5,7 @@ service cloud.firestore {
     function member(groupId) {
       return signedIn() &&
         exists(/databases/$(database)/documents/groups/$(groupId)) &&
-        get(/databases/$(database)/documents/groups/$(groupId)).data.status == 'active' &&
+        get(/databases/$(database)/documents/groups/$(groupId)).data.status in ['active', 'archived'] &&
         exists(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)).data.status == 'active';
     }

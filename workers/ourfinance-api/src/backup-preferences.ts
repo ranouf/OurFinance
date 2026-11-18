@@ -49,7 +49,7 @@ export async function collectBackupPreferences(uid: string, groupId: string, env
     };
     const group = await read(`groups/${groupId}`);
     const caller = await read(`groups/${groupId}/members/${uid}`);
-    if (group?.fields?.['status']?.stringValue !== 'active' || caller?.fields?.['status']?.stringValue !== 'active' || caller.fields['role']?.stringValue !== 'owner') throw new BackupPreferencesError(403, 'owner_required');
+    if (!['active', 'archived'].includes(group?.fields?.['status']?.stringValue ?? '') || caller?.fields?.['status']?.stringValue !== 'active' || caller.fields['role']?.stringValue !== 'owner') throw new BackupPreferencesError(403, 'owner_required');
     const listUrl = new URL(`https://firestore.googleapis.com/v1/${root}/groups/${groupId}/members`);
     listUrl.searchParams.set('transaction', transaction);
     listUrl.searchParams.set('pageSize', '51');

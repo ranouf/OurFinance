@@ -43,6 +43,15 @@ test('group creation remains disabled by default even with server identity', asy
   const response = await handleRequest(new Request('https://worker.example/groups', { method: 'POST', headers: { Origin: env.ALLOWED_ORIGIN } }), { ...env, FIREBASE_SERVICE_ACCOUNT_JSON: 'configured' });
   strictEqual(response.status, 503);
 });
+test('group lifecycle is disabled by default and scoped to one TEST group', async () => {
+  const configured = { ...env, FIREBASE_SERVICE_ACCOUNT_JSON: 'configured' };
+  for (const path of ['/groups/g/archive', '/groups/g/members/member/revoke']) {
+    strictEqual((await handleRequest(new Request('https://worker.example' + path, { method: 'POST' }), configured)).status, 503);
+  }
+  const enabled = { ...configured, ENABLE_GROUP_LIFECYCLE_POC: 'true', GROUP_LIFECYCLE_POC_GROUP_ID: 'g' };
+  strictEqual((await handleRequest(new Request('https://worker.example/groups/other/archive', { method: 'POST' }), enabled)).status, 503);
+  strictEqual((await handleRequest(new Request('https://worker.example/groups/g/archive', { method: 'POST' }), enabled)).status, 401);
+});
 test('receipt upload recovery remains disabled without an explicit test group', async () => {
   const configured = { ...env, FIREBASE_SERVICE_ACCOUNT_JSON: 'configured', CLOUDINARY_CLOUD_NAME: 'configured', CLOUDINARY_API_KEY: 'configured', CLOUDINARY_API_SECRET: 'configured' };
   const response = await handleRequest(new Request('https://worker.example/groups/g/receipt-upload-jobs/cleanup', { method: 'POST' }), configured);
@@ -61,7 +70,7 @@ test('explicit V1 mode opens privileged routes for multiple groups but still req
     ['GET', '/backup/snapshot'], ['GET', '/backup/preferences'], ['POST', '/imports'],
     ['POST', '/settlements'], ['POST', '/categories'], ['POST', '/qr-invitations'],
     ['GET', '/qr-invitations'], ['POST', '/invitations'], ['POST', '/expenses'],
-    ['PATCH', '/currency'], ['POST', '/expenses/e/attachments'],
+    ['PATCH', '/currency'], ['POST', '/archive'], ['POST', '/members/member/revoke'], ['POST', '/expenses/e/attachments'],
   ];
   for (const groupId of ['g1', 'g2']) {
     for (const [method, suffix] of routes) {

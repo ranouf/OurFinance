@@ -80,7 +80,7 @@ export function buildRestoreWrites(value: GroupExportV2, live: LiveRestoreInvent
   });
   for (const row of backup.activity) update(`${groupPath}/activity/${row.id}`, {
     actorId: string(row.actorId), action: string(row.action), at: time(row.at),
-    ...Object.fromEntries(['expenseId', 'commentId', 'settlementId', 'batchId', 'categoryId']
+    ...Object.fromEntries(['expenseId', 'commentId', 'settlementId', 'batchId', 'categoryId', 'targetId']
       .filter(key => row[key as keyof typeof row] !== undefined)
       .map(key => [key, string(row[key as keyof typeof row] as string)])),
   });
