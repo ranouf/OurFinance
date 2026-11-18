@@ -232,22 +232,27 @@ export class DashboardPage {
   imports: [FormsModule, GroupCurrencyPanel, QrInvitationPanel, CategoryManager],
   template: `
     <div class="mx-auto max-w-5xl space-y-6">
-      <header><p class="text-sm font-bold text-pop-muted">{{ t('myGroups') }}</p><h1 class="text-3xl font-black">{{ t('navGroups') }}</h1></header>
+      <header class="relative overflow-hidden rounded-[1.8rem] bg-pop-primary px-6 py-7 text-white shadow-[0_12px_30px_#6455ec30] sm:min-h-52 sm:px-9 sm:py-10">
+        <div class="relative z-10 max-w-[62%] sm:max-w-md"><p class="text-sm font-bold text-white/75">ourfinance. · {{ t('navGroups') }}</p><h1 class="mt-2 text-3xl font-black sm:text-4xl">{{ t('myGroups') }}</h1><p class="mt-3 text-sm text-white/90 sm:text-base">{{ t('groupsPageIntro') }}</p>
+          @if (app.selectedGroup(); as selected) { <p class="mt-4 inline-flex max-w-full flex-wrap gap-1 rounded-full bg-white/15 px-3 py-2 text-sm font-bold"><span class="break-words">{{ selected.name }}</span><span>· {{ selected.currency }}</span></p> }
+        </div>
+        <img class="pointer-events-none absolute -bottom-5 -right-8 w-44 max-w-[55%] sm:bottom-[-3.5rem] sm:right-0 sm:w-80" src="/illustrations/friends-planning-trip.webp" alt="" />
+      </header>
       @if (app.groups().length) {
-        <div class="grid gap-3 sm:grid-cols-2">
+        <section [attr.aria-label]="t('myGroups')"><div class="mb-3 flex items-center justify-between gap-3"><h2 class="text-xl font-black">{{ t('myGroups') }}</h2><span class="rounded-full bg-pop-lavender px-3 py-1 text-xs font-bold text-pop-primary-dark">{{ app.groups().length }}</span></div><div class="grid gap-3 sm:grid-cols-2">
           @for (group of app.groups(); track group.id) {
-            <button class="flex min-h-20 items-center gap-3 rounded-2xl border bg-white p-4 text-left shadow-sm" [class.border-pop-primary]="app.selectedGroupId() === group.id" [class.border-pop-border]="app.selectedGroupId() !== group.id" type="button" (click)="app.selectedGroupId.set(group.id)">
-              <img class="h-12 w-12" src="/illustrations/category-home.svg" alt="" /><span class="min-w-0 flex-1"><strong class="block break-words">{{ group.name }}</strong><small class="text-pop-muted">{{ group.memberCount ?? 1 }} {{ t('membersCount') }}</small></span><span class="rounded-full bg-pop-lavender px-2 py-1 text-xs font-bold">{{ group.currency }}</span>
+            <button class="flex min-h-24 items-center gap-3 rounded-2xl border-2 bg-white p-4 text-left shadow-sm transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-pop-primary" [class.border-pop-primary]="app.selectedGroupId() === group.id" [class.border-pop-border]="app.selectedGroupId() !== group.id" [attr.aria-pressed]="app.selectedGroupId() === group.id" type="button" (click)="app.selectedGroupId.set(group.id)">
+              <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-pop-peach"><img class="h-9 w-9" [src]="$index % 2 ? '/illustrations/category-travel.svg' : '/illustrations/category-home.svg'" alt="" /></span><span class="min-w-0 flex-1"><strong class="block break-words">{{ group.name }}</strong><small class="text-pop-muted">{{ group.memberCount ?? 1 }} {{ t('membersCount') }}</small></span><span class="rounded-full bg-pop-lavender px-2 py-1 text-xs font-bold">{{ group.currency }}</span>
             </button>
           }
-        </div>
-      } @else { <div class="flex flex-col items-center gap-3 overflow-hidden rounded-2xl border border-pop-border bg-white p-5 sm:flex-row sm:justify-between"><p class="text-pop-muted">{{ t('noGroups') }}</p><img class="h-32 w-full max-w-56 object-contain sm:w-56" src="/illustrations/friends-planning-trip.webp" alt="" /></div> }
+        </div></section>
+      } @else { <p class="rounded-2xl border border-pop-border bg-white p-5 text-pop-muted">{{ t('noGroups') }} {{ t('gettingStartedIntro') }}</p> }
       @if (app.groupServiceReady() && app.auth?.user()?.emailVerified) {
-        <form class="max-w-xl space-y-4 rounded-2xl border border-pop-border bg-white p-5" (ngSubmit)="app.createGroup()">
-          <h2 class="text-xl font-black">{{ t('createGroup') }}</h2>
-          <label class="block text-sm font-bold">{{ t('groupName') }}<input class="mt-1 min-h-11 w-full rounded-xl border border-pop-border px-3" name="groupName" [(ngModel)]="app.groupName" maxlength="80" required /></label>
-          <label class="block text-sm font-bold">{{ t('groupCurrency') }}<select class="mt-1 min-h-11 w-full rounded-xl border border-pop-border px-3" name="groupCurrency" [(ngModel)]="app.groupCurrency">@for (currency of app.currencies(); track currency.code) { <option [value]="currency.code">{{ currency.code }} · {{ currency.name }}</option> }</select></label>
-          <button class="min-h-11 rounded-xl bg-pop-primary px-5 font-bold text-white disabled:opacity-50" type="submit" [disabled]="app.busy() || !app.online()">{{ t('createGroup') }}</button>
+        <form class="max-w-2xl space-y-4 rounded-[1.7rem] border border-pop-border bg-white p-5 shadow-sm sm:p-7" (ngSubmit)="app.createGroup()">
+          <div class="flex items-center gap-3"><span class="flex h-11 w-11 items-center justify-center rounded-2xl bg-pop-lavender text-2xl text-pop-primary" aria-hidden="true">＋</span><div><h2 class="text-xl font-black">{{ t('createGroup') }}</h2><p class="text-sm text-pop-muted">{{ t('groupCreateHelp') }}</p></div></div>
+          <label class="block text-sm font-bold">{{ t('groupName') }}<input class="mt-1 min-h-11 w-full rounded-xl border border-pop-border bg-pop-background px-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="groupName" [(ngModel)]="app.groupName" maxlength="80" required /></label>
+          <label class="block text-sm font-bold">{{ t('groupCurrency') }}<select class="mt-1 min-h-11 w-full rounded-xl border border-pop-border bg-pop-background px-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="groupCurrency" [(ngModel)]="app.groupCurrency">@for (currency of app.currencies(); track currency.code) { <option [value]="currency.code">{{ currency.code }} · {{ currency.name }}</option> }</select></label>
+          <button class="min-h-12 w-full rounded-xl bg-pop-coral px-5 font-extrabold text-pop-text disabled:opacity-50 sm:w-auto" type="submit" [disabled]="app.busy() || !app.online()">+ {{ t('createGroup') }}</button>
         </form>
       } @else { <p class="rounded-xl bg-amber-50 p-4 text-sm text-amber-900" role="status">{{ t('groupServiceMissing') }}</p> }
       @if (app.workerUrl && app.auth?.user(); as user) {
