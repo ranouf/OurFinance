@@ -24,6 +24,20 @@ export interface PreparedImportBatch {
   };
 }
 
+/** Keep only records not already present after a partially completed native import. */
+export function pendingNativeImportBatches(batches: readonly PreparedImportBatch[], existingSourceIds: ReadonlySet<string>): {
+  readonly pending: PreparedImportBatch[];
+  readonly alreadyImported: number;
+} {
+  let alreadyImported = 0;
+  const pending = batches.map(batch => ({ ...batch, body: { ...batch.body, records: batch.body.records.filter(record => {
+    if (!existingSourceIds.has(record.sourceId)) return true;
+    alreadyImported++;
+    return false;
+  }) } })).filter(batch => batch.body.records.length > 0);
+  return { pending, alreadyImported };
+}
+
 const documentId = /^[A-Za-z0-9_-]{1,128}$/;
 const batchIdPattern = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
 

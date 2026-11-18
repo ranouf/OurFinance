@@ -13,7 +13,7 @@ import { FirebaseExportReader } from './export-collector';
 import { previewMappedCsv, type ImportPreviewV1, type ImportRecordV1 } from './import-v1';
 import { ImportService } from './import-service';
 import { importErrorText, importText, type ImportTextKey } from './import-text';
-import { prepareImportBatch, prepareNativeImportBatches, type PreparedImportBatch } from './prepare-batch';
+import { pendingNativeImportBatches, prepareImportBatch, prepareNativeImportBatches, type PreparedImportBatch } from './prepare-batch';
 import { reconcileImpacts, type Reconciliation } from './reconcile';
 import { parseNativeSplitwiseCsv, reconcileNativeSplitwiseCsv, type NativeSplitwiseCsv } from './splitwise-native-csv';
 
@@ -39,6 +39,7 @@ export class ImportPanel {
   readonly headers = signal<string[]>([]);
   readonly nativeSource = signal<NativeSplitwiseCsv | null>(null);
   readonly nativeBatches = signal<PreparedImportBatch[]>([]);
+  readonly nativeAlreadyImported = signal(0);
   readonly members = signal<GroupMember[]>([]);
   readonly preview = signal<ImportPreviewV1 | null>(null);
   readonly reconciliation = signal<Reconciliation | null>(null);
@@ -72,7 +73,7 @@ export class ImportPanel {
     const row = /^Ligne (\d+) :/.exec(error);
     return row ? `${this.text('row')} ${row[1]} : ${importErrorText(error.includes('impacts') ? 'impacts' : 'row')}` : importErrorText('file');
   }
-  clearPreview(): void { this.nativePreviewRequest++; this.preview.set(null); this.reconciliation.set(null); this.nativeBatches.set([]); this.impactHeaders.set(this.impactHeaders().filter(header => this.impactCandidates().includes(header))); }
+  clearPreview(): void { this.nativePreviewRequest++; this.preview.set(null); this.reconciliation.set(null); this.nativeBatches.set([]); this.nativeAlreadyImported.set(0); this.impactHeaders.set(this.impactHeaders().filter(header => this.impactCandidates().includes(header))); }
 
   async loadFile(event: Event): Promise<void> {
     this.clearPreview(); this.headers.set([]); this.nativeSource.set(null); this.csv = ''; this.message.set(''); this.sourceGroupId = '';
@@ -166,7 +167,7 @@ export class ImportPanel {
           for (const record of batch.body.records) this.existingSourceIds.add(record.sourceId);
         }
         this.message.set('importedOk'); this.clearPreview(); await this.refreshBatches();
-      } catch { this.message.set('importFailed'); await this.refreshBatches().catch(() => {}); }
+      } catch { await this.loadGroup(); if (this.message() !== 'unavailable') this.message.set('importFailed'); }
       finally { this.busy.set(false); }
       return;
     }
@@ -203,8 +204,10 @@ export class ImportPanel {
       const mapping = Object.fromEntries(source.participants.map(person => [person, this.memberMapping[person]]));
       const batches = await prepareNativeImportBatches(source, this.sourceGroupId.trim(), group.id, group.currency, mapping);
       if (request !== this.nativePreviewRequest) return;
-      if (batches.some(batch => batch.body.records.some(record => this.existingSourceIds.has(record.sourceId)))) { this.message.set('blocked'); return; }
-      this.nativeBatches.set(batches);
+      const { pending, alreadyImported } = pendingNativeImportBatches(batches, this.existingSourceIds);
+      this.nativeAlreadyImported.set(alreadyImported);
+      if (!pending.length) { this.message.set('nativeAllImported'); return; }
+      this.nativeBatches.set(pending);
     } catch { this.message.set('invalidFile'); }
     finally { this.busy.set(false); }
   }

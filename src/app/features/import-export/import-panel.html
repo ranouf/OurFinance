@@ -119,6 +119,7 @@
         <div class="mt-6 rounded-2xl border border-pop-border p-4 sm:p-5">
           <h3 class="text-lg font-extrabold">{{ text('previewTitle') }}</h3>
           <p class="mt-2 text-sm text-pop-muted">{{ source.rows.length }} {{ text(source.rows.length === 1 ? 'nativeRecord' : 'nativeRecords') }} · {{ source.currency }} · {{ nativeBatches().length }} {{ text(nativeBatches().length === 1 ? 'nativeLot' : 'nativeLots') }}</p>
+          @if (nativeAlreadyImported()) { <p class="mt-2 text-sm font-bold">{{ source.rows.length - nativeAlreadyImported() }} {{ text('nativeRemaining') }} · {{ nativeAlreadyImported() }} {{ text('nativeExisting') }}</p> }
           <ul class="mt-4 space-y-2">
             @for (row of source.rows; track $index) {
               <li class="flex justify-between gap-3 rounded-xl border border-pop-border p-3 text-sm"><span class="min-w-0 break-words">{{ row.date }} · {{ row.description }}</span><strong class="shrink-0">{{ row.cost }} {{ source.currency }}</strong></li>
