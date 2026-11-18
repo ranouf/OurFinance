@@ -74,7 +74,12 @@ export class ReceiptPanel implements OnChanges, OnDestroy {
     input.value = '';
     if (!file || !this.service || !this.user) return;
     this.busy.set(true);
-    try { await this.service.upload(this.user, this.groupId, this.expenseId, file); this.message.set('receiptAdded'); this.receipts.set(await this.service.list(this.groupId, this.expenseId)); }
+    try {
+      await this.service.upload(this.user, this.groupId, this.expenseId, file);
+      this.message.set('receiptAdded');
+      try { this.receipts.set(await this.service.list(this.groupId, this.expenseId)); }
+      catch { this.message.set('receiptsUnavailable'); }
+    }
     catch (error) { this.message.set(error instanceof TypeError ? 'receiptAddFailed' : error instanceof Error ? error.message : 'receiptAddFailed'); }
     finally { this.busy.set(false); }
   }
