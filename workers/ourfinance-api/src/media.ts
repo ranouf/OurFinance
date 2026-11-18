@@ -4,6 +4,7 @@ import { serviceAccessToken } from './service-account';
 import { fetchCloudinaryPrivate, MediaDiagnosticError } from './media-diagnostic';
 import { authenticatedDownloadUrl, destroyAuthenticated, imageFormat, uploadAuthenticated, type CloudinaryEnv } from './cloudinary';
 import { isProviderQuotaStatus, ProviderQuotaError } from './provider-quota';
+import { cleanupUploadJournals, createUploadJournal, recoverFailedUpload, uploadJournalPath } from './media-upload-journal';
 
 export interface MediaEnv extends CloudinaryEnv {
   FIREBASE_PROJECT_ID: string;
@@ -44,7 +45,7 @@ export async function deleteReceiptAsset(path: string, publicId: string, already
 }
 
 /** Read membership and expense in the same transaction as the metadata write. */
-export async function persistUploadedReceipt(groupId: string, expenseId: string, attachmentId: string, uid: string, publicId: string, format: 'jpg' | 'png', accessToken: string, projectId: string, transport: typeof fetch = fetch): Promise<void> {
+export async function persistUploadedReceipt(groupId: string, expenseId: string, attachmentId: string, uid: string, publicId: string, format: 'jpg' | 'png', accessToken: string, projectId: string, transport: typeof fetch = fetch, journalPath?: string): Promise<void> {
   const root = `projects/${projectId}/databases/(default)/documents`;
   const headers = { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' };
   const begin = await transport(`https://firestore.googleapis.com/v1/${root}:beginTransaction`, { method: 'POST', headers, body: '{}' });
@@ -67,9 +68,16 @@ export async function persistUploadedReceipt(groupId: string, expenseId: string,
     if (group?.['status']?.stringValue !== 'active' || member?.['status']?.stringValue !== 'active' || !expense || expense['deleted']?.booleanValue === true) {
       throw new Error('Groupe, membre ou dépense indisponible');
     }
+    if (journalPath) {
+      const journal = await read(journalPath);
+      if (journal?.['status']?.stringValue !== 'uploading' || journal['publicId']?.stringValue !== publicId ||
+          journal['ownerId']?.stringValue !== uid || journal['expenseId']?.stringValue !== expenseId) throw new Error('Journal média indisponible');
+    }
+    const writes: unknown[] = [{ update: { name: `${root}/groups/${groupId}/expenses/${expenseId}/attachments/${attachmentId}`, fields: { publicId: string(publicId), format: string(format), type: string('authenticated'), status: string('active'), ownerId: string(uid), createdAt: { timestampValue: new Date().toISOString() } } }, currentDocument: { exists: false } }];
+    if (journalPath) writes.push({ delete: `${root}/${journalPath}`, currentDocument: { exists: true } });
     const response = await transport(`https://firestore.googleapis.com/v1/${root}:commit`, {
       method: 'POST', headers,
-      body: JSON.stringify({ transaction, writes: [{ update: { name: `${root}/groups/${groupId}/expenses/${expenseId}/attachments/${attachmentId}`, fields: { publicId: string(publicId), format: string(format), type: string('authenticated'), status: string('active'), ownerId: string(uid), createdAt: { timestampValue: new Date().toISOString() } } }, currentDocument: { exists: false } }] }),
+      body: JSON.stringify({ transaction, writes }),
     });
     if (isProviderQuotaStatus(response.status)) throw new ProviderQuotaError();
     if (!response.ok) throw new Error('Écriture de la pièce jointe refusée');
@@ -138,13 +146,14 @@ export async function handleMedia(request: Request, ids: { groupId: string; expe
     catch { return Response.json({ error: 'Image invalide' }, { status: 400, headers }); }
     const id = crypto.randomUUID();
     const publicId = `${env.FIREBASE_PROJECT_ID}/${groupId}/${expenseId}/${id}`;
-    await uploadAuthenticated(bytes, format, publicId, env);
+    const accessToken = await serviceAccessToken(env.FIREBASE_SERVICE_ACCOUNT_JSON, env.FIREBASE_PROJECT_ID);
+    await createUploadJournal(groupId, expenseId, id, uid, publicId, format, accessToken, env);
     try {
-      const accessToken = await serviceAccessToken(env.FIREBASE_SERVICE_ACCOUNT_JSON, env.FIREBASE_PROJECT_ID);
-      await persistUploadedReceipt(groupId, expenseId, id, uid, publicId, format, accessToken, env.FIREBASE_PROJECT_ID);
+      await uploadAuthenticated(bytes, format, publicId, env);
+      await persistUploadedReceipt(groupId, expenseId, id, uid, publicId, format, accessToken, env.FIREBASE_PROJECT_ID, fetch, uploadJournalPath(groupId, id));
       return Response.json({ attachmentId: id }, { status: 201, headers });
     } catch (error) {
-      await destroyAuthenticated(publicId, env);
+      if (await recoverFailedUpload(groupId, expenseId, id, publicId, accessToken, env)) return Response.json({ attachmentId: id }, { status: 201, headers });
       throw error;
     }
   }
@@ -178,4 +187,17 @@ export async function handleMedia(request: Request, ids: { groupId: string; expe
     catch { throw new MediaDiagnosticError('download_response'); }
   }
   return Response.json({ error: 'Méthode inconnue' }, { status: 405, headers });
+}
+
+/** Explicit owner-only retry even when the original expense has since been deleted. */
+export async function handleMediaCleanup(request: Request, groupId: string, env: MediaEnv, headers: Headers): Promise<Response> {
+  if (!idPattern.test(groupId)) return Response.json({ error: 'Identifiant invalide' }, { status: 400, headers });
+  let uid: string, token: string;
+  try { token = bearerToken(request); uid = await verifyFirebaseIdToken(token, env.FIREBASE_PROJECT_ID); }
+  catch { return Response.json({ error: 'Non authentifié' }, { status: 401, headers }); }
+  const member = await readMember(env.FIREBASE_PROJECT_ID, groupId, uid, token);
+  if (!member || member.status !== 'active' || member.role !== 'owner') return Response.json({ error: 'Accès refusé' }, { status: 403, headers });
+  const accessToken = await serviceAccessToken(env.FIREBASE_SERVICE_ACCOUNT_JSON, env.FIREBASE_PROJECT_ID);
+  const result = await cleanupUploadJournals(groupId, accessToken, env);
+  return Response.json(result, { status: result.pending ? 202 : 200, headers });
 }

@@ -1,5 +1,13 @@
 # M0 — POC des justificatifs privés
 
+## Reprise des uploads interrompus — correctif #149 en validation
+
+Le Worker écrit maintenant un journal serveur `groups/{g}/receiptUploadJobs/{id}` **avant** l'appel Cloudinary. Le journal reste hors de `attachments` : les clients Firestore ne peuvent ni le lire ni l'écrire, et l'export V2 n'inventorie pas un reçu provisoire. L'activation de `attachments/{id}` et la suppression du journal ont lieu dans une seule transaction qui relit le groupe, le membre, la dépense et l'état du journal. Une réponse de transaction ambiguë est réconciliée avec la métadonnée avant toute suppression distante.
+
+Si la compensation Cloudinary échoue, le journal reste `cleanup_pending`. Le propriétaire actif du groupe peut appeler `POST /groups/{g}/receipt-upload-jobs/cleanup` : la reprise traite au plus huit journaux à la fois pour rester sous la limite de sous-requêtes Worker Free, ne touche pas un upload `uploading` récent, vérifie d'abord si la métadonnée existe, puis détruit l'asset seulement s'il n'est pas attaché. La réponse ne contient que `cleaned` et `pending` ; recommencer si `pending > 0`. La route reste soumise à l'activation explicite V1 ou au flag média POC limité à un groupe fictif. Une absence de journal ne prouve pas la disparition d'un asset quand le fournisseur renvoie un ID différent de l'ID demandé ; ne pas attribuer ce cas à la reprise sans preuve.
+
+Ce correctif n'est pas déclaré validé sur TEST tant que la PR #149, ses tests, la revue et l'essai fictif réservé dans #30 ne sont pas terminés. La partie M0 historique ci-dessous décrit le POC initial et ses validations antérieures.
+
 ## Ce qui est préparé
 
 Le Worker accepte une petite image JPEG/PNG brute (2 Mo maximum, lecture bornée du flux) sur `POST /groups/{g}/expenses/{e}/attachments`. Il vérifie le Firebase ID token, l'appartenance active au groupe et l'existence de la dépense avant d'envoyer l'image à Cloudinary avec le type **`authenticated`**. Un identifiant d'asset est créé côté Worker. Les métadonnées sont écrites dans une dépense du groupe. Si cette écriture échoue, le Worker tente de supprimer l'asset distant. Une révocation entre upload et écriture est revérifiée.

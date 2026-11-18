@@ -18,6 +18,7 @@ before(async () => {
     await setDoc(doc(db, 'groups/a/expenses/e1'), { amountMinor: 100 });
     await setDoc(doc(db, 'groups/b/expenses/e2'), { amountMinor: 100 });
     await setDoc(doc(db, 'groups/a/expenses/e1/attachments/receipt'), { publicId: 'synthetic' });
+    await setDoc(doc(db, 'groups/a/receiptUploadJobs/pending'), { publicId: 'synthetic', status: 'cleanup_pending' });
     await setDoc(doc(db, 'groups/a/expenses/e1/comments/comment1'), { authorId: 'alice', text: 'Fictif' });
     await setDoc(doc(db, 'groups/a/activity/ev1'), { action: 'expense_created' });
     await setDoc(doc(db, 'groups/a/categories/custom_123e4567-e89b-42d3-a456-426614174000'), { name: 'Frais de chalet', status: 'active' });
@@ -102,6 +103,15 @@ test('client cannot forge membership or invitation', async () => {
   await assertFails(setDoc(doc(alice, 'groups/b/members/alice'), { role: 'owner', status: 'active' }));
   await assertFails(setDoc(doc(alice, 'groups/a/invitations/fake'), { token: 'fake' }));
   await assertFails(setDoc(doc(alice, 'groups/a/expenses/e1/attachments/fake'), { publicId: 'fake' }));
+});
+
+test('server-side receipt upload journal is invisible and immutable to clients', async () => {
+  const path = 'groups/a/receiptUploadJobs/pending';
+  const alice = env.authenticatedContext('alice').firestore();
+  await assertFails(getDoc(doc(alice, path)));
+  await assertFails(getDocs(collection(alice, 'groups/a/receiptUploadJobs')));
+  await assertFails(setDoc(doc(alice, path), { status: 'active' }));
+  await assertFails(deleteDoc(doc(alice, path)));
 });
 
 test('imported records and batch metadata follow active membership', async () => {
