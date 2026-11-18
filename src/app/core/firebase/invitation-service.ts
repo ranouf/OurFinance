@@ -9,7 +9,7 @@ export function parseInvitationCode(value: string): InvitationCode | null {
 }
 
 export class InvitationService {
-  constructor(private readonly workerUrl: string) {}
+  constructor(private readonly workerUrl: string, private readonly transport: typeof fetch = (...args) => fetch(...args)) {}
 
   private url(path: string): URL {
     const url = new URL(path, this.workerUrl);
@@ -23,7 +23,7 @@ export class InvitationService {
   }
 
   async create(user: User, groupId: string, targetEmail: string): Promise<string> {
-    const response = await fetch(this.url(`/groups/${encodeURIComponent(groupId)}/invitations`), {
+    const response = await this.transport(this.url(`/groups/${encodeURIComponent(groupId)}/invitations`), {
       method: 'POST', headers: await this.headers(user), body: JSON.stringify({ targetEmail: targetEmail.trim() }),
     });
     if (!response.ok) throw new Error(`Invitation refusée (HTTP ${response.status})`);
@@ -35,7 +35,7 @@ export class InvitationService {
   async accept(user: User, value: string): Promise<void> {
     const code = parseInvitationCode(value);
     if (!code) throw new Error('Code invalide');
-    const response = await fetch(this.url(`/groups/${code.groupId}/invitations/${code.invitationId}/accept`), {
+    const response = await this.transport(this.url(`/groups/${code.groupId}/invitations/${code.invitationId}/accept`), {
       method: 'POST', headers: await this.headers(user), body: JSON.stringify({ token: code.token }),
     });
     if (!response.ok) throw new Error(`Invitation refusée (HTTP ${response.status})`);
