@@ -1,5 +1,7 @@
 # M6 — essai intégré M3/M4 sur la pile de test
 
+Ce compte rendu décrit uniquement l'essai daté ci-dessous. Les essais ultérieurs de reçus, import/export et restauration sont recensés dans [l'état de préparation M6](M6_READINESS.md).
+
 Date : 16 novembre 2026. Environnement : `ourfinance-test` et `ourfinance-api-dev`. Deux comptes, un groupe et toutes les opérations étaient fictifs. Ordinateur : 1365 px ; mobile : 390 px.
 
 ## Parcours vérifié

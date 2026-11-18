@@ -1,6 +1,6 @@
 # Restauration V2 dans le groupe d’origine — protocole de travail
 
-État : **non disponible dans l’application**. Ce document décrit les contrôles à réaliser avant d’activer une route d’écriture. Le format `group-v2-partial` ne doit pas être présenté comme une sauvegarde complète tant que tous les points ci-dessous ne sont pas couverts.
+État : route de restauration implémentée derrière activation explicite et testée sur TEST avec données fictives ; elle reste fermée par défaut. Ce document conserve le protocole de conception et les contrôles à rejouer avant production. Le format `group-v2-partial` ne sauvegarde pas les comptes Firebase Auth et ne doit pas être présenté comme une sauvegarde complète. Voir [l'état de préparation M6](M6_READINESS.md) pour les preuves, limites et SHA exacts.
 
 ## Portée
 

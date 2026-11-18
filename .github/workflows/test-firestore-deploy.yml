@@ -1,0 +1,85 @@
+name: Deploy test Firestore manually
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Full 40-character commit SHA to deploy on TEST
+        required: true
+        type: string
+      coordination_comment:
+        description: URL of the active TEST reservation in issue 30
+        required: true
+        type: string
+permissions:
+  contents: read
+  issues: read
+  actions: read
+jobs:
+  firestore_test:
+    if: github.ref == 'refs/heads/main' && github.actor == 'ranouf' && github.triggering_actor == 'ranouf'
+    runs-on: ubuntu-latest
+    environment: test
+    concurrency:
+      group: ourfinance-test-deploy
+      cancel-in-progress: false
+    steps:
+      - name: Check exact SHA and reservation
+        env:
+          TARGET_SHA: ${{ inputs.sha }}
+          RESERVATION: ${{ inputs.coordination_comment }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          [[ "$TARGET_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$RESERVATION" =~ ^https://github\.com/ranouf/OurFinance/issues/30#issuecomment-[0-9]+$ ]]
+          comment_id="${RESERVATION##*issuecomment-}"
+          gh api "repos/ranouf/OurFinance/issues/comments/$comment_id" |
+            jq -e --arg sha "$TARGET_SHA" '
+              now as $checked | (.created_at | fromdateiso8601) as $reserved |
+              .user.login == "ranouf" and
+              .issue_url == "https://api.github.com/repos/ranouf/OurFinance/issues/30" and
+              $reserved <= $checked and ($checked - $reserved) <= 3600 and
+              (.body | contains($sha) and (ascii_downcase | contains("test")) and
+                (contains("réserv") or contains("reserv")))
+            ' >/dev/null
+      - name: Require successful PR validation on exact SHA
+        env:
+          TARGET_SHA: ${{ inputs.sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/ranouf/OurFinance/actions/runs?head_sha=$TARGET_SHA&per_page=100" |
+            jq -e --arg sha "$TARGET_SHA" '
+              [.workflow_runs[] | select(.head_sha == $sha and .path == ".github/workflows/pr-validation.yml")]
+              | first | .conclusion == "success"
+            ' >/dev/null
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify checked-out commit and TEST files
+        env:
+          TARGET_SHA: ${{ inputs.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+          git merge-base --is-ancestor 04d521960fc37e63266f72500ef0cc4fb0cd7393 HEAD
+          test -f firestore.rules
+          test -f firestore.indexes.json
+          jq -e '.indexes | type == "array"' firestore.indexes.json >/dev/null
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Test Firestore Rules locally
+        run: npm run test:rules
+      - name: Check isolated TEST identity
+        env:
+          TEST_FIRESTORE_DEPLOY_SA_JSON: ${{ secrets.TEST_FIRESTORE_DEPLOY_SA_JSON }}
+        run: |
+          test -n "$TEST_FIRESTORE_DEPLOY_SA_JSON"
+          jq -e '.type == "service_account" and .project_id == "ourfinance-test"' <<< "$TEST_FIRESTORE_DEPLOY_SA_JSON" >/dev/null
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.TEST_FIRESTORE_DEPLOY_SA_JSON }}
+      - name: Deploy only TEST Firestore Rules and indexes
+        run: npx firebase-tools deploy --only firestore:rules,firestore:indexes --project ourfinance-test --non-interactive
