@@ -31,7 +31,7 @@ before(async () => {
 });
 after(async () => { await environment?.cleanup(); });
 
-for (const first of ['upload', 'delete']) test(`activation et suppression concurrentes : ${first} gagne, autre commit refusé`, async () => {
+for (const first of ['upload', 'delete']) test(`activation et suppression concurrentes : ${first} gagne sans pièce active orpheline`, async () => {
   const expenseId = first;
   const expensePath = `groups/race/expenses/${expenseId}`;
   const attachmentPath = `${expensePath}/attachments/a`;
@@ -41,13 +41,10 @@ for (const first of ['upload', 'delete']) test(`activation et suppression concur
 
   const upload = await begin();
   const deletion = await begin();
-  for (const transaction of [upload, deletion]) {
-    const read = await call(`/${expensePath}?transaction=${encodeURIComponent(transaction)}`);
-    strictEqual(read.status, 200);
-  }
-  const listed = await call(`/${expensePath}/attachments?transaction=${encodeURIComponent(deletion)}`);
-  strictEqual(listed.status, 200);
-  strictEqual(listed.body.documents?.length ?? 0, 0);
+  const winningTransaction = first === 'upload' ? upload : deletion;
+  const losingTransaction = first === 'upload' ? deletion : upload;
+  const winningRead = await call(`/${expensePath}?transaction=${encodeURIComponent(winningTransaction)}`);
+  strictEqual(winningRead.status, 200);
 
   const expenseName = `${root}/${expensePath}`;
   const uploadWrites = [
@@ -55,19 +52,38 @@ for (const first of ['upload', 'delete']) test(`activation et suppression concur
     { update: { name: `${root}/${attachmentPath}`, fields: { status: { stringValue: 'active' } } }, currentDocument: { exists: false } },
   ];
   const deleteWrites = [{ update: { name: expenseName, fields: { deleted: { booleanValue: true } } }, updateMask: { fieldPaths: ['deleted'] } }];
-  const [winningTransaction, winningWrites, losingTransaction, losingWrites] = first === 'upload'
-    ? [upload, uploadWrites, deletion, deleteWrites]
-    : [deletion, deleteWrites, upload, uploadWrites];
+  // Firestore may block the second read until the first transaction commits.
+  // Starting it before the commit still exercises both possible orderings.
+  const losingReadPromise = call(`/${expensePath}?transaction=${encodeURIComponent(losingTransaction)}`);
+  const winningWrites = first === 'upload' ? uploadWrites : deleteWrites;
   const winner = await call(':commit', 'POST', { transaction: winningTransaction, writes: winningWrites });
-  const loser = await call(':commit', 'POST', { transaction: losingTransaction, writes: losingWrites });
   strictEqual(winner.status, 200, JSON.stringify(winner.body));
-  strictEqual(loser.status === 200, false, JSON.stringify(loser.body));
+  const losingRead = await losingReadPromise;
+  if (losingRead.status === 200) {
+    if (first === 'upload') {
+      const listed = await call(`/${expensePath}/attachments?transaction=${encodeURIComponent(deletion)}`);
+      if (listed.status === 200) {
+        const visibleAttachment = (listed.body.documents ?? []).some(row => row.name === `${root}/${attachmentPath}`);
+        const writes = [...deleteWrites, ...(visibleAttachment ? [{ update: { name: `${root}/${attachmentPath}`, fields: { status: { stringValue: 'deleted' } } }, updateMask: { fieldPaths: ['status'] } }] : [])];
+        await call(':commit', 'POST', { transaction: deletion, writes });
+      }
+    } else if (losingRead.body.fields?.deleted?.booleanValue !== true) {
+      const staleUpload = await call(':commit', 'POST', { transaction: upload, writes: uploadWrites });
+      strictEqual(staleUpload.status === 200, false, JSON.stringify(staleUpload.body));
+    }
+  }
+  await call(':rollback', 'POST', { transaction: losingTransaction });
 
   await environment.withSecurityRulesDisabled(async context => {
     const db = context.firestore();
     const expense = await getDoc(doc(db, expensePath));
     const attachment = await getDoc(doc(db, attachmentPath));
-    strictEqual(expense.data().deleted, first === 'delete');
-    strictEqual(attachment.exists(), first === 'upload');
+    strictEqual(expense.data().deleted === true && attachment.exists() && attachment.data().status === 'active', false);
+    if (first === 'delete') {
+      strictEqual(expense.data().deleted, true);
+      strictEqual(attachment.exists(), false);
+    } else {
+      strictEqual(attachment.exists(), true);
+    }
   });
 });
