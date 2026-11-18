@@ -43,7 +43,7 @@ export class GroupLifecyclePanel implements OnChanges {
     try {
       const [members, names] = await Promise.all([
         new GroupService(this.firebaseApp, this.workerUrl).members(this.group.id),
-        loadSharedMemberProfiles(this.workerUrl, this.group.id, this.user),
+        loadSharedMemberProfiles(this.workerUrl, this.group.id, this.user).catch(() => []),
       ]);
       if (requestId !== this.requestId) return;
       this.members.set(members);
