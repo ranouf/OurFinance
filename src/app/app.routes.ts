@@ -1,3 +1,13 @@
 import { Routes } from '@angular/router';
 
-export const routes: Routes = [];
+export const routes: Routes = [
+  { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
+  { path: 'login', loadComponent: () => import('./app-pages').then(m => m.LoginPage) },
+  { path: 'join', loadComponent: () => import('./app-pages').then(m => m.JoinPage) },
+  { path: 'dashboard', loadComponent: () => import('./app-pages').then(m => m.DashboardPage) },
+  { path: 'groups', loadComponent: () => import('./app-pages').then(m => m.GroupsPage) },
+  { path: 'expenses', loadComponent: () => import('./app-pages').then(m => m.ExpensesPage) },
+  { path: 'statistics', loadComponent: () => import('./app-pages').then(m => m.StatisticsPage) },
+  { path: 'account', loadComponent: () => import('./app-pages').then(m => m.AccountPage) },
+  { path: '**', redirectTo: 'dashboard' },
+];
