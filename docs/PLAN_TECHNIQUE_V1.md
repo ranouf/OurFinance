@@ -1,7 +1,7 @@
 # OurFinance — Plan technique V1
 
-Statut : **plan de réalisation**, sans implémentation applicative à ce stade.  
-Dernière mise à jour : 16 novembre 2026.  
+Statut : **plan de réalisation** ; l'implémentation progresse par jalon. Les preuves et limites actuelles figurent dans [l'état M6](M6_READINESS.md).
+Dernière mise à jour : 18 novembre 2026.
 Dépôt : `ranouf/OurFinance`.
 
 ## 1. Objectifs et principes
