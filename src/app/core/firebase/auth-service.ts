@@ -5,33 +5,54 @@ import {
   signInWithEmailAndPassword, signInWithPopup, signOut,
 } from 'firebase/auth';
 
+/** Firebase boundary kept injectable so every authentication path can be checked without real accounts. */
+export interface AuthOperations {
+  observe(auth: Auth, next: (user: User | null) => void): () => void;
+  register(auth: Auth, email: string, password: string): Promise<User>;
+  login(auth: Auth, email: string, password: string): Promise<unknown>;
+  loginWithGoogle(auth: Auth): Promise<unknown>;
+  sendVerification(user: User): Promise<void>;
+  sendReset(auth: Auth, email: string): Promise<void>;
+  logout(auth: Auth): Promise<void>;
+}
+
+const firebaseOperations: AuthOperations = {
+  observe: (auth, next) => onAuthStateChanged(auth, next),
+  register: async (auth, email, password) => (await createUserWithEmailAndPassword(auth, email, password)).user,
+  login: (auth, email, password) => signInWithEmailAndPassword(auth, email, password),
+  loginWithGoogle: auth => signInWithPopup(auth, new GoogleAuthProvider()),
+  sendVerification: user => sendEmailVerification(user),
+  sendReset: (auth, email) => sendPasswordResetEmail(auth, email),
+  logout: auth => signOut(auth),
+};
+
 export class AuthService {
   readonly user = signal<User | null>(null);
   readonly ready = signal(false);
   private readonly unsubscribe: () => void;
 
-  constructor(private readonly auth: Auth) {
-    this.unsubscribe = onAuthStateChanged(auth, user => {
+  constructor(private readonly auth: Auth, private readonly operations: AuthOperations = firebaseOperations) {
+    this.unsubscribe = operations.observe(auth, user => {
       this.user.set(user);
       this.ready.set(true);
     });
   }
 
   async register(email: string, password: string): Promise<void> {
-    const result = await createUserWithEmailAndPassword(this.auth, email, password);
-    await sendEmailVerification(result.user);
+    const user = await this.operations.register(this.auth, email, password);
+    await this.operations.sendVerification(user);
   }
 
   async login(email: string, password: string): Promise<void> {
-    await signInWithEmailAndPassword(this.auth, email, password);
+    await this.operations.login(this.auth, email, password);
   }
 
   async loginWithGoogle(): Promise<void> {
-    await signInWithPopup(this.auth, new GoogleAuthProvider());
+    await this.operations.loginWithGoogle(this.auth);
   }
 
   async resetPassword(email: string): Promise<void> {
-    await sendPasswordResetEmail(this.auth, email);
+    await this.operations.sendReset(this.auth, email);
   }
 
   async refreshVerification(): Promise<void> {
@@ -46,11 +67,11 @@ export class AuthService {
   async resendVerification(): Promise<void> {
     const user = this.auth.currentUser;
     if (!user || user.emailVerified) return;
-    await sendEmailVerification(user);
+    await this.operations.sendVerification(user);
   }
 
   async logout(): Promise<void> {
-    await signOut(this.auth);
+    await this.operations.logout(this.auth);
   }
 
   destroy(): void { this.unsubscribe(); }
