@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import { deepStrictEqual, rejects, strictEqual, throws } from 'node:assert';
+import { createHash } from 'node:crypto';
 import { exportPKCS8, generateKeyPair } from 'jose';
 import { createImportBatch, ImportError, parseImportBatch, undoImportBatch } from '../src/import-batches';
 
@@ -85,8 +86,14 @@ test('a mixed-currency import is rejected without writing any record', async () 
   strictEqual(f.rollbacks(), 1);
 });
 
+function nativeId(category: string, occurrence = 0): string {
+  return `native_${createHash('sha256').update(JSON.stringify([
+    '2026-11-01', 'Trajet fictif', category, 'JPY', '101.5', occurrence,
+  ])).digest('hex')}`;
+}
 const exactInput = { batchId, records: [{
-  sourceId: 'native-example-1', date: '2026-11-01', description: 'Trajet fictif', currency: 'JPY',
+  sourceId: nativeId('Transport'), date: '2026-11-01', description: 'Trajet fictif', currency: 'JPY',
+  sourceCategory: 'Transport', sourceOccurrence: 0,
   sourceCostExact: '101.50', sourcePrecision: 2, netImpactsExact: { alex: '50.75', camille: '-50.75' },
 }] };
 
@@ -106,6 +113,26 @@ test('historical fractions are stored as exact strings and can be undone', async
   strictEqual(f.commits(), 2);
 });
 
+test('native provenance refuses an alias-derived ID and keeps an undone source reserved', async () => {
+  const f = await fixture();
+  f.docs.get(`groups/${groupId}`)!.currencyCode.stringValue = 'JPY';
+  await rejects(createImportBatch({ ...exactInput, records: [{ ...exactInput.records[0], sourceId: 'native_alias_changed' }] },
+    'alex', groupId, f.env, f.transport), (error: unknown) => error instanceof ImportError && error.code === 'invalid_native_source');
+  strictEqual(f.commits(), 0);
+  await createImportBatch(exactInput, 'alex', groupId, f.env, f.transport);
+  await undoImportBatch(batchId, 'alex', groupId, f.env, f.transport);
+  await rejects(createImportBatch({ ...exactInput, batchId: '123e4567-e89b-42d3-a456-426614174012' },
+    'alex', groupId, f.env, f.transport), (error: unknown) => error instanceof ImportError && error.status === 409);
+});
+
+test('identical native rows use an occurrence to retain both legitimate rows', async () => {
+  const f = await fixture();
+  f.docs.get(`groups/${groupId}`)!.currencyCode.stringValue = 'JPY';
+  const second = { ...exactInput.records[0], sourceId: nativeId('Transport', 1), sourceOccurrence: 1 };
+  await createImportBatch({ ...exactInput, records: [...exactInput.records, second] }, 'alex', groupId, f.env, f.transport);
+  strictEqual([...f.docs.keys()].filter(path => path.includes('/importedRecords/')).length, 2);
+});
+
 test('historical exact import refuses a revoked participant before writing', async () => {
   const f = await fixture();
   f.docs.get(`groups/${groupId}`)!.currencyCode.stringValue = 'JPY';
@@ -123,5 +150,7 @@ test('exact historical variant refuses rounding, imbalance and mixed representat
     { ...row, netImpactsExact: { alex: '50.75', camille: '-50.74' } },
     { ...row, amountMinor: 102 },
     { ...row, netImpactsMinor: { alex: 51, camille: -51 } },
+    { ...row, sourceOccurrence: -1 },
+    { ...row, sourceCategory: null },
   ]) throws(() => parseImportBatch({ batchId, records: [invalid] }, groupId), ImportError);
 });

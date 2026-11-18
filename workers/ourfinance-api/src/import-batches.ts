@@ -19,6 +19,8 @@ interface ExactImportRow extends ImportRowBase {
   sourceCostExact: string;
   sourcePrecision: number;
   netImpactsExact: Record<string, string>;
+  sourceCategory: string;
+  sourceOccurrence: number;
 }
 type ImportRow = LegacyImportRow | ExactImportRow;
 const idPattern = /^[A-Za-z0-9_-]{1,128}$/;
@@ -26,6 +28,20 @@ const exactDecimal = /^-?\d{1,30}(?:\.\d{1,12})?$/;
 const uuidPattern = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
 const string = (stringValue: string) => ({ stringValue });
 const integer = (value: number) => ({ integerValue: String(value) });
+function canonicalDecimal(value: string): string {
+  const negative = value.startsWith('-');
+  const [whole, fraction = ''] = value.replace(/^-/, '').split('.');
+  const normalized = `${BigInt(whole)}${fraction.replace(/0+$/, '') ? `.${fraction.replace(/0+$/, '')}` : ''}`;
+  return normalized === '0' ? '0' : `${negative ? '-' : ''}${normalized}`;
+}
+async function nativeSourceId(row: ExactImportRow): Promise<string> {
+  // The CSV has no trustworthy transaction ID. Duplicate prevention is conservative
+  // within a target group and deliberately independent of a user-entered alias.
+  return `native_${await sha256(JSON.stringify([
+    row.date, row.description, row.sourceCategory, row.currency,
+    canonicalDecimal(row.sourceCostExact), row.sourceOccurrence,
+  ]))}`;
+}
 function exactUnits(value: string, precision: number): bigint {
   const [whole, fraction = ''] = value.replace(/^-/, '').split('.');
   if (fraction.length > precision) throw new ImportError(400, 'invalid_exact_amount');
@@ -57,13 +73,16 @@ export function parseImportBatch(value: unknown, groupId: string): { batchId: st
       const impacts = row['netImpactsExact'];
       if ('amountMinor' in row || 'netImpactsMinor' in row || typeof row['sourceCostExact'] !== 'string' || !exactDecimal.test(row['sourceCostExact']) ||
           !Number.isInteger(precision) || (precision as number) < 0 || (precision as number) > 12 ||
+          typeof row['sourceCategory'] !== 'string' || row['sourceCategory'].length > 120 ||
+          !Number.isSafeInteger(row['sourceOccurrence']) || (row['sourceOccurrence'] as number) < 0 ||
           !impacts || typeof impacts !== 'object' || Array.isArray(impacts)) throw new ImportError(400, 'invalid_exact_amount');
       const entries = Object.entries(impacts);
       if (!entries.length || entries.length > 20 || entries.some(([id, amount]) => !idPattern.test(id) || typeof amount !== 'string' || !exactDecimal.test(amount))) throw new ImportError(400, 'invalid_impacts');
       const digits = precision as number;
       if (exactUnits(row['sourceCostExact'], digits) <= 0n || entries.reduce((sum, [, amount]) => sum + exactUnits(amount as string, digits), 0n) !== 0n) throw new ImportError(400, 'unbalanced_impacts');
       if (Math.max((row['sourceCostExact'].split('.')[1] ?? '').length, ...entries.map(([, amount]) => ((amount as string).split('.')[1] ?? '').length)) !== digits) throw new ImportError(400, 'invalid_exact_amount');
-      rows.push({ ...base, sourceCostExact: row['sourceCostExact'], sourcePrecision: digits, netImpactsExact: impacts as Record<string, string> });
+      rows.push({ ...base, sourceCostExact: row['sourceCostExact'], sourcePrecision: digits, netImpactsExact: impacts as Record<string, string>,
+        sourceCategory: row['sourceCategory'].trim(), sourceOccurrence: row['sourceOccurrence'] as number });
       for (const [id] of entries) memberIds.add(id);
     } else {
       const impacts = row['netImpactsMinor'];
@@ -118,6 +137,9 @@ async function withTransaction<T>(env: ImportEnv, transport: typeof fetch, run: 
 export async function createImportBatch(value: unknown, uid: string, groupId: string, env: ImportEnv, transport: typeof fetch = fetch): Promise<{ batchId: string; recordCount: number }> {
   if (!idPattern.test(uid)) throw new ImportError(400, 'invalid_user');
   const input = parseImportBatch(value, groupId);
+  for (const row of input.rows) {
+    if ('sourceCostExact' in row && row.sourceId !== await nativeSourceId(row)) throw new ImportError(400, 'invalid_native_source');
+  }
   const ids = await Promise.all(input.rows.map(row => sha256(row.sourceId)));
   return withTransaction(env, transport, async ({ root, read, commit }) => {
     const group = await read(`groups/${groupId}`);
@@ -136,7 +158,8 @@ export async function createImportBatch(value: unknown, uid: string, groupId: st
       sourceId: string(row.sourceId), batchId: string(input.batchId), date: string(row.date), description: string(row.description), currency: string(row.currency),
       splitStatus: string('undetermined'), status: string('active'), createdAt: { timestampValue: now },
       ...('sourceCostExact' in row
-        ? { sourceCostExact: string(row.sourceCostExact), sourcePrecision: integer(row.sourcePrecision), netImpactsExact: { mapValue: { fields: Object.fromEntries(Object.entries(row.netImpactsExact).map(([id, amount]) => [id, string(amount)])) } } }
+        ? { sourceCostExact: string(row.sourceCostExact), sourcePrecision: integer(row.sourcePrecision), sourceCategory: string(row.sourceCategory),
+            sourceOccurrence: integer(row.sourceOccurrence), netImpactsExact: { mapValue: { fields: Object.fromEntries(Object.entries(row.netImpactsExact).map(([id, amount]) => [id, string(amount)])) } } }
         : { amountMinor: integer(row.amountMinor), netImpactsMinor: { mapValue: { fields: Object.fromEntries(Object.entries(row.netImpactsMinor).map(([id, amount]) => [id, integer(amount)])) } } }),
     }));
     writes.push(create(`users/${uid}/importBatches/${input.batchId}`, {
