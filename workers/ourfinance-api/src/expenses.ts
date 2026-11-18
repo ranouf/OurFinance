@@ -1,7 +1,9 @@
+import { ProviderQuotaError, unavailableCode } from './provider-quota';
 import { splitAmount, validateExpense, type Allocation, type SplitMode } from '../../../src/app/shared/utils/split-engine';
 import { categories, categoryById, categoryIcons, isCustomCategoryId, type CategoryColor, type CategoryDefinition } from '../../../src/app/shared/utils/categories';
 import { serviceAccessToken } from './service-account';
 import { destroyAuthenticated, type CloudinaryEnv } from './cloudinary';
+import { authorizedReceiptPublicId } from './media';
 
 export interface ExpenseEnv extends Partial<CloudinaryEnv> { readonly FIREBASE_PROJECT_ID: string; readonly FIREBASE_SERVICE_ACCOUNT_JSON: string; }
 export interface ExpenseInput {
@@ -62,7 +64,7 @@ function modeUsers(mode: SplitMode): string[] {
 }
 
 async function json(response: Response): Promise<Record<string, unknown>> {
-  if (!response.ok) throw new ExpenseError(response.status === 409 ? 409 : 503, response.status === 409 ? 'transaction_conflict' : 'firestore_unavailable');
+  if (!response.ok) throw new ExpenseError(response.status === 409 ? 409 : 503, response.status === 409 ? 'transaction_conflict' : unavailableCode(response, 'firestore_unavailable'));
   return await response.json() as Record<string, unknown>;
 }
 
@@ -204,7 +206,7 @@ export async function mutateExpense(value: unknown, uid: string, groupId: string
         if (meta['status']?.stringValue !== 'active' && meta['cleanupPending']?.booleanValue !== true) continue;
         const attachmentId = name.slice(name.lastIndexOf('/') + 1);
         const publicId = meta['publicId']?.stringValue;
-        if (!idPattern.test(attachmentId) || publicId !== `ourfinance-test/${groupId}/${expenseId}/${attachmentId}` || meta['type']?.stringValue !== 'authenticated') throw new ExpenseError(503, 'invalid_receipts');
+        if (!idPattern.test(attachmentId) || !authorizedReceiptPublicId(publicId, env.FIREBASE_PROJECT_ID, groupId, expenseId, attachmentId) || meta['type']?.stringValue !== 'authenticated') throw new ExpenseError(503, 'invalid_receipts');
         pendingReceipts.push({ name, publicId });
         if (meta['status']?.stringValue === 'active') writes.push({ update: { name, fields: { status: string('deleted'), deletedAt: { timestampValue: now }, cleanupPending: { booleanValue: true } } }, updateMask: { fieldPaths: ['status', 'deletedAt', 'cleanupPending'] } });
       }
@@ -234,6 +236,6 @@ async function cleanupReceipts(receipts: readonly { name: string; publicId: stri
       await destroyAuthenticated(receipt.publicId, env, transport);
       const url = `https://firestore.googleapis.com/v1/${receipt.name}?updateMask.fieldPaths=cleanupPending`;
       await json(await transport(url, { method: 'PATCH', headers, body: JSON.stringify({ fields: { cleanupPending: { booleanValue: false } } }) }));
-    } catch { throw new ExpenseError(503, 'media_cleanup_failed'); }
+    } catch (error) { throw new ExpenseError(503, error instanceof ProviderQuotaError ? error.message : 'media_cleanup_failed'); }
   }
 }

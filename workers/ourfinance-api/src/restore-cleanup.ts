@@ -1,4 +1,5 @@
 import { destroyAuthenticated, type CloudinaryEnv } from './cloudinary';
+import { unavailableCode } from './provider-quota';
 import { serviceAccessToken } from './service-account';
 
 export interface RestoreCleanupEnv extends CloudinaryEnv { readonly FIREBASE_PROJECT_ID: string; readonly FIREBASE_SERVICE_ACCOUNT_JSON: string }
@@ -17,7 +18,7 @@ export async function retryRestoreCleanup(uid: string, groupId: string, restoreI
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
   const read = async (path: string) => {
     const response = await transport(`https://firestore.googleapis.com/v1/${root}/${path}`, { headers });
-    if (!response.ok) throw new RestoreCleanupError(response.status === 404 ? 409 : 503, 'cleanup_unavailable');
+    if (!response.ok) throw new RestoreCleanupError(response.status === 404 ? 409 : 503, unavailableCode(response, 'cleanup_unavailable'));
     return await response.json() as { updateTime?: string; fields?: Record<string, { stringValue?: string; arrayValue?: { values?: { stringValue?: string }[] } }> };
   };
   const [group, member, job] = await Promise.all([
@@ -36,7 +37,7 @@ export async function retryRestoreCleanup(uid: string, groupId: string, restoreI
         currentDocument: { updateTime: group.updateTime },
       }] }),
     });
-    if (!response.ok) throw new RestoreCleanupError([400, 409, 412].includes(response.status) ? 409 : 503, 'cleanup_state_unavailable');
+    if (!response.ok) throw new RestoreCleanupError([400, 409, 412].includes(response.status) ? 409 : 503, unavailableCode(response, 'cleanup_state_unavailable'));
   };
   if (job.fields['status']?.stringValue === 'completed') {
     await clearPendingMarker();
@@ -47,8 +48,8 @@ export async function retryRestoreCleanup(uid: string, groupId: string, restoreI
   const currentArray = job.fields['newPublicIds']?.arrayValue;
   const old = oldArray ? (oldArray.values ?? []).map(item => item.stringValue) : null;
   const current = currentArray ? (currentArray.values ?? []).map(item => item.stringValue) : null;
-  const valid = (id: unknown): id is string => typeof id === 'string' && id.startsWith(`ourfinance-test/${groupId}/`) &&
-    /^ourfinance-test\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+\/(?:restore_[0-9a-f-]+\/)?[A-Za-z0-9_-]+$/i.test(id);
+  const valid = (id: unknown): id is string => typeof id === 'string' && id.startsWith(`${env.FIREBASE_PROJECT_ID}/${groupId}/`) &&
+    /^[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+\/(?:restore_[0-9a-f-]+\/)?[A-Za-z0-9_-]+$/i.test(id);
   if (!Array.isArray(old) || !Array.isArray(current) || old.length > 1000 || old.some(id => !valid(id)) || current.some(id => !valid(id)) ||
       old.some(id => current.includes(id))) throw new RestoreCleanupError(503, 'invalid_cleanup_journal');
   if (typeof job.updateTime !== 'string' || !job.updateTime) throw new RestoreCleanupError(503, 'invalid_cleanup_journal');
@@ -64,7 +65,7 @@ export async function retryRestoreCleanup(uid: string, groupId: string, restoreI
     ? { status: { stringValue: 'completed' }, completedAt: { timestampValue: new Date().toISOString() }, oldPublicIds: { arrayValue: { values: [] } } }
     : { oldPublicIds: { arrayValue: { values: remaining.map(publicId => ({ stringValue: publicId })) } } };
   const response = await transport(url, { method: 'PATCH', headers, body: JSON.stringify({ fields }) });
-  if (!response.ok) throw new RestoreCleanupError(response.status === 409 || response.status === 412 ? 409 : 503, 'cleanup_state_unavailable');
+  if (!response.ok) throw new RestoreCleanupError(response.status === 409 || response.status === 412 ? 409 : 503, unavailableCode(response, 'cleanup_state_unavailable'));
   if (completed) await clearPendingMarker();
   return { removed: batch.length, pending: !completed };
 }

@@ -95,9 +95,10 @@ export function serializeGroupExportV2(value: GroupExportV2): string {
       value.receiptAssets.some((row, index) => {
         const receipt = group.receipts[index];
         if (!row || row.expenseId !== receipt.expenseId || row.attachmentId !== receipt.attachmentId || typeof row.publicId !== 'string') return true;
-        const base = `ourfinance-test/${group.group.id}/${row.expenseId}/`;
-        return row.publicId !== `${base}${row.attachmentId}` &&
-          !new RegExp(`^${base}restore_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/${row.attachmentId}$`, 'i').test(row.publicId);
+        const parts = row.publicId.split('/');
+        const baseIsValid = /^[A-Za-z0-9_-]{1,128}$/.test(parts[0]) && parts[1] === group.group.id && parts[2] === row.expenseId;
+        return !baseIsValid || !((parts.length === 4 && parts[3] === row.attachmentId) ||
+          (parts.length === 5 && /^restore_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(parts[3]) && parts[4] === row.attachmentId));
       })) throw new Error('Assets des reçus invalides');
   const receiptAssets = value.receiptAssets.map(row => ({ expenseId: row.expenseId, attachmentId: row.attachmentId, publicId: row.publicId }));
   const expenseIds = new Set(group.expenses.map(row => row.id));

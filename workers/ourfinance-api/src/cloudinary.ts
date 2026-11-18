@@ -1,3 +1,5 @@
+import { isProviderQuotaStatus, ProviderQuotaError } from './provider-quota';
+
 export interface CloudinaryEnv {
   CLOUDINARY_CLOUD_NAME: string;
   CLOUDINARY_API_KEY: string;
@@ -29,7 +31,9 @@ export async function authenticatedDownloadUrl(publicId: string, format: 'jpg' |
 
 export async function uploadAuthenticated(bytes: Uint8Array, format: 'jpg' | 'png', publicId: string, env: CloudinaryEnv,
   transport: typeof fetch = fetch, overwrite = false): Promise<void> {
-  const params = { asset_folder: 'ourfinance-test', public_id: publicId, timestamp: String(Math.floor(Date.now() / 1000)), type: 'authenticated', overwrite: String(overwrite) };
+  const assetFolder = publicId.split('/')[0];
+  if (!/^[A-Za-z0-9_-]{1,128}$/.test(assetFolder)) throw new Error('Namespace Cloudinary invalide');
+  const params = { asset_folder: assetFolder, public_id: publicId, timestamp: String(Math.floor(Date.now() / 1000)), type: 'authenticated', overwrite: String(overwrite) };
   const form = new FormData();
   for (const [key, value] of Object.entries(params)) form.set(key, value);
   form.set('api_key', env.CLOUDINARY_API_KEY);
@@ -37,6 +41,7 @@ export async function uploadAuthenticated(bytes: Uint8Array, format: 'jpg' | 'pn
   const copy = new Uint8Array(bytes);
   form.set('file', new Blob([copy], { type: format === 'jpg' ? 'image/jpeg' : 'image/png' }), `receipt.${format}`);
   const response = await transport(`https://api.cloudinary.com/v1_1/${encodeURIComponent(env.CLOUDINARY_CLOUD_NAME)}/image/upload`, { method: 'POST', body: form });
+  if (isProviderQuotaStatus(response.status)) throw new ProviderQuotaError();
   if (!response.ok) throw new Error(`Upload Cloudinary refusé (${response.status})`);
   const result: unknown = await response.json();
   if (!result || typeof result !== 'object') throw new Error('Réponse Cloudinary invalide');
@@ -53,6 +58,7 @@ export async function destroyAuthenticated(publicId: string, env: CloudinaryEnv,
   form.set('api_key', env.CLOUDINARY_API_KEY);
   form.set('signature', await signCloudinary(params, env.CLOUDINARY_API_SECRET));
   const response = await transport(`https://api.cloudinary.com/v1_1/${encodeURIComponent(env.CLOUDINARY_CLOUD_NAME)}/image/destroy`, { method: 'POST', body: form });
+  if (isProviderQuotaStatus(response.status)) throw new ProviderQuotaError();
   if (!response.ok) throw new Error('Suppression Cloudinary refusée');
   const result = await response.json() as { result?: string };
   if (result.result !== 'ok' && result.result !== 'not found') throw new Error('Suppression Cloudinary non confirmée');

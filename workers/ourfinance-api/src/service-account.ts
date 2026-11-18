@@ -1,4 +1,5 @@
 import { importPKCS8, SignJWT } from 'jose';
+import { isProviderQuotaStatus, ProviderQuotaError } from './provider-quota';
 
 export interface ServiceAccount {
   readonly client_email: string;
@@ -24,6 +25,7 @@ export async function serviceAccessToken(json: string, expectedProjectId: string
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion }),
   });
+  if (isProviderQuotaStatus(response.status)) throw new ProviderQuotaError();
   if (!response.ok) throw new Error('Autorisation Google indisponible');
   const body: unknown = await response.json();
   if (!body || typeof body !== 'object' || !('access_token' in body) || typeof body.access_token !== 'string') throw new Error('Jeton Google invalide');

@@ -1,3 +1,4 @@
+import { unavailableCode } from './provider-quota';
 import type { GroupExportV2 } from '../../../src/app/features/import-export/export-v2';
 import { serviceAccessToken } from './service-account';
 import type { LiveRestoreInventory } from './restore-inventory';
@@ -44,7 +45,7 @@ export async function commitGroupRestoreV2(
   const token = await serviceAccessToken(env.FIREBASE_SERVICE_ACCOUNT_JSON, env.FIREBASE_PROJECT_ID, transport);
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
   const checked = async (response: Response) => {
-    if (!response.ok) throw new RestoreCommitError(response.status === 409 ? 409 : 503, 'firestore_unavailable');
+    if (!response.ok) throw new RestoreCommitError(response.status === 409 ? 409 : 503, unavailableCode(response, 'firestore_unavailable'));
     return await response.json() as Record<string, unknown>;
   };
   const begin = await checked(await transport(`https://firestore.googleapis.com/v1/${root}:beginTransaction`, { method: 'POST', headers, body: '{}' }));

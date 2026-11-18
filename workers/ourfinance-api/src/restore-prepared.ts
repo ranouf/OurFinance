@@ -2,6 +2,7 @@ import { sha256Hex } from '../../../src/app/features/import-export/backup-packag
 import { verifyBackupPackageV2, type BackupPackageV2 } from '../../../src/app/features/import-export/backup-package-v2';
 import type { GroupExportV2 } from '../../../src/app/features/import-export/export-v2';
 import { imageFormat, uploadAuthenticated, type CloudinaryEnv } from './cloudinary';
+import { unavailableCode } from './provider-quota';
 import { beginPreparedRestoreLock } from './restore-lock';
 import { collectLiveRestoreInventory } from './restore-inventory';
 import { commitGroupRestoreV2, readRestoreOutcome } from './restore-commit';
@@ -43,7 +44,7 @@ const idPattern = /^[A-Za-z0-9_-]{1,128}$/;
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const shaPattern = /^[0-9a-f]{64}$/;
 
-async function verifiedArchive(groupId: string, restoreId: string, archive: BackupPackageV2) {
+async function verifiedArchive(groupId: string, restoreId: string, archive: BackupPackageV2, projectId: string) {
   try { await verifyBackupPackageV2(archive); }
   catch { throw new PreparedRestoreError(400, 'invalid_backup'); }
   const backup = JSON.parse(archive.groupJson) as GroupExportV2;
@@ -51,7 +52,7 @@ async function verifiedArchive(groupId: string, restoreId: string, archive: Back
     throw new PreparedRestoreError(400, 'invalid_backup');
   }
   const manifestSha256 = await sha256Hex(new TextEncoder().encode(JSON.stringify(archive.manifest)));
-  const publicIds = archive.manifest.receipts.map(row => `ourfinance-test/${groupId}/${row.expenseId}/restore_${restoreId}/${row.attachmentId}`);
+  const publicIds = archive.manifest.receipts.map(row => `${projectId}/${groupId}/${row.expenseId}/restore_${restoreId}/${row.attachmentId}`);
   const receiptSha256 = archive.manifest.receipts.map(row => row.sha256);
   const receiptFormats = archive.manifest.receipts.map(row => row.contentType === 'image/png' ? 'png' as const : 'jpg' as const);
   return { backup, manifestSha256, publicIds, receiptSha256, receiptFormats };
@@ -60,7 +61,7 @@ async function verifiedArchive(groupId: string, restoreId: string, archive: Back
 /** Start a resumable restore without uploading any media in the lock invocation. */
 export async function prepareRestore(uid: string, groupId: string, restoreId: string, archive: BackupPackageV2,
   env: PreparedRestoreEnv, transport: typeof fetch = fetch): Promise<{ restoreId: string; expectedReceipts: number }> {
-  const checked = await verifiedArchive(groupId, restoreId, archive);
+  const checked = await verifiedArchive(groupId, restoreId, archive, env.FIREBASE_PROJECT_ID);
   try {
     await beginPreparedRestoreLock(uid, groupId, restoreId, checked.backup.group.currency, checked.publicIds,
       { manifestSha256: checked.manifestSha256, receiptSha256: checked.receiptSha256, receiptFormats: checked.receiptFormats }, env, transport);
@@ -86,7 +87,7 @@ export async function readPreparedRestoreJob(uid: string, groupId: string, resto
   const read = async (path: string, missingStatus: 403 | 409 = 409): Promise<FirestoreDocument> => {
     const response = await transport(`https://firestore.googleapis.com/v1/${root}/${path}`, { headers });
     if (!response.ok) throw new PreparedRestoreError(response.status === 404 ? missingStatus : 503,
-      response.status === 404 && missingStatus === 403 ? 'owner_required' : 'restore_unavailable');
+      response.status === 404 && missingStatus === 403 ? 'owner_required' : unavailableCode(response, 'restore_unavailable'));
     return await response.json() as FirestoreDocument;
   };
   const [group, member, job] = await Promise.all([
@@ -105,7 +106,7 @@ export async function readPreparedRestoreJob(uid: string, groupId: string, resto
   const digests = strings(jf['receiptSha256']);
   const formats = strings(jf['receiptFormats']);
   const stages = strings(jf['stagedIndices']);
-  const expected = new RegExp(`^ourfinance-test/${groupId}/[A-Za-z0-9_-]{1,128}/restore_${restoreId}/[A-Za-z0-9_-]{1,128}$`, 'i');
+  const expected = new RegExp(`^${env.FIREBASE_PROJECT_ID}/${groupId}/[A-Za-z0-9_-]{1,128}/restore_${restoreId}/[A-Za-z0-9_-]{1,128}$`, 'i');
   if (!shaPattern.test(jf['manifestSha256']?.stringValue ?? '') || !job.updateTime || ids.length > 100 ||
       ids.length !== digests.length || ids.length !== formats.length || new Set(ids).size !== ids.length ||
       ids.some(id => typeof id !== 'string' || !expected.test(id)) ||
@@ -138,7 +139,7 @@ export async function stagePreparedRestoreReceipt(uid: string, groupId: string, 
   url.searchParams.set('currentDocument.updateTime', job.updateTime);
   const response = await transport(url, { method: 'PATCH', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ fields: { stagedIndices: { arrayValue: { values: [...job.stagedIndices, index].sort((a, b) => a - b).map(value => ({ stringValue: String(value) })) } } } }) });
-  if (!response.ok) throw new PreparedRestoreError(response.status === 409 || response.status === 412 ? 409 : 503, 'stage_unavailable');
+  if (!response.ok) throw new PreparedRestoreError(response.status === 409 || response.status === 412 ? 409 : 503, unavailableCode(response, 'stage_unavailable'));
   return { staged: true };
 }
 
@@ -150,7 +151,7 @@ export async function commitPreparedRestore(uid: string, groupId: string, restor
     commit: (user, group, id, backup, live, staged) => commitGroupRestoreV2(user, group, id, backup, live, staged, env, transport),
     outcome: (user, group, id) => readRestoreOutcome(user, group, id, env, transport),
   };
-  const checked = await verifiedArchive(groupId, restoreId, archive);
+  const checked = await verifiedArchive(groupId, restoreId, archive, env.FIREBASE_PROJECT_ID);
   let job: PreparedRestoreJob;
   try { job = await readPreparedRestoreJob(uid, groupId, restoreId, env, transport); }
   catch (error) {

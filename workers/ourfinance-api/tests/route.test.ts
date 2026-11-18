@@ -28,6 +28,55 @@ test('group creation remains disabled by default even with server identity', asy
   const response = await handleRequest(new Request('https://worker.example/groups', { method: 'POST', headers: { Origin: env.ALLOWED_ORIGIN } }), { ...env, FIREBASE_SERVICE_ACCOUNT_JSON: 'configured' });
   strictEqual(response.status, 503);
 });
+test('explicit V1 mode opens privileged routes for multiple groups but still requires identity', async () => {
+  const configured = { ...env, ENABLE_API_V1: 'true', FIREBASE_SERVICE_ACCOUNT_JSON: 'configured',
+    API_RATE_LIMITER: { limit: async () => ({ success: true }) },
+    CLOUDINARY_CLOUD_NAME: 'configured', CLOUDINARY_API_KEY: 'configured', CLOUDINARY_API_SECRET: 'configured' };
+  const routes: Array<[string, string]> = [
+    ['GET', '/member-profiles'], ['GET', '/backup/restores/current'], ['POST', '/backup/preview'],
+    ['GET', '/backup/snapshot'], ['GET', '/backup/preferences'], ['POST', '/imports'],
+    ['POST', '/settlements'], ['POST', '/categories'], ['POST', '/qr-invitations'],
+    ['GET', '/qr-invitations'], ['POST', '/invitations'], ['POST', '/expenses'],
+    ['PATCH', '/currency'], ['POST', '/expenses/e/attachments'],
+  ];
+  for (const groupId of ['g1', 'g2']) {
+    for (const [method, suffix] of routes) {
+      const response = await handleRequest(new Request(`https://worker.example/groups/${groupId}${suffix}`, { method, headers: { 'CF-Connecting-IP': '203.0.113.10' } }), configured);
+      strictEqual(response.status, 401, `${method} ${groupId}${suffix}`);
+    }
+  }
+  strictEqual((await handleRequest(new Request('https://worker.example/groups', { method: 'POST', headers: { 'CF-Connecting-IP': '203.0.113.10' } }), configured)).status, 401);
+  strictEqual((await handleRequest(new Request('https://worker.example/qr-invitations/preview', { method: 'POST', headers: { 'CF-Connecting-IP': '203.0.113.10' } }), configured)).status, 401);
+});
+test('V1 limits requests by connecting IP across groups without counting health or CORS preflight', async () => {
+  const keys: string[] = [];
+  const configured = { ...env, ENABLE_API_V1: 'true', API_RATE_LIMITER: {
+    limit: async ({ key }: { key: string }) => { keys.push(key); return { success: keys.length < 2 }; },
+  } };
+  const request = (path: string) => new Request(`https://worker.example${path}`, { headers: { 'CF-Connecting-IP': '203.0.113.10' } });
+  strictEqual((await handleRequest(request('/health'), configured)).status, 200);
+  strictEqual((await handleRequest(new Request('https://worker.example/groups/g1/expenses', { method: 'OPTIONS', headers: { Origin: env.ALLOWED_ORIGIN } }), configured)).status, 204);
+  strictEqual((await handleRequest(request('/groups/g1/access'), configured)).status, 401);
+  const limited = await handleRequest(request('/groups/g2/access'), configured);
+  strictEqual(limited.status, 429);
+  strictEqual(limited.headers.get('Retry-After'), '60');
+  strictEqual((await limited.json() as { error: string }).error, 'rate_limited');
+  strictEqual(keys.join(','), '203.0.113.10,203.0.113.10');
+});
+test('V1 fails closed when rate limiting cannot be enforced', async () => {
+  const request = (ip?: string) => new Request('https://worker.example/groups/g1/access', { headers: ip ? { 'CF-Connecting-IP': ip } : {} });
+  strictEqual((await handleRequest(request('203.0.113.10'), { ...env, ENABLE_API_V1: 'true' })).status, 503);
+  const configured = { ...env, ENABLE_API_V1: 'true', API_RATE_LIMITER: { limit: async () => ({ success: true }) } };
+  strictEqual((await handleRequest(request(), configured)).status, 503);
+  strictEqual((await handleRequest(request('bad address'), configured)).status, 503);
+  strictEqual((await handleRequest(request('203.0.113.10'), { ...env, ENABLE_API_V1: 'true', API_RATE_LIMITER: { limit: async () => { throw new Error('provider down'); } } })).status, 503);
+});
+test('legacy one-group switch remains scoped when V1 mode is absent', async () => {
+  const configured = { ...env, FIREBASE_SERVICE_ACCOUNT_JSON: 'configured', ENABLE_EXPENSE_POC: 'true', EXPENSE_POC_GROUP_ID: 'g1' };
+  const forGroup = (groupId: string) => handleRequest(new Request(`https://worker.example/groups/${groupId}/expenses`, { method: 'POST' }), configured);
+  strictEqual((await forGroup('g1')).status, 401);
+  strictEqual((await forGroup('g2')).status, 503);
+});
 test('group currency change remains disabled without one explicit test group', async () => {
   const response = await handleRequest(new Request('https://worker.example/groups/g1/currency', { method: 'PATCH' }), { ...env, FIREBASE_SERVICE_ACCOUNT_JSON: 'configured' });
   strictEqual(response.status, 503);

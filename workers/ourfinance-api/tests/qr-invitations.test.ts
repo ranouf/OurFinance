@@ -54,6 +54,21 @@ test('QR invitation stores only a hash and a server-only lookup, expires after 2
   deepStrictEqual(f.rollbacks, ['synthetic-transaction']);
 });
 
+test('V1 QR invitations support two groups while preserving owner checks and isolated preview', async () => {
+  const f = await fixture();
+  const v1 = { ...f.env, QR_INVITATION_POC_GROUP_ID: undefined };
+  f.docs.set('groups/g2', { name: { stringValue: 'Other fictional group' }, currency: { stringValue: 'JPY' }, status: { stringValue: 'active' } });
+  f.docs.set('groups/g2/members/owner', { role: { stringValue: 'owner' }, status: { stringValue: 'active' } });
+  const first = await createQrInvitation({}, 'owner', 'g1', v1, f.transport);
+  const second = await createQrInvitation({}, 'owner', 'g2', v1, f.transport);
+  strictEqual((await previewQrInvitation(first.token, 'guest', 'guest@example.com', v1, f.transport)).groupName, 'Fictional group');
+  strictEqual((await previewQrInvitation(second.token, 'guest', 'guest@example.com', v1, f.transport)).groupName, 'Other fictional group');
+  await rejects(createQrInvitation({}, 'outsider', 'g2', v1, f.transport),
+    (error: unknown) => error instanceof QrInvitationError && error.code === 'owner_required');
+  await rejects(previewQrInvitation(second.token, 'guest', 'guest@example.com', f.env, f.transport),
+    (error: unknown) => error instanceof QrInvitationError && error.status === 403);
+});
+
 test('concurrent acceptance conflict rolls back without a partial membership', async () => {
   const f = await fixture();
   const created = await createQrInvitation({}, 'owner', 'g1', f.env, f.transport);

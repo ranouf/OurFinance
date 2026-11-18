@@ -57,6 +57,7 @@ test('V2 refuses a modified preference, receipt or manifest scope', async () => 
   await rejects(verifyBackupPackageV2({ ...backup, groupJson: JSON.stringify({ ...group, receiptOwners: [] }) }));
   throws(() => serializeGroupExportV2({ ...group, receiptOwners: [{ ...group.receiptOwners[0], ownerId: 'outsider' }] }));
   throws(() => serializeGroupExportV2({ ...group, receiptAssets: [{ ...group.receiptAssets[0], publicId: 'ourfinance-test/other/e/a' }] }));
+  strictEqual(JSON.parse(serializeGroupExportV2({ ...group, receiptAssets: [{ ...group.receiptAssets[0], publicId: 'ourfinance-prod/g/e/a' }] })).receiptAssets[0].publicId, 'ourfinance-prod/g/e/a');
 });
 
 test('restore preflight verifies the archived receipt and original group before any write', async () => {

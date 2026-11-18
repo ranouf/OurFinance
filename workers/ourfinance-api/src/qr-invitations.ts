@@ -1,6 +1,7 @@
+import { unavailableCode } from './provider-quota';
 import { serviceAccessToken } from './service-account';
 
-export interface QrInvitationEnv { readonly FIREBASE_PROJECT_ID: string; readonly FIREBASE_SERVICE_ACCOUNT_JSON: string; readonly QR_INVITATION_POC_GROUP_ID: string; }
+export interface QrInvitationEnv { readonly FIREBASE_PROJECT_ID: string; readonly FIREBASE_SERVICE_ACCOUNT_JSON: string; readonly QR_INVITATION_POC_GROUP_ID?: string; }
 export class QrInvitationError extends Error {
   constructor(readonly status: 400 | 403 | 409 | 503, readonly code: string) { super(code); }
 }
@@ -34,19 +35,19 @@ async function store(env: QrInvitationEnv, transport: typeof fetch) {
     const query = transaction ? `?transaction=${encodeURIComponent(transaction)}` : '';
     const response = await transport(`https://firestore.googleapis.com/v1/${root}/${path}${query}`, { headers });
     if (response.status === 404) return null;
-    if (!response.ok) throw new QrInvitationError(503, 'firestore_unavailable');
+    if (!response.ok) throw new QrInvitationError(503, unavailableCode(response, 'firestore_unavailable'));
     return await response.json() as Record<string, unknown>;
   };
   const begin = async (): Promise<string> => {
     const response = await transport(`https://firestore.googleapis.com/v1/${root}:beginTransaction`, { method: 'POST', headers, body: '{}' });
-    if (!response.ok) throw new QrInvitationError(503, 'transaction_unavailable');
+    if (!response.ok) throw new QrInvitationError(503, unavailableCode(response, 'transaction_unavailable'));
     const body = await response.json() as { transaction?: string };
     if (!body.transaction) throw new QrInvitationError(503, 'transaction_unavailable');
     return body.transaction;
   };
   const commit = async (transaction: string, writes: unknown[]) => {
     const response = await transport(`https://firestore.googleapis.com/v1/${root}:commit`, { method: 'POST', headers, body: JSON.stringify({ transaction, writes }) });
-    if (!response.ok) throw new QrInvitationError(response.status === 409 ? 409 : 503, response.status === 409 ? 'conflict' : 'firestore_unavailable');
+    if (!response.ok) throw new QrInvitationError(response.status === 409 ? 409 : 503, response.status === 409 ? 'conflict' : unavailableCode(response, 'firestore_unavailable'));
   };
   const rollback = async (transaction: string) => {
     await transport(`https://firestore.googleapis.com/v1/${root}:rollback`, { method: 'POST', headers, body: JSON.stringify({ transaction }) });
@@ -70,7 +71,7 @@ async function resolvedInvitation(db: Awaited<ReturnType<typeof store>>, token: 
   const groupId = value(lookup, 'groupId');
   const invitationId = value(lookup, 'invitationId');
   if (!groupId || !invitationId || !idPattern.test(groupId) || !idPattern.test(invitationId)) throw new QrInvitationError(403, 'invitation_unavailable');
-  if (groupId !== db.allowedGroupId) throw new QrInvitationError(403, 'invitation_unavailable');
+  if (db.allowedGroupId && groupId !== db.allowedGroupId) throw new QrInvitationError(403, 'invitation_unavailable');
   const group = await db.read(`groups/${groupId}`, transaction);
   const invitation = await db.read(`groups/${groupId}/invitations/${invitationId}`, transaction);
   if (value(group, 'status') !== 'active' || value(invitation, 'status') !== 'active' || value(invitation, 'tokenHash') !== hash) throw new QrInvitationError(403, 'invitation_unavailable');
@@ -82,7 +83,7 @@ async function resolvedInvitation(db: Awaited<ReturnType<typeof store>>, token: 
 /** The URL contains only a random 256-bit token; the group lookup is server-only. */
 export async function createQrInvitation(input: unknown, uid: string, groupId: string, env: QrInvitationEnv, transport: typeof fetch = fetch) {
   if (!idPattern.test(uid) || !idPattern.test(groupId) || !input || typeof input !== 'object') throw new QrInvitationError(400, 'invalid_invitation');
-  if (groupId !== env.QR_INVITATION_POC_GROUP_ID) throw new QrInvitationError(403, 'invitation_unavailable');
+  if (env.QR_INVITATION_POC_GROUP_ID && groupId !== env.QR_INVITATION_POC_GROUP_ID) throw new QrInvitationError(403, 'invitation_unavailable');
   const target = emailTarget((input as Record<string, unknown>)['targetEmail']);
   const bytes = crypto.getRandomValues(new Uint8Array(32));
   const token = btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -141,7 +142,7 @@ export async function acceptQrInvitation(token: unknown, uid: string, email: str
 
 export async function revokeQrInvitation(invitationId: string, uid: string, groupId: string, env: QrInvitationEnv, transport: typeof fetch = fetch): Promise<void> {
   if (![invitationId, uid, groupId].every(id => idPattern.test(id))) throw new QrInvitationError(400, 'invalid_invitation');
-  if (groupId !== env.QR_INVITATION_POC_GROUP_ID) throw new QrInvitationError(403, 'invitation_unavailable');
+  if (env.QR_INVITATION_POC_GROUP_ID && groupId !== env.QR_INVITATION_POC_GROUP_ID) throw new QrInvitationError(403, 'invitation_unavailable');
   const db = await store(env, transport);
   await withTransaction(db, async transaction => {
     const group = await db.read(`groups/${groupId}`, transaction);
@@ -160,7 +161,7 @@ export async function revokeQrInvitation(invitationId: string, uid: string, grou
 
 export async function listQrInvitations(groupId: string, uid: string, env: QrInvitationEnv, pageToken = '', transport: typeof fetch = fetch) {
   if (![groupId, uid].every(id => idPattern.test(id)) || pageToken.length > 1024) throw new QrInvitationError(400, 'invalid_invitation');
-  if (groupId !== env.QR_INVITATION_POC_GROUP_ID) throw new QrInvitationError(403, 'invitation_unavailable');
+  if (env.QR_INVITATION_POC_GROUP_ID && groupId !== env.QR_INVITATION_POC_GROUP_ID) throw new QrInvitationError(403, 'invitation_unavailable');
   const db = await store(env, transport);
   const group = await db.read(`groups/${groupId}`);
   const owner = await db.read(`groups/${groupId}/members/${uid}`);
@@ -170,7 +171,7 @@ export async function listQrInvitations(groupId: string, uid: string, env: QrInv
   url.searchParams.set('pageSize', '20');
   if (pageToken) url.searchParams.set('pageToken', pageToken);
   const response = await transport(url.toString(), { headers: { Authorization: `Bearer ${access}` } });
-  if (!response.ok) throw new QrInvitationError(503, 'firestore_unavailable');
+  if (!response.ok) throw new QrInvitationError(503, unavailableCode(response, 'firestore_unavailable'));
   const body = await response.json() as { documents?: Array<Record<string, unknown>>; nextPageToken?: string };
   // Owner-listing provides bounded, opportunistic cleanup without a scheduled
   // service. A transaction rechecks ownership and expiry before removing the

@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import { strictEqual, throws, rejects } from 'node:assert';
 import { createHash } from 'node:crypto';
-import { authenticatedDownloadUrl, imageFormat, signCloudinary, uploadAuthenticated } from '../src/cloudinary';
+import { authenticatedDownloadUrl, destroyAuthenticated, imageFormat, signCloudinary, uploadAuthenticated } from '../src/cloudinary';
+import { ProviderQuotaError } from '../src/provider-quota';
 import { handleRequest } from '../src/index';
 const env = { CLOUDINARY_CLOUD_NAME: 'test-cloud', CLOUDINARY_API_KEY: 'key', CLOUDINARY_API_SECRET: 'secret' };
 test('Cloudinary signature uses sorted non-secret parameters and SHA-1', async () => {
@@ -35,6 +36,24 @@ test('upload requests authenticated delivery type and validates response', async
     return Response.json({ public_id: 'ourfinance-test/g/e/a', type: 'authenticated', resource_type: 'image', format: 'png' });
   };
   await uploadAuthenticated(png, 'png', 'ourfinance-test/g/e/a', env, transport as typeof fetch);
+});
+test('Cloudinary quota refusals expose only a fixed public error', async () => {
+  const png = new Uint8Array([137,80,78,71,13,10,26,10,0,0,0,0,0,0,0,0]);
+  const limited = async () => Response.json({ error: { message: 'private upstream detail' } }, { status: 429 });
+  await rejects(uploadAuthenticated(png, 'png', 'ourfinance-test/g/e/a', env, limited as typeof fetch),
+    (error: unknown) => error instanceof ProviderQuotaError && error.message === 'provider_quota_exceeded');
+  await rejects(destroyAuthenticated('ourfinance-test/g/e/a', env, limited as typeof fetch),
+    (error: unknown) => error instanceof ProviderQuotaError && error.message === 'provider_quota_exceeded');
+});
+test('upload places another project in its own Cloudinary folder', async () => {
+  const png = new Uint8Array([137,80,78,71,13,10,26,10,0,0,0,0,0,0,0,0]);
+  const transport = async (_input: string | URL | Request, init?: RequestInit) => {
+    const form = init?.body as FormData;
+    strictEqual(form.get('asset_folder'), 'ourfinance-prod');
+    strictEqual(form.get('public_id'), 'ourfinance-prod/g/e/a');
+    return Response.json({ public_id: 'ourfinance-prod/g/e/a', type: 'authenticated', resource_type: 'image', format: 'png' });
+  };
+  await uploadAuthenticated(png, 'png', 'ourfinance-prod/g/e/a', env, transport as typeof fetch);
 });
 test('failed metadata persistence can remove authenticated upload', async () => {
   const { destroyAuthenticated } = await import('../src/cloudinary');

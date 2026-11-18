@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import { rejects, strictEqual } from 'node:assert';
 import { listExpenseDescendants } from '../src/firestore-descendants';
+import { ProviderQuotaError } from '../src/provider-quota';
 
 const root = 'projects/ourfinance-test/databases/(default)/documents';
 
@@ -30,4 +31,9 @@ test('descendant query refuses a result outside the selected group and a volume 
     name: `${root}/groups/g/expenses/e/attachments/a${index}`,
   } })));
   await rejects(listExpenseDescendants(root, 'g', 'attachments', 'txn', {}, overflowing as typeof fetch, 1), /inventory_too_large/);
+});
+
+test('descendant query preserves a Firestore quota refusal', async () => {
+  const quota = async () => new Response('private upstream details', { status: 429 });
+  await rejects(listExpenseDescendants(root, 'g', 'comments', 'txn', {}, quota as typeof fetch), ProviderQuotaError);
 });

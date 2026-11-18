@@ -5,6 +5,7 @@ import { collectLiveRestoreInventory, type LiveRestoreInventory } from './restor
 import { stageRestoreReceipts, type RestoreReceiptBytes, type StagedRestoreReceipt } from './restore-media';
 import { commitGroupRestoreV2, readRestoreOutcome } from './restore-commit';
 import { retryRestoreCleanup, type RestoreCleanupResult } from './restore-cleanup';
+import { ProviderQuotaError } from './provider-quota';
 
 export interface RestoreEnv {
   readonly FIREBASE_PROJECT_ID: string; readonly FIREBASE_SERVICE_ACCOUNT_JSON: string;
@@ -13,7 +14,7 @@ export interface RestoreEnv {
 export interface RestoreResult { readonly restoreId: string; readonly cleanupPending: boolean }
 export type RestoreStage = 'lock' | 'media' | 'inventory' | 'commit' | 'abort';
 export class RestoreOrchestrationError extends Error {
-  constructor(readonly code: 'recovery_required' | 'invalid_backup' | 'restore_failed', options?: ErrorOptions,
+  constructor(readonly code: 'recovery_required' | 'invalid_backup' | 'restore_failed' | 'provider_quota_exceeded', options?: ErrorOptions,
     readonly stage?: RestoreStage) { super(code, options); }
 }
 
@@ -40,7 +41,7 @@ export async function restoreGroupFromPackage(
     expenseId: archive.manifest.receipts[index].expenseId, attachmentId: archive.manifest.receipts[index].attachmentId,
     format: item.contentType === 'image/png' ? 'png' as const : 'jpg' as const, bytes: item.bytes,
   }));
-  const expectedPublicIds = receipts.map(row => `ourfinance-test/${groupId}/${row.expenseId}/restore_${restoreId}/${row.attachmentId}`);
+  const expectedPublicIds = receipts.map(row => `${env.FIREBASE_PROJECT_ID}/${groupId}/${row.expenseId}/restore_${restoreId}/${row.attachmentId}`);
   const operations: RestoreOperations = override ?? {
     begin: (user, group, id, currency, ids) => beginRestoreLock(user, group, id, currency, ids, env, transport),
     abort: (user, group, id) => abortRestoreLock(user, group, id, env, transport),
@@ -85,6 +86,7 @@ export async function restoreGroupFromPackage(
       } catch { throw new RestoreOrchestrationError('recovery_required', { cause: error }, 'abort'); }
     }
     if (error instanceof RestoreOrchestrationError) throw error;
-    throw new RestoreOrchestrationError('restore_failed', { cause: error }, stage);
+    const quota = error instanceof ProviderQuotaError || (error instanceof Error && 'code' in error && error.code === 'provider_quota_exceeded');
+    throw new RestoreOrchestrationError(quota ? 'provider_quota_exceeded' : 'restore_failed', { cause: error }, stage);
   }
 }
