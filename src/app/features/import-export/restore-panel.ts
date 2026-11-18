@@ -8,6 +8,7 @@ import { decodeBackupZipV2 } from './backup-zip-read';
 import { FirebaseExportReader } from './export-collector';
 import { restoreFailure, type RestoreFailureMessage } from './restore-failure';
 import { preflightBackupRestoreV2, type RestorePreflightV2 } from './restore-preflight-v2';
+import { RestoreService } from './restore-service';
 
 interface RestoreDiffCounts { readonly create: number; readonly replace: number; readonly delete: number }
 
@@ -146,14 +147,7 @@ export class RestorePanel {
         memberIds: members.map(member => member.id),
         memberStatuses: Object.fromEntries(members.map(member => [member.id, member.data['status']])) as Record<string, 'active' | 'revoked'>,
       });
-      const previewUrl = new URL(`/groups/${encodeURIComponent(group.id)}/backup/preview`, this.workerUrl);
-      if (previewUrl.protocol !== 'https:') throw new Error('insecure_url');
-      const copy = new Uint8Array(bytes.byteLength);
-      copy.set(bytes);
-      const response = await fetch(previewUrl, {
-        method: 'POST', headers: { Authorization: `Bearer ${await user.getIdToken()}`, 'Content-Type': 'application/zip' },
-        body: copy.buffer, cache: 'no-store',
-      });
+      const response = await new RestoreService(this.workerUrl).preview(user, group.id, bytes);
       if (!response.ok) throw new Error(await restoreFailure(response, false));
       const changes = await response.json() as RestoreDiffCounts;
       if (![changes.create, changes.replace, changes.delete].every(value => Number.isSafeInteger(value) && value >= 0)) throw new Error('invalid_preview');
@@ -185,36 +179,28 @@ export class RestorePanel {
     this.attemptId.set(restoreId);
     this.attemptGroupId = group.id;
     try {
-      const url = new URL(`/groups/${encodeURIComponent(group.id)}/backup/restores/${restoreId}`, this.workerUrl);
-      if (url.protocol !== 'https:') throw new Error('insecure_url');
+      const service = new RestoreService(this.workerUrl);
       const token = await user.getIdToken();
-      const sendZip = async (path: string): Promise<Response> => {
-        const copy = new Uint8Array(archive.byteLength);
-        copy.set(archive);
-        return fetch(new URL(path, url), { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/zip' },
-          body: copy.buffer, cache: 'no-store' });
-      };
+      const sendZip = (step: 'restore' | 'prepare' | 'commit'): Promise<Response> =>
+        service.postArchive(token, group.id, restoreId, step, archive);
       const contents = await decodeBackupZipV2(archive);
       let response: Response;
       if (contents.receipts.length > 25) {
         if (this.preparedAttemptId !== restoreId && this.commitAttemptId !== restoreId) {
-          const prepared = await sendZip(`${url.pathname}/prepare`);
+          const prepared = await sendZip('prepare');
           if (prepared.status !== 201) throw new Error(await restoreFailure(prepared, true));
           this.preparedAttemptId = restoreId;
         }
         if (this.commitAttemptId !== restoreId) {
           for (const [index, receipt] of contents.receipts.entries()) {
-            const copy = new Uint8Array(receipt.bytes.byteLength);
-            copy.set(receipt.bytes);
-            const staged = await fetch(new URL(`${url.pathname}/receipts/${index}`, url), { method: 'POST',
-              headers: { Authorization: `Bearer ${token}`, 'Content-Type': receipt.contentType }, body: copy.buffer, cache: 'no-store' });
+            const staged = await service.stageReceipt(token, group.id, restoreId, index, receipt.contentType, receipt.bytes);
             if (!staged.ok) throw new Error(await restoreFailure(staged, true));
           }
           this.commitAttemptId = restoreId;
         }
-        response = await sendZip(`${url.pathname}/commit`);
+        response = await sendZip('commit');
       } else {
-        response = await sendZip(url.pathname);
+        response = await sendZip('restore');
       }
       if (response.status === 200 || response.status === 202) {
         this.clearPreview();
@@ -243,11 +229,10 @@ export class RestorePanel {
         (this.message() !== 'restoreCleanupPending' && this.message() !== 'restoreCleanupQuota')) return;
     this.busy.set(true);
     try {
-      const url = new URL(`/groups/${encodeURIComponent(groupId)}/backup/restores/${restoreId}/cleanup`, this.workerUrl);
-      if (url.protocol !== 'https:') throw new Error('insecure_url');
+      const service = new RestoreService(this.workerUrl);
       const token = await user.getIdToken();
       for (let index = 0; index < 50; index++) {
-        const response = await fetch(url, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
+        const response = await service.cleanup(token, groupId, restoreId);
         if (response.status === 204) { this.message.set('restoreDone'); return; }
         if (response.status !== 202) {
           const failure = await restoreFailure(response, false);
