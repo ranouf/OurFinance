@@ -169,7 +169,7 @@ export class ImportPanel {
           await service.create(this.user, batch);
           for (const record of batch.body.records) this.existingSourceIds.add(record.sourceId);
         }
-        this.message.set('importedOk'); this.clearPreview(); await this.refreshBatches();
+        await this.refreshAfterImport();
       } catch { await this.loadGroup(); if (this.message() !== 'unavailable') this.message.set('importFailed'); }
       finally { this.busy.set(false); }
       return;
@@ -186,7 +186,7 @@ export class ImportPanel {
         await service.create(this.user, batch);
         for (const record of preview.records) this.existingSourceIds.add(record.sourceId);
       }
-      this.message.set('importedOk'); this.clearPreview(); await this.refreshBatches();
+      await this.refreshAfterImport();
     } catch { this.message.set('importFailed'); await this.refreshBatches().catch(() => {}); }
     finally { this.busy.set(false); }
   }
@@ -222,6 +222,12 @@ export class ImportPanel {
     try { await new ImportService(this.workerUrl).undo(this.user, this.groupId, batchId); this.undoConfirmId.set(''); await this.loadGroup(); if (this.message() !== 'unavailable') this.message.set('undone'); }
     catch { this.message.set('undoFailed'); }
     finally { this.busy.set(false); }
+  }
+
+  private async refreshAfterImport(): Promise<void> {
+    this.clearPreview();
+    try { await this.refreshBatches(); this.message.set('importedOk'); }
+    catch { this.message.set('importedRefreshFailed'); }
   }
 
   private async refreshBatches(): Promise<void> {
