@@ -51,7 +51,7 @@ jobs:
               [.workflow_runs[] | select(.head_sha == $sha and .path == ".github/workflows/pr-validation.yml")]
               | first | .conclusion == "success"
             ' >/dev/null
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.sha }}
           fetch-depth: 0
@@ -65,7 +65,7 @@ jobs:
           test -f firestore.rules
           test -f firestore.indexes.json
           jq -e '.indexes | type == "array"' firestore.indexes.json >/dev/null
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '24'
           cache: npm
