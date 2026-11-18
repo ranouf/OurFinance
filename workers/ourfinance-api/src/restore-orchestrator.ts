@@ -82,7 +82,7 @@ export async function restoreGroupFromPackage(
       try {
         await operations.abort(uid, groupId, restoreId);
         const result = await operations.cleanup(uid, groupId, restoreId);
-        if (result.pending) throw new Error('Nettoyage différé');
+        if (result.pending) throw new Error('Nettoyage différé', { cause: error });
       } catch { throw new RestoreOrchestrationError('recovery_required', { cause: error }, 'abort'); }
     }
     if (error instanceof RestoreOrchestrationError) throw error;
