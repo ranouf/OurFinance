@@ -19,7 +19,7 @@ import { settlementMessage, settlementText } from './settlement-text';
       <p class="mt-1 text-sm text-pop-muted">{{ text('intro') }}</p>
       <form class="mt-5 space-y-4" (ngSubmit)="save()">
         <label class="block text-sm font-bold">{{ t('group') }}
-          <select class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="settlementGroup" [(ngModel)]="selectedGroupId" (ngModelChange)="loadMembers()" required>
+          <select class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="settlementGroup" [(ngModel)]="selectedGroupId" (ngModelChange)="onGroupChange()" required>
             <option value="">{{ t('chooseGroup') }}</option>
             @for (group of groups; track group.id) { <option [value]="group.id">{{ group.name }}</option> }
           </select>
@@ -51,7 +51,9 @@ import { settlementMessage, settlementText } from './settlement-text';
 })
 export class SettlementForm implements OnChanges {
   @Output() readonly saved = new EventEmitter<void>();
+  @Output() readonly groupChange = new EventEmitter<string>();
   @Input({ required: true }) groups: Group[] = [];
+  @Input() preferredGroupId = '';
   @Input({ required: true }) user?: User;
   @Input({ required: true }) firebaseApp?: FirebaseApp;
   @Input({ required: true }) workerUrl?: string;
@@ -79,11 +81,17 @@ export class SettlementForm implements OnChanges {
       this.expenseService = new ExpenseService(this.firebaseApp, this.workerUrl);
       this.settlementService = new SettlementService(this.firebaseApp, this.workerUrl);
     }
+    if (this.selectedGroupId !== this.preferredGroupId && (!this.preferredGroupId || this.groups.some(group => group.id === this.preferredGroupId))) {
+      this.selectedGroupId = this.preferredGroupId;
+      void this.loadMembers();
+    }
   }
+
+  onGroupChange(): void { this.groupChange.emit(this.selectedGroupId); void this.loadMembers(); }
 
   async loadMembers(): Promise<void> {
     const groupId = this.selectedGroupId;
-    this.recipients.set([]); this.recipientId = ''; this.message.set('');
+    this.recipients.set([]); this.recipientId = ''; this.amount = ''; this.message.set('');
     this.pendingKey = undefined; this.pendingBody = undefined;
     const group = this.groups.find(item => item.id === groupId);
     if (!group || !this.expenseService || !this.user) return;
@@ -93,7 +101,7 @@ export class SettlementForm implements OnChanges {
       if (this.selectedGroupId !== groupId) return;
       this.recipients.set(members.filter(member => member.status === 'active' && member.userId !== this.user?.uid));
       this.changeDetector.markForCheck();
-    } catch { this.message.set('Membres indisponibles.'); }
+    } catch { if (this.selectedGroupId === groupId) this.message.set('Membres indisponibles.'); }
   }
 
   async save(): Promise<void> {

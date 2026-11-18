@@ -1,4 +1,4 @@
-import { Component, Input, OnChanges, SimpleChanges, signal } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { FirebaseApp } from 'firebase/app';
 import type { User } from 'firebase/auth';
@@ -16,7 +16,7 @@ import { locale, t } from '../../shared/utils/i18n';
       <div class="mb-5 h-1.5 w-14 rounded-full bg-pop-sun" aria-hidden="true"></div>
       <h2 class="text-2xl font-extrabold tracking-tight">{{ t('settlementHistory') }}</h2>
       <label class="mt-5 block text-sm font-bold">{{ t('group') }}
-        <select class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="settlementHistoryGroup" [(ngModel)]="selectedGroupId" (ngModelChange)="refresh()">
+        <select class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="settlementHistoryGroup" [(ngModel)]="selectedGroupId" (ngModelChange)="onGroupChange()">
           <option value="">{{ t('chooseGroup') }}</option>
           @for (group of groups; track group.id) { <option [value]="group.id">{{ group.name }}</option> }
         </select>
@@ -40,7 +40,9 @@ import { locale, t } from '../../shared/utils/i18n';
   `,
 })
 export class SettlementHistory implements OnChanges {
+  @Output() readonly groupChange = new EventEmitter<string>();
   @Input({ required: true }) groups: Group[] = [];
+  @Input() preferredGroupId = '';
   @Input({ required: true }) firebaseApp?: FirebaseApp;
   @Input({ required: true }) user?: User;
   @Input({ required: true }) workerUrl?: string;
@@ -57,8 +59,13 @@ export class SettlementHistory implements OnChanges {
 
   ngOnChanges(changes: SimpleChanges): void {
     if (this.firebaseApp && this.workerUrl) this.service = new SettlementService(this.firebaseApp, this.workerUrl);
+    if (this.selectedGroupId !== this.preferredGroupId && (!this.preferredGroupId || this.groups.some(group => group.id === this.preferredGroupId))) {
+      this.selectedGroupId = this.preferredGroupId;
+      void this.refresh();
+    }
     if (changes['revision'] && !changes['revision'].firstChange && this.selectedGroupId) void this.refresh();
   }
+  onGroupChange(): void { this.groupChange.emit(this.selectedGroupId); void this.refresh(); }
   amount(entry: SettlementHistoryEntry): string { return formatMinor(entry.amountMinor, entry.currency, locale()); }
   displayDate(value: string): string { return new Intl.DateTimeFormat(locale(), { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date(`${value}T00:00:00Z`)); }
   memberLabel(userId: string): string { return userId === this.user?.uid ? t('me') : `${t('otherMember')} ${userId.slice(0, 8)}`; }
