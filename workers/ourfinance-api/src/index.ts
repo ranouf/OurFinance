@@ -32,6 +32,7 @@ export interface Env extends Partial<CloudinaryEnv> {
   ALLOWED_PREVIEW_ORIGIN?: string;
   FIREBASE_SERVICE_ACCOUNT_JSON?: string;
   ENABLE_API_V1?: string;
+  API_RATE_LIMITER?: { limit(input: { key: string }): Promise<{ success: boolean }> };
   ENABLE_GROUP_CREATION?: string;
   ENABLE_GROUP_CURRENCY_POC?: string;
   GROUP_CURRENCY_POC_GROUP_ID?: string;
@@ -81,6 +82,22 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
   }
   const url = new URL(request.url);
   if (url.pathname === '/health' && request.method === 'GET') return new Response(JSON.stringify({ status: 'ok' }), { headers });
+  if (env.ENABLE_API_V1 === 'true') {
+    const clientIp = request.headers.get('CF-Connecting-IP');
+    if (!env.API_RATE_LIMITER || !clientIp || !/^[0-9a-fA-F:.]{2,45}$/.test(clientIp))
+      return new Response(JSON.stringify({ error: 'rate_limit_unavailable' }), { status: 503, headers });
+    try {
+      const result = await env.API_RATE_LIMITER.limit({ key: clientIp });
+      if (typeof result?.success !== 'boolean')
+        return new Response(JSON.stringify({ error: 'rate_limit_unavailable' }), { status: 503, headers });
+      if (!result.success) {
+        headers.set('Retry-After', '60');
+        return new Response(JSON.stringify({ error: 'rate_limited' }), { status: 429, headers });
+      }
+    } catch {
+      return new Response(JSON.stringify({ error: 'rate_limit_unavailable' }), { status: 503, headers });
+    }
+  }
   const memberProfilesMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/member-profiles$/.exec(url.pathname);
   if (memberProfilesMatch && request.method === 'GET') {
     const groupId = memberProfilesMatch[1];
