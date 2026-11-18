@@ -117,3 +117,28 @@ test('server snapshot builder refuses a receipt replaced after the JSON snapshot
     : new Response(new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 0, 0, 0, 0, 0]), { headers: { 'Content-Type': 'image/png' } });
   await rejects(buildBackupPackageV2FromServerSnapshot(reader, user, 'g', 'https://worker.example', transport as typeof fetch));
 });
+
+test('server snapshot requires verified owner, HTTPS and transactional provenance', async () => {
+  const withoutReceipts = { ...group, receipts: [], receiptOwners: [], receiptAssets: [] };
+  const reader = { read: async () => ({ id: 'alice', data: { status: 'active' } }), list: async () => [] };
+  const user = { uid: 'alice', emailVerified: true, getIdToken: async () => 'synthetic-token' };
+  let requests = 0;
+  const transport = (async () => { requests++; return new Response(serializeGroupExportV2(withoutReceipts)); }) as typeof fetch;
+  await rejects(buildBackupPackageV2FromServerSnapshot(reader, { ...user, emailVerified: false }, 'g', 'https://worker.example', transport), /non autorisée/);
+  await rejects(buildBackupPackageV2FromServerSnapshot(reader, user, 'g', 'http://worker.example', transport), /non sécurisée/);
+  strictEqual(requests, 0);
+  await rejects(buildBackupPackageV2FromServerSnapshot(reader, user, 'g', 'https://worker.example',
+    (async () => Response.json({}, { status: 503 })) as typeof fetch), /HTTP 503/);
+  const nonTransactional = { ...withoutReceipts, snapshotMode: 'client_reads' };
+  await rejects(buildBackupPackageV2FromServerSnapshot(reader, user, 'g', 'https://worker.example',
+    (async () => new Response(JSON.stringify(nonTransactional))) as typeof fetch), /Instantané serveur requis/);
+});
+
+test('server snapshot refuses another group and a membership revoked after reading', async () => {
+  const withoutReceipts = { ...group, receipts: [], receiptOwners: [], receiptAssets: [] };
+  const user = { uid: 'alice', emailVerified: true, getIdToken: async () => 'synthetic-token' };
+  const transport = (async () => new Response(serializeGroupExportV2(withoutReceipts))) as typeof fetch;
+  const reader = { read: async () => ({ id: 'alice', data: { status: 'revoked' } }), list: async () => [] };
+  await rejects(buildBackupPackageV2FromServerSnapshot(reader, user, 'other', 'https://worker.example', transport), /Groupe de sauvegarde différent/);
+  await rejects(buildBackupPackageV2FromServerSnapshot(reader, user, 'g', 'https://worker.example', transport), /Membre révoqué/);
+});
