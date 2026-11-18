@@ -89,6 +89,19 @@ test('create and mutate send verified identity, group scope and request body to 
   ]);
 });
 
+test('default transport calls fetch without binding the service as receiver', async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  let receiver: unknown;
+  globalThis.fetch = (async function (this: unknown) {
+    receiver = this;
+    return Response.json({ expenseId: 'expense-1' });
+  }) as typeof fetch;
+  const service = new ExpenseService(app, 'https://worker.example', fixture().repository);
+  strictEqual(await service.create(user, 'group-a', { description: 'Fictif' }), 'expense-1');
+  strictEqual(receiver instanceof ExpenseService, false);
+});
+
 test('unverified users, insecure Worker, disabled route and malformed success cannot create a row', async () => {
   const f = fixture();
   await rejects(f.service.create({ ...user, emailVerified: false } as User, 'group-a', {}), /courriel/);
