@@ -26,6 +26,7 @@ import { commitPreparedRestore, prepareRestore, PreparedRestoreError, stagePrepa
 import { listSharedMemberProfiles, MemberProfileError } from './member-profiles';
 import { ProviderQuotaError } from './provider-quota';
 import { readCurrentRestore, RestoreCurrentError } from './restore-current';
+import { RestoreCommitError } from './restore-commit';
 
 export interface Env extends Partial<CloudinaryEnv> {
   FIREBASE_PROJECT_ID: string;
@@ -205,6 +206,9 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       return new Response(JSON.stringify(result), { status: result.cleanupPending ? 202 : 200, headers });
     } catch (error) {
       if (error instanceof ProviderQuotaError) return new Response(JSON.stringify({ error: error.message }), { status: 503, headers });
+      if ((error instanceof RestoreCommitError || error instanceof RestoreInventoryError) && error.code === 'provider_quota_exceeded') {
+        return new Response(JSON.stringify({ error: error.code }), { status: 503, headers });
+      }
       const status = error instanceof PreparedRestoreError || error instanceof RestoreLockError ? error.status : error instanceof RequestBodyError ? 413 : 503;
       const code = error instanceof PreparedRestoreError || error instanceof RestoreLockError ? error.code : error instanceof RequestBodyError ? 'body_too_large' : 'restore_unavailable';
       return new Response(JSON.stringify({ error: code }), { status, headers });
