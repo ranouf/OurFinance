@@ -90,7 +90,10 @@ export async function collectGroupExportV1(reader: ExportReader, user: Pick<User
   const receiptPages = await Promise.all(expenses.map(expense => reader.list(`${root}/expenses/${expense.id}/attachments`)));
   const body: GroupExportV1 = {
     format: 'OurFinanceGroupExport', version: 1, exportedAt,
-    group: { id: groupId, name: text(group.data, 'name'), currency: text(group.data, typeof group.data['currencyCode'] === 'string' ? 'currencyCode' : 'currency') },
+    group: { id: groupId, name: text(group.data, 'name'), currency: text(group.data, typeof group.data['currencyCode'] === 'string' ? 'currencyCode' : 'currency'),
+      ...(typeof group.data['iconId'] === 'string' ? { iconId: group.data['iconId'] } : {}),
+      ...(typeof group.data['color'] === 'string' ? { color: group.data['color'] } : {}),
+      ...(typeof group.data['description'] === 'string' ? { description: group.data['description'] } : {}) },
     members: members.map(item => ({ userId: item.id, role: text(item.data, 'role') as 'owner' | 'member', status: text(item.data, 'status') as 'active' | 'revoked' })),
     expenses: expenses.map(item => ({
       id: item.id, date: text(item.data, 'date'), description: text(item.data, 'description'), currency: text(item.data, 'currency'), amountMinor: integer(item.data, 'amountMinor'),

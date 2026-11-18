@@ -2,6 +2,9 @@
 export interface Group {
   readonly id: string;
   readonly name: string;
+  readonly iconId?: string;
+  readonly color?: string;
+  readonly description?: string;
   readonly currency: string;
   readonly ownerId: string;
   readonly currencyLocked?: boolean;

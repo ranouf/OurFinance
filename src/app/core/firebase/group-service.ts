@@ -14,6 +14,7 @@ import {
   type QuerySnapshot,
 } from 'firebase/firestore';
 import { Group, GroupMember } from './group-model';
+import type { GroupMetadata } from './group-metadata';
 
 export interface GroupRepository {
   memberships(app: FirebaseApp, uid: string): Promise<readonly string[]>;
@@ -54,6 +55,9 @@ export class GroupService {
           const group: Group = {
             id: snapshot.id,
             name: data['name'],
+            ...(typeof data['iconId'] === 'string' ? { iconId: data['iconId'] } : {}),
+            ...(typeof data['color'] === 'string' ? { color: data['color'] } : {}),
+            ...(typeof data['description'] === 'string' ? { description: data['description'] } : {}),
             currency,
             ownerId: String(data['ownerId'] ?? ''),
             currencyLocked: data['currencyLockedAt'] != null,
@@ -74,7 +78,7 @@ export class GroupService {
     return groups.filter((group): group is Group => group !== null);
   }
 
-  async create(user: User, name: string, currency: string): Promise<string> {
+  async create(user: User, name: string, currency: string, metadata: Pick<GroupMetadata, 'iconId' | 'color' | 'description'> = {}): Promise<string> {
     if (!user.emailVerified || !this.workerUrl) throw new Error('Création indisponible');
     const url = new URL('/groups', this.workerUrl);
     if (url.protocol !== 'https:') throw new Error('URL Worker non sécurisée');
@@ -84,12 +88,23 @@ export class GroupService {
         Authorization: `Bearer ${await user.getIdToken()}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ name, currency }),
+      body: JSON.stringify({ name, currency, ...metadata }),
     });
     if (!response.ok) throw new Error('Création impossible');
     const result = (await response.json()) as { groupId?: string };
     if (!result.groupId) throw new Error('Réponse Worker invalide');
     return result.groupId;
+  }
+
+  async updateMetadata(user: User, groupId: string, metadata: GroupMetadata): Promise<void> {
+    if (!user.emailVerified || !this.workerUrl || !/^[A-Za-z0-9_-]{1,128}$/.test(groupId)) throw new Error('Modification indisponible');
+    const url = new URL(`/groups/${encodeURIComponent(groupId)}/metadata`, this.workerUrl);
+    if (url.protocol !== 'https:') throw new Error('URL Worker non sécurisée');
+    const response = await this.transport(url, {
+      method: 'PATCH', headers: { Authorization: `Bearer ${await user.getIdToken()}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(metadata),
+    });
+    if (!response.ok) throw new GroupLifecycleRequestError(response.status, (await response.json().catch(() => ({})) as { error?: string }).error ?? 'group_unavailable');
   }
 
   async changeCurrency(user: User, groupId: string, currencyCode: string): Promise<void> {

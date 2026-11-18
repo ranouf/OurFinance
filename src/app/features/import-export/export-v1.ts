@@ -1,11 +1,12 @@
 import type { Allocation } from '../../shared/utils/split-engine';
+import { validateGroupMetadata } from '../../core/firebase/group-metadata';
 
 /** Group-level portable data. Media bytes and account settings require separate exports. */
 export interface GroupExportV1 {
   readonly format: 'OurFinanceGroupExport';
   readonly version: 1;
   readonly exportedAt: string;
-  readonly group: { readonly id: string; readonly name: string; readonly currency: string };
+  readonly group: { readonly id: string; readonly name: string; readonly currency: string; readonly iconId?: string; readonly color?: string; readonly description?: string };
   readonly members: readonly { readonly userId: string; readonly role: 'owner' | 'member'; readonly status: 'active' | 'revoked' }[];
   readonly expenses: readonly {
     readonly id: string; readonly date: string; readonly description: string; readonly currency: string; readonly amountMinor: number;
@@ -51,6 +52,8 @@ const exactUnits = (value: string, precision: number): bigint => {
 
 /** Refuses an incomplete or inconsistent snapshot before a JSON file can be offered. */
 export function validateGroupExportV1(value: GroupExportV1): void {
+  try { const { name, iconId, color, description } = value.group; validateGroupMetadata({ name, iconId, color, description }); }
+  catch { throw new Error('Métadonnées de groupe invalides'); }
   if (value.format !== 'OurFinanceGroupExport' || value.version !== 1 || !Number.isFinite(Date.parse(value.exportedAt)) ||
       !id.test(value.group.id) || !value.group.name.trim() || !currency(value.group.currency) ||
       !value.members.length || !unique(value.members.map(row => row.userId)) ||
@@ -108,7 +111,10 @@ export function serializeGroupExportV1(value: GroupExportV1): string {
   validateGroupExportV1(value);
   const clean: GroupExportV1 = {
     format: 'OurFinanceGroupExport', version: 1, exportedAt: value.exportedAt,
-    group: { id: value.group.id, name: value.group.name, currency: value.group.currency },
+    group: { id: value.group.id, name: value.group.name, currency: value.group.currency,
+      ...(value.group.iconId !== undefined ? { iconId: value.group.iconId } : {}),
+      ...(value.group.color !== undefined ? { color: value.group.color } : {}),
+      ...(value.group.description !== undefined ? { description: value.group.description } : {}) },
     members: value.members.map(row => ({ userId: row.userId, role: row.role, status: row.status })),
     expenses: value.expenses.map(row => ({
       id: row.id, date: row.date, description: row.description, currency: row.currency, amountMinor: row.amountMinor,
