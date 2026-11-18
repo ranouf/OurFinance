@@ -1,4 +1,6 @@
 /** Paged collection-group reads under one group and one Firestore transaction. */
+import { isProviderQuotaStatus, ProviderQuotaError } from './provider-quota';
+
 export interface DescendantDocument { readonly name: string; readonly fields?: Record<string, unknown> }
 const idPattern = /^[A-Za-z0-9_-]{1,128}$/;
 
@@ -21,6 +23,7 @@ export async function listExpenseDescendants(
     const response = await transport(`https://firestore.googleapis.com/v1/${root}/${parent}:runQuery`, {
       method: 'POST', headers, body: JSON.stringify({ structuredQuery, transaction }),
     });
+    if (isProviderQuotaStatus(response.status)) throw new ProviderQuotaError();
     if (!response.ok) throw new Error('firestore_unavailable');
     const rows: unknown = await response.json();
     if (!Array.isArray(rows)) throw new Error('invalid_query');
