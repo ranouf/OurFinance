@@ -43,9 +43,9 @@ Ce protocole concerne uniquement `ourfinance-api-dev` et une identité dédiée 
 
 La rotation de production, son accès de secours et les rôles IAM de l'environnement cible demandent une validation distincte. Ce protocole ne donne aucune autorisation de déploiement production.
 
-## Autorisation explicite du déploiement Hosting TEST
+## Autorisation explicite des déploiements TEST
 
-Le workflow manuel Hosting accepte uniquement deux commentaires d'une ligne, écrits par `ranouf` sur les issues autorisées. La réservation fraîche dans #30 doit avoir exactement ce corps, où le SHA compte 40 caractères :
+Les workflows manuels Hosting, Firestore et Worker acceptent uniquement une réservation TEST active d'une ligne, écrite par `ranouf` dans #30 et datée de moins d'une heure. Elle doit avoir exactement ce corps, où le SHA compte 40 caractères :
 
 ```text
 Réservation TEST active pour <SHA>
@@ -58,7 +58,7 @@ Validation visuelle approuvée pour preview <SHA>
 Validation visuelle approuvée pour live <SHA>
 ```
 
-Écrire **une seule** des deux lignes d'accord dans le commentaire. Publier le protocole et les résultats de l'essai dans d'autres commentaires #30. Pour annuler avant l'exécution, modifier ou supprimer le commentaire de réservation ou d'accord indiqué au workflow. Une réservation annulée, un accord refusé ou une phrase qualifiée ne satisfont pas ce garde ; le SHA, le canal, la CI et la cible TEST restent contrôlés séparément. Le garde ne remplace pas la validation visuelle réelle du propriétaire.
+Écrire **une seule** des deux lignes d'accord dans le commentaire Hosting. Publier le protocole et les résultats de l'essai dans d'autres commentaires #30. Pour annuler avant l'exécution, modifier ou supprimer le commentaire de réservation ou d'accord indiqué au workflow. Une réservation annulée, un accord refusé ou une phrase qualifiée ne satisfont pas ces gardes ; le SHA, le canal Hosting, la CI et la cible TEST restent contrôlés séparément. Le garde ne remplace pas la validation visuelle réelle du propriétaire.
 
 ## Rotation des autres accès TEST — suivi #154
 
