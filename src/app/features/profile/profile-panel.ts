@@ -10,36 +10,45 @@ import { setLanguage, t, type MessageKey } from '../../shared/utils/i18n';
   selector: 'app-profile-panel',
   imports: [FormsModule],
   template: `
-    <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-5" [attr.aria-label]="t('myProfile')">
-      <h2 class="text-lg font-semibold">{{ t('myProfile') }}</h2>
-      <p class="mt-1 text-sm text-slate-600">{{ t('profileIntro') }}</p>
-      @if (loading()) { <p class="mt-3 text-sm text-slate-600" role="status">{{ t('loadingProfile') }}</p> }
+    <section [attr.aria-label]="t('myProfile')">
+      <div class="relative min-h-40 overflow-hidden rounded-[1.7rem] bg-pop-primary p-6 text-white shadow-[0_12px_30px_#6455ec30] sm:min-h-48 sm:p-8">
+        <div class="relative z-10 max-w-[63%] sm:max-w-md">
+          <h2 class="text-2xl font-black leading-tight sm:text-3xl">{{ t('myProfile') }}</h2>
+          <p class="mt-2 text-sm font-medium text-white/90 sm:text-base">{{ t('profileIntro') }}</p>
+        </div>
+        <img class="pointer-events-none absolute -bottom-5 -right-8 h-40 w-40 object-contain sm:-bottom-14 sm:right-2 sm:h-64 sm:w-64" src="/illustrations/profile-settings.webp" alt="" />
+      </div>
+      @if (loading()) { <p class="mt-5 rounded-2xl border border-pop-border bg-white p-5 text-sm text-pop-muted" role="status">{{ t('loadingProfile') }}</p> }
       @else {
-        <form class="mt-4 space-y-4" (ngSubmit)="save()">
-          <label class="block text-sm font-medium">{{ t('displayName') }}
-            <input class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="profileName" [(ngModel)]="displayName" maxlength="80" required />
-          </label>
-          <label class="block text-sm font-medium">{{ t('language') }}
-            <select class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="profileLanguage" [(ngModel)]="preferredLanguage" (ngModelChange)="applyLanguage()">
-              <option value="fr">Français</option><option value="en">English</option><option value="ja">日本語</option>
-            </select>
-          </label>
-          <label class="block text-sm font-medium">{{ t('timeZone') }}
-            <input class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="profileZone" [(ngModel)]="timeZone" list="profile-zones" required />
-            <datalist id="profile-zones">@for (zone of zones; track zone) { <option [value]="zone"></option> }</datalist>
-          </label>
-          <button class="w-full rounded-lg bg-teal-700 px-4 py-3 font-semibold text-white disabled:opacity-50" type="submit" [disabled]="busy() || !user?.emailVerified">{{ t('saveProfile') }}</button>
-        </form>
-        <div class="mt-5 border-t border-slate-200 pt-4">
-          <h3 class="font-semibold">{{ t('signInMethods') }}</h3>
-          @if (googleLinked()) { <p class="mt-2 text-sm text-slate-600">{{ t('googleLinked') }}</p> }
-          @else {
-            <button class="mt-2 rounded-lg border border-teal-700 px-3 py-2 text-sm text-teal-800 disabled:opacity-50" type="button"
-              [disabled]="busy() || !user?.emailVerified" (click)="linkGoogle()">{{ t('linkGoogle') }}</button>
-          }
+        <div class="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,0.8fr)] lg:items-start">
+          <form class="space-y-5 rounded-[1.5rem] border border-pop-border bg-white p-5 shadow-sm sm:p-7" (ngSubmit)="save()">
+            <h3 class="text-lg font-black">{{ t('myProfile') }}</h3>
+            <label class="block text-sm font-bold">{{ t('displayName') }}
+              <input class="mt-2 min-h-12 w-full rounded-xl border border-pop-border bg-pop-background px-4 focus-visible:outline-2 focus-visible:outline-pop-primary" name="profileName" [(ngModel)]="displayName" maxlength="80" required />
+            </label>
+            <label class="block text-sm font-bold">{{ t('language') }}
+              <select class="mt-2 min-h-12 w-full rounded-xl border border-pop-border bg-pop-background px-4 focus-visible:outline-2 focus-visible:outline-pop-primary" name="profileLanguage" [(ngModel)]="preferredLanguage" (ngModelChange)="applyLanguage()">
+                <option value="fr">Français</option><option value="en">English</option><option value="ja">日本語</option>
+              </select>
+            </label>
+            <label class="block text-sm font-bold">{{ t('timeZone') }}
+              <input class="mt-2 min-h-12 w-full rounded-xl border border-pop-border bg-pop-background px-4 focus-visible:outline-2 focus-visible:outline-pop-primary" name="profileZone" [(ngModel)]="timeZone" list="profile-zones" required />
+              <datalist id="profile-zones">@for (zone of zones; track zone) { <option [value]="zone"></option> }</datalist>
+            </label>
+            <button class="min-h-12 w-full rounded-xl bg-pop-coral px-5 font-extrabold text-pop-text disabled:opacity-50" type="submit" [disabled]="busy() || !user?.emailVerified">{{ t('saveProfile') }}</button>
+          </form>
+          <div class="rounded-[1.5rem] border border-pop-border bg-white p-5 shadow-sm sm:p-7">
+            <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-pop-lavender text-2xl" aria-hidden="true">🔐</div>
+            <h3 class="text-lg font-black">{{ t('signInMethods') }}</h3>
+            @if (googleLinked()) { <p class="mt-2 text-sm text-pop-muted">{{ t('googleLinked') }}</p> }
+            @else {
+              <button class="mt-4 min-h-11 rounded-xl border border-pop-primary px-4 text-sm font-bold text-pop-primary-dark disabled:opacity-50" type="button"
+                [disabled]="busy() || !user?.emailVerified" (click)="linkGoogle()">{{ t('linkGoogle') }}</button>
+            }
+          </div>
         </div>
       }
-      @if (message(); as key) { <p class="mt-3 text-sm" role="status">{{ t(key) }}</p> }
+      @if (message(); as key) { <p class="mt-4 rounded-xl bg-pop-lavender p-4 text-sm font-semibold text-pop-primary-dark" role="status">{{ t(key) }}</p> }
     </section>
   `,
 })
