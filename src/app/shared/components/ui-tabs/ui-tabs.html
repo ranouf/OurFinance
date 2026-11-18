@@ -1,0 +1,8 @@
+<div class="flex flex-wrap gap-1 rounded-xl bg-pop-lavender/70 p-1" role="tablist">
+  @for (tab of tabs; track tab.value; let index = $index) {
+    <button type="button" role="tab" class="min-h-11 whitespace-nowrap rounded-lg px-2 text-[10px] font-extrabold focus-visible:outline-2 focus-visible:outline-pop-primary-dark"
+      [class.bg-pop-primary]="active === tab.value" [class.text-white]="active === tab.value" [class.bg-white]="active !== tab.value"
+      [attr.aria-selected]="active === tab.value" [tabIndex]="active === tab.value ? 0 : -1"
+      (click)="select(tab.value)" (keydown)="onKeydown($event, index)">{{ tab.label }}</button>
+  }
+</div>

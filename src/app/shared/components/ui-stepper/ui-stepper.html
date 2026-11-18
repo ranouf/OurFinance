@@ -1,0 +1,5 @@
+<div class="flex items-center justify-between gap-3">
+  <button type="button" class="flex size-10 items-center justify-center rounded-full bg-pop-lavender text-xl font-black text-pop-primary-dark focus-visible:outline-2 focus-visible:outline-pop-primary" [disabled]="value <= min" [attr.aria-label]="decreaseLabel" (click)="change(-1)">−</button>
+  <output class="text-base font-black">{{ value }}</output>
+  <button type="button" class="flex size-10 items-center justify-center rounded-full bg-pop-lavender text-xl font-black text-pop-primary-dark focus-visible:outline-2 focus-visible:outline-pop-primary" [disabled]="value >= max" [attr.aria-label]="increaseLabel" (click)="change(1)">+</button>
+</div>

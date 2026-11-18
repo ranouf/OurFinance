@@ -1,0 +1,5 @@
+<div class="flex flex-col items-center justify-center text-center">
+  @if (illustrationSrc) { <img class="h-20 w-36 object-contain" [src]="illustrationSrc" alt="" /> }
+  <p class="mt-1 text-xs font-bold">{{ message }}</p>
+  @if (actionLabel) { <button type="button" class="mt-2 min-h-9 rounded-lg bg-pop-primary px-3 text-xs font-extrabold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pop-primary-dark" (click)="action.emit()">{{ actionLabel }}</button> }
+</div>

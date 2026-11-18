@@ -1,0 +1,149 @@
+<main class="mx-auto max-w-[1160px] space-y-5 px-3 py-4 text-pop-text sm:px-5 lg:px-6">
+  <header id="foundations" class="relative min-h-16 scroll-mt-4 overflow-hidden pb-3 pr-28 sm:pr-52">
+    <h1 class="relative z-10 text-[1.9rem] font-black leading-tight tracking-tight">{{ kitText[language()].foundations }}</h1>
+    <p class="relative z-10 mt-1 text-xs font-semibold text-pop-muted sm:text-sm">{{ kitText[language()].foundationsIntro }}</p>
+    <img class="pointer-events-none absolute -right-2 -top-7 w-36 sm:-top-10 sm:w-56" src="/illustrations/gallery-awning-leaves.png" alt="" aria-hidden="true" />
+  </header>
+
+  <section class="grid gap-3 lg:grid-cols-[1.16fr_1fr]" [attr.aria-label]="kitText[language()].foundations">
+    <div class="grid content-start gap-3">
+      <div class="gallery-panel"><h3 class="text-sm">{{ kitText[language()].palette }}</h3>
+        <div class="mt-2 grid grid-cols-4 gap-x-2 gap-y-2">
+          <div><span class="gallery-swatch bg-pop-primary"></span><strong class="gallery-swatch-name">{{ kitText[language()].primary }}</strong><small>#6455EC</small></div>
+          <div><span class="gallery-swatch bg-pop-primary-dark"></span><strong class="gallery-swatch-name">{{ kitText[language()].primaryDark }}</strong><small>#4735B9</small></div>
+          <div><span class="gallery-swatch bg-pop-coral"></span><strong class="gallery-swatch-name">{{ kitText[language()].coral }}</strong><small>#FF806D</small></div>
+          <div><span class="gallery-swatch bg-pop-sun"></span><strong class="gallery-swatch-name">{{ kitText[language()].sun }}</strong><small>#F7C85F</small></div>
+          <div><span class="gallery-swatch bg-pop-mint"></span><strong class="gallery-swatch-name">{{ kitText[language()].mint }}</strong><small>#A8D9BF</small></div>
+          <div><span class="gallery-swatch bg-pop-lavender"></span><strong class="gallery-swatch-name">{{ kitText[language()].lavender }}</strong><small>#ECE8FF</small></div>
+          <div><span class="gallery-swatch border border-pop-border bg-white"></span><strong class="gallery-swatch-name">{{ kitText[language()].surface }}</strong><small>#FFFFFF</small></div>
+          <div><span class="gallery-swatch bg-pop-border"></span><strong class="gallery-swatch-name">{{ kitText[language()].border }}</strong><small>#EAE6F5</small></div>
+        </div>
+      </div>
+      <div id="buttons" class="gallery-panel scroll-mt-4" [attr.aria-label]="text[language()].buttons"><h3 class="text-sm">{{ text[language()].buttons }} — {{ kitText[language()].action }}</h3>
+        <div class="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-6 lg:grid-cols-3">
+          <app-ui-button>{{ text[language()].primary }}</app-ui-button>
+          <app-ui-button variant="coral">+ {{ kitText[language()].action }}</app-ui-button>
+          <app-ui-button variant="secondary">{{ text[language()].secondary }}</app-ui-button>
+          <app-ui-button variant="outline">{{ kitText[language()].outline }}</app-ui-button>
+          <app-ui-button variant="ghost">{{ kitText[language()].ghost }}</app-ui-button>
+          <app-ui-button variant="danger">{{ text[language()].danger }}</app-ui-button>
+        </div>
+      </div>
+      <div class="gallery-panel"><h3 class="text-sm">{{ text[language()].buttons }} — {{ text[language()].disabled }}</h3>
+        <div class="mt-2 flex flex-wrap gap-2"><app-ui-button size="sm">{{ text[language()].primary }}</app-ui-button><app-ui-button variant="secondary" size="md">{{ text[language()].secondary }}</app-ui-button><app-ui-button variant="outline" size="lg">{{ text[language()].focus }}</app-ui-button><app-ui-button [disabled]="true">{{ text[language()].disabled }}</app-ui-button><app-ui-button [loading]="true">{{ text[language()].loading }}</app-ui-button></div>
+      </div>
+      <div id="badges" class="gallery-panel scroll-mt-4" [attr.aria-label]="text[language()].badges"><h3 class="text-sm">{{ text[language()].badges }}</h3>
+        <div class="mt-2 flex flex-wrap gap-2"><app-ui-badge>{{ text[language()].active }}</app-ui-badge><app-ui-badge tone="positive">{{ text[language()].receivable }}</app-ui-badge><app-ui-badge tone="negative">{{ text[language()].payable }}</app-ui-badge></div>
+        <div class="mt-3 flex flex-wrap gap-2"><app-ui-chip [selected]="chipSelected" (selectedChange)="chipSelected = $event">{{ kitText[language()].restaurant }}</app-ui-chip><app-ui-chip [disabled]="true">{{ kitText[language()].travel }}</app-ui-chip></div>
+      </div>
+    </div>
+    <div class="grid content-start gap-3">
+      <div class="gallery-panel"><h3 class="text-sm">{{ kitText[language()].typography }} · Nunito Sans</h3>
+        <div class="mt-2 flex items-center gap-4"><span class="text-6xl font-black leading-none text-pop-primary-dark" aria-hidden="true">Aa</span><div class="space-y-0.5 text-xs"><p class="font-black">H1 · {{ kitText[language()].title }}</p><p class="font-extrabold">H2 · {{ kitText[language()].section }}</p><p class="font-bold">H3 · {{ kitText[language()].card }}</p><p>{{ kitText[language()].body }}</p></div></div>
+      </div>
+      <div class="gallery-panel"><h3 class="text-sm">{{ kitText[language()].category }}</h3><div class="mt-2 flex items-center justify-between gap-2 text-pop-primary-dark" aria-hidden="true"><svg class="size-6" fill="none" stroke="currentColor" stroke-width="1.8"><use href="/illustrations/gallery-nav-icons.svg#home" /></svg><svg class="size-6" fill="none" stroke="currentColor" stroke-width="1.8"><use href="/illustrations/gallery-nav-icons.svg#form" /></svg><svg class="size-6" fill="none" stroke="currentColor" stroke-width="1.8"><use href="/illustrations/gallery-nav-icons.svg#data" /></svg><svg class="size-6" fill="none" stroke="currentColor" stroke-width="1.8"><use href="/illustrations/gallery-nav-icons.svg#business" /></svg><svg class="size-6" fill="none" stroke="currentColor" stroke-width="1.8"><use href="/illustrations/gallery-nav-icons.svg#settings" /></svg></div></div>
+      <div id="alerts" class="gallery-panel scroll-mt-4" [attr.aria-label]="text[language()].alerts"><h3 class="text-sm">{{ text[language()].alerts }}</h3>
+        <div class="mt-2 grid gap-2"><app-ui-alert [title]="text[language()].infoTitle" [dismissible]="true" [closeLabel]="text[language()].close">{{ text[language()].info }}</app-ui-alert><app-ui-alert variant="success" [title]="text[language()].successTitle" [dismissible]="true" [closeLabel]="text[language()].close">{{ text[language()].success }}</app-ui-alert><app-ui-alert variant="warning" [title]="text[language()].warningTitle" [dismissible]="true" [closeLabel]="text[language()].close">{{ kitText[language()].warning }}</app-ui-alert><app-ui-alert variant="error" [title]="text[language()].errorTitle" [dismissible]="true" [closeLabel]="text[language()].close">{{ text[language()].error }}</app-ui-alert></div>
+        <div class="mt-3"><app-ui-toast variant="success" [dismissible]="true" [closeLabel]="text[language()].close">{{ text[language()].success }}</app-ui-toast></div>
+      </div>
+    </div>
+  </section>
+
+  <div id="forms" class="relative min-h-16 scroll-mt-4 overflow-hidden pr-28 sm:pr-52"><h2 class="relative z-10 text-2xl font-black">{{ kitText[language()].forms }}</h2><p class="relative z-10 mt-1 text-xs text-pop-muted">{{ kitText[language()].formsIntro }}</p><img class="pointer-events-none absolute -right-2 -top-7 w-36 sm:-top-10 sm:w-56" src="/illustrations/gallery-awning-leaves.png" alt="" aria-hidden="true" /></div>
+
+  <app-ui-card [label]="kitText[language()].example"><strong>{{ kitText[language()].example }}</strong><p class="mt-1 text-sm">{{ kitText[language()].formsIntro }}</p></app-ui-card>
+
+  <div class="grid items-start gap-3 lg:grid-cols-[1.16fr_1fr_1fr]">
+    <section id="fields" class="gallery-panel scroll-mt-4" [attr.aria-label]="text[language()].fields"><h3 class="text-sm">{{ text[language()].fields }}</h3>
+      <div class="mt-2 grid gap-2.5">
+        <app-field controlId="demo-default" [label]="demoText[language()].defaultField"><app-input controlId="demo-default" [formControl]="fieldDefaultControl" /></app-field>
+        <app-field controlId="demo-focused" [label]="demoText[language()].focusedField"><app-input class="gallery-focus-demo" controlId="demo-focused" [formControl]="fieldFocusControl" /></app-field>
+        <app-field controlId="demo-required" [label]="demoText[language()].errorField"><app-input controlId="demo-required" type="number" [formControl]="fieldErrorControl" [invalid]="true" describedBy="demo-required-error" /><app-control-errors errorId="demo-required-error" [control]="fieldErrorControl" /></app-field>
+        <app-field controlId="demo-disabled" [label]="demoText[language()].disabledField"><app-input controlId="demo-disabled" [formControl]="disabledControl" /></app-field>
+      </div>
+    </section>
+    <section class="gallery-panel"><h3 class="text-sm">{{ demoText[language()].selectors }}</h3><div class="mt-2 grid gap-3">
+      <app-field controlId="gallery-currency" [label]="demoText[language()].currency"><app-select controlId="gallery-currency" [formControl]="selectControl" [options]="[{ value: 'cad', label: 'CAD' }, { value: 'eur', label: 'EUR' }, { value: 'jpy', label: 'JPY' }]" /></app-field>
+      <app-field controlId="gallery-category" [label]="kitText[language()].category"><app-dropdown controlId="gallery-category" [formControl]="selectorCategory" [options]="[{ value: 'restaurant', label: kitText[language()].restaurant, iconSrc: '/illustrations/category-dining.svg' }, { value: 'groceries', label: kitText[language()].groceries, iconSrc: '/illustrations/category-groceries.svg' }]" /></app-field>
+      <div><h4 class="mb-1.5 text-sm font-bold">{{ demoText[language()].period }}</h4><app-ui-tabs [tabs]="[{ value: 'days', label: demoText[language()].days }, { value: 'months', label: demoText[language()].months }, { value: 'years', label: demoText[language()].years }]" [active]="activePeriod" (activeChange)="activePeriod = $event" /></div>
+    </div></section>
+    <div class="grid content-start gap-3"><section id="choices" class="gallery-panel scroll-mt-4" [attr.aria-label]="formText[language()].controls"><h3 class="text-sm">{{ formText[language()].controls }}</h3><div class="mt-2 grid gap-2.5">
+      <app-checkbox controlId="demo-checkbox" [label]="formText[language()].checkbox" [formControl]="checkboxControl" />
+      <app-checkbox controlId="demo-checkbox-off" [label]="demoText[language()].includeStatistics" [formControl]="checkboxOffControl" />
+      <app-toggle controlId="demo-toggle" [label]="formText[language()].toggle" [formControl]="toggleControl" />
+      <app-radio-group name="demo-split-mode" [label]="formText[language()].radio" [formControl]="radioControl" [options]="[{ value: 'equal', label: formText[language()].equal }, { value: 'exact', label: formText[language()].exact }]" />
+    </div></section><section class="gallery-panel"><h3 class="text-sm">{{ demoText[language()].stepper }}</h3><div class="mt-2"><app-ui-stepper [value]="quantity" [min]="1" [max]="8" [decreaseLabel]="demoText[language()].decrease" [increaseLabel]="demoText[language()].increase" (valueChange)="quantity = $event" /></div></section></div>
+  </div>
+
+  <section class="gallery-panel relative z-10" [attr.aria-label]="kitText[language()].example">
+    <h2 class="text-sm font-black">{{ kitText[language()].example }}</h2>
+    <div class="relative z-10 mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:pr-20">
+      <app-field controlId="example-description" [label]="text[language()].details"><app-input controlId="example-description" [formControl]="exampleDescription" /></app-field>
+      <app-field controlId="example-category" [label]="kitText[language()].category"><app-dropdown controlId="example-category" [formControl]="exampleCategory" [options]="[{ value: 'restaurant', label: kitText[language()].restaurant, iconSrc: '/illustrations/category-dining.svg' }, { value: 'groceries', label: kitText[language()].groceries, iconSrc: '/illustrations/category-groceries.svg' }, { value: 'travel', label: kitText[language()].travel, iconSrc: '/illustrations/category-travel.svg', disabled: true }]" /></app-field>
+      <app-field controlId="example-amount" [label]="kitText[language()].amount"><app-input controlId="example-amount" type="number" [step]="0.01" [formControl]="exampleAmount" /></app-field>
+      <app-field controlId="example-payer" [label]="demoText[language()].paidBy"><app-input controlId="example-payer" [formControl]="examplePayer" /></app-field>
+      <div class="sm:col-span-2"><h3 class="mb-1.5 text-xs font-black">{{ kitText[language()].split }}</h3><app-ui-tabs [tabs]="[{ value: 'equal', label: formText[language()].equal }, { value: 'percentage', label: demoText[language()].percentage }, { value: 'exact', label: demoText[language()].exactAmount }]" [active]="activeSplit" (activeChange)="activeSplit = $event" /></div>
+      <div class="flex items-end sm:col-span-2"><app-ui-button variant="coral" size="sm">+ {{ kitText[language()].addExpense }}</app-ui-button></div>
+    </div>
+  </section>
+
+  <section id="inputs" class="scroll-mt-6 gallery-panel" [attr.aria-label]="formText[language()].inputs">
+    <h2 class="text-xl font-extrabold">{{ formText[language()].inputs }}</h2>
+    <div class="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      <app-field controlId="demo-text" [label]="formText[language()].text"><app-input controlId="demo-text" type="text" [formControl]="textControl" /></app-field>
+      <app-field controlId="demo-number" [label]="formText[language()].number"><app-input controlId="demo-number" type="number" [formControl]="numberControl" /></app-field>
+      <app-field controlId="demo-email" [label]="formText[language()].email"><app-input controlId="demo-email" type="email" autocomplete="email" [formControl]="emailControl" [invalid]="emailControl.invalid && emailControl.touched" describedBy="demo-email-error" /><app-control-errors errorId="demo-email-error" [control]="emailControl" /></app-field>
+      <app-field controlId="demo-phone" [label]="formText[language()].phone"><app-input controlId="demo-phone" type="tel" autocomplete="tel" [formControl]="phoneControl" /></app-field>
+      <app-field controlId="demo-password" [label]="formText[language()].password"><app-input controlId="demo-password" type="password" autocomplete="new-password" [formControl]="passwordControl" /></app-field>
+      <app-field controlId="demo-search" [label]="formText[language()].search"><app-input controlId="demo-search" type="search" [formControl]="searchControl" /></app-field>
+      <app-field controlId="demo-url" [label]="formText[language()].url"><app-input controlId="demo-url" type="url" [formControl]="urlControl" /></app-field>
+      <app-field controlId="demo-date" [label]="formText[language()].date"><app-input controlId="demo-date" type="date" [formControl]="dateControl" /></app-field>
+      <app-field controlId="demo-time" [label]="formText[language()].time"><app-input controlId="demo-time" type="time" [formControl]="timeControl" /></app-field>
+      <app-field controlId="demo-select" [label]="formText[language()].select"><app-select controlId="demo-select" [formControl]="selectControl" [options]="[{ value: 'cad', label: 'CAD' }, { value: 'eur', label: 'EUR' }, { value: 'jpy', label: 'JPY' }]" /></app-field>
+      <app-field controlId="demo-category-error" [label]="demoText[language()].errorCategory"><app-dropdown controlId="demo-category-error" [formControl]="selectorErrorCategory" [placeholder]="kitText[language()].category" [invalid]="selectorErrorCategory.invalid && selectorErrorCategory.touched" describedBy="demo-category-error-message" [options]="[{ value: 'restaurant', label: kitText[language()].restaurant, iconSrc: '/illustrations/category-dining.svg' }, { value: 'groceries', label: kitText[language()].groceries, iconSrc: '/illustrations/category-groceries.svg' }]" /><app-control-errors errorId="demo-category-error-message" [control]="selectorErrorCategory" /></app-field>
+      <app-field controlId="demo-textarea" [label]="formText[language()].textarea"><app-textarea controlId="demo-textarea" [formControl]="textareaControl" /></app-field>
+    </div>
+  </section>
+
+  <section id="calendar" class="gallery-panel scroll-mt-4" [attr.aria-label]="formText[language()].calendar"><h3 class="text-sm">{{ formText[language()].calendar }}</h3><div class="mt-3 max-w-sm"><app-calendar [label]="formText[language()].calendar" [formControl]="calendarControl" /></div></section>
+
+  <div id="patterns" class="relative min-h-16 scroll-mt-4 overflow-hidden pr-28 sm:pr-52"><h2 class="relative z-10 text-2xl font-black">{{ kitText[language()].patterns }}</h2><p class="relative z-10 mt-1 text-xs text-pop-muted">{{ kitText[language()].patternsIntro }}</p><img class="pointer-events-none absolute -right-2 -top-7 w-36 sm:-top-10 sm:w-56" src="/illustrations/gallery-awning-leaves.png" alt="" aria-hidden="true" /></div>
+  <div class="grid items-start gap-3 lg:grid-cols-2">
+    <section class="gallery-panel"><h3 class="text-sm">{{ patternText[language()].tabs }}</h3>
+      <div class="mt-2"><app-ui-tabs [tabs]="[{ value: 'all', label: patternText[language()].all }, { value: 'expenses', label: patternText[language()].expenses }, { value: 'settlements', label: patternText[language()].settlements }]" [active]="activeTab" (activeChange)="activeTab = $event" /></div>
+      <h3 class="mt-4 text-sm">{{ patternText[language()].navigation }}</h3><div class="mt-2 flex gap-2 text-xs font-extrabold"><span class="rounded-lg bg-pop-lavender px-2 py-2">⌂ {{ patternText[language()].all }}</span><span class="rounded-lg px-2 py-2">♧ {{ patternText[language()].groups }}</span></div>
+    </section>
+    <section class="gallery-panel"><h3 class="text-sm">{{ patternText[language()].groups }}</h3>
+      <div class="mt-2 space-y-2"><app-ui-group-card [name]="kitText[language()].family" [detail]="'4 ' + kitText[language()].members" [amount]="'+' + demoAmount(12840)" amountTone="positive" iconSrc="/illustrations/category-home.svg" [selected]="true" />
+        <app-ui-group-card [name]="kitText[language()].travel" [detail]="'6 ' + kitText[language()].members" [amount]="demoAmount(-4620)" amountTone="negative" iconSrc="/illustrations/category-travel.svg" /></div>
+    </section>
+    <section class="gallery-panel"><h3 class="text-sm">{{ patternText[language()].expenseList }}</h3>
+      <div class="mt-2 divide-y divide-pop-border text-xs"><div class="flex items-center gap-2 py-1.5"><img class="size-8" src="/illustrations/category-dining.svg" alt="" /><span class="min-w-0 flex-1"><strong class="block truncate">{{ kitText[language()].restaurant }}</strong><small>{{ demoDate(12) }}</small></span><strong>{{ demoAmount(4800) }}</strong></div><div class="flex items-center gap-2 py-1.5"><img class="size-8" src="/illustrations/category-groceries.svg" alt="" /><span class="min-w-0 flex-1"><strong class="block truncate">{{ kitText[language()].groceries }}</strong><small>{{ demoDate(10) }}</small></span><strong>{{ demoAmount(12675) }}</strong></div><div class="flex items-center gap-2 py-1.5"><img class="size-8" src="/illustrations/category-transport.svg" alt="" /><span class="min-w-0 flex-1"><strong class="block truncate">{{ kitText[language()].travel }}</strong><small>{{ demoDate(8) }}</small></span><strong>{{ demoAmount(1250) }}</strong></div></div>
+    </section>
+    <section class="gallery-panel"><h3 class="text-sm">{{ patternText[language()].table }}</h3><div class="mt-2"><app-ui-table [caption]="patternText[language()].table" [columns]="[{ key: 'date', label: patternText[language()].date, width: '19%' }, { key: 'label', label: patternText[language()].label, width: '31%' }, { key: 'category', label: patternText[language()].category, width: '24%' }, { key: 'amount', label: patternText[language()].amount, numeric: true, width: '26%' }]" [rows]="[{ date: demoDate(12), label: kitText[language()].restaurant, category: kitText[language()].restaurant, amount: demoAmount(4800) }, { date: demoDate(10), label: kitText[language()].groceries, category: kitText[language()].groceries, amount: demoAmount(12675) }, { date: demoDate(8), label: kitText[language()].travel, category: kitText[language()].travel, amount: demoAmount(1250) }]" /></div></section>
+    <section class="gallery-panel"><h3 class="text-sm">{{ patternText[language()].empty }}</h3><div class="mt-2"><app-ui-empty-state [message]="patternText[language()].empty" illustrationSrc="/illustrations/bistro-table-rose.png" [actionLabel]="patternText[language()].addExpense" /></div></section>
+    <section class="gallery-panel"><h3 class="text-sm">{{ patternText[language()].accordion }}</h3><div class="mt-2"><app-ui-accordion [title]="patternText[language()].sharing" [expanded]="true">{{ patternText[language()].sharingAnswer }}</app-ui-accordion><app-ui-accordion [title]="patternText[language()].currency">{{ patternText[language()].currencyAnswer }}</app-ui-accordion></div></section>
+    <section class="gallery-panel"><h3 class="text-sm">{{ patternText[language()].tooltip }}</h3><div class="mt-3 flex items-center gap-3"><app-ui-tooltip tooltipId="gallery-tooltip" [label]="patternText[language()].tooltipLabel" [text]="patternText[language()].tooltipText" /><span class="text-xs text-pop-muted">{{ patternText[language()].tooltipLabel }}</span></div><h3 class="mt-4 text-sm">{{ patternText[language()].skeleton }}</h3><div class="mt-2"><app-ui-skeleton [label]="patternText[language()].skeleton" /></div></section>
+    <section class="gallery-panel"><h3 class="text-sm">{{ patternText[language()].avatars }}</h3><div class="mt-3"><app-ui-avatar-stack [label]="patternText[language()].avatars" [avatars]="[{ name: 'Membre A', imageUrl: '/illustrations/gallery-member-portraits.png', spritePosition: '0% 0%' }, { name: 'Membre B', imageUrl: '/illustrations/gallery-member-portraits.png', spritePosition: '100% 0%' }, { name: 'Membre C', imageUrl: '/illustrations/gallery-member-portraits.png', spritePosition: '0% 100%' }, { name: 'Membre D', imageUrl: '/illustrations/gallery-member-portraits.png', spritePosition: '100% 100%' }, { name: 'Membre E' }]" /></div></section>
+    <section class="gallery-panel"><h3 class="text-sm">{{ patternText[language()].pagination }}</h3><div class="mt-3"><app-ui-pagination [label]="patternText[language()].pagination" [previousLabel]="patternText[language()].previous" [nextLabel]="patternText[language()].next" [page]="activePage" [pageCount]="3" (pageChange)="activePage = $event" /></div></section>
+    <section class="gallery-panel"><h3 class="text-sm">{{ patternText[language()].chart }}</h3><div class="mt-2"><app-ui-donut-chart [total]="demoAmount(64290)" [totalLabel]="patternText[language()].total" [slices]="[{ label: kitText[language()].restaurant, percent: 45, amount: demoAmount(28930), color: '#6455ec' }, { label: kitText[language()].groceries, percent: 35, amount: demoAmount(22500), color: '#ff806d' }, { label: kitText[language()].travel, percent: 20, amount: demoAmount(12860), color: '#f7c85f' }]" /></div></section>
+    <section class="gallery-panel"><h3 class="text-sm">{{ patternText[language()].confirmation }}</h3><div class="mt-3"><app-ui-success-state [title]="patternText[language()].saved" [message]="patternText[language()].savedDetail" [dismissible]="true" [closeLabel]="text[language()].close" /></div></section>
+    <section id="qr" class="gallery-panel scroll-mt-4 lg:col-span-2"><h3 class="text-sm">{{ patternText[language()].quickActions }}</h3><div class="mt-2 grid gap-2 sm:grid-cols-3"><app-ui-quick-action [label]="patternText[language()].addExpense" kind="add" /><app-ui-quick-action [label]="patternText[language()].invite" kind="invite" (activated)="qrDialog.open()" /><app-ui-quick-action [label]="patternText[language()].balance" kind="balance" /></div></section>
+  </div>
+  <app-ui-dialog #qrDialog [title]="patternText[language()].qrDialog" [closeLabel]="text[language()].close"><app-invite-qr-code link="https://example.invalid/invitation/fictive" [label]="text[language()].qrLabel" [copyLabel]="text[language()].copy" [shareLabel]="text[language()].share" [copiedLabel]="text[language()].copied" [failedLabel]="text[language()].copyFailed" /></app-ui-dialog>
+
+  <section id="business" class="scroll-mt-6 gallery-panel">
+    <h2 class="text-xl font-extrabold">{{ kitText[language()].business }}</h2>
+    <p class="mt-2 text-sm text-pop-muted">{{ kitText[language()].businessIntro }}</p>
+    <div class="mt-4 flex flex-wrap gap-2"><app-ui-badge>{{ kitText[language()].family }}</app-ui-badge><app-ui-badge tone="positive">+{{ demoAmount(12840) }}</app-ui-badge><app-ui-badge tone="negative">{{ demoAmount(-4620) }}</app-ui-badge></div>
+  </section>
+
+  <section id="responsive" class="scroll-mt-6 gallery-panel">
+    <h2 class="text-xl font-extrabold">{{ kitText[language()].responsive }}</h2><p class="mt-2 text-sm text-pop-muted">{{ kitText[language()].responsiveIntro }}</p>
+  </section>
+
+  <section id="guides" class="scroll-mt-6 gallery-panel">
+    <h2 class="text-xl font-extrabold">{{ kitText[language()].guides }}</h2><p class="mt-2 text-sm text-pop-muted">{{ kitText[language()].guidesIntro }}</p>
+  </section>
+  <img class="pointer-events-none -mx-3 mt-2 w-[calc(100%+1.5rem)] max-w-none sm:-mx-5 sm:w-[calc(100%+2.5rem)] lg:-mx-6 lg:w-[calc(100%+3rem)]" src="/illustrations/paris-footer.svg" alt="" aria-hidden="true" />
+</main>
