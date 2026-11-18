@@ -23,7 +23,7 @@ import { expenseMessage, expenseText } from './expense-text';
         <ol class="mt-4 divide-y divide-pop-border">
           @for (entry of entries(); track entry.id) {
             <li class="py-3">
-              <p class="font-bold">{{ entry.authorId === user?.uid ? text('me') : text('otherMember') }} · {{ date(entry) }}</p>
+              <p class="font-bold">{{ authorLabel(entry.authorId) }} · {{ date(entry) }}</p>
               <p class="mt-1 whitespace-pre-wrap break-words">{{ entry.text }}</p>
             </li>
           }
@@ -40,6 +40,7 @@ export class CommentPanel implements OnChanges {
   @Input({ required: true }) user?: User;
   @Input({ required: true }) groupId = '';
   @Input({ required: true }) expenseId = '';
+  @Input() memberNames: Readonly<Record<string, string>> = {};
   @Output() readonly changed = new EventEmitter<void>();
   readonly entries = signal<ExpenseComment[]>([]);
   readonly hasMore = signal(false);
@@ -58,6 +59,7 @@ export class CommentPanel implements OnChanges {
     if (changes['groupId'] || changes['expenseId']) void this.refresh();
   }
   date(entry: ExpenseComment): string { return new Intl.DateTimeFormat(locale(), { dateStyle: 'medium', timeStyle: 'short' }).format(entry.createdAt.toDate()); }
+  authorLabel(userId: string): string { return userId === this.user?.uid ? this.text('me') : this.memberNames[userId] || this.text('otherMember'); }
   async refresh(): Promise<void> { this.entries.set([]); this.last = undefined; this.hasMore.set(false); this.message.set(''); await this.loadMore(); }
   async loadMore(): Promise<void> {
     if (!this.service || !this.groupId || !this.expenseId || this.busy()) return;

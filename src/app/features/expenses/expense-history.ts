@@ -100,7 +100,7 @@ import { expenseMessage, expenseText } from './expense-text';
                       } @empty { <p class="mt-1 text-slate-600">{{ text('unavailable') }}</p> }
                     </div>
                     @if (opened().has(entry.id)) { <app-receipt-panel [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" [user]="user" [groupId]="selectedGroupId" [expenseId]="entry.id" [groupOwnerId]="groupOwnerId()" /> }
-                    @if (opened().has(entry.id)) { <app-comment-panel [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" [user]="user" [groupId]="selectedGroupId" [expenseId]="entry.id" (changed)="commented.emit()" /> }
+                    @if (opened().has(entry.id)) { <app-comment-panel [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" [user]="user" [groupId]="selectedGroupId" [expenseId]="entry.id" [memberNames]="memberNames()" (changed)="commented.emit()" /> }
                   </div>
                 </details>
               </li>
