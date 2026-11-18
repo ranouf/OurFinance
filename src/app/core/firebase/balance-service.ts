@@ -1,9 +1,19 @@
 import type { FirebaseApp } from 'firebase/app';
-import { collection, getDocs, getFirestore } from 'firebase/firestore';
+import { collection, getDocs, getFirestore, type DocumentData, type QuerySnapshot } from 'firebase/firestore';
 import { calculateBalances, type ExpenseLedgerEntry, type LedgerTotal, type SettlementLedgerEntry } from '../../shared/utils/ledger';
 
+export interface BalanceRepository {
+  expenses(app: FirebaseApp, groupId: string): Promise<QuerySnapshot<DocumentData>>;
+  settlements(app: FirebaseApp, groupId: string): Promise<QuerySnapshot<DocumentData>>;
+}
+
+const firestoreBalanceRepository: BalanceRepository = {
+  expenses: (app, groupId) => getDocs(collection(getFirestore(app), 'groups', groupId, 'expenses')),
+  settlements: (app, groupId) => getDocs(collection(getFirestore(app), 'groups', groupId, 'settlements')),
+};
+
 export class BalanceService {
-  constructor(private readonly app: FirebaseApp) {}
+  constructor(private readonly app: FirebaseApp, private readonly repository: BalanceRepository = firestoreBalanceRepository) {}
 
   async load(groupId: string): Promise<{ totals: LedgerTotal[]; incompleteCount: number }> {
     const { expenses, settlements, incompleteCount } = await this.entries(groupId);
@@ -11,10 +21,9 @@ export class BalanceService {
   }
 
   async entries(groupId: string): Promise<{ expenses: ExpenseLedgerEntry[]; settlements: SettlementLedgerEntry[]; incompleteCount: number }> {
-    const db = getFirestore(this.app);
     const [expenseDocs, settlementDocs] = await Promise.all([
-      getDocs(collection(db, 'groups', groupId, 'expenses')),
-      getDocs(collection(db, 'groups', groupId, 'settlements')),
+      this.repository.expenses(this.app, groupId),
+      this.repository.settlements(this.app, groupId),
     ]);
     let incompleteCount = 0;
     const expenses: ExpenseLedgerEntry[] = [];

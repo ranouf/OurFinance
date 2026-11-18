@@ -9,22 +9,38 @@ import {
   getFirestore,
   query,
   where,
+  type DocumentData,
+  type DocumentSnapshot,
 } from 'firebase/firestore';
 import { Group } from './group-model';
+
+export interface GroupRepository {
+  memberships(app: FirebaseApp, uid: string): Promise<readonly string[]>;
+  group(app: FirebaseApp, groupId: string): Promise<DocumentSnapshot<DocumentData>>;
+  memberCount(app: FirebaseApp, groupId: string): Promise<number>;
+}
+
+const firestoreGroupRepository: GroupRepository = {
+  memberships: async (app, uid) => (await getDocs(collection(getFirestore(app), 'users', uid, 'groupMemberships'))).docs.map(item => item.id),
+  group: (app, groupId) => getDoc(doc(getFirestore(app), 'groups', groupId)),
+  memberCount: async (app, groupId) => (await getCountFromServer(query(
+    collection(getFirestore(app), 'groups', groupId, 'members'), where('status', '==', 'active')))).data().count,
+};
 
 export class GroupService {
   constructor(
     private readonly app: FirebaseApp,
     private readonly workerUrl?: string,
+    private readonly repository: GroupRepository = firestoreGroupRepository,
+    private readonly transport: typeof fetch = (...args) => fetch(...args),
   ) {}
 
   async list(user: User): Promise<Group[]> {
-    const db = getFirestore(this.app);
-    const references = await getDocs(collection(db, 'users', user.uid, 'groupMemberships'));
+    const references = await this.repository.memberships(this.app, user.uid);
     const groups = await Promise.all(
-      references.docs.map(async (reference) => {
+      references.map(async (groupId) => {
         try {
-          const snapshot = await getDoc(doc(db, 'groups', reference.id));
+          const snapshot = await this.repository.group(this.app, groupId);
           if (!snapshot.exists()) return null;
           const data = snapshot.data();
           const currency = data['currencyCode'] ?? data['currency'];
@@ -38,13 +54,7 @@ export class GroupService {
             status: data['status'] === 'archived' ? 'archived' : 'active',
           };
           try {
-            const count = await getCountFromServer(
-              query(
-                collection(db, 'groups', snapshot.id, 'members'),
-                where('status', '==', 'active'),
-              ),
-            );
-            return { ...group, memberCount: count.data().count };
+            return { ...group, memberCount: await this.repository.memberCount(this.app, snapshot.id) };
           } catch {
             return group;
           }
@@ -62,7 +72,7 @@ export class GroupService {
     if (!user.emailVerified || !this.workerUrl) throw new Error('Création indisponible');
     const url = new URL('/groups', this.workerUrl);
     if (url.protocol !== 'https:') throw new Error('URL Worker non sécurisée');
-    const response = await fetch(url, {
+    const response = await this.transport(url, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${await user.getIdToken()}`,
@@ -81,7 +91,7 @@ export class GroupService {
       throw new Error('Modification indisponible');
     const url = new URL(`/groups/${encodeURIComponent(groupId)}/currency`, this.workerUrl);
     if (url.protocol !== 'https:') throw new Error('URL Worker non sécurisée');
-    const response = await fetch(url, {
+    const response = await this.transport(url, {
       method: 'PATCH',
       headers: {
         Authorization: `Bearer ${await user.getIdToken()}`,
