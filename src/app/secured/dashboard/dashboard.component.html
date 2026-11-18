@@ -1,0 +1,141 @@
+    <div class="mx-auto max-w-5xl">
+      @if (app.selectedGroup()) { <div class="hidden items-start justify-between gap-3 sm:flex lg:hidden">
+        <div><p class="text-xs font-bold text-pop-muted">{{ t('todayLabel') }}</p><h1 class="mt-1 text-2xl font-black sm:text-3xl">{{ t('dashboardGreeting') }} 👋</h1><p class="mt-1 text-sm text-pop-muted">{{ t('dashboardIntro') }}</p></div>
+        @if (app.selectedGroup()) { <a class="hidden min-h-11 items-center rounded-xl bg-pop-coral px-4 text-sm font-extrabold text-pop-text sm:inline-flex" routerLink="/expenses">+ {{ t('navAdd') }}</a> }
+      </div> }
+      @if (app.groupsBusy()) {
+        <p class="mt-6 rounded-2xl border border-pop-border bg-white p-6" role="status">{{ t('loadingGroupList') }}</p>
+      } @else if (app.groupsError()) {
+        <p class="mt-6 rounded-2xl border border-pop-border bg-white p-6" role="alert">{{ t('groupsUnavailable') }}</p>
+      } @else if (app.selectedGroup(); as group) {
+        <form class="mt-3 flex min-h-11 items-center gap-2 rounded-2xl border border-pop-border bg-white pl-3 pr-1 shadow-sm sm:mt-5 lg:hidden" (ngSubmit)="searchExpenses()" role="search">
+          <svg class="size-5 shrink-0 text-pop-primary-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7"/><path d="m16 16 5 5"/></svg>
+          <label class="sr-only" for="dashboard-expense-search">{{ t('searchExpenses') }}</label>
+          <input id="dashboard-expense-search" class="min-w-0 flex-1 py-2 text-sm outline-none" type="search" name="dashboardExpenseSearch" [(ngModel)]="search" [placeholder]="t('searchExpenses')" />
+          <button class="rounded-xl bg-pop-lavender px-3 py-1.5 text-sm font-bold text-pop-primary-dark hover:bg-pop-primary hover:text-white focus-visible:outline-2 focus-visible:outline-pop-primary" type="submit">{{ t('search') }}</button>
+        </form>
+        <section class="dashboard-cloud relative mt-7 overflow-hidden rounded-[1.8rem] bg-pop-primary text-white shadow-[0_12px_30px_#6455ec30] sm:mt-0 sm:overflow-visible sm:bg-transparent" [attr.aria-label]="t('myBalance')">
+          <div class="relative min-h-44 px-5 pb-20 pt-5 sm:hidden">
+            <div class="relative z-10 max-w-[54%]"><p class="text-xl font-black leading-tight">{{ t('dashboardHello') }}{{ app.firstName() ? ' ' + app.firstName() : '' }} !</p><p class="mt-1 text-xs text-white/90">{{ t('dashboardIntro') }}</p><p class="mt-3 text-xs font-bold">{{ group.name }} · {{ group.currency }}</p></div>
+            <img class="pointer-events-none absolute inset-0 h-full w-full origin-right scale-[1.6] object-cover object-right opacity-95" src="/illustrations/cafe-hero-mobile.webp" alt="" />
+            <div class="pointer-events-none absolute inset-0 bg-pop-primary/45"></div>
+          </div>
+          <div class="dashboard-hero-desktop hidden min-h-64 grid-cols-[52%_48%] sm:grid sm:overflow-hidden sm:rounded-[1.8rem]">
+            <div class="dashboard-hero-art relative overflow-hidden bg-pop-primary"><img class="absolute inset-0 h-full w-full object-cover object-bottom" src="/illustrations/cafe-hero-foreground.png" alt="" /></div>
+            <div class="dashboard-group-panel relative flex min-w-0 flex-col justify-center bg-pop-primary px-5 py-5 lg:px-7">
+              <a class="relative z-10 flex min-w-0 items-center gap-2 text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white" routerLink="/groups"><span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-white/20" aria-hidden="true"><svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="/illustrations/lucide-actions.svg#user-round-plus" /></svg></span><h1 class="dashboard-hero-group-name min-w-0 truncate font-black">{{ group.name }}</h1><span class="text-xl" aria-hidden="true">⌄</span></a>
+              <span class="sr-only">{{ group.memberCount ?? 1 }} {{ t('membersCount') }}</span>
+              <div class="relative z-10 mt-3 flex -space-x-2" [attr.aria-label]="t('whoOwes')">
+                @for (item of app.dashboardMemberBalances(); track item.userId) {
+                  @if (app.dashboardMemberName(item.userId); as name) {
+                    <span class="dashboard-avatar group relative flex size-10 items-center justify-center rounded-full border-2 border-white text-sm font-black text-pop-primary-dark shadow-md outline-none focus-visible:ring-2 focus-visible:ring-pop-sun" [class.dashboard-avatar-two]="$index % 4 === 1" [class.dashboard-avatar-three]="$index % 4 === 2" [class.dashboard-avatar-four]="$index % 4 === 3" tabindex="0" [attr.aria-label]="name + ' · ' + memberBalanceLabel(item.balanceMinor) + ' ' + app.formatDashboardMinor(item.balanceMinor)">
+                      <span class="sr-only">{{ name.slice(0, 1).toLocaleUpperCase() }}</span>
+                      <span class="pointer-events-none absolute bottom-full left-0 mb-2 hidden min-w-max rounded-xl bg-pop-text px-3 py-2 text-xs font-bold text-white shadow-lg group-hover:block group-focus:block">{{ name }} · {{ memberBalanceLabel(item.balanceMinor) }} {{ app.formatDashboardMinor(item.balanceMinor) }}</span>
+                    </span>
+                  }
+                }
+                <a class="ml-3 flex size-9 items-center justify-center rounded-full border-2 border-white bg-pop-lavender text-pop-primary-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white" routerLink="/groups" [attr.aria-label]="t('inviteQrAction')"><svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><use href="/illustrations/lucide-actions.svg#plus" /></svg></a>
+              </div>
+              @if (app.balanceBusy()) { <p class="relative z-10 mt-4" role="status">{{ t('loadingBalances') }}</p> } @else if (app.balanceError()) { <p class="relative z-10 mt-4" role="status">{{ t('balancesUnavailable') }}</p> } @else { <div class="relative z-10 mt-5 grid grid-cols-[1.04fr_.96fr] items-center gap-4">
+                <div class="flex min-w-0 flex-col justify-center">
+                  <span class="dashboard-balance-label block text-white/90">{{ t('myBalance') }}</span>
+                  <div class="dashboard-balance-row mt-1 flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0">
+                    <strong class="dashboard-balance-value font-black">@if (app.selectedBalancePositive()) { + }{{ app.selectedBalance() }}</strong>
+                    <span class="dashboard-balance-currency font-extrabold">{{ group.currency }}</span>
+                  </div>
+                </div>
+                <div class="dashboard-metrics min-w-0 space-y-3 border-l border-white/40 pl-4">
+                  <div class="flex items-center justify-between gap-2">
+                    <span class="dashboard-metric-label flex min-w-0 items-center gap-1.5 text-white/90">
+                      <span class="dashboard-metric-icon bg-emerald-400" aria-hidden="true">↗</span>{{ t('groupTotal') }}
+                    </span>
+                    <strong class="dashboard-metric-value font-black">{{ app.groupSpent() }}</strong>
+                  </div>
+                  <div class="flex items-center justify-between gap-2">
+                    <span class="dashboard-metric-label flex min-w-0 items-center gap-1.5 text-white/90">
+                      <span class="dashboard-metric-icon bg-rose-400" aria-hidden="true">↗</span>{{ t('totalRepayments') }}
+                    </span>
+                    <strong class="dashboard-metric-value font-black">{{ app.settlementTotal() }}</strong>
+                  </div>
+                </div>
+              </div> }
+            </div>
+          </div>
+          <img class="dashboard-cloud-edge pointer-events-none absolute -right-4 top-6 hidden h-52 w-16 sm:block lg:-right-5 lg:w-20" src="/illustrations/dashboard-cloud-edge-illustrated.svg" alt="" aria-hidden="true" />
+          <div class="absolute bottom-3 right-3 z-10 flex -space-x-2 sm:hidden" [attr.aria-label]="t('whoOwes')">
+            @for (item of app.dashboardMemberBalances(); track item.userId) {
+              @if (app.dashboardMemberName(item.userId); as name) {
+                <span class="group relative flex size-9 items-center justify-center rounded-full border-2 border-white bg-pop-peach text-sm font-black text-pop-primary-dark shadow-md outline-none focus-visible:ring-2 focus-visible:ring-pop-sun" tabindex="0" [attr.aria-label]="name + ' · ' + memberBalanceLabel(item.balanceMinor) + ' ' + app.formatDashboardMinor(item.balanceMinor)">
+                  {{ name.slice(0, 1).toLocaleUpperCase() }}
+                  <span class="pointer-events-none absolute bottom-full right-0 mb-2 hidden min-w-max rounded-xl bg-pop-text px-3 py-2 text-xs font-bold text-white shadow-lg group-hover:block group-focus:block">{{ name }} · {{ memberBalanceLabel(item.balanceMinor) }} {{ app.formatDashboardMinor(item.balanceMinor) }}</span>
+                </span>
+              }
+            }
+          </div>
+        </section>
+        <div class="mt-4 flex items-center justify-between sm:hidden"><h2 class="text-lg font-black">{{ t('myGroups') }}</h2><a class="text-xs font-bold text-pop-primary-dark" routerLink="/groups">{{ t('viewAll') }} →</a></div>
+        <div class="mt-2 flex max-w-full min-w-0 snap-x gap-3 overflow-x-auto pb-1 sm:hidden" [attr.aria-label]="t('myGroups')">
+          @for (item of app.groups(); track item.id) { <button class="flex min-h-20 shrink-0 snap-start items-center gap-3 rounded-2xl border border-pop-border bg-pop-peach p-3 text-left" [class.w-full]="app.groups().length === 1" [class.w-[80%]]="app.groups().length > 1" type="button" [attr.aria-pressed]="app.selectedGroupId() === item.id" (click)="app.selectedGroupId.set(item.id)"><app-ui-icon-badge name="home" /><span class="min-w-0 flex-1"><strong class="block truncate">{{ item.name }}</strong><small>{{ item.memberCount ?? 1 }} {{ t('membersCount') }}</small></span><strong class="shrink-0 text-sm font-black text-emerald-700">{{ app.selectedGroupId() === item.id ? app.selectedBalance() : item.currency }}</strong><span aria-hidden="true">›</span></button> }
+        </div>
+        <a class="mt-2 flex min-h-11 items-center justify-center rounded-2xl bg-pop-lavender text-sm font-extrabold text-pop-primary-dark sm:hidden" routerLink="/groups">+ {{ t('createGroup') }}</a>
+        <div class="mt-5 grid gap-4 lg:grid-cols-3">
+        <nav class="order-2 grid grid-cols-3 gap-2 lg:order-1 lg:col-span-3 lg:gap-3" [attr.aria-label]="t('quickActions')">
+          <a class="dashboard-action dashboard-action-coral" routerLink="/expenses"><span class="dashboard-action-icon dashboard-action-icon-coral" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><use href="/illustrations/lucide-actions.svg#plus" /></svg></span><strong>{{ t('addExpenseAction') }}</strong></a>
+          <a class="dashboard-action dashboard-action-lavender dashboard-action-invite" routerLink="/groups"><span class="dashboard-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="/illustrations/lucide-actions.svg#user-round-plus" /></svg></span><strong>{{ t('inviteQrAction') }}</strong><svg class="dashboard-action-qr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="/illustrations/lucide-actions.svg#qr-code" /></svg></a>
+          <a class="dashboard-action dashboard-action-lavender dashboard-action-sun" routerLink="/statistics"><span class="dashboard-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="/illustrations/lucide-actions.svg#shuffle" /></svg></span><strong class="lg:hidden">{{ t('viewStats') }}</strong><strong class="hidden lg:block">{{ t('settleAction') }}</strong></a>
+        </nav>
+        <div class="contents">
+          <section class="order-3 min-w-0 rounded-[1.7rem] border border-pop-border bg-white p-4 shadow-[0_9px_25px_#6455ec12] lg:order-2" [attr.aria-label]="t('whoOwes')">
+            <h2 class="flex items-center gap-2 text-lg font-black"><svg class="size-5 shrink-0 text-pop-primary-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v17M5 7h14M4 7l-3 7h6L4 7Zm16 0-3 7h6l-3-7ZM7 20h10" /></svg>{{ t('whoOwes') }}</h2>
+            @if (app.balanceBusy()) { <p class="mt-4 text-sm" role="status">{{ t('loadingBalances') }}</p> }
+            @else if (app.balanceError()) { <p class="mt-4 text-sm" role="status">{{ t('balancesUnavailable') }}</p> }
+            @else if (!app.dashboardMemberBalances().length) { <p class="mt-4 text-sm text-pop-muted">{{ t('noBalance') }}</p> }
+            @else { <ul class="mt-3 divide-y divide-pop-border">
+              @for (item of app.dashboardMemberBalances(); track item.userId; let i = $index) {
+                <li class="flex min-h-12 items-center gap-2 py-1.5 text-sm"><span class="flex size-10 shrink-0 items-center justify-center rounded-full border-2 border-white text-sm font-black shadow-sm" [class]="i % 3 === 0 ? 'bg-rose-100 text-rose-700' : i % 3 === 1 ? 'bg-amber-100 text-amber-800' : 'bg-violet-100 text-violet-700'" aria-hidden="true">{{ (app.dashboardMemberName(item.userId) || t('otherMember')).charAt(0).toLocaleUpperCase() }}</span><span class="min-w-0 flex-1 truncate font-bold">{{ app.dashboardMemberName(item.userId) || t('otherMember') + ' ' + (i + 1) }}</span><strong class="shrink-0 rounded-full px-2.5 py-1 text-sm font-black sm:text-base" [class.bg-emerald-50]="item.balanceMinor > 0" [class.text-emerald-700]="item.balanceMinor > 0" [class.bg-rose-50]="item.balanceMinor < 0" [class.text-rose-700]="item.balanceMinor < 0" [class.bg-pop-background]="!item.balanceMinor">{{ app.formatDashboardMinor(item.balanceMinor) }}</strong></li>
+              }
+            </ul> }
+          </section>
+          <section class="order-1 min-w-0 rounded-[1.7rem] border border-pop-border bg-white p-4 shadow-[0_9px_25px_#6455ec12] lg:order-3" [attr.aria-label]="t('recentExpenses')">
+            <div class="flex items-center justify-between gap-2"><h2 class="flex min-w-0 items-center gap-2 text-lg font-black"><svg class="size-5 shrink-0 text-pop-primary-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>{{ t('recentExpenses') }}</h2><a class="shrink-0 text-xs font-bold text-pop-primary-dark" routerLink="/expenses">{{ t('viewAll') }} →</a></div>
+            <div class="mt-3 divide-y divide-pop-border">
+              @if (app.recentExpensesBusy()) { <p class="py-3 text-sm" role="status">{{ t('loadingExpenseHistory') }}</p> }
+              @else if (app.recentExpensesError()) { <p class="py-3 text-sm" role="status">{{ t('historyUnavailable') }}</p> }
+              @else if (!app.recentExpenses().length) { <p class="py-3 text-sm text-pop-muted">{{ t('noRecentExpenses') }}</p> }
+              @else { @for (entry of app.recentExpenses(); track entry.id) { <div class="flex min-h-12 items-center gap-2 py-1.5"><app-ui-icon-badge [name]="entry.categoryId" [glyph]="entry.categoryIcon" /><span class="min-w-0 flex-1"><strong class="block truncate text-sm">{{ entry.description }}</strong><small class="text-pop-muted">{{ entry.date }}</small></span><strong class="shrink-0 text-sm font-black text-pop-primary-dark sm:text-base">{{ app.formatRecentExpense(entry) }}</strong></div> } }
+            </div>
+          </section>
+          <section class="order-4 min-w-0 rounded-[1.7rem] border border-pop-border bg-white p-4 shadow-[0_9px_25px_#6455ec12]" [attr.aria-label]="t('byCategory')">
+            <div class="flex items-center justify-between gap-2"><h2 class="flex min-w-0 items-center gap-2 text-base font-black"><svg class="size-5 shrink-0 text-pop-primary-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="12" height="12" rx="3"/><rect x="9" y="9" width="12" height="12" rx="3"/></svg>{{ t('byCategory') }}</h2><a class="shrink-0 text-xs font-bold text-pop-primary-dark" routerLink="/statistics">{{ t('viewAll') }} →</a></div>
+            @if (app.balanceBusy()) { <p class="mt-4 text-sm" role="status">{{ t('loadingStatistics') }}</p> }
+            @else if (app.balanceError()) { <p class="mt-4 text-sm" role="status">{{ t('balancesUnavailable') }}</p> }
+            @else if (!app.dashboardCategories().length) { <p class="mt-4 text-sm text-pop-muted">{{ t('noRecentExpenses') }}</p> }
+            @else { <div class="mt-4 flex flex-wrap items-center gap-4 sm:flex-nowrap"><div class="flex size-36 shrink-0 items-center justify-center rounded-full" [style.background]="app.dashboardDonut()" role="img" [attr.aria-label]="t('byCategory')"><div class="flex size-20 flex-col items-center justify-center rounded-full bg-white px-1 text-center"><strong class="text-[11px] font-black leading-tight">{{ app.groupSpent() }}</strong><small class="text-[9px] text-pop-muted">{{ t('totalLabel') }}</small></div></div><ul class="min-w-0 flex-1 text-xs">
+              @for (item of app.dashboardCategories().slice(0, 4); track item.id; let i = $index) { <li class="flex min-h-7 items-center gap-1.5 border-b border-pop-border/60"><span aria-hidden="true">{{ categoryIcon(item.id) }}</span><span class="min-w-0 flex-1 truncate">{{ app.dashboardCategoryLabel(item) }}</span><strong>{{ categoryPercent(item.amountMinor) }} %</strong></li> }
+              @if (hasOtherCategories()) { <li class="flex min-h-7 items-center gap-1.5"><span class="size-2 shrink-0 rounded-full bg-pop-border" aria-hidden="true"></span><span class="min-w-0 flex-1 truncate">{{ t('otherCategories') }}</span><strong>{{ categoryPercent(otherCategoryAmount()) }} %</strong></li> }
+            </ul></div> }
+          </section>
+        </div>
+        </div>
+        @if (app.firebaseApp && app.auth?.user(); as user) { <app-group-overview [group]="group" [firebaseApp]="app.firebaseApp" [user]="user" [revision]="app.expenseRevision() + app.settlementRevision() + app.categoryRevision() + app.commentRevision()" /> }
+      } @else {
+        <section class="relative mt-6 overflow-hidden rounded-[1.8rem] bg-pop-primary px-6 pt-8 text-white shadow-[0_15px_35px_#6455ec33] sm:px-10 sm:pt-12 lg:min-h-[330px]">
+          <div class="relative z-10 max-w-md pb-2 sm:max-w-[48%] sm:pb-12 lg:max-w-md">
+            <h2 class="text-3xl font-black leading-tight lg:text-5xl">{{ t('emptyDashboardTitle') }} 👋</h2>
+            <p class="mt-4 max-w-sm text-base font-semibold text-white/90 sm:text-xl">{{ t('emptyDashboardText') }}</p>
+            <a class="mt-6 inline-flex min-h-12 items-center rounded-xl bg-pop-coral px-5 font-extrabold text-pop-text shadow-sm" routerLink="/groups">+ {{ t('createFirstGroup') }}</a>
+          </div>
+          <img class="pointer-events-none relative z-0 mx-auto -mb-3 h-48 w-full max-w-sm object-contain sm:absolute sm:-right-4 sm:bottom-0 sm:mb-0 sm:h-[280px] sm:w-[55%] sm:max-w-none lg:h-[330px]" src="/illustrations/friends-celebrating.webp" alt="" />
+        </section>
+        <section class="relative mt-6 overflow-hidden rounded-[1.8rem] border border-pop-border bg-white p-5 shadow-[0_12px_32px_#6455ec16] sm:p-7" [attr.aria-label]="t('gettingStarted')">
+          <div class="grid gap-5">
+            <div class="relative min-w-0 pb-1"><h2 class="text-2xl font-black lg:text-3xl">{{ t('gettingStarted') }} ✨</h2><p class="mt-3 max-w-lg text-sm leading-relaxed text-pop-muted lg:text-base">{{ t('gettingStartedIntro') }}</p></div>
+            <ol class="grid gap-3 sm:grid-cols-3 lg:gap-4">
+              <li class="min-w-0 rounded-[1.55rem] bg-gradient-to-br from-[#fff2ec] to-[#ffe8e5] p-5 text-center"><span class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-white/75" aria-hidden="true"><svg width="53" height="53" viewBox="0 0 53 53" fill="none"><circle cx="17" cy="18" r="8" fill="#9B6AF5"/><circle cx="36" cy="18" r="8" fill="#FF9968"/><circle cx="26.5" cy="14" r="9" fill="#FF796E"/><path d="M4 42c0-9 6-15 13-15s13 6 13 15v2H4v-2Z" fill="#8056DF"/><path d="M23 42c0-9 6-15 13-15s13 6 13 15v2H23v-2Z" fill="#FFA15E"/><path d="M11 45c0-12 7-20 15.5-20S42 33 42 45v2H11v-2Z" fill="#E06AA6"/></svg></span><strong class="mt-3 block text-base font-black leading-snug">1. {{ t('stepGroup') }}</strong><p class="mt-2 text-sm leading-relaxed text-pop-muted">{{ t('stepGroupText') }}</p></li>
+              <li class="min-w-0 rounded-[1.55rem] bg-gradient-to-br from-[#f7f0ff] to-[#eee8ff] p-5 text-center"><span class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-white/75" aria-hidden="true"><svg width="53" height="53" viewBox="0 0 53 53" fill="none"><path d="M14 5h25v42l-5-3-5 3-5-3-5 3-5-3V5Z" fill="#9363F7"/><path d="M20 14h13M20 21h13M20 28h9" stroke="white" stroke-width="3" stroke-linecap="round"/><circle cx="37" cy="38" r="11" fill="#FFBE37"/><path d="M37 32v12m-4-9h7" stroke="white" stroke-width="2.5" stroke-linecap="round"/></svg></span><strong class="mt-3 block text-base font-black leading-snug">2. {{ t('stepExpense') }}</strong><p class="mt-2 text-sm leading-relaxed text-pop-muted">{{ t('stepExpenseText') }}</p></li>
+              <li class="min-w-0 rounded-[1.55rem] bg-gradient-to-br from-[#fff9eb] to-[#fff1dd] p-5 text-center"><span class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-white/75" aria-hidden="true"><svg width="53" height="53" viewBox="0 0 53 53" fill="none"><rect x="7" y="29" width="10" height="17" rx="3" fill="#7252BD"/><rect x="22" y="19" width="10" height="27" rx="3" fill="#A277F7"/><rect x="37" y="9" width="10" height="37" rx="3" fill="#8051F4"/><path d="m36 5 3-3m8 6 4-2" stroke="#FFBA29" stroke-width="3" stroke-linecap="round"/></svg></span><strong class="mt-3 block text-base font-black leading-snug">3. {{ t('stepBalance') }}</strong><p class="mt-2 text-sm leading-relaxed text-pop-muted">{{ t('stepBalanceText') }}</p></li>
+            </ol>
+          </div>
+        </section>
+      }
+    </div>

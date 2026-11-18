@@ -1,13 +1,12 @@
 import { Routes } from '@angular/router';
+import { authenticationRoutes } from './authentication/authentication.routes';
+import { galleryRoutes } from './gallery/gallery.routes';
+import { securedRoutes } from './secured/secured.routes';
 
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
-  { path: 'login', loadComponent: () => import('./app-pages').then(m => m.LoginPage) },
-  { path: 'join', loadComponent: () => import('./app-pages').then(m => m.JoinPage) },
-  { path: 'dashboard', loadComponent: () => import('./app-pages').then(m => m.DashboardPage) },
-  { path: 'groups', loadComponent: () => import('./app-pages').then(m => m.GroupsPage) },
-  { path: 'expenses', loadComponent: () => import('./app-pages').then(m => m.ExpensesPage) },
-  { path: 'statistics', loadComponent: () => import('./app-pages').then(m => m.StatisticsPage) },
-  { path: 'account', loadComponent: () => import('./app-pages').then(m => m.AccountPage) },
+  ...authenticationRoutes,
+  ...galleryRoutes,
+  ...securedRoutes,
   { path: '**', redirectTo: 'dashboard' },
 ];

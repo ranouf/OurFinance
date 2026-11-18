@@ -1,19 +1,11 @@
 import { Component, Input, signal } from '@angular/core';
 import { QRCodeComponent } from 'angularx-qrcode';
+import { UiButton } from '../ui-button/ui-button';
 
 @Component({
   selector: 'app-invite-qr-code',
-  imports: [QRCodeComponent],
-  template: `
-    <div class="mx-auto w-fit max-w-full rounded-2xl bg-white p-4 shadow-sm" role="img" [attr.aria-label]="label">
-      <qrcode [qrdata]="link" [width]="256" [margin]="4" [errorCorrectionLevel]="'M'" [ariaLabel]="label" />
-    </div>
-    <div class="mt-3 flex flex-wrap justify-center gap-2">
-      <button class="min-h-11 rounded-xl bg-pop-primary px-4 py-2 font-bold text-white" type="button" (click)="copy()">{{ copyLabel }}</button>
-      @if (canShare()) { <button class="min-h-11 rounded-xl border border-pop-primary px-4 py-2 font-bold text-pop-primary-dark" type="button" (click)="share()">{{ shareLabel }}</button> }
-    </div>
-    @if (message()) { <p class="mt-2 text-center text-sm" role="status">{{ message() }}</p> }
-  `,
+  imports: [QRCodeComponent, UiButton],
+  templateUrl: './invite-qr-code.html',
 })
 export class InviteQrCode {
   @Input({ required: true }) link = '';
@@ -22,6 +14,7 @@ export class InviteQrCode {
   @Input({ required: true }) shareLabel = '';
   @Input({ required: true }) copiedLabel = '';
   @Input({ required: true }) failedLabel = '';
+  @Input() width = 256;
   readonly message = signal('');
   readonly canShare = signal(typeof navigator !== 'undefined' && typeof navigator.share === 'function');
 

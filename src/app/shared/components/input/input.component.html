@@ -1,0 +1,4 @@
+<input class="min-h-11 w-full rounded-xl border border-pop-border bg-white px-3 text-sm text-pop-text outline-none placeholder:text-pop-muted focus:border-pop-primary focus:outline-2 focus:outline-offset-2 focus:outline-pop-primary-dark disabled:cursor-not-allowed disabled:bg-pop-background disabled:text-pop-muted"
+  [id]="controlId" [type]="type" [value]="value" [placeholder]="placeholder" [autocomplete]="autocomplete" [disabled]="disabled" [required]="required" [attr.min]="min ?? null" [attr.max]="max ?? null" [attr.step]="step ?? null"
+  [attr.aria-invalid]="invalid || null" [attr.aria-describedby]="describedBy || null"
+  [class.border-red-600]="invalid" [class.focus:outline-red-700]="invalid" (input)="change($event)" (blur)="touch()" />

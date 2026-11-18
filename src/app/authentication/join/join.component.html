@@ -1,0 +1,5 @@
+    @if (app.auth?.user(); as user) {
+      @if (user.emailVerified && app.pendingInvite() && app.workerUrl) {
+        <app-invite-acceptance-card [user]="user" [workerUrl]="app.workerUrl" [token]="app.pendingInvite()!" (joined)="app.onQrJoined($event)" (declined)="app.declineInvite()" (changeAccount)="app.logout()" (invalidated)="app.clearStoredInvite()" />
+      } @else { <app-login-page /> }
+    } @else { <app-login-page /> }

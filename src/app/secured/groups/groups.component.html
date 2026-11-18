@@ -1,0 +1,26 @@
+    <div class="mx-auto max-w-5xl space-y-6">
+      <header><p class="text-sm font-bold text-pop-muted">{{ t('myGroups') }}</p><h1 class="text-3xl font-black">{{ t('navGroups') }}</h1></header>
+      @if (app.groups().length) {
+        <div class="grid gap-3 sm:grid-cols-2">
+          @for (group of app.groups(); track group.id) {
+            <button class="flex min-h-20 items-center gap-3 rounded-2xl border bg-white p-4 text-left shadow-sm" [class.border-pop-primary]="app.selectedGroupId() === group.id" [class.border-pop-border]="app.selectedGroupId() !== group.id" type="button" (click)="app.selectedGroupId.set(group.id)">
+              <app-ui-icon-badge name="home" /><span class="min-w-0 flex-1"><strong class="block break-words">{{ group.name }}</strong><small class="text-pop-muted">{{ group.memberCount ?? 1 }} {{ t('membersCount') }}</small></span><span class="rounded-full bg-pop-lavender px-2 py-1 text-xs font-bold">{{ group.currency }}</span>
+            </button>
+          }
+        </div>
+      } @else { <div class="flex flex-col items-center gap-3 overflow-hidden rounded-2xl border border-pop-border bg-white p-5 sm:flex-row sm:justify-between"><p class="text-pop-muted">{{ t('noGroups') }}</p><img class="h-32 w-full max-w-56 object-contain sm:w-56" src="/illustrations/friends-planning-trip.webp" alt="" /></div> }
+      @if (app.groupServiceReady() && app.auth?.user()?.emailVerified) {
+        <form class="max-w-xl space-y-4 rounded-2xl border border-pop-border bg-white p-5" (ngSubmit)="app.createGroup()">
+          <h2 class="text-xl font-black">{{ t('createGroup') }}</h2>
+          <label class="block text-sm font-bold">{{ t('groupName') }}<input class="mt-1 min-h-11 w-full rounded-xl border border-pop-border px-3" name="groupName" [(ngModel)]="app.groupName" maxlength="80" required /></label>
+          <label class="block text-sm font-bold">{{ t('groupCurrency') }}<select class="mt-1 min-h-11 w-full rounded-xl border border-pop-border px-3" name="groupCurrency" [(ngModel)]="app.groupCurrency">@for (currency of app.currencies(); track currency.code) { <option [value]="currency.code">{{ currency.code }} · {{ currency.name }}</option> }</select></label>
+          <button class="min-h-11 rounded-xl bg-pop-primary px-5 font-bold text-white disabled:opacity-50" type="submit" [disabled]="app.busy() || !app.online()">{{ t('createGroup') }}</button>
+        </form>
+      } @else { <p class="rounded-xl bg-amber-50 p-4 text-sm text-amber-900" role="status">{{ t('groupServiceMissing') }}</p> }
+      @if (app.workerUrl && app.auth?.user(); as user) {
+        @if (app.firebaseApp && app.groups().length) { <app-group-currency-panel [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" (changed)="app.onInvitationJoined()" /> }
+        <app-qr-invitation-panel [groups]="app.groups()" [user]="user" [workerUrl]="app.workerUrl" />
+        @if (app.firebaseApp && app.groups().length) { <app-category-manager [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" (changed)="app.onCategoryChanged()" /> }
+      }
+      @if (app.message()) { <p role="status">{{ app.message() }}</p> }
+    </div>

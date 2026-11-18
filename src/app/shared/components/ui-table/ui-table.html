@@ -1,0 +1,5 @@
+<div class="max-w-full overflow-x-auto">
+  <table class="w-full table-fixed text-left text-[10px]"><caption class="sr-only">{{ caption }}</caption><colgroup>@for (column of columns; track column.key) { <col [style.width]="column.width || null" /> }</colgroup><thead class="bg-pop-background text-pop-muted"><tr>@for (column of columns; track column.key) { <th class="truncate px-1 py-1.5 font-extrabold" [class.text-right]="column.numeric" [attr.title]="column.label" scope="col">{{ column.label }}</th> }</tr></thead>
+    <tbody>@for (row of rows; track $index) { <tr class="border-t border-pop-border">@for (column of columns; track column.key) { <td class="truncate px-1 py-2" [class.text-right]="column.numeric" [attr.title]="row[column.key]">{{ row[column.key] }}</td> }</tr> }</tbody>
+  </table>
+</div>

@@ -4,7 +4,6 @@ import { NavigationEnd } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { filter } from 'rxjs';
 import { getAuth } from 'firebase/auth';
-import { AppShell } from './shared/components/app-shell/app-shell';
 import { AuthService } from './core/firebase/auth-service';
 import { authDestination } from './core/firebase/auth-route';
 import { FirebaseWebConfig, createFirebaseApp } from './core/firebase/firebase-config';
@@ -23,22 +22,8 @@ import { language, locale, setLanguage, t } from './shared/utils/i18n';
 
 @Component({
   selector: 'app-root',
-  imports: [AppShell, RouterOutlet],
-  template: `
-    <app-shell [signedIn]="!!auth?.user()" [hasGroups]="groups().length > 0" [userInitial]="userInitial()" [userName]="auth?.user()?.displayName || auth?.user()?.email || ''" [pageTitle]="pageTitle()" (signOut)="logout()">
-      @if (!online()) { <p class="mx-auto max-w-6xl rounded-xl bg-amber-50 p-3 text-sm text-amber-900" role="status">{{ t('offline') }}</p> }
-      @if (state() === 'loading') { <p class="mx-auto max-w-6xl p-6" role="status">{{ t('loadingConfig') }}</p> }
-      @else if (state() === 'unconfigured') { <p class="mx-auto max-w-6xl p-6" role="status">{{ t('missingConfig') }}</p> }
-      @else if (!auth?.ready() || authRedirect()) {
-        <div class="mx-auto flex min-h-[55vh] max-w-sm flex-col items-center justify-center px-6 text-center" role="status" aria-live="polite">
-          <img src="/illustrations/ourfinance-mark.svg" width="52" height="52" alt="" />
-          <p class="mt-4 text-base font-bold text-pop-primary-dark">{{ t('loadingSession') }}</p>
-          <span class="mt-4 h-1.5 w-28 overflow-hidden rounded-full bg-pop-lavender" aria-hidden="true"><span class="block h-full w-1/2 animate-pulse rounded-full bg-pop-primary"></span></span>
-        </div>
-      }
-      @else { <router-outlet /> }
-    </app-shell>
-  `
+  imports: [RouterOutlet],
+  templateUrl: './app-root.html'
 })
 export class App implements OnInit, OnDestroy {
   readonly t = t;
@@ -57,7 +42,7 @@ export class App implements OnInit, OnDestroy {
   });
   readonly qrText = computed(() => qrInvitationText[language()]);
   readonly authRedirect = computed(() => {
-    this.routeEvent();
+    if (!this.routeEvent()) return null;
     if (this.state() !== 'ready') return null;
     return authDestination(this.auth?.ready() ?? false, this.router.url.split('?')[0], this.auth?.user() ?? null, !!this.pendingInvite());
   });
@@ -93,6 +78,7 @@ export class App implements OnInit, OnDestroy {
   readonly recentExpensesBusy = signal(false);
   readonly recentExpensesError = signal(false);
   readonly selectedBalance = computed(() => this.selectedGroup() ? formatMinorExact(this.selectedBalanceMinor(), this.selectedGroup()!.currency, locale()) : '');
+  readonly selectedBalancePositive = computed(() => this.selectedBalanceMinor() > 0n);
   readonly groupSpent = computed(() => this.selectedGroup() ? formatMinorExact(this.groupSpentMinor(), this.selectedGroup()!.currency, locale()) : '');
   readonly receivableAmount = computed(() => this.selectedGroup() ? formatMinorExact(this.selectedBalanceMinor() > 0n ? this.selectedBalanceMinor() : 0n, this.selectedGroup()!.currency, locale()) : '');
   readonly payableAmount = computed(() => this.selectedGroup() ? formatMinorExact(this.selectedBalanceMinor() < 0n ? -this.selectedBalanceMinor() : 0n, this.selectedGroup()!.currency, locale()) : '');

@@ -1,0 +1,7 @@
+@if (!closed()) {
+  <div class="relative flex min-h-20 items-center gap-3 rounded-xl border border-emerald-100 bg-[#e7f8ef] px-4 py-3 text-pop-text shadow-[0_4px_12px_#48a77e1c]" role="status">
+    <span class="flex size-11 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-2xl font-black text-white shadow-[0_3px_12px_#38a77955]" aria-hidden="true">✓</span>
+    <span class="min-w-0 flex-1"><strong class="block text-sm font-black">{{ title }}</strong>@if (message) { <span class="block text-xs">{{ message }}</span> }</span>
+    @if (dismissible) { <button type="button" class="flex size-8 shrink-0 items-center justify-center rounded-md text-lg hover:bg-white/50 focus-visible:outline-2 focus-visible:outline-pop-primary-dark" [attr.aria-label]="closeLabel" (click)="close()">×</button> }
+  </div>
+}

@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 360" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7557EA"/>
+      <stop offset=".58" stop-color="#6743DE"/>
+      <stop offset="1" stop-color="#5030C4"/>
+    </linearGradient>
+    <linearGradient id="cloudBack" x1=".1" y1="0" x2=".92" y2=".95">
+      <stop offset="0" stop-color="#B7A1FF"/>
+      <stop offset=".53" stop-color="#9A7BF5"/>
+      <stop offset="1" stop-color="#7856E7"/>
+    </linearGradient>
+    <linearGradient id="cloudMiddle" x1=".1" y1="0" x2=".8" y2="1">
+      <stop offset="0" stop-color="#9173F5"/>
+      <stop offset=".67" stop-color="#704DE1"/>
+      <stop offset="1" stop-color="#5B36CC"/>
+    </linearGradient>
+    <linearGradient id="cloudFront" x1=".1" y1="0" x2="1" y2=".8">
+      <stop offset="0" stop-color="#7754E4"/>
+      <stop offset=".6" stop-color="#5733CE"/>
+      <stop offset="1" stop-color="#4626B5"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="65%" cy="8%" r="75%">
+      <stop stop-color="#D1C1FF" stop-opacity=".16"/>
+      <stop offset="1" stop-color="#D1C1FF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Base violet, vignettage très doux et zéro effet rectangulaire « SaaS » -->
+  <rect width="760" height="360" fill="url(#sky)"/>
+  <rect width="760" height="360" fill="url(#glow)"/>
+
+  <!-- Petits nuages lointains et volumétrie claire dans la partie haute. -->
+  <path d="M344 74c-11-15-4-35 15-39 8-21 31-28 50-16 15-16 42-12 52 8 23-3 42 10 44 29 12 4 20 11 24 18Z" fill="#D5C7FF" opacity=".27"/>
+  <path d="M566 39c-10-17-2-37 18-42 9-24 40-30 57-13 24-18 56-10 64 15 18-6 40 4 45 21 12 0 24 7 28 19Z" fill="url(#cloudBack)" opacity=".64"/>
+  <path d="M638 65c12-23 46-27 64-8 13-12 31-11 44-2 12 0 25 9 30 23H638Z" fill="#DDCFFF" opacity=".3"/>
+
+  <!-- Nuage arrière organique ; les lobes sont dessinés, pas un gradient linéaire. -->
+  <path d="M760 82c-19-20-49-25-71-12-12-21-38-33-61-27-10-20-31-33-54-29-13 1-27 10-35 22-20-13-47-7-60 12-27-2-51 14-56 40-28 2-48 22-46 48-36 3-58 25-62 52H760Z" fill="url(#cloudBack)" opacity=".6"/>
+  <path d="M760 103c-32-14-58-7-73 8-19-15-43-10-57 3-21-17-50-10-65 7-29-4-48 9-57 29-25-1-48 13-52 38-30 2-50 22-52 45H760Z" fill="#AC93F4" opacity=".23"/>
+
+  <!-- Partie centrale : profondeur violette sans étouffer les titres blancs. -->
+  <path d="M760 156c-21-17-44-24-68-17-11-20-33-31-54-26-18-20-48-25-69-7-31-13-62-2-71 24-26-7-52 5-62 27-34 0-55 18-57 43-29 1-49 20-51 45H760Z" fill="url(#cloudMiddle)" opacity=".83"/>
+  <path d="M760 190c-25-16-56-14-74 4-21-11-42-11-58 3-23-16-49-11-62 7-33-9-59 9-63 32-23-3-46 12-53 34-23-2-39 12-45 28H760Z" fill="#9A7FF1" opacity=".20"/>
+
+  <!-- Nuage avant, fort mais placé en bas, sous les montants et le texte. -->
+  <path d="M760 235c-31-19-63-18-86 3-17-19-46-21-67-5-23-17-56-15-75 6-19-9-44-4-56 10-29-11-59 6-66 30-30-5-58 13-62 37-30-3-47 14-56 44H760Z" fill="url(#cloudFront)" opacity=".86"/>
+  <path d="M760 278c-25-14-50-9-65 7-18-11-43-8-58 5-28-11-51-2-63 19-27-9-54 5-62 24-27-8-53 2-66 27H760Z" fill="#3924A9" opacity=".25"/>
+
+  <!-- Petites lueurs illustratives et traits nuageux : quasi invisibles sous la typographie. -->
+  <path d="M602 26c22-10 46-5 61 11M682 91c13-3 30-1 40 6" stroke="#F3E9FF" stroke-width="3" opacity=".16" stroke-linecap="round"/>
+  <path d="M456 322c28-8 56-4 76 12M567 316c18-6 38-3 53 7" stroke="#CBBAFF" stroke-width="3" opacity=".13" stroke-linecap="round"/>
+</svg>
