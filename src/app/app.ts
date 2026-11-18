@@ -291,7 +291,7 @@ export class App implements OnInit, OnDestroy {
     this.balanceError.set(false);
     this.editingExpense.set(undefined);
   }
-  async logout(): Promise<void> { this.clearSessionData(); await this.auth?.logout(); await this.router.navigateByUrl('/login'); }
+  async logout(): Promise<void> { this.clearSessionData(); this.mode.set('login'); await this.auth?.logout(); await this.router.navigateByUrl('/login'); }
   async refreshVerification(): Promise<void> {
     this.busy.set(true);
     try { await this.auth?.refreshVerification(); }
