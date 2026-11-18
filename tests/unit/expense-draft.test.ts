@@ -4,7 +4,7 @@ import { parseMinor, prepareExpense, type ExpenseDraft } from '../../src/app/fea
 
 const members = new Set(['alex', 'camille']);
 function draft(kind: ExpenseDraft['kind'], values: [string, string]): ExpenseDraft {
-  return { description: 'Test fictif', amount: '1.01', currency: 'CAD', date: '2026-11-16', payerId: 'alex', kind,
+  return { description: 'Test fictif', amount: '1.01', currency: 'CAD', date: '2026-11-16', categoryId: 'other', payerId: 'alex', multiplePayers: false, paymentRows: [], kind,
     rows: [{ userId: 'alex', selected: true, value: values[0] }, { userId: 'camille', selected: true, value: values[1] }] };
 }
 test('saisie décimale exacte pour devises à zéro, deux et trois décimales', () => {
@@ -27,4 +27,17 @@ test('les cinq modes conservent exactement le montant', () => {
 test('un membre révoqué et un total de pourcentages incomplet sont refusés', () => {
   assert.throws(() => prepareExpense(draft('equal', ['', '']), new Set(['alex'])));
   assert.throws(() => prepareExpense(draft('percentage', ['40', '50']), members));
+});
+test('plusieurs payeurs conservent les montants exacts', () => {
+  const expense = draft('equal', ['', '']);
+  expense.multiplePayers = true;
+  expense.paymentRows = [{ userId: 'alex', selected: true, value: '0.50' }, { userId: 'camille', selected: true, value: '0.51' }];
+  assert.deepEqual(prepareExpense(expense, members).payments, [
+    { userId: 'alex', amountMinor: 50 }, { userId: 'camille', amountMinor: 51 },
+  ]);
+  expense.paymentRows[1].value = '0.50';
+  assert.throws(() => prepareExpense(expense, members), /somme des paiements/);
+  expense.paymentRows[1].value = '0.51';
+  expense.rows[1].selected = false;
+  assert.throws(() => prepareExpense(expense, new Set(['alex'])), /payeurs actifs/);
 });
