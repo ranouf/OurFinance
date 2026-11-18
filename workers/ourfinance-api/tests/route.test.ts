@@ -56,7 +56,8 @@ test('explicit V1 mode opens privileged routes for multiple groups but still req
     API_RATE_LIMITER: { limit: async () => ({ success: true }) },
     CLOUDINARY_CLOUD_NAME: 'configured', CLOUDINARY_API_KEY: 'configured', CLOUDINARY_API_SECRET: 'configured' };
   const routes: Array<[string, string]> = [
-    ['GET', '/member-profiles'], ['GET', '/backup/restores/current'], ['POST', '/backup/preview'],
+    ['GET', '/member-profiles'], ['GET', '/backup/restores/current'],
+    ['GET', '/backup/restores/123e4567-e89b-42d3-a456-426614174000/outcome'], ['POST', '/backup/preview'],
     ['GET', '/backup/snapshot'], ['GET', '/backup/preferences'], ['POST', '/imports'],
     ['POST', '/settlements'], ['POST', '/categories'], ['POST', '/qr-invitations'],
     ['GET', '/qr-invitations'], ['POST', '/invitations'], ['POST', '/expenses'],
@@ -129,6 +130,13 @@ test('restore preview remains disabled without one explicit test group', async (
 });
 test('restore recovery state is disabled by default and requires authentication when enabled', async () => {
   const url = 'https://worker.example/groups/g1/backup/restores/current';
+  const configured = { ...env, FIREBASE_SERVICE_ACCOUNT_JSON: 'configured' };
+  strictEqual((await handleRequest(new Request(url), configured)).status, 503);
+  strictEqual((await handleRequest(new Request(url), { ...configured, ENABLE_RESTORE_POC: 'true', RESTORE_POC_GROUP_ID: 'other' })).status, 503);
+  strictEqual((await handleRequest(new Request(url), { ...configured, ENABLE_RESTORE_POC: 'true', RESTORE_POC_GROUP_ID: 'g1' })).status, 401);
+});
+test('restore outcome is scoped to the configured group and requires authentication', async () => {
+  const url = 'https://worker.example/groups/g1/backup/restores/123e4567-e89b-42d3-a456-426614174000/outcome';
   const configured = { ...env, FIREBASE_SERVICE_ACCOUNT_JSON: 'configured' };
   strictEqual((await handleRequest(new Request(url), configured)).status, 503);
   strictEqual((await handleRequest(new Request(url), { ...configured, ENABLE_RESTORE_POC: 'true', RESTORE_POC_GROUP_ID: 'other' })).status, 503);
