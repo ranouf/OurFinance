@@ -1,4 +1,5 @@
 import { Component, Input, OnChanges, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import type { FirebaseApp } from 'firebase/app';
 import type { User } from 'firebase/auth';
 import { ActivityService, type ActivityEntry } from '../../core/firebase/activity-service';
@@ -21,11 +22,12 @@ const actions: Record<string, MessageKey> = {
 
 @Component({
   selector: 'app-group-overview',
+  imports: [RouterLink],
   template: `
     <section class="mt-6 rounded-2xl border border-pop-border bg-white p-5 sm:p-6" [attr.aria-label]="t('recentActivity')">
       <div class="flex flex-wrap items-center justify-between gap-2">
         <h2 class="text-lg font-extrabold">{{ t('recentActivity') }}</h2>
-        <a class="rounded-xl px-3 py-2 text-sm font-bold text-pop-primary-dark hover:bg-pop-lavender focus-visible:outline-2 focus-visible:outline-pop-primary" href="#activity">{{ t('showMore') }}</a>
+        <a class="rounded-xl px-3 py-2 text-sm font-bold text-pop-primary-dark hover:bg-pop-lavender focus-visible:outline-2 focus-visible:outline-pop-primary" routerLink="/account">{{ t('showMore') }}</a>
       </div>
       <p class="mt-1 break-words text-sm font-semibold text-pop-muted">{{ group.name }} · {{ group.currency }}</p>
       @if (busy()) {
