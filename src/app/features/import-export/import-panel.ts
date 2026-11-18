@@ -13,8 +13,9 @@ import { FirebaseExportReader } from './export-collector';
 import { previewMappedCsv, type ImportPreviewV1, type ImportRecordV1 } from './import-v1';
 import { ImportService } from './import-service';
 import { importErrorText, importText, type ImportTextKey } from './import-text';
-import { prepareImportBatch } from './prepare-batch';
+import { prepareImportBatch, prepareNativeImportBatches, type PreparedImportBatch } from './prepare-batch';
 import { reconcileImpacts, type Reconciliation } from './reconcile';
+import { parseNativeSplitwiseCsv, reconcileNativeSplitwiseCsv, type NativeSplitwiseCsv } from './splitwise-native-csv';
 
 type ColumnKey = 'sourceId' | 'groupId' | 'date' | 'description' | 'amountMinor' | 'currency';
 interface ActiveBatch { readonly id: string; readonly recordCount: number; }
@@ -22,119 +23,7 @@ interface ActiveBatch { readonly id: string; readonly recordCount: number; }
 @Component({
   selector: 'app-import-panel',
   imports: [FormsModule],
-  template: `
-    <section class="mt-6 rounded-3xl border border-pop-border bg-pop-surface p-5 text-pop-text shadow-sm md:p-7" [attr.aria-label]="text('title')">
-      <div class="mb-5 h-1.5 w-14 rounded-full bg-pop-sun" aria-hidden="true"></div>
-      <h2 class="text-2xl font-extrabold tracking-tight">{{ text('title') }}</h2>
-      <p class="mt-1 text-sm text-pop-muted">{{ text('intro') }}</p>
-      <div class="mt-5 grid gap-4 md:grid-cols-2">
-        <label class="block text-sm font-bold">{{ text('target') }}
-          <select class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="importGroup" [(ngModel)]="groupId" (ngModelChange)="loadGroup()">
-            <option value="">{{ t('chooseGroup') }}</option>
-            @for (group of ownedGroups(); track group.id) { <option [value]="group.id">{{ group.name }} · {{ group.currency }}</option> }
-          </select>
-        </label>
-        <label class="block text-sm font-bold">{{ text('file') }}
-          <input class="mt-2 block min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-2 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-pop-lavender file:px-3 file:py-2 file:font-bold file:text-pop-primary-dark" type="file" accept=".csv,text/csv" (change)="loadFile($event)" />
-        </label>
-      </div>
-      @if (!ownedGroups().length) { <p class="mt-4 rounded-xl bg-pop-peach p-3 text-sm">{{ text('ownerOnly') }}</p> }
-      @if (headers().length && groupId) {
-        <div class="mt-6 rounded-2xl bg-pop-lavender p-4 sm:p-5">
-          <h3 class="font-extrabold">{{ text('columns') }}</h3>
-          <div class="mt-3 grid gap-3 sm:grid-cols-2">
-            @for (field of fields; track field.key) {
-              <label class="block text-sm font-bold">{{ text(field.label) }}
-                <select class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3" [name]="'import_' + field.key" [(ngModel)]="mapping[field.key]" (ngModelChange)="clearPreview()">
-                  <option value="">{{ text('chooseColumn') }}</option>
-                  @for (header of headers(); track header) { <option [value]="header">{{ header }}</option> }
-                </select>
-              </label>
-            }
-          </div>
-          <h3 class="mt-6 font-extrabold">{{ text('impacts') }}</h3>
-          <p class="mt-1 text-sm text-pop-muted">{{ text('expectedHint') }}</p>
-          <div class="mt-3 grid gap-3 lg:grid-cols-2">
-            @for (header of impactCandidates(); track header) {
-              <div class="rounded-xl border border-pop-border bg-pop-surface p-3">
-                <label class="flex min-h-11 items-center gap-2 text-sm font-bold">
-                  <input type="checkbox" [checked]="impactHeaders().includes(header)" (change)="toggleImpact(header, $event)" /> {{ text('useImpact') }} · {{ header }}
-                </label>
-                @if (impactHeaders().includes(header)) {
-                  <label class="mt-2 block text-sm">{{ text('targetMember') }}
-                    <select class="mt-1 min-h-11 w-full rounded-xl border border-pop-border p-2" [name]="'member_' + header" [(ngModel)]="memberMapping[header]" (ngModelChange)="recompute()">
-                      <option value="">{{ text('chooseColumn') }}</option>
-                      @for (member of members(); track member.userId) { <option [value]="member.userId">{{ memberLabel(member.userId) }}</option> }
-                    </select>
-                  </label>
-                  <label class="mt-2 block text-sm">{{ text('expected') }} · {{ selectedGroup()?.currency }}
-                    <input class="mt-1 min-h-11 w-full rounded-xl border border-pop-border p-2" [name]="'expected_' + header" inputmode="decimal" [(ngModel)]="expected[header]" (ngModelChange)="recompute()" placeholder="0.00" />
-                  </label>
-                }
-              </div>
-            }
-          </div>
-          <button class="mt-5 min-h-11 rounded-xl bg-pop-primary px-5 py-2 font-bold text-white hover:bg-pop-primary-dark disabled:opacity-50" type="button" [disabled]="busy()" (click)="preparePreview()">{{ text('preview') }}</button>
-        </div>
-      }
-      @if (preview(); as result) {
-        <div class="mt-6 rounded-2xl border border-pop-border p-4 sm:p-5">
-          <h3 class="text-lg font-extrabold">{{ text('previewTitle') }}</h3>
-          <label class="mt-4 block text-sm font-bold">{{ text('sourceGroup') }}
-            <select class="mt-2 min-h-11 w-full rounded-xl border border-pop-border p-3" name="sourceGroup" [(ngModel)]="sourceGroupId" (ngModelChange)="recompute()">
-              @for (source of sourceGroups(); track source) { <option [value]="source">{{ source }}</option> }
-            </select>
-          </label>
-          <div class="mt-4 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
-            <p class="rounded-xl bg-pop-lavender p-3"><strong>{{ compatibleRecords().length }}</strong> {{ text('records') }}</p>
-            <p class="rounded-xl bg-pop-peach p-3"><strong>{{ result.duplicateIds.length }}</strong> {{ text('duplicates') }}</p>
-            <p class="rounded-xl bg-pop-peach p-3"><strong>{{ result.errors.length }}</strong> {{ text('errors') }}</p>
-            <p class="rounded-xl bg-pop-mint-soft p-3"><strong>{{ foreignCount() }}</strong> {{ text('foreign') }}</p>
-          </div>
-          @if (otherGroupCount()) { <p class="mt-3 text-sm text-pop-muted">{{ otherGroupCount() }} {{ text('otherGroups') }}</p> }
-          @if (foreignCount()) {
-            <label class="mt-4 flex min-h-11 items-start gap-3 rounded-xl bg-pop-peach p-3 text-sm"><input class="mt-1" type="checkbox" [(ngModel)]="excludeForeign" />{{ text('acknowledgeForeign') }}</label>
-          }
-          @if (result.errors.length || result.duplicateIds.length) {
-            <ul class="mt-4 list-inside list-disc text-sm text-rose-700">
-              @for (error of result.errors; track $index) { <li>{{ rowError(error) }}</li> }
-              @for (id of result.duplicateIds; track $index) { <li>{{ text('duplicates') }} : {{ id }}</li> }
-            </ul>
-          }
-          <ul class="mt-4 space-y-2">
-            @for (record of compatibleRecords(); track record.sourceId) {
-              <li class="flex justify-between gap-3 rounded-xl border border-pop-border p-3 text-sm"><span class="min-w-0 break-words">{{ record.date }} · {{ record.description }}</span><strong class="shrink-0">{{ amount(record.amountMinor) }}</strong></li>
-            }
-          </ul>
-          @if (reconciliation(); as match) {
-            <div class="mt-5 rounded-xl bg-pop-lavender p-3 text-sm">
-              <p class="font-bold">{{ text(match.matched ? 'matched' : 'mismatch') }}</p>
-              @for (row of match.differences; track row.userId) {
-                <p class="mt-2 flex flex-wrap justify-between gap-2"><span>{{ row.userId }}</span><span>{{ text('imported') }} {{ minor(row.importedMinor) }} · {{ text('expected') }} {{ minor(row.expectedMinor) }} · {{ text('difference') }} {{ minor(row.differenceMinor) }}</span></p>
-              }
-            </div>
-          }
-          <button class="mt-5 min-h-11 rounded-xl bg-pop-primary px-5 py-2 font-bold text-white hover:bg-pop-primary-dark disabled:opacity-50" type="button" [disabled]="!canImport()" (click)="save()">{{ busy() ? text('importing') : text('import') }}</button>
-        </div>
-      }
-      @if (batches().length) {
-        <div class="mt-6 rounded-2xl border border-pop-border p-4 sm:p-5">
-          <h3 class="font-extrabold">{{ text('batches') }}</h3>
-          <ul class="mt-3 space-y-2">
-            @for (batch of batches(); track batch.id) {
-              <li class="rounded-xl bg-pop-lavender p-3 text-sm">
-                <p class="font-bold">{{ text('batch') }} {{ batch.id.slice(0, 8) }} · {{ batch.recordCount }} {{ text('records') }}</p>
-                @if (undoConfirmId() === batch.id) {
-                  <div class="mt-2 flex flex-wrap gap-2"><button class="min-h-11 rounded-xl bg-pop-coral px-4 font-bold text-pop-text" type="button" [disabled]="busy()" (click)="undo(batch.id)">{{ text('confirmUndo') }}</button><button class="min-h-11 rounded-xl border border-pop-border px-4" type="button" (click)="undoConfirmId.set('')">{{ text('cancel') }}</button></div>
-                } @else { <button class="mt-2 min-h-11 rounded-xl border border-pop-primary px-4 font-bold text-pop-primary-dark" type="button" (click)="undoConfirmId.set(batch.id)">{{ text('undo') }}</button> }
-              </li>
-            }
-          </ul>
-        </div>
-      }
-      @if (message()) { <p class="mt-4 rounded-xl bg-pop-lavender p-3 text-sm" role="status">{{ displayMessage() }}</p> }
-    </section>
-  `,
+  templateUrl: './import-panel.html',
 })
 export class ImportPanel {
   @Input({ required: true }) groups: Group[] = [];
@@ -148,6 +37,8 @@ export class ImportPanel {
     { key: 'description', label: 'description' }, { key: 'amountMinor', label: 'amountMinor' }, { key: 'currency', label: 'currency' },
   ];
   readonly headers = signal<string[]>([]);
+  readonly nativeSource = signal<NativeSplitwiseCsv | null>(null);
+  readonly nativeBatches = signal<PreparedImportBatch[]>([]);
   readonly members = signal<GroupMember[]>([]);
   readonly preview = signal<ImportPreviewV1 | null>(null);
   readonly reconciliation = signal<Reconciliation | null>(null);
@@ -164,6 +55,7 @@ export class ImportPanel {
   excludeForeign = false;
   private csv = '';
   private existingSourceIds = new Set<string>();
+  private nativePreviewRequest = 0;
 
   ownedGroups(): Group[] { return this.groups.filter(group => group.ownerId === this.user?.uid); }
   selectedGroup(): Group | undefined { return this.groups.find(group => group.id === this.groupId); }
@@ -180,17 +72,22 @@ export class ImportPanel {
     const row = /^Ligne (\d+) :/.exec(error);
     return row ? `${this.text('row')} ${row[1]} : ${importErrorText(error.includes('impacts') ? 'impacts' : 'row')}` : importErrorText('file');
   }
-  clearPreview(): void { this.preview.set(null); this.reconciliation.set(null); this.impactHeaders.set(this.impactHeaders().filter(header => this.impactCandidates().includes(header))); }
+  clearPreview(): void { this.nativePreviewRequest++; this.preview.set(null); this.reconciliation.set(null); this.nativeBatches.set([]); this.impactHeaders.set(this.impactHeaders().filter(header => this.impactCandidates().includes(header))); }
 
   async loadFile(event: Event): Promise<void> {
-    this.clearPreview(); this.headers.set([]); this.csv = ''; this.message.set('');
+    this.clearPreview(); this.headers.set([]); this.nativeSource.set(null); this.csv = ''; this.message.set(''); this.sourceGroupId = '';
     const file = (event.target as HTMLInputElement).files?.[0];
     if (!file) return;
     if (!file.name.toLowerCase().endsWith('.csv')) { this.message.set('invalidFile'); return; }
     if (file.size > 10_000_000) { this.message.set('fileTooLarge'); return; }
     try {
       this.csv = await file.text();
-      const headers = parseCsv(this.csv)[0];
+      const rows = parseCsv(this.csv.replace(/^\uFEFF/, ''));
+      if (rows.some(row => row[0]?.trim() === 'Date' && row[1]?.trim() === 'Description' && row[3]?.trim() === 'Coût')) {
+        this.nativeSource.set(parseNativeSplitwiseCsv(this.csv));
+        return;
+      }
+      const headers = rows[0];
       if (!headers?.length || new Set(headers).size !== headers.length) throw new Error(this.text('mappingMissing'));
       this.headers.set(headers);
       const defaults: Record<ColumnKey, string> = { sourceId: 'Source ID', groupId: 'Group ID', date: 'Date', description: 'Description', amountMinor: 'Amount Minor', currency: 'Currency' };
@@ -250,6 +147,7 @@ export class ImportPanel {
   }
 
   canImport(): boolean {
+    if (this.nativeSource()) return !this.busy() && !!this.user?.emailVerified && this.selectedGroup()?.ownerId === this.user?.uid && this.nativeBatches().length > 0;
     const ids = this.impactHeaders().map(header => this.memberMapping[header]);
     return !this.busy() && !!this.user?.emailVerified && this.selectedGroup()?.ownerId === this.user?.uid &&
       !!this.preview() && !this.preview()!.errors.length && !this.preview()!.duplicateIds.length &&
@@ -259,6 +157,19 @@ export class ImportPanel {
 
   async save(): Promise<void> {
     if (!this.canImport() || !this.user || !this.workerUrl) return;
+    if (this.nativeSource()) {
+      this.busy.set(true); this.message.set('');
+      try {
+        const service = new ImportService(this.workerUrl);
+        for (const batch of this.nativeBatches()) {
+          await service.create(this.user, batch);
+          for (const record of batch.body.records) this.existingSourceIds.add(record.sourceId);
+        }
+        this.message.set('importedOk'); this.clearPreview(); await this.refreshBatches();
+      } catch { this.message.set('importFailed'); await this.refreshBatches().catch(() => {}); }
+      finally { this.busy.set(false); }
+      return;
+    }
     const records = this.compatibleRecords();
     const group = this.selectedGroup()!;
     const mapping = Object.fromEntries(this.impactHeaders().map(header => [header, this.memberMapping[header]]));
@@ -273,6 +184,28 @@ export class ImportPanel {
       }
       this.message.set('importedOk'); this.clearPreview(); await this.refreshBatches();
     } catch { this.message.set('importFailed'); await this.refreshBatches().catch(() => {}); }
+    finally { this.busy.set(false); }
+  }
+
+  async prepareNativePreview(): Promise<void> {
+    this.clearPreview(); this.message.set('');
+    const request = this.nativePreviewRequest;
+    const source = this.nativeSource();
+    const group = this.selectedGroup();
+    if (!source || !group) return;
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(this.sourceGroupId.trim())) { this.message.set('nativeSourceGroupInvalid'); return; }
+    if (!reconcileNativeSplitwiseCsv(source).matched) { this.message.set('mismatch'); return; }
+    if (source.currency !== group.currency) { this.message.set('nativeCurrency'); return; }
+    const ids = source.participants.map(person => this.memberMapping[person]);
+    if (ids.some(id => !this.members().some(member => member.userId === id)) || new Set(ids).size !== ids.length) { this.message.set('memberMapping'); return; }
+    this.busy.set(true);
+    try {
+      const mapping = Object.fromEntries(source.participants.map(person => [person, this.memberMapping[person]]));
+      const batches = await prepareNativeImportBatches(source, this.sourceGroupId.trim(), group.id, group.currency, mapping);
+      if (request !== this.nativePreviewRequest) return;
+      if (batches.some(batch => batch.body.records.some(record => this.existingSourceIds.has(record.sourceId)))) { this.message.set('blocked'); return; }
+      this.nativeBatches.set(batches);
+    } catch { this.message.set('invalidFile'); }
     finally { this.busy.set(false); }
   }
 
