@@ -1,0 +1,33 @@
+@if (ownerGroups().length) {
+  <section class="mt-6 rounded-3xl border border-pop-border bg-pop-surface p-5 text-pop-text shadow-sm md:p-7"
+    [attr.aria-label]="text('receiptCleanupHeading')">
+    <div class="mb-5 h-1.5 w-14 rounded-full bg-pop-sun" aria-hidden="true"></div>
+    <h2 class="text-2xl font-extrabold tracking-tight">{{ text('receiptCleanupHeading') }}</h2>
+    <p class="mt-1 text-sm text-pop-muted">{{ text('receiptCleanupHelp') }}</p>
+    <div class="mt-5 flex flex-wrap items-end gap-3">
+      <label class="min-w-48 flex-1 text-sm font-bold">{{ text('group') }}
+        <select class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 focus-visible:outline-2 focus-visible:outline-pop-primary"
+          name="receiptCleanupGroup" [(ngModel)]="groupId" (ngModelChange)="message.set(null)">
+          @for (group of ownerGroups(); track group.id) { <option [value]="group.id">{{ group.name }}</option> }
+        </select>
+      </label>
+      <button class="min-h-11 rounded-xl bg-pop-primary px-5 py-2 font-bold text-white hover:bg-pop-primary-dark focus-visible:outline-2 focus-visible:outline-pop-primary disabled:opacity-50"
+        type="button" [disabled]="busy() || !user?.emailVerified" (click)="run()">
+        {{ busy() ? text('receiptCleanupRunning') : text('receiptCleanupAction') }}
+      </button>
+    </div>
+    @if (message(); as key) {
+      <p class="mt-4 rounded-xl p-3 text-sm"
+        [class.bg-pop-peach]="key === 'receiptCleanupPending' || key === 'receiptCleanupQuota'"
+        [class.bg-pop-lavender]="key !== 'receiptCleanupPending' && key !== 'receiptCleanupQuota'"
+        [attr.role]="key === 'receiptCleanupPending' || key === 'receiptCleanupQuota' || key === 'receiptCleanupDenied' || key === 'receiptCleanupUnavailable' ? 'alert' : 'status'">
+        {{ text(key) }}
+        @if (key === 'receiptCleanupDone' || key === 'receiptCleanupPending') {
+          <span>{{ text('receiptCleanupCount') }} : {{ cleaned() }}
+            @if (key === 'receiptCleanupDone') { · {{ text('receiptCleanupLeft') }} : {{ pending() }} }
+          </span>
+        }
+      </p>
+    }
+  </section>
+}

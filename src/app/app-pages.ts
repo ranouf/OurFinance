@@ -11,6 +11,7 @@ import { InviteAcceptanceCard } from './features/groups/invite-acceptance-card';
 import { CategoryManager } from './features/categories/category-manager';
 import { ExpenseForm } from './features/expenses/expense-form';
 import { ExpenseHistory } from './features/expenses/expense-history';
+import { ReceiptCleanupPanel } from './features/expenses/receipt-cleanup-panel';
 import { SettlementForm } from './features/settlements/settlement-form';
 import { SettlementHistory } from './features/settlements/settlement-history';
 import { BalanceSummary } from './features/balances/balance-summary';
@@ -295,7 +296,7 @@ export class ExpensesPage { readonly app = inject(App); readonly t = t; readonly
     <div class="mx-auto max-w-5xl"><header class="mb-5"><p class="text-sm font-bold text-pop-muted">{{ app.selectedGroup()?.name }} · {{ app.selectedGroup()?.currency }}</p><h1 class="text-3xl font-black">{{ t('navStatistics') }}</h1></header>
       @if (app.firebaseApp && app.auth?.user(); as user) {
         @if (app.groups().length) {
-          <app-statistics-summary [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [revision]="app.expenseRevision() + app.settlementRevision()" />
+          <app-statistics-summary [groups]="app.groups()" [preferredGroupId]="app.selectedGroupId()" [user]="user" [firebaseApp]="app.firebaseApp" [revision]="app.expenseRevision() + app.settlementRevision()" (groupChange)="app.selectedGroupId.set($event)" />
           <app-balance-summary [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [revision]="app.expenseRevision() + app.settlementRevision()" />
           @if (app.workerUrl) { <app-settlement-form [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" (saved)="app.onSettlementSaved()" />
             <app-settlement-history [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" [revision]="app.settlementRevision()" /> }
@@ -307,7 +308,7 @@ export class ExpensesPage { readonly app = inject(App); readonly t = t; readonly
 export class StatisticsPage { readonly app = inject(App); readonly t = t; }
 
 @Component({
-  imports: [ProfilePanel, ActivityHistory, ExportPanel, ImportPanel, RestorePanel],
+  imports: [ProfilePanel, ActivityHistory, ExportPanel, ImportPanel, RestorePanel, ReceiptCleanupPanel],
   template: `
     <div class="mx-auto max-w-5xl space-y-5"><h1 class="text-3xl font-black">{{ t('navAccount') }}</h1>
       @if (app.firebaseApp && app.auth?.user(); as user) {
@@ -316,7 +317,8 @@ export class StatisticsPage { readonly app = inject(App); readonly t = t; }
           <div id="activity"><app-activity-history [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [revision]="app.expenseRevision() + app.settlementRevision() + app.categoryRevision() + app.commentRevision()" /></div>
           <app-export-panel [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" />
           @if (app.workerUrl) { <app-import-panel [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" />
-            <app-restore-panel [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" /> }
+            <app-restore-panel [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" />
+            <app-receipt-cleanup-panel [groups]="app.groups()" [user]="user" [workerUrl]="app.workerUrl" /> }
         }
       }
       <button class="min-h-11 rounded-xl border border-pop-border bg-white px-4 font-bold" type="button" (click)="app.logout()">{{ t('logout') }}</button>

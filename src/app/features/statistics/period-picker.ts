@@ -16,7 +16,7 @@ export interface AppliedRange { readonly start: string; readonly end: string; re
     </div>
     @if (open) {
       <div class="fixed inset-0 z-50 flex items-center justify-center bg-pop-text/50 p-3 sm:p-6" role="presentation">
-        <div class="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-pop-surface p-4 text-pop-text shadow-xl sm:p-6" role="dialog" aria-modal="true" [attr.aria-label]="text('choosePeriod')">
+        <div #dialog class="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-pop-surface p-4 text-pop-text shadow-xl sm:p-6" role="dialog" aria-modal="true" [attr.aria-label]="text('choosePeriod')">
           <div class="flex items-start justify-between gap-3">
             <div><h3 class="text-lg font-extrabold">{{ text('choosePeriod') }}</h3><p class="mt-1 text-sm text-pop-muted">{{ text('periodIntro') }}</p></div>
             <button class="min-h-11 rounded-xl border border-pop-border px-3 py-2 focus-visible:outline-2 focus-visible:outline-pop-primary" type="button" [attr.aria-label]="text('close')" (click)="cancel()">✕</button>
@@ -84,6 +84,7 @@ export interface AppliedRange { readonly start: string; readonly end: string; re
 })
 export class PeriodPicker {
   @ViewChild('trigger') trigger?: ElementRef<HTMLButtonElement>;
+  @ViewChild('dialog') dialog?: ElementRef<HTMLElement>;
   @Input({ required: true }) range!: AppliedRange;
   @Output() readonly rangeChange = new EventEmitter<AppliedRange>();
   readonly months = Array.from({ length: 12 }, (_, index) => index);
@@ -98,6 +99,22 @@ export class PeriodPicker {
   cursorYear = new Date().getUTCFullYear();
 
   @HostListener('document:keydown.escape') onEscape(): void { if (this.open) this.cancel(); }
+  @HostListener('document:keydown', ['$event']) onTab(event: Event): void {
+    if (!this.open || !this.dialog) return;
+    const keyboardEvent = event as KeyboardEvent;
+    if (keyboardEvent.key !== 'Tab') return;
+    const buttons = [...this.dialog.nativeElement.querySelectorAll<HTMLButtonElement>('button:not([disabled])')];
+    const first = buttons[0];
+    const last = buttons[buttons.length - 1];
+    if (!first || !last) return;
+    if (keyboardEvent.shiftKey && (document.activeElement === first || !this.dialog.nativeElement.contains(document.activeElement))) {
+      keyboardEvent.preventDefault();
+      last.focus();
+    } else if (!keyboardEvent.shiftKey && (document.activeElement === last || !this.dialog.nativeElement.contains(document.activeElement))) {
+      keyboardEvent.preventDefault();
+      first.focus();
+    }
+  }
   label(): string { return `${this.format(this.range.start)} – ${this.format(this.range.end)}`; }
   draftLabel(): string { return this.first ? `${this.first} – ${this.last || '…'}` : this.text('firstBound'); }
   draftRange(): AppliedRange | undefined { return selectedRange(this.unit, this.first, this.last); }

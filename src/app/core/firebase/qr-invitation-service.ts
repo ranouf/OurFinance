@@ -10,7 +10,9 @@ export class QrInviteRequestError extends Error {
 }
 
 export class QrInvitationService {
-  constructor(private readonly workerUrl: string) {}
+  constructor(private readonly workerUrl: string,
+    private readonly transport: typeof fetch = (...args) => fetch(...args),
+    private readonly origin: () => string = () => window.location.origin) {}
 
   private url(path: string): URL {
     const url = new URL(path, this.workerUrl);
@@ -19,7 +21,8 @@ export class QrInvitationService {
   }
 
   private async request<T>(user: User, path: string, method: 'GET' | 'POST', body?: unknown): Promise<T> {
-    const response = await fetch(this.url(path), {
+    if (!user.emailVerified) throw new QrInviteRequestError(403, 'email_unverified');
+    const response = await this.transport(this.url(path), {
       method, headers: { Authorization: `Bearer ${await user.getIdToken()}`, 'Content-Type': 'application/json' },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
@@ -33,7 +36,7 @@ export class QrInvitationService {
 
   async create(user: User, groupId: string, targetEmail?: string): Promise<QrInviteCreated> {
     const result = await this.request<QrInviteCreated>(user, `/groups/${encodeURIComponent(groupId)}/qr-invitations`, 'POST', targetEmail ? { targetEmail } : {});
-    return { ...result, link: validateInviteLink(result.link, window.location.origin) };
+    return { ...result, link: validateInviteLink(result.link, this.origin()) };
   }
 
   list(user: User, groupId: string, pageToken?: string): Promise<QrInviteList> {

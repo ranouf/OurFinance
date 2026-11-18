@@ -16,15 +16,15 @@ const circumference = 2 * Math.PI * 40;
       <div class="mt-5 grid gap-5 xl:grid-cols-2">
         <section class="rounded-2xl border border-pop-border bg-pop-surface p-5" [attr.aria-label]="text('byCategory')">
           <h4 class="text-lg font-extrabold">{{ text('byCategory') }}</h4>
-          <div class="mt-4 flex flex-col items-center gap-4">
-            <svg class="h-44 w-44 shrink-0" viewBox="0 0 100 100" role="img" [attr.aria-label]="text('distribution') + ' ' + amount(data.totalMinor)">
+          <div class="mt-4 flex flex-col items-center gap-4 min-[360px]:flex-row">
+            <svg class="h-36 w-36 shrink-0 min-[360px]:h-28 min-[360px]:w-28 sm:h-36 sm:w-36" viewBox="0 0 100 100" role="img" [attr.aria-label]="text('distribution') + ' ' + amount(data.totalMinor)">
               <circle cx="50" cy="50" r="40" fill="none" stroke="var(--color-pop-lavender)" stroke-width="16" />
               @for (slice of data.categories; track slice.id; let index = $index) {
                 <circle cx="50" cy="50" r="40" fill="none" [attr.stroke]="color(index)" stroke-width="16" [attr.stroke-dasharray]="dash(slice)" [attr.stroke-dashoffset]="offset(index)" transform="rotate(-90 50 50)" />
               }
-              <text x="50" y="53" text-anchor="middle" class="fill-pop-text text-[10px] font-bold">{{ data.categories.length }} {{ text('categoryCount') }}</text>
+              <text x="50" y="53" text-anchor="middle" class="fill-pop-text text-[10px] font-bold">{{ amount(data.totalMinor) }}</text>
             </svg>
-            <ul class="w-full min-w-0 space-y-1">
+            <ul class="w-full min-w-0 space-y-1 min-[360px]:flex-1">
               @for (slice of data.categories; track slice.id; let index = $index) {
                 <li><button type="button" class="flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-3 py-2 text-left text-sm hover:bg-pop-lavender focus-visible:outline-2 focus-visible:outline-pop-primary" [class.bg-pop-lavender]="selectedCategoryId === slice.id" [attr.aria-pressed]="selectedCategoryId === slice.id" (click)="selectedCategoryId = slice.id">
                   <span class="min-w-0 truncate"><span class="mr-2 inline-block h-2.5 w-2.5 rounded-full" [style.background-color]="color(index)"></span>{{ categoryName(slice) }}</span>
