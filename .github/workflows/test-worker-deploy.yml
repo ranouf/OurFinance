@@ -39,6 +39,14 @@ jobs:
           [vars]
           FIREBASE_PROJECT_ID = "ourfinance-test"
           ALLOWED_ORIGIN = "https://ourfinance-test.web.app"
+
+          [[ratelimits]]
+          name = "API_RATE_LIMITER"
+          namespace_id = "7491201"
+
+          [ratelimits.simple]
+          limit = 120
+          period = 60
           EOF
           npx --yes wrangler@4.164.0 deploy --dry-run --config workers/ourfinance-api/wrangler.ci.toml
   worker_test:
@@ -95,6 +103,14 @@ jobs:
           [vars]
           FIREBASE_PROJECT_ID = "ourfinance-test"
           ALLOWED_ORIGIN = "https://ourfinance-test.web.app"
+
+          [[ratelimits]]
+          name = "API_RATE_LIMITER"
+          namespace_id = "7491201"
+
+          [ratelimits.simple]
+          limit = 120
+          period = 60
           EOF
       - name: Deploy only the test Worker
         env:
