@@ -6,21 +6,14 @@ import { BalanceService } from '../../core/firebase/balance-service';
 import type { Group } from '../../core/firebase/group-model';
 import { formatMinorExact } from '../../shared/utils/currency';
 import { locale } from '../../shared/utils/i18n';
-import { calculateBalances, type ExpenseLedgerEntry, type SettlementLedgerEntry } from '../../shared/utils/ledger';
-import { chartData, type ChartData } from './chart-data';
+import { type ExpenseLedgerEntry, type SettlementLedgerEntry } from '../../shared/utils/ledger';
+import { type ChartData } from './chart-data';
 import { PeriodPicker, type AppliedRange } from './period-picker';
 import { selectedRange } from './period-range';
 import { StatisticsCharts } from './statistics-charts';
 import { statisticsText } from './statistics-text';
+import { StatisticsService, type StatisticsTotals } from './statistics-service';
 
-interface CurrencyStatistics {
-  readonly currency: string;
-  readonly spentMinor: bigint;
-  readonly settledMinor: bigint;
-  readonly myPaidMinor: bigint;
-  readonly myOwedMinor: bigint;
-  readonly myBalanceMinor: bigint;
-}
 
 @Component({
   selector: 'app-statistics-summary',
@@ -71,7 +64,7 @@ export class StatisticsSummary implements OnChanges {
   @Input({ required: true }) firebaseApp?: FirebaseApp;
   @Input({ required: true }) user?: User;
   @Input() revision = 0;
-  readonly statistics = signal<CurrencyStatistics[]>([]);
+  readonly statistics = signal<StatisticsTotals[]>([]);
   readonly charts = signal<Record<string, ChartData>>({});
   readonly incompleteCount = signal(0);
   readonly busy = signal(false);
@@ -79,6 +72,7 @@ export class StatisticsSummary implements OnChanges {
   selectedGroupId = '';
   range: AppliedRange = { ...selectedRange('months', new Date().toISOString().slice(0, 7), new Date().toISOString().slice(0, 7))!, unit: 'months' };
   private service?: BalanceService;
+  private readonly statisticsService = new StatisticsService();
   private expenses: ExpenseLedgerEntry[] = [];
   private settlements: SettlementLedgerEntry[] = [];
   private requestId = 0;
@@ -111,20 +105,10 @@ export class StatisticsSummary implements OnChanges {
   }
   recompute(): void {
     if (!this.selectedGroupId) return;
-    const totals = calculateBalances(this.expenses, this.settlements, this.range.start, this.range.end);
-    const currencies = [...new Set(totals.map(row => row.currency))].sort();
-    this.charts.set(Object.fromEntries(currencies.map(currency => [currency, chartData(this.expenses, this.settlements, currency, this.range.start, this.range.end, this.range.unit ?? 'months')])));
-    this.statistics.set(currencies.map(currency => {
-      const rows = totals.filter(row => row.currency === currency);
-      const mine = rows.find(row => row.userId === this.user?.uid);
-      return {
-        currency,
-        spentMinor: rows.reduce((sum, row) => sum + row.paidMinor, 0n),
-        settledMinor: rows.reduce((sum, row) => sum + row.settlementsSentMinor, 0n),
-        myPaidMinor: mine?.paidMinor ?? 0n,
-        myOwedMinor: mine?.owedMinor ?? 0n,
-        myBalanceMinor: mine?.balanceMinor ?? 0n,
-      };
-    }));
+    const group = this.groups.find(item => item.id === this.selectedGroupId);
+    const view = group && this.statisticsService.summarize(group.id, group.currency, this.user?.uid ?? '',
+      this.expenses, this.settlements, this.range.start, this.range.end, this.range.unit ?? 'months');
+    this.statistics.set(view ? [view.totals] : []);
+    this.charts.set(view ? { [view.totals.currency]: view.chart } : {});
   }
 }
