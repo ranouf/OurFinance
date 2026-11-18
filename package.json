@@ -12,7 +12,7 @@
     "test:rules": "firebase emulators:exec --only firestore --project ourfinance-rules-test \"node --test tests/firestore-rules/*.test.mjs\"",
     "test:unit": "tsx --test tests/unit/*.test.ts",
     "test:worker": "tsx --test workers/ourfinance-api/tests/*.test.ts",
-    "typecheck:worker": "tsc --ignoreConfig --noEmit --target es2022 --module esnext --moduleResolution bundler --strict --skipLibCheck workers/ourfinance-api/src/*.ts",
+    "typecheck:worker": "tsc -p tsconfig.worker.json",
     "lint:worker": "eslint workers/ourfinance-api/src workers/ourfinance-api/tests",
     "config:test": "node scripts/write-test-config.mjs",
     "test:coverage": "node --import tsx --test --experimental-test-coverage --test-coverage-lines=80 --test-coverage-branches=80 --test-coverage-functions=80 tests/unit/*.test.ts workers/ourfinance-api/tests/*.test.ts"
