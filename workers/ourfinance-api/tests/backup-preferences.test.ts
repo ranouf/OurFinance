@@ -3,7 +3,8 @@ import { deepStrictEqual, rejects, strictEqual } from 'node:assert';
 import { generateKeyPair, exportPKCS8 } from 'jose';
 import { BackupPreferencesError, collectBackupPreferences } from '../src/backup-preferences';
 
-async function fixture(options: { callerRole?: 'owner' | 'member'; callerStatus?: 'active' | 'revoked'; groupStatus?: 'active' | 'archived'; malformedPreference?: boolean; oldPreference?: boolean } = {}) {
+async function fixture(options: { callerRole?: 'owner' | 'member'; callerStatus?: 'active' | 'revoked'; groupStatus?: 'active' | 'archived'; malformedPreference?: boolean; oldPreference?: boolean;
+  failure?: 'begin' | 'transaction' | 'page-token' | 'empty-members' | 'duplicate-member' | 'bad-mode' | 'bad-time' | 'rollback' } = {}) {
   const { privateKey } = await generateKeyPair('RS256', { extractable: true });
   const env = { FIREBASE_PROJECT_ID: 'ourfinance-test', FIREBASE_SERVICE_ACCOUNT_JSON: JSON.stringify({ project_id: 'ourfinance-test', client_email: 'test@ourfinance-test.iam.gserviceaccount.com', private_key: await exportPKCS8(privateKey) }) };
   const root = 'projects/ourfinance-test/databases/(default)/documents';
@@ -12,21 +13,21 @@ async function fixture(options: { callerRole?: 'owner' | 'member'; callerStatus?
   const transport = async (resource: string | URL | Request) => {
     const url = String(resource);
     if (url.includes('oauth2.googleapis.com')) return Response.json({ access_token: 'synthetic-service-token' });
-    if (url.endsWith(':beginTransaction')) return Response.json({ transaction: 'txn' });
-    if (url.endsWith(':rollback')) { rollbacks++; return Response.json({}); }
+    if (url.endsWith(':beginTransaction')) return options.failure === 'begin' ? Response.json({}, { status: 503 }) : Response.json(options.failure === 'transaction' ? {} : { transaction: 'txn' });
+    if (url.endsWith(':rollback')) { rollbacks++; if (options.failure === 'rollback') throw new Error('network'); return Response.json({}); }
     if (url.includes('/groups/g/members?')) {
       listed++;
-      return Response.json({ documents: [
+      return Response.json({ ...(options.failure === 'page-token' ? { nextPageToken: 'next' } : {}), documents: options.failure === 'empty-members' ? [] : [
         { name: `${root}/groups/g/members/alice`, fields: { status: { stringValue: 'active' } } },
-        { name: `${root}/groups/g/members/bob`, fields: { status: { stringValue: 'revoked' } } },
+        { name: `${root}/groups/g/members/${options.failure === 'duplicate-member' ? 'alice' : 'bob'}`, fields: { status: { stringValue: 'revoked' } } },
       ] });
     }
     if (url.includes('/groups/g/members/alice?')) return Response.json({ fields: { status: { stringValue: options.callerStatus ?? 'active' }, role: { stringValue: options.callerRole ?? 'owner' } } });
     if (url.includes('/groups/g?')) return Response.json({ fields: { status: { stringValue: options.groupStatus ?? 'active' } } });
     if (url.includes('/users/alice/groupPreferences/g?')) return Response.json({ fields: {
-      modeJson: { stringValue: '{"kind":"equal","users":["alice","bob"]}' },
+      modeJson: { stringValue: options.failure === 'bad-mode' ? '{broken' : '{"kind":"equal","users":["alice","bob"]}' },
       ...(options.oldPreference ? {} : { memberIds: { arrayValue: { values: options.malformedPreference ? [{ integerValue: '1' }] : [{ stringValue: 'alice' }, { stringValue: 'bob' }] } } }),
-      updatedAt: { timestampValue: '2026-11-16T18:00:00.123456Z' },
+      updatedAt: { timestampValue: options.failure === 'bad-time' ? 'invalid' : '2026-11-16T18:00:00.123456Z' },
     } });
     if (url.includes('/users/bob/groupPreferences/g?')) return Response.json({}, { status: 404 });
     throw new Error(`Requête inattendue: ${url}`);
@@ -70,5 +71,33 @@ test('ordinary or revoked caller cannot list other members’ preferences', asyn
 test('malformed preference fails the whole snapshot', async () => {
   const state = await fixture({ malformedPreference: true });
   await rejects(collectBackupPreferences('alice', 'g', state.env, state.transport), (error: unknown) => error instanceof BackupPreferencesError && error.code === 'invalid_preference');
+  strictEqual(state.rollbacks, 1);
+});
+
+test('invalid paths and transaction failures never list private preferences', async () => {
+  const state = await fixture();
+  await rejects(collectBackupPreferences('alice/other', 'g', state.env, state.transport), BackupPreferencesError);
+  await rejects(collectBackupPreferences('alice', 'g/other', state.env, state.transport), BackupPreferencesError);
+  strictEqual(state.listed, 0);
+  for (const failure of ['begin', 'transaction'] as const) {
+    const broken = await fixture({ failure });
+    await rejects(collectBackupPreferences('alice', 'g', broken.env, broken.transport), BackupPreferencesError);
+    strictEqual(broken.listed, 0);
+    strictEqual(broken.rollbacks, 0);
+  }
+});
+
+test('invalid member pagination and preferences abort the complete snapshot', async () => {
+  for (const failure of ['page-token', 'empty-members', 'duplicate-member', 'bad-mode', 'bad-time'] as const) {
+    const state = await fixture({ failure });
+    await rejects(collectBackupPreferences('alice', 'g', state.env, state.transport), BackupPreferencesError);
+    strictEqual(state.rollbacks, 1);
+  }
+});
+
+test('a failed read-only rollback does not erase a validated snapshot', async () => {
+  const state = await fixture({ failure: 'rollback' });
+  const rows = await collectBackupPreferences('alice', 'g', state.env, state.transport);
+  strictEqual(rows.length, 2);
   strictEqual(state.rollbacks, 1);
 });
