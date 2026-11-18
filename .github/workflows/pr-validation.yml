@@ -15,7 +15,7 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
-      - run: node --test tests/ci/hosting-authorization.test.mjs
+      - run: node --test tests/ci/*.test.mjs
       - run: npm run typecheck
       - run: npm run build
       - run: npm run typecheck:worker

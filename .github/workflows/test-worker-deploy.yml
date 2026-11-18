@@ -59,6 +59,9 @@ jobs:
       group: ourfinance-test-deploy
       cancel-in-progress: false
     steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Check exact SHA and reservation
         env:
           TARGET_SHA: ${{ inputs.sha }}
@@ -68,15 +71,10 @@ jobs:
           [[ "$TARGET_SHA" =~ ^[0-9a-f]{40}$ ]]
           [[ "$RESERVATION" =~ ^https://github\.com/ranouf/OurFinance/issues/30#issuecomment-[0-9]+$ ]]
           comment_id="${RESERVATION##*issuecomment-}"
-          gh api "repos/ranouf/OurFinance/issues/comments/$comment_id" |
-            jq -e --arg sha "$TARGET_SHA" '
-              now as $checked | (.created_at | fromdateiso8601) as $reserved |
-              .user.login == "ranouf" and
-              .issue_url == "https://api.github.com/repos/ranouf/OurFinance/issues/30" and
-              $reserved <= $checked and ($checked - $reserved) <= 3600 and
-              (.body | contains($sha) and (ascii_downcase | contains("test")) and
-                test("r[ée]serv"; "i"))
-            ' >/dev/null
+          comment_file="$(mktemp)"
+          trap 'rm -f "$comment_file"' EXIT
+          gh api "repos/ranouf/OurFinance/issues/comments/$comment_id" > "$comment_file"
+          bash scripts/verify-test-reservation.sh "$TARGET_SHA" "$comment_file"
       - name: Require successful PR validation on exact SHA
         env:
           TARGET_SHA: ${{ inputs.sha }}

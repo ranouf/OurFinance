@@ -10,13 +10,7 @@ approval_json="$4"
 [[ "$channel" == preview || "$channel" == live ]]
 
 # An explicit one-line decision keeps cancellation and refusal unambiguous.
-jq -e --arg sha "$sha" '
-  now as $checked | (.created_at | fromdateiso8601) as $reserved |
-  .user.login == "ranouf" and
-  .issue_url == "https://api.github.com/repos/ranouf/OurFinance/issues/30" and
-  $reserved <= $checked and ($checked - $reserved) <= 3600 and
-  ((.body // "") | sub("[\\r\\n]+$"; "")) == ("Réservation TEST active pour " + $sha)
-' "$reservation_json" >/dev/null
+bash scripts/verify-test-reservation.sh "$sha" "$reservation_json"
 
 jq -e --arg sha "$sha" --arg channel "$channel" '
   .user.login == "ranouf" and
