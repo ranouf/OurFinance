@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import { deepStrictEqual, rejects, strictEqual } from 'node:assert';
 import { cleanupUploadJournals, createUploadJournal, recoverFailedUpload } from '../src/media-upload-journal';
+import { ProviderQuotaError } from '../src/provider-quota';
 
 const env = { FIREBASE_PROJECT_ID: 'ourfinance-test', CLOUDINARY_CLOUD_NAME: 'synthetic', CLOUDINARY_API_KEY: 'dummy', CLOUDINARY_API_SECRET: 'dummy' };
 const publicId = 'ourfinance-test/g/e/a';
@@ -104,4 +105,34 @@ test('owner retry caps one request at eight assets for the Worker subrequest bud
   };
   deepStrictEqual(await cleanupUploadJournals('g', 'token', env, transport as typeof fetch), { cleaned: 8, pending: 1 });
   strictEqual(destroys, 8);
+});
+
+test('owner retry reports a provider quota and preserves the journal until recovery', async () => {
+  for (const quotaAt of ['attachment', 'destroy'] as const) {
+    let quota = true;
+    let removed = false;
+    let destroyAttempts = 0;
+    const row = { name: journalName, fields: {
+      expenseId: { stringValue: 'e' }, publicId: { stringValue: publicId },
+      status: { stringValue: 'cleanup_pending' }, createdAt: { timestampValue: '2026-01-01T00:00:00.000Z' },
+    } };
+    const transport = async (resource: string | URL | Request, init?: RequestInit) => {
+      const url = String(resource);
+      if (url.includes('/receiptUploadJobs?pageSize=9')) return Response.json({ documents: removed ? [] : [row] });
+      if (url.endsWith('/attachments/a')) return quota && quotaAt === 'attachment'
+        ? Response.json({}, { status: 429 }) : Response.json({}, { status: 404 });
+      if (url.endsWith('/image/destroy')) {
+        destroyAttempts++;
+        return quota && quotaAt === 'destroy' ? Response.json({}, { status: 429 }) : Response.json({ result: 'ok' });
+      }
+      if (url.endsWith('/receiptUploadJobs/a') && init?.method === 'DELETE') { removed = true; return Response.json({}); }
+      throw new Error(`Unexpected request ${url}`);
+    };
+    await rejects(cleanupUploadJournals('g', 'token', env, transport as typeof fetch), ProviderQuotaError);
+    strictEqual(removed, false);
+    quota = false;
+    deepStrictEqual(await cleanupUploadJournals('g', 'token', env, transport as typeof fetch), { cleaned: 1, pending: 0 });
+    strictEqual(removed, true);
+    strictEqual(destroyAttempts, quotaAt === 'destroy' ? 2 : 1);
+  }
 });
