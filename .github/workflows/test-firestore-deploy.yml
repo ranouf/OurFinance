@@ -13,6 +13,7 @@ on:
 permissions:
   contents: read
   issues: read
+  actions: read
 jobs:
   firestore_test:
     if: github.ref == 'refs/heads/main' && github.actor == 'ranouf' && github.triggering_actor == 'ranouf'
@@ -39,6 +40,16 @@ jobs:
               $reserved <= $checked and ($checked - $reserved) <= 3600 and
               (.body | contains($sha) and (ascii_downcase | contains("test")) and
                 (contains("réserv") or contains("reserv")))
+            ' >/dev/null
+      - name: Require successful PR validation on exact SHA
+        env:
+          TARGET_SHA: ${{ inputs.sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/ranouf/OurFinance/actions/runs?head_sha=$TARGET_SHA&per_page=100" |
+            jq -e --arg sha "$TARGET_SHA" '
+              [.workflow_runs[] | select(.head_sha == $sha and .path == ".github/workflows/pr-validation.yml")]
+              | first | .conclusion == "success"
             ' >/dev/null
       - uses: actions/checkout@v4
         with:

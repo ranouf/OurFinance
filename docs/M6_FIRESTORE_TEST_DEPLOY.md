@@ -10,7 +10,7 @@ Le workflow `Deploy test Firestore manually` publie uniquement `firestore.rules`
 
 ## Lancement
 
-Depuis `main`, le propriétaire lance le workflow avec le SHA complet à 40 caractères et l'URL du commentaire de réservation. Le workflow vérifie le commentaire de l'issue #30, récupère exactement le SHA, vérifie les fichiers, exécute `npm run test:rules` sur émulateur local, contrôle que la clé de service annonce `project_id=ourfinance-test`, puis lance `firebase-tools deploy --only firestore:rules,firestore:indexes --project ourfinance-test`.
+Depuis `main`, le propriétaire lance le workflow avec le SHA complet à 40 caractères et l'URL du commentaire de réservation. Le workflow vérifie le commentaire de l'issue #30 et le dernier run `PR validation` réussi pour ce SHA exact, récupère le commit, vérifie les fichiers, exécute `npm run test:rules` sur émulateur local, contrôle que la clé de service annonce `project_id=ourfinance-test`, puis lance `firebase-tools deploy --only firestore:rules,firestore:indexes --project ourfinance-test`.
 
 Le workflow Firestore et celui du Worker partagent une concurrence GitHub pour éviter deux publications backend simultanées. Cela ne remplace pas la coordination avec les essais locaux et le workflow Hosting.
 
