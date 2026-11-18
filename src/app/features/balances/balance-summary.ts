@@ -1,4 +1,4 @@
-import { Component, Input, OnChanges, SimpleChanges, signal } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { FirebaseApp } from 'firebase/app';
 import type { User } from 'firebase/auth';
@@ -17,7 +17,7 @@ import { locale, t } from '../../shared/utils/i18n';
       <h2 class="text-2xl font-extrabold tracking-tight">{{ t('groupBalances') }}</h2>
       <p class="mt-1 text-sm text-pop-muted">{{ t('balanceIntro') }}</p>
       <label class="mt-5 block text-sm font-bold">{{ t('group') }}
-        <select class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="balanceGroup" [(ngModel)]="selectedGroupId" (ngModelChange)="refresh()">
+        <select class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="balanceGroup" [(ngModel)]="selectedGroupId" (ngModelChange)="onGroupChange()">
           <option value="">{{ t('chooseGroup') }}</option>
           @for (group of groups; track group.id) { <option [value]="group.id">{{ group.name }}</option> }
         </select>
@@ -44,7 +44,9 @@ import { locale, t } from '../../shared/utils/i18n';
   `,
 })
 export class BalanceSummary implements OnChanges {
+  @Output() readonly groupChange = new EventEmitter<string>();
   @Input({ required: true }) groups: Group[] = [];
+  @Input() preferredGroupId = '';
   @Input({ required: true }) firebaseApp?: FirebaseApp;
   @Input({ required: true }) user?: User;
   @Input() revision = 0;
@@ -59,8 +61,13 @@ export class BalanceSummary implements OnChanges {
 
   ngOnChanges(changes: SimpleChanges): void {
     if (this.firebaseApp) this.service = new BalanceService(this.firebaseApp);
+    if (this.selectedGroupId !== this.preferredGroupId && (!this.preferredGroupId || this.groups.some(group => group.id === this.preferredGroupId))) {
+      this.selectedGroupId = this.preferredGroupId;
+      void this.refresh();
+    }
     if (changes['revision'] && !changes['revision'].firstChange && this.selectedGroupId) void this.refresh();
   }
+  onGroupChange(): void { this.groupChange.emit(this.selectedGroupId); void this.refresh(); }
   currencies(): string[] { return [...new Set(this.totals().map(row => row.currency))].sort(); }
   rowsFor(currency: string): LedgerTotal[] { return this.totals().filter(row => row.currency === currency); }
   memberLabel(userId: string): string { return userId === this.user?.uid ? t('me') : `${t('otherMember')} ${userId.slice(0, 8)}`; }
