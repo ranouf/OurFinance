@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, signal } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, OnChanges, Output, QueryList, SimpleChanges, ViewChildren, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { FirebaseApp } from 'firebase/app';
 import type { User } from 'firebase/auth';
@@ -10,7 +10,7 @@ import { formatMinor, minorDigits } from '../../shared/utils/currency';
 import { categories, type CustomCategory } from '../../shared/utils/categories';
 import { categoryLabel } from '../../shared/utils/category-label';
 import { language, locale } from '../../shared/utils/i18n';
-import { prepareExpense, type ExpenseDraft } from './expense-draft';
+import { parseMinor, prepareExpense, type ExpenseDraft } from './expense-draft';
 import type { SplitMode } from '../../shared/utils/split-engine';
 import { expenseMessage, expenseText } from './expense-text';
 
@@ -62,10 +62,11 @@ import { expenseMessage, expenseText } from './expense-text';
                 <legend class="px-2 text-sm font-extrabold text-pop-primary-dark">{{ text('paidBy') }}</legend>
                 @for (row of draft.paymentRows; track row.userId; let i = $index) {
                   <div class="mt-3 flex min-h-11 items-center gap-3 rounded-xl bg-pop-surface px-3 py-2">
-                    <label class="flex min-w-0 flex-1 items-center gap-2 text-sm"><input class="size-5 shrink-0 accent-pop-primary focus-visible:outline-2 focus-visible:outline-pop-primary" type="checkbox" [name]="'payer-selected-' + i" [(ngModel)]="row.selected" /><span class="min-w-0 break-all">{{ row.userId === user?.uid ? text('me') : row.userId }}</span></label>
-                    @if (row.selected) { <input class="min-h-11 w-24 rounded-xl border border-pop-border p-2 text-right focus-visible:outline-2 focus-visible:outline-pop-primary" [name]="'payer-value-' + i" [(ngModel)]="row.value" inputmode="decimal" [attr.aria-label]="text('paymentFor') + ' ' + (row.userId === user?.uid ? text('me') : row.userId)" [placeholder]="draft.currency" /> }
+                    <label class="flex min-w-0 flex-1 items-center gap-2 text-sm"><input #payerCheckbox class="size-5 shrink-0 accent-pop-primary focus-visible:outline-2 focus-visible:outline-pop-primary" type="checkbox" [name]="'payer-selected-' + i" [(ngModel)]="row.selected" (ngModelChange)="paymentError.set(false); message.set('')" [attr.aria-invalid]="paymentError() ? 'true' : null" [attr.aria-describedby]="paymentError() ? 'payment-error' : null" /><span class="min-w-0 break-all">{{ row.userId === user?.uid ? text('me') : row.userId }}</span></label>
+                    @if (row.selected) { <input #paymentInput class="min-h-11 w-24 rounded-xl border border-pop-border p-2 text-right focus-visible:outline-2 focus-visible:outline-pop-primary" [class.border-rose-600]="paymentError()" [name]="'payer-value-' + i" [(ngModel)]="row.value" (ngModelChange)="paymentError.set(false); message.set('')" inputmode="decimal" [attr.aria-label]="text('paymentFor') + ' ' + (row.userId === user?.uid ? text('me') : row.userId)" [attr.aria-invalid]="paymentError() ? 'true' : null" [attr.aria-describedby]="paymentError() ? 'payment-error' : null" [placeholder]="draft.currency" /> }
                   </div>
                 }
+                @if (paymentError()) { <p id="payment-error" class="mt-3 text-sm font-bold text-rose-700" role="alert">{{ displayMessage(message()) }}</p> }
               </fieldset>
             }
             <fieldset class="rounded-2xl border border-pop-border bg-pop-lavender p-4">
@@ -93,12 +94,14 @@ import { expenseMessage, expenseText } from './expense-text';
           } @else { <p class="text-sm text-pop-muted">{{ text('noMembers') }}</p> }
         }
       </form>
-      @if (message()) { <p class="mt-4 rounded-xl bg-pop-lavender p-3 text-sm text-pop-text" role="status">{{ displayMessage(message()) }}</p> }
+      @if (message() && !paymentError()) { <p class="mt-4 rounded-xl bg-pop-lavender p-3 text-sm text-pop-text" [attr.role]="message() === 'saved' || message() === 'updated' ? 'status' : 'alert'">{{ displayMessage(message()) }}</p> }
     </section>
   `,
 })
 export class ExpenseForm implements OnChanges {
   constructor(private readonly changeDetector: ChangeDetectorRef) {}
+  @ViewChildren('paymentInput') private paymentInputs?: QueryList<ElementRef<HTMLInputElement>>;
+  @ViewChildren('payerCheckbox') private payerCheckboxes?: QueryList<ElementRef<HTMLInputElement>>;
   @Output() readonly saved = new EventEmitter<void>();
   @Output() readonly editCancelled = new EventEmitter<void>();
   @Input({ required: true }) groups: Group[] = [];
@@ -119,6 +122,7 @@ export class ExpenseForm implements OnChanges {
   readonly customCategories = signal<CustomCategory[]>([]);
   readonly busy = signal(false);
   readonly message = signal('');
+  readonly paymentError = signal(false);
   readonly previewRows = signal<{ userId: string; amountMinor: number }[]>([]);
   selectedGroupId = '';
   draft: ExpenseDraft = this.emptyDraft();
@@ -202,11 +206,24 @@ export class ExpenseForm implements OnChanges {
     this.draft.rows.forEach(row => { row.selected = values.has(row.userId); row.value = values.get(row.userId) ?? ''; });
   }
   preview(): void {
-    this.previewRows.set([]); this.message.set('');
+    this.previewRows.set([]); this.message.set(''); this.paymentError.set(false);
     try {
       const result = prepareExpense(this.draft, new Set(this.members().map(member => member.userId)));
       this.previewRows.set(result.allocations.map(item => ({ userId: item.userId, amountMinor: item.amountMinor })));
-    } catch (error) { this.message.set(error instanceof Error ? error.message : 'splitInvalid'); }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'splitInvalid';
+      this.message.set(message);
+      const invalidPayment = this.draft.multiplePayers ? this.invalidPaymentIndex() : -1;
+      if (this.draft.multiplePayers && (message === 'Choisissez des payeurs actifs' || message === 'La somme des paiements doit égaler le montant' || invalidPayment >= 0)) {
+        this.paymentError.set(true);
+        queueMicrotask(() => (this.paymentInputs?.get(Math.max(invalidPayment, 0)) ?? this.payerCheckboxes?.first)?.nativeElement.focus());
+      }
+    }
+  }
+  private invalidPaymentIndex(): number {
+    return this.draft.paymentRows.filter(row => row.selected).findIndex(row => {
+      try { parseMinor(row.value, this.draft.currency); return false; } catch { return true; }
+    });
   }
   async save(): Promise<void> {
     if (!this.service || !this.user || !this.selectedGroupId || this.busy()) return;
