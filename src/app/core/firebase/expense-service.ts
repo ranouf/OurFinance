@@ -44,7 +44,7 @@ export class ExpenseService {
     private readonly app: FirebaseApp,
     private readonly workerUrl: string,
     private readonly repository: ExpenseRepository = firestoreExpenseRepository,
-    private readonly transport: typeof fetch = fetch,
+    private readonly transport: typeof fetch = (...args) => fetch(...args),
   ) {}
 
   async history(groupId: string, after?: QueryDocumentSnapshot<DocumentData>, from?: string, to?: string): Promise<{ entries: ExpenseHistoryEntry[]; last?: QueryDocumentSnapshot<DocumentData>; hasMore: boolean; scanned: number }> {
