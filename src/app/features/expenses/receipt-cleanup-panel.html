@@ -23,7 +23,9 @@
         [attr.role]="key === 'receiptCleanupPending' || key === 'receiptCleanupQuota' || key === 'receiptCleanupDenied' || key === 'receiptCleanupUnavailable' ? 'alert' : 'status'">
         {{ text(key) }}
         @if (key === 'receiptCleanupDone' || key === 'receiptCleanupPending') {
-          <span>{{ text('receiptCleanupCount') }} : {{ cleaned() }} · {{ text('receiptCleanupLeft') }} : {{ pending() }}</span>
+          <span>{{ text('receiptCleanupCount') }} : {{ cleaned() }}
+            @if (key === 'receiptCleanupDone') { · {{ text('receiptCleanupLeft') }} : {{ pending() }} }
+          </span>
         }
       </p>
     }
