@@ -74,6 +74,16 @@ test('outcome lookup refuses a revoked owner before returning the restore state'
     (error: unknown) => error instanceof RestoreCommitError && error.status === 403 && error.code === 'owner_required');
 });
 
+test('outcome lookup refuses a missing group or membership without exposing restore state', async () => {
+  for (const path of ['/groups/g', '/groups/g/members/alice']) {
+    const state = await fixture();
+    const transport = (async (resource: string | URL | Request, init?: RequestInit) =>
+      String(resource).endsWith(path) ? new Response(null, { status: 404 }) : state.transport(resource, init)) as typeof fetch;
+    await rejects(readRestoreOutcome('alice', 'g', restoreId, state.env, transport),
+      (error: unknown) => error instanceof RestoreCommitError && error.status === 403 && error.code === 'owner_required');
+  }
+});
+
 test('quota during either outcome read keeps the fixed public quota signal', async () => {
   for (const path of ['/groups/g', '/groups/g/members/alice']) {
     const state = await fixture();

@@ -21,9 +21,11 @@ export async function readRestoreOutcome(uid: string, groupId: string, restoreId
     transport(`https://firestore.googleapis.com/v1/${root}/groups/${groupId}`, { headers }),
     transport(`https://firestore.googleapis.com/v1/${root}/groups/${groupId}/members/${uid}`, { headers }),
   ]);
-  if (!groupResponse.ok || !memberResponse.ok) throw new RestoreCommitError(503,
-    isProviderQuotaStatus(groupResponse.status) || isProviderQuotaStatus(memberResponse.status)
-      ? 'provider_quota_exceeded' : 'outcome_unavailable');
+  if (isProviderQuotaStatus(groupResponse.status) || isProviderQuotaStatus(memberResponse.status))
+    throw new RestoreCommitError(503, 'provider_quota_exceeded');
+  if (groupResponse.status === 404 || memberResponse.status === 404)
+    throw new RestoreCommitError(403, 'owner_required');
+  if (!groupResponse.ok || !memberResponse.ok) throw new RestoreCommitError(503, 'outcome_unavailable');
   const group = await groupResponse.json() as { fields?: Record<string, { stringValue?: string }> };
   const member = await memberResponse.json() as { fields?: Record<string, { stringValue?: string }> };
   if (member.fields?.['role']?.stringValue !== 'owner' || member.fields['status']?.stringValue !== 'active' ||
