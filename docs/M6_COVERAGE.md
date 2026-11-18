@@ -1,6 +1,8 @@
 # M6 — couverture mesurée en CI
 
-`npm run test:coverage` exécute ensemble les tests unitaires et Worker avec la couverture V8 de Node. La CI exige au moins **80 % de lignes, branches et fonctions parmi les modules chargés par ces tests**. Mesure locale du 16 novembre 2026 sur cette pile V1 : **93,10 %** des lignes, **84,97 %** des branches et **95,68 %** des fonctions. La commande a réussi.
+`npm run test:coverage` exécute ensemble les tests unitaires et Worker avec la couverture V8 de Node. La validation PR exige **90 % de lignes et de fonctions**, et encore **80 % de branches**. La commande inclut explicitement les services métier Angular, les utilitaires financiers/import, les calculs de statistiques/accueil et les modules Worker, afin qu'un fichier non importé par les tests ne disparaisse pas silencieusement du dénominateur. Les composants de panneau d'interface sont exclus de cette mesure Node ; ils exigent des essais Angular et navigateur distincts.
+
+Sur le SHA de préparation de cette tranche (18 novembre 2026), la mesure avec ce périmètre explicite est **95,04 % lignes, 83,49 % branches, 94,72 % fonctions**. L'objectif demandé de 90 % des branches reste **non atteint**. Il doit être fermé par des tests de refus, panne et transaction supplémentaires, sans exclure les modules difficiles ni baisser le seuil de lignes/fonctions. Publier la ventilation par fichier à chaque PR de page.
 
 Ce chiffre **n’est pas la couverture globale d’OurFinance** : les composants et templates Angular non chargés par les tests Node en sont absents. Le critère du plan « au moins 80 % global » reste donc ouvert. Il nécessite une instrumentation Angular/E2E distincte, notamment pour les formulaires, l’authentification, les états asynchrones et l’accessibilité. Le test des règles Firestore reste un job séparé dans la même CI.
 
