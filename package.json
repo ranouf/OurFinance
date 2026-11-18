@@ -12,6 +12,7 @@
     "test:unit": "tsx --test tests/unit/*.test.ts",
     "test:worker": "tsx --test workers/ourfinance-api/tests/*.test.ts",
     "typecheck:worker": "tsc --ignoreConfig --noEmit --target es2022 --module esnext --moduleResolution bundler --strict --skipLibCheck workers/ourfinance-api/src/*.ts",
+    "lint:worker": "eslint workers/ourfinance-api/src workers/ourfinance-api/tests",
     "config:test": "node scripts/write-test-config.mjs",
     "test:coverage": "node --import tsx --test --experimental-test-coverage --test-coverage-lines=80 --test-coverage-branches=80 --test-coverage-functions=80 tests/unit/*.test.ts workers/ourfinance-api/tests/*.test.ts"
   },
@@ -35,14 +36,17 @@
     "@angular/build": "^22.2.7",
     "@angular/cli": "^22.2.7",
     "@angular/compiler-cli": "^22.2.0",
+    "@eslint/js": "^10.0.1",
     "@firebase/rules-unit-testing": "^6.0.0",
     "@tailwindcss/postcss": "^4.3.5",
+    "eslint": "^10.15.0",
     "firebase-tools": "^15.36.0",
     "postcss": "^8.5.33",
     "prettier": "^3.8.1",
     "tailwindcss": "^4.3.5",
     "tsx": "^4.23.15",
-    "typescript": "~6.0.2"
+    "typescript": "~6.0.2",
+    "typescript-eslint": "^8.73.0"
   },
   "overrides": {
     "@grpc/grpc-js": "1.14.7"
