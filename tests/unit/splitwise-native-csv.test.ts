@@ -39,3 +39,32 @@ test('refuse une précision numérique démesurée avant conversion entière', (
   const csv = `Date,Description,Catégorie,Coût,Devise,Alice,Bob\n2026-11-01,Trajet fictif,Transport,${huge},JPY,1,-1`;
   throws(() => parseNativeSplitwiseCsv(csv), /transaction Splitwise invalide/);
 });
+
+test('refuse les exports natifs tronqués, ambigus ou sans solde fiable', () => {
+  const header = 'Date,Description,Catégorie,Coût,Devise,Alice,Bob';
+  const row = '2026-11-01,Trajet fictif,Transport,10.00,CAD,5.00,-5.00';
+  const balance = '2026-11-16,Solde total,Total, ,CAD,5.00,-5.00';
+  const cases = [
+    ['', /En-tête/],
+    ['Date,Description,Catégorie,Coût,Devise', /Colonnes/],
+    ['Date,Description,Catégorie,Prix,Devise,Alice,Bob', /Colonnes/],
+    ['Date,Description,Catégorie,Coût,Devise,Alice,Alice', /Participants/],
+    ['Date,Description,Catégorie,Coût,Devise,Alice, ', /Participants/],
+    [`${header}\n${row},extra\n${balance}`, /colonnes/],
+    [`${header}\n2026-02-30,Trajet fictif,Transport,10.00,CAD,5.00,-5.00\n${balance}`, /transaction/],
+    [`${header}\n2026-11-01,,Transport,10.00,CAD,5.00,-5.00\n${balance}`, /transaction/],
+    [`${header}\n2026-11-01,Trajet fictif,Transport,0,CAD,0,0\n${balance}`, /transaction/],
+    [`${header}\n2026-11-01,Trajet fictif,Transport,10.00,ZZZ,5.00,-5.00\n${balance}`, /transaction/],
+    [`${header}\n${row}\n2026-11-16,Solde total,Total, ,EUR,5.00,-5.00`, /Soldes/],
+    [`${header}\n${row}\n2026-11-16,Solde total,Total, ,CAD,invalid,-5.00`, /Soldes/],
+    [`${header}\n${row}`, /solde final/],
+    [`${header}\n${balance}`, /Soldes/],
+  ] as const;
+  for (const [csv, error] of cases) throws(() => parseNativeSplitwiseCsv(csv), error, csv);
+});
+
+test('refuse la réconciliation quand un participant manque un solde ou un impact', () => {
+  const source = parseNativeSplitwiseCsv('Date,Description,Catégorie,Coût,Devise,Alice,Bob\n2026-11-01,Trajet fictif,Transport,10.00,CAD,5.00,-5.00\n2026-11-16,Solde total,Total, ,CAD,5.00,-5.00');
+  throws(() => reconcileNativeSplitwiseCsv({ ...source, balances: { Alice: '5.00' } }), /Solde/);
+  throws(() => reconcileNativeSplitwiseCsv({ ...source, rows: [{ ...source.rows[0], impacts: { Alice: '5.00' } }] }), /Solde/);
+});

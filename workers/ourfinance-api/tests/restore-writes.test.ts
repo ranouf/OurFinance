@@ -69,3 +69,33 @@ test('restore plan writes exact historical decimal fields without legacy minor u
   strictEqual('amountMinor' in fields, false);
   strictEqual('netImpactsMinor' in fields, false);
 });
+
+test('restore plan rejects ambiguous live assets, duplicate stages and invalid transaction context', () => {
+  throws(() => buildRestoreWrites(group, live, staged, '../test', restoreId, at), /Contexte/);
+  throws(() => buildRestoreWrites(group, live, staged, 'ourfinance-test', 'not-a-uuid', at), /Contexte/);
+  throws(() => buildRestoreWrites(group, live, staged, 'ourfinance-test', restoreId, 'invalid'), /Contexte/);
+  throws(() => buildRestoreWrites(group, { ...live, receiptPublicIds: ['same', 'same'] }, staged, 'ourfinance-test', restoreId, at), /Médias/);
+  throws(() => buildRestoreWrites(group, { ...live, receiptPublicIds: Array.from({ length: 1001 }, (_, i) => `id_${i}`) }, staged, 'ourfinance-test', restoreId, at), /Médias/);
+  throws(() => buildRestoreWrites(group, live, [...staged, ...staged], 'ourfinance-test', restoreId, at), /Reçus/);
+  throws(() => buildRestoreWrites(group, live, [{ ...staged[0], format: 'jpg' }], 'ourfinance-test', restoreId, at), /Reçus/);
+});
+
+test('restore plan preserves deleted history and optional activity links', () => {
+  const history: GroupExportV2 = { ...group,
+    expenses: [{ ...group.expenses[0], deleted: true }],
+    receipts: [{ ...group.receipts[0], status: 'deleted' }],
+    importedRecords: [{ id: 'history', sourceId: 'synthetic-history', batchId: 'batch', date: '2026-11-01',
+      description: 'Fictif', currency: 'CAD', amountMinor: 101, netImpactsMinor: { alice: 0 },
+      splitStatus: 'undetermined', status: 'undone' }],
+    importBatches: [{ id: 'batch', ownerId: 'alice', source: 'splitwise_csv', status: 'undone', recordIds: ['history'], createdAt: at, undoneAt: at }],
+    activity: [{ id: 'activity', actorId: 'alice', action: 'expense_created', expenseId: 'e',
+      commentId: 'c', settlementId: 's', batchId: 'batch', categoryId: 'other', targetId: 'alice', at }],
+  };
+  const writes = buildRestoreWrites(history, live, [], 'ourfinance-test', restoreId, at).writes as { update?: { name: string; fields: Record<string, unknown> } }[];
+  const expense = writes.find(row => row.update?.name.endsWith('/expenses/e'))!.update!.fields;
+  strictEqual('deletedAt' in expense, true);
+  const imported = writes.find(row => row.update?.name.endsWith('/importedRecords/history'))!.update!.fields;
+  strictEqual('undoneAt' in imported, true);
+  const activity = writes.find(row => row.update?.name.endsWith('/activity/activity'))!.update!.fields;
+  for (const key of ['expenseId', 'commentId', 'settlementId', 'batchId', 'categoryId', 'targetId']) strictEqual(key in activity, true);
+});
