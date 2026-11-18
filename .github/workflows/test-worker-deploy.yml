@@ -50,11 +50,11 @@ jobs:
           EOF
           npx --yes wrangler@4.164.0 deploy --dry-run --config workers/ourfinance-api/wrangler.ci.toml
   worker_test:
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && github.actor == 'ranouf'
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && github.actor == 'ranouf' && github.triggering_actor == 'ranouf'
     runs-on: ubuntu-latest
     environment: test
     concurrency:
-      group: ourfinance-worker-test
+      group: ourfinance-test-deploy
       cancel-in-progress: false
     steps:
       - name: Check exact SHA and reservation

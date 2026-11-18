@@ -2,6 +2,8 @@
 
 Le workflow `Deploy test Worker manually` publie **uniquement** `ourfinance-api-dev` sur le domaine `workers.dev`. Il ne déploie ni Hosting, ni Firestore, ni la production.
 
+La publication manuelle des règles et index Firestore TEST suit la [procédure distincte](M6_FIRESTORE_TEST_DEPLOY.md). Les deux workflows partagent une concurrence GitHub pour éviter deux publications backend simultanées.
+
 ## Prérequis
 
 1. Réserver `ourfinance-api-dev` et `ourfinance-test` dans l'[issue #30](https://github.com/ranouf/OurFinance/issues/30), avec le PR et le SHA complet. Ne pas lancer deux essais sur la pile simultanément.
