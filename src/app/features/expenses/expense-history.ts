@@ -7,6 +7,7 @@ import type { DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import { CategoryService } from '../../core/firebase/category-service';
 import { ExpenseService, type ExpenseHistoryEntry } from '../../core/firebase/expense-service';
 import type { Group, GroupMember } from '../../core/firebase/group-model';
+import { loadSharedMemberProfiles } from '../../core/firebase/member-profile-service';
 import { formatMinor } from '../../shared/utils/currency';
 import { categories, categoryColorClass, type CategoryDefinition } from '../../shared/utils/categories';
 import { categoryLabel } from '../../shared/utils/category-label';
@@ -127,6 +128,7 @@ export class ExpenseHistory implements OnChanges {
   readonly entries = signal<ExpenseHistoryEntry[]>([]);
   readonly categoryOptions = signal<readonly CategoryDefinition[]>(categories);
   readonly participantOptions = signal<readonly GroupMember[]>([]);
+  readonly memberNames = signal<Record<string, string>>({});
   readonly hasMore = signal(false);
   readonly busy = signal(false);
   readonly message = signal('');
@@ -167,7 +169,7 @@ export class ExpenseHistory implements OnChanges {
   amount(entry: ExpenseHistoryEntry): string { return this.format(entry.amountMinor, entry.currency); }
   format(amountMinor: number, currency: string): string { return formatMinor(amountMinor, currency, locale()); }
   displayDate(date: string): string { return new Intl.DateTimeFormat(locale(), { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date(`${date}T12:00:00Z`)); }
-  memberLabel(userId: string): string { return userId === this.user?.uid ? this.text('me') : userId; }
+  memberLabel(userId: string): string { return userId === this.user?.uid ? this.text('me') : this.memberNames()[userId] || `${this.text('otherMember')} ${userId.slice(0, 8)}`; }
   groupOwnerId(): string { return this.groups.find(group => group.id === this.selectedGroupId)?.ownerId ?? ''; }
   onToggle(expenseId: string, event: Event): void {
     const next = new Set(this.opened());
@@ -193,6 +195,7 @@ export class ExpenseHistory implements OnChanges {
     this.selectedParticipantId = '';
     this.categoryOptions.set(categories);
     this.participantOptions.set([]);
+    this.memberNames.set({});
     void this.loadFilters();
     void this.refresh();
   }
@@ -202,10 +205,14 @@ export class ExpenseHistory implements OnChanges {
     const requestId = ++this.filterRequestId;
     if (!groupId || !this.service || !this.categoryService) return;
     try {
-      const [customCategories, members] = await Promise.all([this.categoryService.list(groupId), this.service.members(groupId)]);
+      const [customCategories, members, names] = await Promise.all([
+        this.categoryService.list(groupId), this.service.members(groupId),
+        this.user && this.workerUrl ? loadSharedMemberProfiles(this.workerUrl, groupId, this.user).catch(() => []) : [],
+      ]);
       if (requestId !== this.filterRequestId) return;
       this.categoryOptions.set([...categories, ...customCategories]);
       this.participantOptions.set(members);
+      this.memberNames.set(Object.fromEntries(names.filter(item => item.displayName).map(item => [item.userId, item.displayName!])));
     } catch {
       if (requestId === this.filterRequestId) this.message.set('categoriesUnavailable');
     }
