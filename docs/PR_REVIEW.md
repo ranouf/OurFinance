@@ -17,6 +17,10 @@ Ce guide s'applique à chaque PR et à chaque nouveau commit de sa branche.
 - Une erreur de saisie indique le problème en texte, sans s’appuyer sur la couleur seule. Le contrôle invalide porte `aria-invalid`, référence son message par `aria-describedby`, conserve la valeur saisie et permet la correction. Les erreurs de soumission sont annoncées avec `role="alert"` ou un mécanisme équivalent ; le premier champ à corriger reçoit le focus lorsque cela aide le parcours.
 - Vérifier les états vide, attente, succès, échec et désactivé des formulaires modifiés. Préserver les traductions FR/EN/JA, les noms accessibles, le parcours clavier et la mise en page à 320, 390 et 1280 px.
 
+## Validation d'une PR empilée en conflit
+
+Si GitHub ne déclenche pas `pull_request` parce que la PR est en conflit avec sa base, lancer manuellement `Validate stacked PR SHA` depuis `main` avec le SHA complet du HEAD. Ce workflow sans secret ni déploiement vérifie le commit exact et exécute les contrôles disponibles à ce SHA. Consigner le lien du run et sa limite dans la PR ; le run est attaché à `main`, pas au statut GitHub de la PR. Résoudre ensuite le conflit et obtenir « PR validation » vert sur le HEAD intégrable avant toute fusion.
+
 ## Revue à chaque commit et push
 
 1. Après **chaque commit**, faire réaliser une revue assistée par IA du diff et du PR selon le présent guide, avec le SHA exact. Après **chaque push**, refaire cette revue sur le HEAD distant, même si une revue locale a déjà eu lieu.

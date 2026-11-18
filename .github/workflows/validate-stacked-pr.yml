@@ -1,0 +1,41 @@
+name: Validate stacked PR SHA
+on:
+  workflow_dispatch:
+    inputs:
+      target_sha:
+        description: Full commit SHA of an open stacked PR
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  exact_sha:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check full SHA
+        env:
+          TARGET_SHA: ${{ inputs.target_sha }}
+        run: |
+          [[ "$TARGET_SHA" =~ ^[0-9a-f]{40}$ ]]
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.target_sha }}
+          persist-credentials: false
+      - name: Verify checked-out SHA
+        env:
+          TARGET_SHA: ${{ inputs.target_sha }}
+        run: test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: CI checks available at this SHA
+        run: |
+          if compgen -G 'tests/ci/*.test.mjs' >/dev/null; then node --test tests/ci/*.test.mjs; fi
+          npm run typecheck
+          npm run lint --if-present
+          npm run build
+          npm run typecheck:worker
+          npm run test:coverage
+          npm run test:rules
