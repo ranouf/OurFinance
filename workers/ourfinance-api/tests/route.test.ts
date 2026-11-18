@@ -28,6 +28,31 @@ test('group creation remains disabled by default even with server identity', asy
   const response = await handleRequest(new Request('https://worker.example/groups', { method: 'POST', headers: { Origin: env.ALLOWED_ORIGIN } }), { ...env, FIREBASE_SERVICE_ACCOUNT_JSON: 'configured' });
   strictEqual(response.status, 503);
 });
+test('explicit V1 mode opens privileged routes for multiple groups but still requires identity', async () => {
+  const configured = { ...env, ENABLE_API_V1: 'true', FIREBASE_SERVICE_ACCOUNT_JSON: 'configured',
+    CLOUDINARY_CLOUD_NAME: 'configured', CLOUDINARY_API_KEY: 'configured', CLOUDINARY_API_SECRET: 'configured' };
+  const routes: Array<[string, string]> = [
+    ['GET', '/member-profiles'], ['GET', '/backup/restores/current'], ['POST', '/backup/preview'],
+    ['GET', '/backup/snapshot'], ['GET', '/backup/preferences'], ['POST', '/imports'],
+    ['POST', '/settlements'], ['POST', '/categories'], ['POST', '/qr-invitations'],
+    ['GET', '/qr-invitations'], ['POST', '/invitations'], ['POST', '/expenses'],
+    ['PATCH', '/currency'], ['POST', '/expenses/e/attachments'],
+  ];
+  for (const groupId of ['g1', 'g2']) {
+    for (const [method, suffix] of routes) {
+      const response = await handleRequest(new Request(`https://worker.example/groups/${groupId}${suffix}`, { method }), configured);
+      strictEqual(response.status, 401, `${method} ${groupId}${suffix}`);
+    }
+  }
+  strictEqual((await handleRequest(new Request('https://worker.example/groups', { method: 'POST' }), configured)).status, 401);
+  strictEqual((await handleRequest(new Request('https://worker.example/qr-invitations/preview', { method: 'POST' }), configured)).status, 401);
+});
+test('legacy one-group switch remains scoped when V1 mode is absent', async () => {
+  const configured = { ...env, FIREBASE_SERVICE_ACCOUNT_JSON: 'configured', ENABLE_EXPENSE_POC: 'true', EXPENSE_POC_GROUP_ID: 'g1' };
+  const forGroup = (groupId: string) => handleRequest(new Request(`https://worker.example/groups/${groupId}/expenses`, { method: 'POST' }), configured);
+  strictEqual((await forGroup('g1')).status, 401);
+  strictEqual((await forGroup('g2')).status, 503);
+});
 test('group currency change remains disabled without one explicit test group', async () => {
   const response = await handleRequest(new Request('https://worker.example/groups/g1/currency', { method: 'PATCH' }), { ...env, FIREBASE_SERVICE_ACCOUNT_JSON: 'configured' });
   strictEqual(response.status, 503);
