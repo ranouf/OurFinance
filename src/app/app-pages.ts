@@ -112,7 +112,7 @@ export class LoginPage {
       } @else if (app.groupsError()) {
         <p class="mt-6 rounded-2xl border border-pop-border bg-white p-6" role="alert">{{ t('groupsUnavailable') }}</p>
       } @else if (app.selectedGroup(); as group) {
-        <form class="mt-3 flex min-h-11 items-center gap-2 rounded-2xl border border-pop-border bg-white px-3 shadow-sm sm:mt-5" (ngSubmit)="searchExpenses()" role="search">
+        <form class="mt-3 flex min-h-11 items-center gap-2 rounded-2xl border border-pop-border bg-white px-3 shadow-sm focus-within:outline-2 focus-within:outline-pop-primary sm:mt-5" (ngSubmit)="searchExpenses()" role="search">
           <svg class="size-5 shrink-0 text-pop-primary-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7"/><path d="m16 16 5 5"/></svg>
           <label class="sr-only" for="dashboard-expense-search">{{ t('searchExpenses') }}</label>
           <input id="dashboard-expense-search" class="min-w-0 flex-1 py-2 text-sm outline-none" type="search" name="dashboardExpenseSearch" [(ngModel)]="search" [placeholder]="t('searchExpenses')" />
