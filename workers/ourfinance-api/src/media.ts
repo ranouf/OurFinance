@@ -73,7 +73,13 @@ export async function persistUploadedReceipt(groupId: string, expenseId: string,
       if (journal?.['status']?.stringValue !== 'uploading' || journal['publicId']?.stringValue !== publicId ||
           journal['ownerId']?.stringValue !== uid || journal['expenseId']?.stringValue !== expenseId) throw new Error('Journal média indisponible');
     }
-    const writes: unknown[] = [{ update: { name: `${root}/groups/${groupId}/expenses/${expenseId}/attachments/${attachmentId}`, fields: { publicId: string(publicId), format: string(format), type: string('authenticated'), status: string('active'), ownerId: string(uid), createdAt: { timestampValue: new Date().toISOString() } } }, currentDocument: { exists: false } }];
+    // DELETE also writes the expense in its transaction. Writing it here makes
+    // receipt activation and expense deletion conflict even if a collection
+    // query does not detect a newly inserted attachment as a phantom.
+    const writes: unknown[] = [
+      { update: { name: `${root}/groups/${groupId}/expenses/${expenseId}`, fields: { receiptUpdatedAt: { timestampValue: new Date().toISOString() } } }, updateMask: { fieldPaths: ['receiptUpdatedAt'] } },
+      { update: { name: `${root}/groups/${groupId}/expenses/${expenseId}/attachments/${attachmentId}`, fields: { publicId: string(publicId), format: string(format), type: string('authenticated'), status: string('active'), ownerId: string(uid), createdAt: { timestampValue: new Date().toISOString() } } }, currentDocument: { exists: false } },
+    ];
     if (journalPath) writes.push({ delete: `${root}/${journalPath}`, currentDocument: { exists: true } });
     const response = await transport(`https://firestore.googleapis.com/v1/${root}:commit`, {
       method: 'POST', headers,
