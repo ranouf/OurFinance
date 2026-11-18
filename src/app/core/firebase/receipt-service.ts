@@ -1,14 +1,24 @@
 import type { FirebaseApp } from 'firebase/app';
 import type { User } from 'firebase/auth';
-import { collection, getDocs, getFirestore } from 'firebase/firestore';
+import { collection, getDocs, getFirestore, type DocumentData, type QuerySnapshot } from 'firebase/firestore';
 
 export interface Receipt { readonly id: string; readonly format: 'jpg' | 'png'; readonly ownerId: string; }
 
+export interface ReceiptRepository {
+  list(app: FirebaseApp, groupId: string, expenseId: string): Promise<QuerySnapshot<DocumentData>>;
+}
+
+const firestoreReceiptRepository: ReceiptRepository = {
+  list: (app, groupId, expenseId) => getDocs(collection(getFirestore(app), 'groups', groupId, 'expenses', expenseId, 'attachments')),
+};
+
 export class ReceiptService {
-  constructor(private readonly app: FirebaseApp, private readonly workerUrl: string) {}
+  constructor(private readonly app: FirebaseApp, private readonly workerUrl: string,
+    private readonly repository: ReceiptRepository = firestoreReceiptRepository,
+    private readonly transport: typeof fetch = (...args) => fetch(...args)) {}
 
   async list(groupId: string, expenseId: string): Promise<Receipt[]> {
-    const snapshot = await getDocs(collection(getFirestore(this.app), 'groups', groupId, 'expenses', expenseId, 'attachments'));
+    const snapshot = await this.repository.list(this.app, groupId, expenseId);
     return snapshot.docs.filter(item => item.data()['status'] === 'active').map(item => ({ id: item.id, format: item.data()['format'] === 'jpg' ? 'jpg' : 'png', ownerId: String(item.data()['ownerId'] ?? '') }));
   }
 
@@ -30,7 +40,7 @@ export class ReceiptService {
   private async request(user: User, groupId: string, expenseId: string, receiptId: string, method: 'POST' | 'GET' | 'DELETE', file?: File): Promise<Blob | void> {
     const url = new URL(`/groups/${encodeURIComponent(groupId)}/expenses/${encodeURIComponent(expenseId)}/attachments${receiptId ? `/${encodeURIComponent(receiptId)}` : ''}`, this.workerUrl);
     if (url.protocol !== 'https:') throw new Error('URL Worker non sécurisée');
-    const response = await fetch(url, { method, headers: { Authorization: `Bearer ${await user.getIdToken()}`, ...(file ? { 'Content-Type': file.type } : {}) }, body: file });
+    const response = await this.transport(url, { method, headers: { Authorization: `Bearer ${await user.getIdToken()}`, ...(file ? { 'Content-Type': file.type } : {}) }, body: file });
     if (!response.ok) throw new Error(response.status === 503 ? 'Reçus désactivés sur cet environnement' : `Reçu indisponible (HTTP ${response.status})`);
     if (method === 'GET') return response.blob();
   }
