@@ -132,9 +132,9 @@ jobs:
         if: inputs.channel == 'live'
         run: |
           verify_path() {
-            local path="$1" headers
+            local host="$1" path="$2" headers
             for attempt in 1 2 3 4 5 6; do
-              headers="$(curl --fail --silent --show-error --location --head "https://ourfinance-test.web.app$path" | tr -d '\r')" || headers=''
+              headers="$(curl --fail --silent --show-error --location --head "https://$host$path" | tr -d '\r')" || headers=''
               if printf '%s\n' "$headers" | grep -qi '^referrer-policy: no-referrer$' \
                 && printf '%s\n' "$headers" | grep -qi '^x-content-type-options: nosniff$' \
                 && printf '%s\n' "$headers" | grep -qi '^x-frame-options: DENY$' \
@@ -144,8 +144,11 @@ jobs:
               fi
               sleep 5
             done
-            echo "En-têtes Hosting manquants sur $path" >&2
+            echo "En-têtes Hosting manquants sur $host$path" >&2
             return 1
           }
-          verify_path /
-          verify_path /dashboard
+          for host in ourfinance-test.web.app ourfinance-test.firebaseapp.com; do
+            verify_path "$host" /
+            verify_path "$host" /dashboard
+            verify_path "$host" /join
+          done
