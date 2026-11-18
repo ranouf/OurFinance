@@ -1,5 +1,6 @@
-import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, signal } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import type { FirebaseApp } from 'firebase/app';
 import type { User } from 'firebase/auth';
 import type { DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
@@ -29,33 +30,36 @@ import { expenseMessage, expenseText } from './expense-text';
         </select>
       </label>
       @if (selectedGroupId) {
-        <div class="mt-5 grid gap-3 sm:grid-cols-2">
-          <label class="block text-sm font-bold">{{ text('from') }}
-            <input class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" type="date" name="historyFrom" [(ngModel)]="from" (ngModelChange)="refresh()" />
+        <label class="mt-4 block text-sm font-bold">{{ text('category') }}
+          <select class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="historyCategory" [(ngModel)]="selectedCategoryId" (ngModelChange)="refresh()">
+            <option value="">{{ text('allCategories') }}</option>
+            @for (category of categoryOptions(); track category.id) { <option [value]="category.id">{{ category.icon }} {{ categoryLabel(category.id, language(), category.label) }}</option> }
+          </select>
+        </label>
+        <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end">
+          <label class="block min-w-0 flex-1 text-sm font-bold">{{ text('searchAll') }}
+            <input class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" type="search" name="historySearch" [(ngModel)]="search" [placeholder]="text('searchPlaceholder')" />
           </label>
-          <label class="block text-sm font-bold">{{ text('to') }}
-            <input class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" type="date" name="historyTo" [(ngModel)]="to" (ngModelChange)="refresh()" />
-          </label>
+          <button class="min-h-11 rounded-xl bg-pop-primary px-5 py-2 text-sm font-bold text-white hover:bg-pop-primary-dark focus-visible:outline-2 focus-visible:outline-pop-primary disabled:opacity-50" type="button" [disabled]="busy()" (click)="refresh()">{{ text('search') }}</button>
         </div>
-        <div class="mt-3 grid gap-3 sm:grid-cols-2">
-          <label class="block text-sm font-bold">{{ text('category') }}
-            <select class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="historyCategory" [(ngModel)]="selectedCategoryId" (ngModelChange)="refresh()">
-              <option value="">{{ text('allCategories') }}</option>
-              @for (category of categoryOptions(); track category.id) { <option [value]="category.id">{{ category.icon }} {{ categoryLabel(category.id, language(), category.label) }}</option> }
-            </select>
-          </label>
-          <label class="block text-sm font-bold">{{ text('participant') }}
+        <details class="mt-3 rounded-xl border border-pop-border px-4 py-3">
+          <summary class="cursor-pointer text-sm font-bold text-pop-primary-dark focus-visible:outline-2 focus-visible:outline-pop-primary">{{ text('moreFilters') }}</summary>
+          <div class="mt-4 grid gap-3 sm:grid-cols-2">
+            <label class="block text-sm font-bold">{{ text('from') }}
+              <input class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" type="date" name="historyFrom" [(ngModel)]="from" (ngModelChange)="refresh()" />
+            </label>
+            <label class="block text-sm font-bold">{{ text('to') }}
+              <input class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" type="date" name="historyTo" [(ngModel)]="to" (ngModelChange)="refresh()" />
+            </label>
+          </div>
+          <label class="mt-3 block text-sm font-bold">{{ text('participant') }}
             <select class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="historyParticipant" [(ngModel)]="selectedParticipantId" (ngModelChange)="refresh()">
               <option value="">{{ text('allParticipants') }}</option>
               @for (member of participantOptions(); track member.userId) { <option [value]="member.userId">{{ memberLabel(member.userId) }}</option> }
             </select>
           </label>
-        </div>
-        <label class="mt-4 block text-sm font-bold">{{ text('searchAll') }}
-          <input class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" type="search" name="historySearch" [(ngModel)]="search" [placeholder]="text('searchPlaceholder')" />
-        </label>
-        @if (from && to && from > to) { <p class="mt-2 text-sm text-rose-700">{{ text('invalidDates') }}</p> }
-        <button class="mt-4 min-h-11 rounded-xl bg-pop-primary px-5 py-2 text-sm font-bold text-white hover:bg-pop-primary-dark focus-visible:outline-2 focus-visible:outline-pop-primary disabled:opacity-50" type="button" [disabled]="busy()" (click)="refresh()">{{ text('search') }}</button>
+          @if (from && to && from > to) { <p class="mt-2 text-sm text-rose-700">{{ text('invalidDates') }}</p> }
+        </details>
         @if (hasFilter()) { <p class="mt-2 text-sm text-pop-muted">{{ scannedCount() }} {{ text('scanned') }}</p> }
         @if (entries().length) {
           <ul class="mt-5 space-y-3">
@@ -114,6 +118,7 @@ export class ExpenseHistory implements OnChanges {
   @Output() readonly editRequested = new EventEmitter<{ groupId: string; entry: ExpenseHistoryEntry }>();
   @Output() readonly deleted = new EventEmitter<void>();
   @Input({ required: true }) groups: Group[] = [];
+  @Input() preferredGroupId = '';
   @Input({ required: true }) firebaseApp?: FirebaseApp;
   @Input({ required: true }) user?: User;
   @Input({ required: true }) workerUrl?: string;
@@ -136,7 +141,7 @@ export class ExpenseHistory implements OnChanges {
   selectedGroupId = '';
   from = '';
   to = '';
-  search = '';
+  search = inject(ActivatedRoute).snapshot.queryParamMap.get('search') ?? '';
   searchTerm = '';
   selectedCategoryId = '';
   selectedParticipantId = '';
@@ -150,6 +155,10 @@ export class ExpenseHistory implements OnChanges {
     if (this.firebaseApp && this.workerUrl) {
       this.service = new ExpenseService(this.firebaseApp, this.workerUrl);
       this.categoryService = new CategoryService(this.firebaseApp, this.workerUrl);
+    }
+    if (!this.selectedGroupId && this.groups.some(group => group.id === this.preferredGroupId)) {
+      this.selectedGroupId = this.preferredGroupId;
+      this.onGroupChange();
     }
     if (changes['revision'] && !changes['revision'].firstChange && this.selectedGroupId) void this.refresh();
     if (changes['categoryRevision'] && !changes['categoryRevision'].firstChange && this.selectedGroupId) void this.loadFilters();

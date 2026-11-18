@@ -269,20 +269,25 @@ export class GroupsPage { readonly app = inject(App); readonly t = t; }
 @Component({
   imports: [ExpenseForm, ExpenseHistory],
   template: `
-    <div class="mx-auto max-w-5xl">
-      <header class="mb-5"><p class="text-sm font-bold text-pop-muted">{{ app.selectedGroup()?.name }} · {{ app.selectedGroup()?.currency }}</p><h1 class="text-3xl font-black">{{ t('navExpenses') }}</h1></header>
+    <div class="mx-auto max-w-5xl pb-20 xl:pb-0">
+      <header class="mb-5 flex flex-wrap items-center justify-between gap-4">
+        <div><p class="text-sm font-bold text-pop-muted">{{ app.selectedGroup()?.name }} · {{ app.selectedGroup()?.currency }}</p><h1 class="text-3xl font-black">{{ t('navExpenses') }}</h1></div>
+        @if (app.groups().length && app.workerUrl && app.firebaseApp && app.auth?.user()) { <a class="hidden min-h-11 rounded-xl bg-pop-coral px-5 font-extrabold text-pop-text xl:inline-flex xl:items-center" href="#expense-editor">＋ {{ t('addExpenseAction') }}</a> }
+        @if (showEditor()) { <button class="min-h-11 rounded-xl border border-pop-border bg-white px-4 font-bold text-pop-primary-dark xl:hidden" type="button" (click)="showEditor.set(false)">← {{ t('navExpenses') }}</button> }
+      </header>
       @if (app.workerUrl && app.firebaseApp && app.auth?.user(); as user) {
         @if (app.groups().length) {
-          <div class="grid gap-5 xl:grid-cols-[1fr_18rem]">
-            <app-expense-history class="min-w-0" [groups]="app.groups()" [firebaseApp]="app.firebaseApp" [user]="user" [workerUrl]="app.workerUrl" [revision]="app.expenseRevision()" [categoryRevision]="app.categoryRevision()" (commented)="app.onCommentAdded()" (editRequested)="app.onExpenseEdit($event)" (deleted)="app.onExpenseSaved()" />
-            <app-expense-form id="expense-editor" [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" [categoryRevision]="app.categoryRevision()" [editing]="app.editingExpense()" (saved)="app.onExpenseSaved()" (editCancelled)="app.editingExpense.set(undefined)" />
+          <div class="grid gap-5 xl:grid-cols-[minmax(0,1fr)_18rem] xl:items-start">
+            <app-expense-history class="min-w-0" [class.max-xl:hidden]="showEditor()" [groups]="app.groups()" [preferredGroupId]="app.selectedGroupId()" [firebaseApp]="app.firebaseApp" [user]="user" [workerUrl]="app.workerUrl" [revision]="app.expenseRevision()" [categoryRevision]="app.categoryRevision()" (commented)="app.onCommentAdded()" (editRequested)="app.onExpenseEdit($event); showEditor.set(true)" (deleted)="app.onExpenseSaved()" />
+            <app-expense-form id="expense-editor" [class.max-xl:hidden]="!showEditor()" [groups]="app.groups()" [preferredGroupId]="app.selectedGroupId()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" [categoryRevision]="app.categoryRevision()" [editing]="app.editingExpense()" (saved)="app.onExpenseSaved(); showEditor.set(false)" (editCancelled)="app.editingExpense.set(undefined); showEditor.set(false)" />
           </div>
+          @if (!showEditor()) { <button class="fixed bottom-20 left-4 right-4 z-20 min-h-12 rounded-xl bg-pop-coral px-5 font-extrabold text-pop-text shadow-lg xl:hidden" type="button" (click)="showEditor.set(true)">＋ {{ t('addExpenseAction') }}</button> }
         } @else { <p class="rounded-2xl bg-white p-5">{{ t('noGroups') }}</p> }
       }
     </div>
   `,
 })
-export class ExpensesPage { readonly app = inject(App); readonly t = t; }
+export class ExpensesPage { readonly app = inject(App); readonly t = t; readonly showEditor = signal(false); }
 
 @Component({
   imports: [StatisticsSummary, BalanceSummary, SettlementForm, SettlementHistory],
