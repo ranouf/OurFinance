@@ -93,6 +93,19 @@ test('rapprochement sépare strictement groupes et devises', () => {
   strictEqual(result.differences.find(row => row.groupId === 'g2' && row.currency === 'CAD' && row.userId === 'alex')?.importedMinor, '-100');
 });
 
+test('rapprochement refuse références dupliquées et impacts historiques non entiers', () => {
+  const base = { sourceId: 'synthetic', groupId: 'g', date: '2026-11-16', description: 'Fictif',
+    currency: 'CAD', amountMinor: 100, splitStatus: 'undetermined' as const };
+  const records = [{ ...base, netImpactsMinor: { alice: 100, bob: -100 } }];
+  const expected = [{ groupId: 'g', currency: 'CAD', userId: 'alice', balanceMinor: '100' }];
+  throws(() => reconcileImpacts(records, [...expected, ...expected]), /dupliqué/);
+  throws(() => reconcileImpacts(records, [{ ...expected[0], balanceMinor: '1.5' }]), /invalide/);
+  throws(() => reconcileImpacts([{ ...base, netImpactsMinor: { alice: Number.MAX_SAFE_INTEGER + 1 } }], []), /Impact/);
+  const onlyReference = reconcileImpacts([], expected);
+  strictEqual(onlyReference.differences[0].importedMinor, '0');
+  strictEqual(onlyReference.differences[0].differenceMinor, '-100');
+});
+
 test('lots natifs exacts : mapping explicite et identifiants stables, y compris doublons identiques', async () => {
   const header = 'Date,Description,Catégorie,Coût,Devise,Alice,Bob\n';
   const row = '2026-11-01,Trajet fictif,Transport,101.50,JPY,50.75,-50.75\n';

@@ -60,6 +60,22 @@ test('V2 refuses a modified preference, receipt or manifest scope', async () => 
   strictEqual(JSON.parse(serializeGroupExportV2({ ...group, receiptAssets: [{ ...group.receiptAssets[0], publicId: 'ourfinance-prod/g/e/a' }] })).receiptAssets[0].publicId, 'ourfinance-prod/g/e/a');
 });
 
+test('V2 rejects manifest and receipt substitutions even with intact group bytes', async () => {
+  const original = await packageFixture();
+  const candidates: BackupPackageV2[] = [
+    { ...original, manifest: { ...original.manifest, format: 'Other' as typeof original.manifest.format } },
+    { ...original, manifest: { ...original.manifest, version: 1 as typeof original.manifest.version } },
+    { ...original, manifest: { ...original.manifest, groupId: 'other' } },
+    { ...original, manifest: { ...original.manifest, exportedAt: '2020-01-01T00:00:00.000Z' } },
+    { ...original, manifest: { ...original.manifest, groupJson: { ...original.manifest.groupJson, byteLength: 1 } } },
+    { ...original, manifest: { ...original.manifest, receipts: [{ ...original.manifest.receipts[0], attachmentId: 'other' }] } },
+    { ...original, manifest: { ...original.manifest, receipts: [{ ...original.manifest.receipts[0], contentType: 'image/jpeg' }] } },
+    { ...original, receipts: [{ ...original.receipts[0], filename: 'other.png' }] },
+    { ...original, receipts: [{ ...original.receipts[0], byteLength: 1 }] },
+  ];
+  for (const candidate of candidates) await rejects(verifyBackupPackageV2(candidate));
+});
+
 test('restore preflight verifies the archived receipt and original group before any write', async () => {
   const backup = await packageFixture();
   const target = { groupId: 'g', currency: 'CAD', memberIds: ['alice'], ownerId: 'alice', memberStatuses: { alice: 'active' as const } };

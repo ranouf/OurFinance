@@ -27,11 +27,45 @@ test('rejects invalid sums and outsiders', () => {
   throws(() => validateExpense(100, [{ userId: 'a', amountMinor: 100 }], [{ userId: 'b', amountMinor: 100 }], new Set(['a'])));
 });
 
+test('split engine rejects duplicate, negative, unsafe and impossible allocations', () => {
+  for (const mode of [
+    { kind: 'equal' as const, users: [] },
+    { kind: 'equal' as const, users: ['a', 'a'] },
+    { kind: 'shares' as const, weights: [{ userId: 'a', value: 0 }] },
+    { kind: 'shares' as const, weights: [{ userId: 'a', value: -1 }] },
+    { kind: 'shares' as const, weights: [{ userId: 'a', value: 1.5 }] },
+    { kind: 'percentage' as const, weightsBasisPoints: [{ userId: 'a', value: -1 }, { userId: 'b', value: 10001 }] },
+    { kind: 'exact' as const, amounts: [{ userId: 'a', amountMinor: -1 }, { userId: 'b', amountMinor: 101 }] },
+    { kind: 'exact' as const, amounts: [{ userId: 'a', amountMinor: 50 }, { userId: 'a', amountMinor: 50 }] },
+    { kind: 'adjustment' as const, adjustments: [{ userId: 'a', amountMinor: 101 }] },
+    { kind: 'adjustment' as const, adjustments: [{ userId: 'a', amountMinor: 1.5 }] },
+  ]) throws(() => splitAmount(100, mode));
+  throws(() => splitAmount(Number.MAX_SAFE_INTEGER + 1, { kind: 'equal', users: ['a'] }));
+  throws(() => validateExpense(100, [{ userId: 'a', amountMinor: 50 }], [{ userId: 'a', amountMinor: 100 }], new Set(['a'])));
+  throws(() => validateExpense(100, [{ userId: 'a', amountMinor: 100 }], [{ userId: 'a', amountMinor: 50 }, { userId: 'a', amountMinor: 50 }], new Set(['a'])));
+});
+
+test('weighted remainders are deterministic and keep zero-share members', () => {
+  deepStrictEqual(splitAmount(1, { kind: 'shares', weights: [
+    { userId: 'a', value: 1 }, { userId: 'b', value: 1 }, { userId: 'c', value: 0 },
+  ] }), [{ userId: 'a', amountMinor: 1 }, { userId: 'b', amountMinor: 0 }, { userId: 'c', amountMinor: 0 }]);
+});
+
 test('currency exponent follows Intl for zero, two and three digits', async () => {
   const { minorDigits } = await import('../../src/app/shared/utils/currency');
   strictEqual(minorDigits('JPY'), 0);
   strictEqual(minorDigits('CAD'), 2);
   strictEqual(minorDigits('KWD'), 3);
+});
+
+test('currency formatting rejects invalid money and preserves exact large signed values', async () => {
+  const { currencyCatalog, formatMinor, formatMinorExact, minorDigits } = await import('../../src/app/shared/utils/currency');
+  throws(() => minorDigits('ZZZ'), /Devise/);
+  throws(() => formatMinor(1.5, 'CAD', 'fr-CA'), /Montant/);
+  const large = formatMinorExact(900719925474099312345n, 'CAD', 'fr-CA');
+  strictEqual(large.replace(/\D/g, '').includes('900719925474099312345'), true);
+  strictEqual(formatMinorExact(-125n, 'CAD', 'en-CA').includes('1.25'), true);
+  strictEqual(currencyCatalog('fr-CA').some(row => row.code === 'JPY' && row.minorDigits === 0), true);
 });
 test('personal split preference never crosses user or group and expires with membership', async () => {
   const { applicablePreference } = await import('../../src/app/shared/utils/split-preference');

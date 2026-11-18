@@ -51,6 +51,94 @@ test('expense parser validates all split modes and rejects malformed participant
     { kind: 'shares', weights: [] }, { kind: 'adjustment', adjustments: [] },
   ]) throws(() => parseExpense({ ...input, splitMode }), ExpenseError);
 });
+
+test('expense parser rejects every payment and split boundary without rounding money', () => {
+  for (const value of [
+    { ...input, description: 123 }, { ...input, idempotencyKey: 123 }, { ...input, currency: 123 },
+    { ...input, date: 123 }, { ...input, amountMinor: 1.5 }, { ...input, payments: 'invalid' },
+    { ...input, payments: [{ userId: 'alice', amountMinor: '101' }] },
+    { ...input, payments: [{ amountMinor: 101 }] },
+    { ...input, splitMode: 'equal' },
+    { ...input, splitMode: { kind: 'equal', users: Array.from({ length: 21 }, (_, i) => `member_${i}`) } },
+    { ...input, splitMode: { kind: 'exact', amounts: [{ userId: 'alice', amountMinor: 50 }] } },
+    { ...input, splitMode: { kind: 'percentage', weightsBasisPoints: [{ userId: 'alice', value: 9000 }] } },
+    { ...input, splitMode: { kind: 'shares', weights: [{ userId: 'alice', value: 0 }] } },
+  ]) throws(() => parseExpense(value), ExpenseError, JSON.stringify(value));
+});
+
+test('expense mutations reject malformed revision or redirected identity before calling Firestore', async () => {
+  const env = { FIREBASE_PROJECT_ID: 'ourfinance-test', FIREBASE_SERVICE_ACCOUNT_JSON: 'unused' };
+  const transport = (async () => { throw new Error('No network expected'); }) as typeof fetch;
+  for (const [body, uid, groupId, expenseId] of [
+    [{ expectedRevision: 0 }, 'bad/uid', 'g1', input.idempotencyKey],
+    [{ expectedRevision: 0 }, 'alice', '../g', input.idempotencyKey],
+    [{ expectedRevision: 0 }, 'alice', 'g1', '../expense'],
+    [null, 'alice', 'g1', input.idempotencyKey],
+    [{ expectedRevision: -1 }, 'alice', 'g1', input.idempotencyKey],
+    [{ expectedRevision: 1.5 }, 'alice', 'g1', input.idempotencyKey],
+  ] as const) await rejects(mutateExpense(body, uid, groupId, expenseId, 'DELETE', env, transport), ExpenseError);
+});
+
+test('expense transactions fail closed on absent group, member, category and conflicting commit', async () => {
+  const { privateKey } = await generateKeyPair('RS256', { extractable: true });
+  const env = { FIREBASE_PROJECT_ID: 'ourfinance-test', FIREBASE_SERVICE_ACCOUNT_JSON: JSON.stringify({ project_id: 'ourfinance-test', client_email: 'test@ourfinance-test.iam.gserviceaccount.com', private_key: await exportPKCS8(privateKey) }) };
+  const categoryId = 'custom_123e4567-e89b-42d3-a456-426614174000';
+  const scenarios: readonly [string, string][] = [
+    ['group-missing', 'group_inactive'], ['group-archived', 'group_inactive'],
+    ['member-missing', 'member_inactive'], ['category-missing', 'category_unavailable'],
+    ['commit-conflict', 'transaction_conflict'],
+  ];
+  for (const [scenario, code] of scenarios) {
+    let rollback = 0;
+    const transport = (async (resource: string | URL | Request) => {
+      const url = String(resource);
+      if (url.includes('oauth2.googleapis.com')) return Response.json({ access_token: 'service-token' });
+      if (url.endsWith(':beginTransaction')) return Response.json({ transaction: 'txn' });
+      if (url.endsWith(':rollback')) { rollback++; return Response.json({}); }
+      if (url.endsWith(':commit')) return Response.json({}, { status: scenario === 'commit-conflict' ? 409 : 200 });
+      if (url.includes('/categories/')) return scenario === 'category-missing' ? Response.json({}, { status: 404 }) : Response.json({ fields: { status: { stringValue: 'active' }, name: { stringValue: 'Fictif' }, iconId: { stringValue: 'home' }, color: { stringValue: 'sky' } } });
+      if (url.includes('/members/')) return scenario === 'member-missing' ? Response.json({}, { status: 404 }) : Response.json({ fields: { status: { stringValue: 'active' } } });
+      if (url.includes('/groups/g1?')) return scenario === 'group-missing' ? Response.json({}, { status: 404 }) : Response.json({ fields: { status: { stringValue: scenario === 'group-archived' ? 'archived' : 'active' }, currencyCode: { stringValue: 'CAD' } } });
+      throw new Error(`Unexpected request ${url}`);
+    }) as typeof fetch;
+    await rejects(createExpense({ ...input, categoryId }, 'alice', 'g1', env, transport),
+      (error: unknown) => error instanceof ExpenseError && error.code === code);
+    strictEqual(rollback, 1, scenario);
+  }
+});
+
+test('expense deletion refuses malformed receipt inventories and unavailable cleanup credentials', async () => {
+  const { privateKey } = await generateKeyPair('RS256', { extractable: true });
+  const env = { FIREBASE_PROJECT_ID: 'ourfinance-test', FIREBASE_SERVICE_ACCOUNT_JSON: JSON.stringify({ project_id: 'ourfinance-test', client_email: 'test@ourfinance-test.iam.gserviceaccount.com', private_key: await exportPKCS8(privateKey) }) };
+  const root = `projects/ourfinance-test/databases/(default)/documents/groups/g1/expenses/${input.idempotencyKey}/attachments`;
+  const scenarios: readonly [unknown, string][] = [
+    [{ documents: 'invalid' }, 'invalid_receipts'],
+    [{ nextPageToken: 'more' }, 'too_many_receipts'],
+    [{ documents: [{ name: 'outside/receipt', fields: {} }] }, 'invalid_receipts'],
+    [{ documents: [{ name: `${root}/a`, fields: { status: { stringValue: 'active' }, type: { stringValue: 'authenticated' }, publicId: { stringValue: 'outside/g1/e/a' } } }] }, 'invalid_receipts'],
+    [{ documents: [{ name: `${root}/a`, fields: { status: { stringValue: 'active' }, type: { stringValue: 'authenticated' }, publicId: { stringValue: `ourfinance-test/g1/${input.idempotencyKey}/a` } } }] }, 'media_cleanup_unavailable'],
+  ];
+  for (const [inventory, code] of scenarios) {
+    let commits = 0;
+    let rollbacks = 0;
+    const transport = (async (resource: string | URL | Request) => {
+      const url = String(resource);
+      if (url.includes('oauth2.googleapis.com')) return Response.json({ access_token: 'service-token' });
+      if (url.endsWith(':beginTransaction')) return Response.json({ transaction: 'txn' });
+      if (url.endsWith(':rollback')) { rollbacks++; return Response.json({}); }
+      if (url.endsWith(':commit')) { commits++; return Response.json({}); }
+      if (url.includes('/attachments?')) return Response.json(inventory);
+      if (url.includes('/expenses/') && url.includes('?transaction=')) return Response.json({ fields: { createdBy: { stringValue: 'alice' }, deleted: { booleanValue: false }, revision: { integerValue: '0' } } });
+      if (url.includes('/members/') && url.includes('?transaction=')) return Response.json({ fields: { status: { stringValue: 'active' } } });
+      if (url.includes('/groups/g1?')) return Response.json({ fields: { status: { stringValue: 'active' }, currencyCode: { stringValue: 'CAD' } } });
+      throw new Error(`Unexpected request ${url}`);
+    }) as typeof fetch;
+    await rejects(mutateExpense({ expectedRevision: 0 }, 'alice', 'g1', input.idempotencyKey, 'DELETE', env, transport),
+      (error: unknown) => error instanceof ExpenseError && error.code === code);
+    strictEqual(commits, 0, code);
+    strictEqual(rollbacks, 1, code);
+  }
+});
 test('expense transaction reads active group/members and atomically writes expense, preference, activity', async () => {
   const { privateKey } = await generateKeyPair('RS256', { extractable: true });
   const service = JSON.stringify({ project_id: 'ourfinance-test', client_email: 'test@ourfinance-test.iam.gserviceaccount.com', private_key: await exportPKCS8(privateKey) });

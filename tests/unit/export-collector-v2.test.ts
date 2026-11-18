@@ -66,3 +66,22 @@ test('one transactional reader can collect every member preference without a Wor
   deepStrictEqual(result.preferences[0].memberIds, ['alice', 'bob']);
   strictEqual(result.preferences[1].modeJson, null);
 });
+
+test('V2 collector refuses duplicate preferences, malformed callback and non-owner export', async () => {
+  for (const payload of [{}, { preferences: null }, { preferences: [...rows, rows[0]] }]) {
+    await rejects(collectGroupExportV2(reader, user, 'g', 'https://worker.example', (async () => Response.json(payload)) as typeof fetch));
+  }
+  await rejects(collectGroupExportV2(reader, user, 'g', 'http://worker.example', (async () => { throw new Error('network must not run'); }) as typeof fetch), /non sécurisée/);
+  const nonOwner: ExportReader = { ...reader, list: async path => path === 'groups/g/members'
+    ? [{ id: 'alice', data: { role: 'member', status: 'active' } }, { id: 'bob', data: { role: 'owner', status: 'active' } }]
+    : reader.list(path) };
+  await rejects(collectGroupExportV2(nonOwner, user, 'g', 'https://worker.example', (async () => Response.json({ preferences: rows })) as typeof fetch), /propriétaire/);
+});
+
+test('transactional V2 reader rejects malformed personal preference modes', async () => {
+  for (const modeJson of ['{"kind":"unknown"}', '{"kind":"exact","amounts":null}', '{"kind":"equal","users":null}']) {
+    const snapshot: ExportReader = { ...reader, read: async path => path === 'users/alice/groupPreferences/g'
+      ? { id: 'g', data: { modeJson, updatedAt: '2026-11-16T18:00:00.000Z' } } : reader.read(path) };
+    await rejects(collectGroupExportV2FromReader(snapshot, user, 'g'), /Préférence/);
+  }
+});
