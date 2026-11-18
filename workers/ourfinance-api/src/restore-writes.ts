@@ -2,7 +2,6 @@ import { serializeGroupExportV2, type GroupExportV2 } from '../../../src/app/fea
 import { compareRestoreInventoryV2 } from '../../../src/app/features/import-export/restore-inventory-v2';
 import type { StagedRestoreReceipt } from './restore-media';
 import type { LiveRestoreInventory } from './restore-inventory';
-import { authorizedReceiptPublicId } from './media';
 
 type Value = Record<string, unknown>;
 const string = (value: string): Value => ({ stringValue: value });
@@ -28,8 +27,8 @@ export function buildRestoreWrites(value: GroupExportV2, live: LiveRestoreInvent
   const stagedByReceipt = new Map(staged.map(row => [`${row.expenseId}/${row.attachmentId}`, row]));
   if (stagedByReceipt.size !== staged.length || staged.length !== active.length || active.some(row => {
     const item = stagedByReceipt.get(`${row.expenseId}/${row.attachmentId}`);
-    return !item || item.format !== row.format || !authorizedReceiptPublicId(item.publicId, backup.group.id, row.expenseId, row.attachmentId) ||
-      !item.publicId.includes('/restore_');
+    return !item || item.format !== row.format ||
+      item.publicId !== `${projectId}/${backup.group.id}/${row.expenseId}/restore_${restoreId}/${row.attachmentId}`;
   })) throw new Error('Reçus préparés incomplets');
   const root = `projects/${projectId}/databases/(default)/documents`;
   const writes: Record<string, unknown>[] = [];
@@ -55,7 +54,7 @@ export function buildRestoreWrites(value: GroupExportV2, live: LiveRestoreInvent
   for (const row of backup.receipts) {
     const key = `${row.expenseId}/${row.attachmentId}`;
     update(`${groupPath}/expenses/${row.expenseId}/attachments/${row.attachmentId}`, {
-      publicId: string(stagedByReceipt.get(key)?.publicId ?? `ourfinance-test/${backup.group.id}/${key}`),
+      publicId: string(stagedByReceipt.get(key)?.publicId ?? `${projectId}/${backup.group.id}/${key}`),
       format: string(row.format), type: string('authenticated'), status: string(row.status), ownerId: string(receiptOwners.get(key)!),
       createdAt: time(now), cleanupPending: bool(false),
     });

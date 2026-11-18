@@ -43,7 +43,7 @@ const idPattern = /^[A-Za-z0-9_-]{1,128}$/;
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const shaPattern = /^[0-9a-f]{64}$/;
 
-async function verifiedArchive(groupId: string, restoreId: string, archive: BackupPackageV2) {
+async function verifiedArchive(groupId: string, restoreId: string, archive: BackupPackageV2, projectId: string) {
   try { await verifyBackupPackageV2(archive); }
   catch { throw new PreparedRestoreError(400, 'invalid_backup'); }
   const backup = JSON.parse(archive.groupJson) as GroupExportV2;
@@ -51,7 +51,7 @@ async function verifiedArchive(groupId: string, restoreId: string, archive: Back
     throw new PreparedRestoreError(400, 'invalid_backup');
   }
   const manifestSha256 = await sha256Hex(new TextEncoder().encode(JSON.stringify(archive.manifest)));
-  const publicIds = archive.manifest.receipts.map(row => `ourfinance-test/${groupId}/${row.expenseId}/restore_${restoreId}/${row.attachmentId}`);
+  const publicIds = archive.manifest.receipts.map(row => `${projectId}/${groupId}/${row.expenseId}/restore_${restoreId}/${row.attachmentId}`);
   const receiptSha256 = archive.manifest.receipts.map(row => row.sha256);
   const receiptFormats = archive.manifest.receipts.map(row => row.contentType === 'image/png' ? 'png' as const : 'jpg' as const);
   return { backup, manifestSha256, publicIds, receiptSha256, receiptFormats };
@@ -60,7 +60,7 @@ async function verifiedArchive(groupId: string, restoreId: string, archive: Back
 /** Start a resumable restore without uploading any media in the lock invocation. */
 export async function prepareRestore(uid: string, groupId: string, restoreId: string, archive: BackupPackageV2,
   env: PreparedRestoreEnv, transport: typeof fetch = fetch): Promise<{ restoreId: string; expectedReceipts: number }> {
-  const checked = await verifiedArchive(groupId, restoreId, archive);
+  const checked = await verifiedArchive(groupId, restoreId, archive, env.FIREBASE_PROJECT_ID);
   try {
     await beginPreparedRestoreLock(uid, groupId, restoreId, checked.backup.group.currency, checked.publicIds,
       { manifestSha256: checked.manifestSha256, receiptSha256: checked.receiptSha256, receiptFormats: checked.receiptFormats }, env, transport);
@@ -105,7 +105,7 @@ export async function readPreparedRestoreJob(uid: string, groupId: string, resto
   const digests = strings(jf['receiptSha256']);
   const formats = strings(jf['receiptFormats']);
   const stages = strings(jf['stagedIndices']);
-  const expected = new RegExp(`^ourfinance-test/${groupId}/[A-Za-z0-9_-]{1,128}/restore_${restoreId}/[A-Za-z0-9_-]{1,128}$`, 'i');
+  const expected = new RegExp(`^${env.FIREBASE_PROJECT_ID}/${groupId}/[A-Za-z0-9_-]{1,128}/restore_${restoreId}/[A-Za-z0-9_-]{1,128}$`, 'i');
   if (!shaPattern.test(jf['manifestSha256']?.stringValue ?? '') || !job.updateTime || ids.length > 100 ||
       ids.length !== digests.length || ids.length !== formats.length || new Set(ids).size !== ids.length ||
       ids.some(id => typeof id !== 'string' || !expected.test(id)) ||
@@ -150,7 +150,7 @@ export async function commitPreparedRestore(uid: string, groupId: string, restor
     commit: (user, group, id, backup, live, staged) => commitGroupRestoreV2(user, group, id, backup, live, staged, env, transport),
     outcome: (user, group, id) => readRestoreOutcome(user, group, id, env, transport),
   };
-  const checked = await verifiedArchive(groupId, restoreId, archive);
+  const checked = await verifiedArchive(groupId, restoreId, archive, env.FIREBASE_PROJECT_ID);
   let job: PreparedRestoreJob;
   try { job = await readPreparedRestoreJob(uid, groupId, restoreId, env, transport); }
   catch (error) {

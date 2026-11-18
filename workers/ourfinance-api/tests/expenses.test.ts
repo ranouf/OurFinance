@@ -142,11 +142,11 @@ test('l’auteur modifie puis supprime logiquement sa dépense avec révision et
   strictEqual(commits.length, 2);
 });
 
-test('suppression de dépense archive les reçus dans la transaction puis détruit leur asset privé', async () => {
+for (const restored of [false, true]) test(`suppression de dépense archive et détruit un reçu ${restored ? 'restauré' : 'original'}`, async () => {
   const { privateKey } = await generateKeyPair('RS256', { extractable: true });
   const env = { FIREBASE_PROJECT_ID: 'ourfinance-test', FIREBASE_SERVICE_ACCOUNT_JSON: JSON.stringify({ project_id: 'ourfinance-test', client_email: 'test@ourfinance-test.iam.gserviceaccount.com', private_key: await exportPKCS8(privateKey) }), CLOUDINARY_CLOUD_NAME: 'test-cloud', CLOUDINARY_API_KEY: 'synthetic-key', CLOUDINARY_API_SECRET: 'synthetic-secret' };
   const attachmentId = 'receipt_1';
-  const publicId = `ourfinance-test/g1/${input.idempotencyKey}/${attachmentId}`;
+  const publicId = `ourfinance-test/g1/${input.idempotencyKey}/${restored ? 'restore_123e4567-e89b-42d3-a456-426614174000/' : ''}${attachmentId}`;
   let commit: any;
   let destroyed = false;
   const transport = async (resource: string | URL | Request, options?: RequestInit) => {

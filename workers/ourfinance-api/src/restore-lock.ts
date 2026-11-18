@@ -15,7 +15,7 @@ export interface PreparedRestoreManifest {
 
 async function changeLock(uid: string, groupId: string, restoreId: string, currency: string | null, expectedPublicIds: readonly string[], env: RestoreLockEnv, transport: typeof fetch, prepared?: PreparedRestoreManifest): Promise<void> {
   if (!idPattern.test(uid) || !idPattern.test(groupId) || !uuidPattern.test(restoreId)) throw new RestoreLockError(400, 'invalid_restore');
-  const expectedPrefix = new RegExp(`^ourfinance-test/${groupId}/[A-Za-z0-9_-]{1,128}/restore_${restoreId}/[A-Za-z0-9_-]{1,128}$`, 'i');
+  const expectedPrefix = new RegExp(`^${env.FIREBASE_PROJECT_ID}/${groupId}/[A-Za-z0-9_-]{1,128}/restore_${restoreId}/[A-Za-z0-9_-]{1,128}$`, 'i');
   if (currency !== null && (expectedPublicIds.length > (prepared ? 100 : 25) || new Set(expectedPublicIds).size !== expectedPublicIds.length ||
       expectedPublicIds.some(id => !expectedPrefix.test(id)))) throw new RestoreLockError(400, 'invalid_media');
   if (prepared && (!shaPattern.test(prepared.manifestSha256) || prepared.receiptSha256.length !== expectedPublicIds.length ||

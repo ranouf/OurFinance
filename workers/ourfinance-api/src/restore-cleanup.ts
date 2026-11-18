@@ -47,8 +47,8 @@ export async function retryRestoreCleanup(uid: string, groupId: string, restoreI
   const currentArray = job.fields['newPublicIds']?.arrayValue;
   const old = oldArray ? (oldArray.values ?? []).map(item => item.stringValue) : null;
   const current = currentArray ? (currentArray.values ?? []).map(item => item.stringValue) : null;
-  const valid = (id: unknown): id is string => typeof id === 'string' && id.startsWith(`ourfinance-test/${groupId}/`) &&
-    /^ourfinance-test\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+\/(?:restore_[0-9a-f-]+\/)?[A-Za-z0-9_-]+$/i.test(id);
+  const valid = (id: unknown): id is string => typeof id === 'string' && id.startsWith(`${env.FIREBASE_PROJECT_ID}/${groupId}/`) &&
+    /^[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+\/(?:restore_[0-9a-f-]+\/)?[A-Za-z0-9_-]+$/i.test(id);
   if (!Array.isArray(old) || !Array.isArray(current) || old.length > 1000 || old.some(id => !valid(id)) || current.some(id => !valid(id)) ||
       old.some(id => current.includes(id))) throw new RestoreCleanupError(503, 'invalid_cleanup_journal');
   if (typeof job.updateTime !== 'string' || !job.updateTime) throw new RestoreCleanupError(503, 'invalid_cleanup_journal');
