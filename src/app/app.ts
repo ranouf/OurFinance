@@ -120,6 +120,8 @@ export class App implements OnInit, OnDestroy {
   readonly balanceLabel = computed(() => this.selectedBalanceMinor() > 0n ? t('receivable') : this.selectedBalanceMinor() < 0n ? t('payable') : t('balanced'));
   private balanceRequestId = 0;
   private recentExpenseRequestId = 0;
+  private groupLoadVersion = 0;
+  private activeUserId: string | null = null;
   readonly expenseRevision = signal(0);
   readonly editingExpense = signal<{ groupId: string; entry: ExpenseHistoryEntry } | undefined>(undefined);
   readonly categoryRevision = signal(0);
@@ -133,6 +135,11 @@ export class App implements OnInit, OnDestroy {
     effect(() => {
       if (this.state() === 'ready') {
         const user = this.auth?.user();
+        const userId = user?.uid ?? null;
+        if (userId !== this.activeUserId) {
+          this.clearSessionData();
+          this.activeUserId = userId;
+        }
         if (user?.emailVerified) void this.loadGroups();
       }
     });
@@ -190,16 +197,18 @@ export class App implements OnInit, OnDestroy {
   private async loadGroups(): Promise<void> {
     const user = this.auth?.user();
     if (!user || !this.firebaseApp) return;
+    const requestId = ++this.groupLoadVersion;
     this.groupsBusy.set(true);
     this.groupsError.set(false);
     try {
       if (!this.groupService) { const { GroupService } = await import('./core/firebase/group-service'); this.groupService = new GroupService(this.firebaseApp, this.workerUrl); }
       const groups = await this.groupService.list(user);
+      if (requestId !== this.groupLoadVersion || this.auth?.user()?.uid !== user.uid) return;
       this.groups.set(groups);
       if (!groups.some(group => group.id === this.selectedGroupId())) this.selectedGroupId.set(groups[0]?.id ?? '');
     }
-    catch { this.groupsError.set(true); this.message.set(t('groupsUnavailable')); }
-    finally { this.groupsBusy.set(false); }
+    catch { if (requestId === this.groupLoadVersion && this.auth?.user()?.uid === user.uid) { this.groupsError.set(true); this.message.set(t('groupsUnavailable')); } }
+    finally { if (requestId === this.groupLoadVersion) this.groupsBusy.set(false); }
   }
   private async loadSelectedBalance(group: Group): Promise<void> {
     const requestId = ++this.balanceRequestId;
@@ -254,7 +263,35 @@ export class App implements OnInit, OnDestroy {
     catch { this.message.set(t('groupCreateFailed')); }
     finally { this.busy.set(false); }
   }
-  async logout(): Promise<void> { this.groups.set([]); await this.auth?.logout(); await this.router.navigateByUrl('/login'); }
+  private clearSessionData(): void {
+    this.groupLoadVersion++;
+    this.balanceRequestId++;
+    this.recentExpenseRequestId++;
+    this.email = '';
+    this.password = '';
+    this.groupName = '';
+    this.groupCurrency = 'CAD';
+    this.message.set('');
+    this.groups.set([]);
+    this.groupsBusy.set(false);
+    this.groupsError.set(false);
+    this.selectedGroupId.set('');
+    this.selectedBalanceMinor.set(0n);
+    this.groupSpentMinor.set(0n);
+    this.monthlySpentMinor.set(0n);
+    this.monthlyPaidMinor.set(0n);
+    this.settlementTotalMinor.set(0n);
+    this.dashboardMemberBalances.set([]);
+    this.dashboardMemberNames.set({});
+    this.dashboardCategories.set([]);
+    this.recentExpenses.set([]);
+    this.recentExpensesBusy.set(false);
+    this.recentExpensesError.set(false);
+    this.balanceBusy.set(false);
+    this.balanceError.set(false);
+    this.editingExpense.set(undefined);
+  }
+  async logout(): Promise<void> { this.clearSessionData(); await this.auth?.logout(); await this.router.navigateByUrl('/login'); }
   async refreshVerification(): Promise<void> {
     this.busy.set(true);
     try { await this.auth?.refreshVerification(); }
