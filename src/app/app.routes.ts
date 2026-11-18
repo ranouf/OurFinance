@@ -2,7 +2,7 @@ import { Routes } from '@angular/router';
 
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
-  { path: 'login', loadComponent: () => import('./app-pages').then(m => m.LoginPage) },
+  { path: 'login', loadComponent: () => import('./login-page').then(m => m.LoginPage) },
   { path: 'join', loadComponent: () => import('./app-pages').then(m => m.JoinPage) },
   { path: 'dashboard', loadComponent: () => import('./app-pages').then(m => m.DashboardPage) },
   { path: 'groups', loadComponent: () => import('./app-pages').then(m => m.GroupsPage) },
