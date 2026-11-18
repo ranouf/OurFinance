@@ -1,0 +1,25 @@
+name: Remind before TEST token expiry
+on:
+  schedule:
+    - cron: '0 13 * * 1'
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: write
+concurrency:
+  group: cloudflare-test-token-expiry-reminder
+  cancel-in-progress: false
+jobs:
+  remind:
+    if: github.repository == 'ranouf/OurFinance'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Remind once in issue 154 when expiry is near
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TOKEN_EXPIRY_DATE: '2027-11-17'
+        run: node scripts/cloudflare-token-reminder.mjs
