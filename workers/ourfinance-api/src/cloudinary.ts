@@ -31,7 +31,9 @@ export async function authenticatedDownloadUrl(publicId: string, format: 'jpg' |
 
 export async function uploadAuthenticated(bytes: Uint8Array, format: 'jpg' | 'png', publicId: string, env: CloudinaryEnv,
   transport: typeof fetch = fetch, overwrite = false): Promise<void> {
-  const params = { asset_folder: 'ourfinance-test', public_id: publicId, timestamp: String(Math.floor(Date.now() / 1000)), type: 'authenticated', overwrite: String(overwrite) };
+  const assetFolder = publicId.split('/')[0];
+  if (!/^[A-Za-z0-9_-]{1,128}$/.test(assetFolder)) throw new Error('Namespace Cloudinary invalide');
+  const params = { asset_folder: assetFolder, public_id: publicId, timestamp: String(Math.floor(Date.now() / 1000)), type: 'authenticated', overwrite: String(overwrite) };
   const form = new FormData();
   for (const [key, value] of Object.entries(params)) form.set(key, value);
   form.set('api_key', env.CLOUDINARY_API_KEY);

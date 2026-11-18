@@ -45,6 +45,16 @@ test('Cloudinary quota refusals expose only a fixed public error', async () => {
   await rejects(destroyAuthenticated('ourfinance-test/g/e/a', env, limited as typeof fetch),
     (error: unknown) => error instanceof ProviderQuotaError && error.message === 'provider_quota_exceeded');
 });
+test('upload places another project in its own Cloudinary folder', async () => {
+  const png = new Uint8Array([137,80,78,71,13,10,26,10,0,0,0,0,0,0,0,0]);
+  const transport = async (_input: string | URL | Request, init?: RequestInit) => {
+    const form = init?.body as FormData;
+    strictEqual(form.get('asset_folder'), 'ourfinance-prod');
+    strictEqual(form.get('public_id'), 'ourfinance-prod/g/e/a');
+    return Response.json({ public_id: 'ourfinance-prod/g/e/a', type: 'authenticated', resource_type: 'image', format: 'png' });
+  };
+  await uploadAuthenticated(png, 'png', 'ourfinance-prod/g/e/a', env, transport as typeof fetch);
+});
 test('failed metadata persistence can remove authenticated upload', async () => {
   const { destroyAuthenticated } = await import('../src/cloudinary');
   const transport = async (_input: string | URL | Request, init?: RequestInit) => {

@@ -3,6 +3,7 @@ import { splitAmount, validateExpense, type Allocation, type SplitMode } from '.
 import { categories, categoryById, categoryIcons, isCustomCategoryId, type CategoryColor, type CategoryDefinition } from '../../../src/app/shared/utils/categories';
 import { serviceAccessToken } from './service-account';
 import { destroyAuthenticated, type CloudinaryEnv } from './cloudinary';
+import { authorizedReceiptPublicId } from './media';
 
 export interface ExpenseEnv extends Partial<CloudinaryEnv> { readonly FIREBASE_PROJECT_ID: string; readonly FIREBASE_SERVICE_ACCOUNT_JSON: string; }
 export interface ExpenseInput {
@@ -205,7 +206,7 @@ export async function mutateExpense(value: unknown, uid: string, groupId: string
         if (meta['status']?.stringValue !== 'active' && meta['cleanupPending']?.booleanValue !== true) continue;
         const attachmentId = name.slice(name.lastIndexOf('/') + 1);
         const publicId = meta['publicId']?.stringValue;
-        if (!idPattern.test(attachmentId) || publicId !== `ourfinance-test/${groupId}/${expenseId}/${attachmentId}` || meta['type']?.stringValue !== 'authenticated') throw new ExpenseError(503, 'invalid_receipts');
+        if (!idPattern.test(attachmentId) || !authorizedReceiptPublicId(publicId, env.FIREBASE_PROJECT_ID, groupId, expenseId, attachmentId) || meta['type']?.stringValue !== 'authenticated') throw new ExpenseError(503, 'invalid_receipts');
         pendingReceipts.push({ name, publicId });
         if (meta['status']?.stringValue === 'active') writes.push({ update: { name, fields: { status: string('deleted'), deletedAt: { timestampValue: now }, cleanupPending: { booleanValue: true } } }, updateMask: { fieldPaths: ['status', 'deletedAt', 'cleanupPending'] } });
       }

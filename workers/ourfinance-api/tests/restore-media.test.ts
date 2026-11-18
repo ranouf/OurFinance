@@ -3,7 +3,7 @@ import { deepStrictEqual, rejects, strictEqual } from 'node:assert';
 import { stageRestoreReceipts } from '../src/restore-media';
 
 const restoreId = '123e4567-e89b-42d3-a456-426614174000';
-const env = { CLOUDINARY_CLOUD_NAME: 'synthetic', CLOUDINARY_API_KEY: 'synthetic', CLOUDINARY_API_SECRET: 'synthetic' };
+const env = { FIREBASE_PROJECT_ID: 'ourfinance-test', CLOUDINARY_CLOUD_NAME: 'synthetic', CLOUDINARY_API_KEY: 'synthetic', CLOUDINARY_API_SECRET: 'synthetic' };
 const png = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 0, 0, 0, 0, 0]);
 
 test('staging keeps original receipt IDs and uses isolated private asset paths', async () => {
@@ -19,6 +19,9 @@ test('staging keeps original receipt IDs and uses isolated private asset paths',
   const staged = await stageRestoreReceipts('g', restoreId, [{ expenseId: 'e', attachmentId: 'a', format: 'png', bytes: png }], env, transport as typeof fetch);
   deepStrictEqual(uploaded, [`ourfinance-test/g/e/restore_${restoreId}/a`]);
   strictEqual(staged[0].attachmentId, 'a');
+  const production = await stageRestoreReceipts('g', restoreId, [{ expenseId: 'e', attachmentId: 'a', format: 'png', bytes: png }],
+    { ...env, FIREBASE_PROJECT_ID: 'ourfinance-prod' }, transport as typeof fetch);
+  strictEqual(production[0].publicId, `ourfinance-prod/g/e/restore_${restoreId}/a`);
 });
 
 test('failed second upload triggers cleanup of staged and uncertain assets', async () => {
