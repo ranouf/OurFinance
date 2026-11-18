@@ -7,11 +7,11 @@ on:
         required: true
         type: string
       coordination_comment:
-        description: URL of the active TEST reservation in issue 30
+        description: URL of the exact-line active TEST reservation in issue 30
         required: true
         type: string
       approval_comment:
-        description: URL of the owner's approval for this exact SHA and channel
+        description: URL of the exact-line visual approval for this SHA and channel
         required: true
         type: string
       channel:
@@ -34,6 +34,9 @@ jobs:
       group: ourfinance-test-deploy
       cancel-in-progress: false
     steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Check exact SHA, reservation and visual approval
         env:
           TARGET_SHA: ${{ inputs.sha }}
@@ -46,24 +49,14 @@ jobs:
           [[ "$RESERVATION" =~ ^https://github\.com/ranouf/OurFinance/issues/30#issuecomment-[0-9]+$ ]]
           [[ "$APPROVAL" =~ ^https://github\.com/ranouf/OurFinance/issues/(30|122)#issuecomment-[0-9]+$ ]]
           [[ "$CHANNEL" == preview || "$CHANNEL" == live ]]
+          comment_dir="$(mktemp -d)"
+          trap 'rm -rf "$comment_dir"' EXIT
           reservation_id="${RESERVATION##*issuecomment-}"
-          gh api "repos/ranouf/OurFinance/issues/comments/$reservation_id" |
-            jq -e --arg sha "$TARGET_SHA" '
-              now as $checked | (.created_at | fromdateiso8601) as $reserved |
-              .user.login == "ranouf" and
-              .issue_url == "https://api.github.com/repos/ranouf/OurFinance/issues/30" and
-              $reserved <= $checked and ($checked - $reserved) <= 3600 and
-              (.body | contains($sha) and (ascii_downcase | contains("test")) and test("r[ée]serv"; "i"))
-            ' >/dev/null
           approval_id="${APPROVAL##*issuecomment-}"
-          gh api "repos/ranouf/OurFinance/issues/comments/$approval_id" |
-            jq -e --arg sha "$TARGET_SHA" --arg channel "$CHANNEL" '
-              .user.login == "ranouf" and
-              (.issue_url == "https://api.github.com/repos/ranouf/OurFinance/issues/30" or
-               .issue_url == "https://api.github.com/repos/ranouf/OurFinance/issues/122") and
-              (.body | contains($sha) and (ascii_downcase | contains("validation visuelle")) and
-                (if $channel == "live" then test("approuv"; "i") else test("preview|aperçu"; "i") end))
-            ' >/dev/null
+          gh api "repos/ranouf/OurFinance/issues/comments/$reservation_id" > "$comment_dir/reservation.json"
+          gh api "repos/ranouf/OurFinance/issues/comments/$approval_id" > "$comment_dir/approval.json"
+          bash scripts/verify-hosting-test-authorization.sh "$TARGET_SHA" "$CHANNEL" \
+            "$comment_dir/reservation.json" "$comment_dir/approval.json"
       - name: Require successful PR validation on exact SHA
         env:
           TARGET_SHA: ${{ inputs.sha }}

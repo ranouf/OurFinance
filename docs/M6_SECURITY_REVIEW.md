@@ -7,7 +7,7 @@ Ce document distingue les contrôles observés sur `ourfinance-test` des décisi
 | Contrôle            | Constat                                                                                                                                                                                                                         |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Identité du Worker  | Identité dédiée au projet `ourfinance-test` avec `roles/datastore.user`. Ce rôle couvre la base ; la vérification de groupe est faite par le Worker et les Firestore Security Rules côté client.                                |
-| Clés de service    | L'[audit TEST du 18 novembre](https://github.com/ranouf/OurFinance/issues/30#issuecomment-6969305289) relève une clé utilisateur active, sans expiration automatique, pour chacune des trois identités Worker, Hosting et Rules/index. Aucune rotation n'a encore été exécutée. |
+| Clés de service    | L'[audit TEST du 18 novembre](https://github.com/ranouf/OurFinance/issues/30#issuecomment-6969305289) relève une clé utilisateur active, sans expiration automatique, pour chacune des trois identités. La clé Worker a depuis été [renouvelée sur TEST](https://github.com/ranouf/OurFinance/issues/154#issuecomment-6970214505) ; Hosting et Rules/index restent à évaluer séparément. |
 | Origine HTTP        | Les deux domaines Hosting TEST sont autorisés par valeurs exactes `ALLOWED_ORIGIN`/`ALLOWED_SECONDARY_ORIGIN` ; origine étrangère refusée 403. Une preview n'est acceptée que par valeur exacte temporaire `ALLOWED_PREVIEW_ORIGIN`, retirée après l'essai. |
 | Profils des membres | `#134` au SHA `9ad3bee` : sans jeton 401, propriétaire/membre actif 200, tiers/révoqué 403 ; uniquement identifiants et noms actifs, aucun courriel ni champ privé. Flags/fixtures retirés, route 503.                          |
 | Firestore           | Les Rules de la pile M6 antérieure ont été comparées à la release TEST active ; aucun index composite déclaré ou actif alors. Refaire le contrôle après tout changement.                                                        |
@@ -42,6 +42,23 @@ Ce protocole concerne uniquement `ourfinance-api-dev` et une identité dédiée 
 4. En cas d'échec, remettre l'ancienne valeur du secret depuis le coffre approuvé, vérifier de nouveau l'opération fictive et **ne pas désactiver l'ancienne clé**. Documenter l'échec sans valeur de secret. Après réussite complète, désactiver puis supprimer l'ancienne clé dans IAM, confirmer que la nouvelle opération fictive fonctionne encore et inventorier les clés actives restantes.
 
 La rotation de production, son accès de secours et les rôles IAM de l'environnement cible demandent une validation distincte. Ce protocole ne donne aucune autorisation de déploiement production.
+
+## Autorisation explicite du déploiement Hosting TEST
+
+Le workflow manuel Hosting accepte uniquement deux commentaires d'une ligne, écrits par `ranouf` sur les issues autorisées. La réservation fraîche dans #30 doit avoir exactement ce corps, où le SHA compte 40 caractères :
+
+```text
+Réservation TEST active pour <SHA>
+```
+
+L'accord visuel dans #30 ou #122 doit avoir exactement le corps correspondant au canal demandé :
+
+```text
+Validation visuelle approuvée pour preview <SHA>
+Validation visuelle approuvée pour live <SHA>
+```
+
+Écrire **une seule** des deux lignes d'accord dans le commentaire. Publier le protocole et les résultats de l'essai dans d'autres commentaires #30. Pour annuler avant l'exécution, modifier ou supprimer le commentaire de réservation ou d'accord indiqué au workflow. Une réservation annulée, un accord refusé ou une phrase qualifiée ne satisfont pas ce garde ; le SHA, le canal, la CI et la cible TEST restent contrôlés séparément. Le garde ne remplace pas la validation visuelle réelle du propriétaire.
 
 ## Rotation des autres accès TEST — suivi #154
 
