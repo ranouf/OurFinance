@@ -149,6 +149,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         { FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT_JSON: env.FIREBASE_SERVICE_ACCOUNT_JSON });
       return new Response(JSON.stringify({ restoreId, outcome }), { status: 200, headers });
     } catch (error) {
+      if (error instanceof ProviderQuotaError) return new Response(JSON.stringify({ error: error.message }), { status: 503, headers });
       const status = error instanceof RestoreCommitError ? error.status : 503;
       const code = error instanceof RestoreCommitError ? error.code : 'outcome_unavailable';
       return new Response(JSON.stringify({ error: code }), { status, headers });
