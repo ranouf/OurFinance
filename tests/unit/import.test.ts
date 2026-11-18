@@ -57,6 +57,28 @@ test('invalid CSV dates, currencies, empty amounts and missing impact data are e
   strictEqual(reconciliation.missingImpactRecords, 1);
 });
 
+test('import mapping rejects missing or duplicated participant columns before parsing records', () => {
+  const mapping = { sourceId: 'id', groupId: 'group', date: 'date', description: 'description', amountMinor: 'minor', currency: 'currency' };
+  const csv = 'id,group,date,description,minor,currency,Alice,Bob\n1,g,2026-11-16,Fictif,100,CAD,1.00,-1.00';
+  throws(() => previewMappedCsv('', mapping, new Set()), /CSV vide/);
+  throws(() => previewMappedCsv(csv, { ...mapping, sourceId: 'missing' }, new Set()), /Colonne manquante/);
+  throws(() => previewMappedCsv(csv, mapping, new Set(), { alice: 'missing' }), /Colonne de participant manquante/);
+  throws(() => previewMappedCsv(csv, mapping, new Set(), {}), /Colonnes de participant dupliquées/);
+  throws(() => previewMappedCsv(csv, mapping, new Set(), { alice: 'Alice', bob: 'Alice' }), /Colonnes de participant dupliquées/);
+});
+
+test('import rejects unbalanced, overprecise and unsafe net impacts without partial record', () => {
+  const mapping = { sourceId: 'id', groupId: 'group', date: 'date', description: 'description', amountMinor: 'minor', currency: 'currency' };
+  const header = 'id,group,date,description,minor,currency,Alice,Bob\n';
+  for (const impacts of ['1.00,0.00', '1.001,-1.001', '9007199254740992,-9007199254740992', 'bad,-1.00']) {
+    const preview = previewMappedCsv(header + `1,g,2026-11-16,Fictif,100,CAD,${impacts}`, mapping, new Set(), { alice: 'Alice', bob: 'Bob' });
+    strictEqual(preview.records.length, 0);
+    strictEqual(preview.errors.length, 1);
+  }
+  const valid = previewMappedCsv(header + '1,g,2026-11-16,Fictif,100,CAD,1.00,-1.00', mapping, new Set(), { alice: 'Alice', bob: 'Bob' });
+  deepStrictEqual(valid.records[0].netImpactsMinor, { alice: 100, bob: -100 });
+});
+
 test('rapprochement sépare strictement groupes et devises', () => {
   const base = { sourceId: 'synthetic', date: '2026-11-16', description: 'Fictif', amountMinor: 100, splitStatus: 'undetermined' as const };
   const records = [
