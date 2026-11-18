@@ -1,4 +1,5 @@
 import { destroyAuthenticated, type CloudinaryEnv } from './cloudinary';
+import { unavailableCode } from './provider-quota';
 import { serviceAccessToken } from './service-account';
 
 export interface RestoreCleanupEnv extends CloudinaryEnv { readonly FIREBASE_PROJECT_ID: string; readonly FIREBASE_SERVICE_ACCOUNT_JSON: string }
@@ -17,7 +18,7 @@ export async function retryRestoreCleanup(uid: string, groupId: string, restoreI
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
   const read = async (path: string) => {
     const response = await transport(`https://firestore.googleapis.com/v1/${root}/${path}`, { headers });
-    if (!response.ok) throw new RestoreCleanupError(response.status === 404 ? 409 : 503, 'cleanup_unavailable');
+    if (!response.ok) throw new RestoreCleanupError(response.status === 404 ? 409 : 503, unavailableCode(response, 'cleanup_unavailable'));
     return await response.json() as { updateTime?: string; fields?: Record<string, { stringValue?: string; arrayValue?: { values?: { stringValue?: string }[] } }> };
   };
   const [group, member, job] = await Promise.all([
@@ -36,7 +37,7 @@ export async function retryRestoreCleanup(uid: string, groupId: string, restoreI
         currentDocument: { updateTime: group.updateTime },
       }] }),
     });
-    if (!response.ok) throw new RestoreCleanupError([400, 409, 412].includes(response.status) ? 409 : 503, 'cleanup_state_unavailable');
+    if (!response.ok) throw new RestoreCleanupError([400, 409, 412].includes(response.status) ? 409 : 503, unavailableCode(response, 'cleanup_state_unavailable'));
   };
   if (job.fields['status']?.stringValue === 'completed') {
     await clearPendingMarker();
@@ -64,7 +65,7 @@ export async function retryRestoreCleanup(uid: string, groupId: string, restoreI
     ? { status: { stringValue: 'completed' }, completedAt: { timestampValue: new Date().toISOString() }, oldPublicIds: { arrayValue: { values: [] } } }
     : { oldPublicIds: { arrayValue: { values: remaining.map(publicId => ({ stringValue: publicId })) } } };
   const response = await transport(url, { method: 'PATCH', headers, body: JSON.stringify({ fields }) });
-  if (!response.ok) throw new RestoreCleanupError(response.status === 409 || response.status === 412 ? 409 : 503, 'cleanup_state_unavailable');
+  if (!response.ok) throw new RestoreCleanupError(response.status === 409 || response.status === 412 ? 409 : 503, unavailableCode(response, 'cleanup_state_unavailable'));
   if (completed) await clearPendingMarker();
   return { removed: batch.length, pending: !completed };
 }

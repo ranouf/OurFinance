@@ -1,3 +1,4 @@
+import { isProviderQuotaStatus, ProviderQuotaError } from './provider-quota';
 import { serviceAccessToken } from './service-account';
 
 export interface NewGroup { readonly name: string; readonly currency: string; }
@@ -31,6 +32,7 @@ export async function createGroup(value: unknown, uid: string, env: GroupEnv, tr
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ writes }),
   });
+  if (isProviderQuotaStatus(response.status)) throw new ProviderQuotaError();
   if (!response.ok) throw new Error(`Création de groupe refusée (${response.status})`);
   return groupId;
 }

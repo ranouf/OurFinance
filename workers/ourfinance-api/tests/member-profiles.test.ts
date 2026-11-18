@@ -45,6 +45,18 @@ test('refuses a revoked caller before reading profiles', async () => {
   strictEqual(calls, 1);
 });
 
+test('profile listing reports quota exhaustion with a fixed code', async () => {
+  const env = await fixture();
+  const transport = async (input: string | URL | Request) => {
+    const url = String(input);
+    if (url.includes('oauth2.googleapis.com')) return Response.json({ access_token: 'service-token' });
+    if (url.endsWith('/groups/group-a/members/alice')) return Response.json({ fields: { role: { stringValue: 'owner' }, status: { stringValue: 'active' } } });
+    return Response.json({ message: 'private provider detail' }, { status: 429 });
+  };
+  await rejects(listSharedMemberProfiles('group-a', 'alice', 'id-token', env, transport as typeof fetch),
+    (error: unknown) => error instanceof MemberProfileError && error.status === 503 && error.code === 'provider_quota_exceeded');
+});
+
 test('rechecks membership before releasing peer names', async () => {
   const env = await fixture();
   let checks = 0;

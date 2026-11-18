@@ -12,3 +12,17 @@ Le mode V1 ne remplace pas l'authentification et les autorisations : chaque rout
 4. Retirer `ENABLE_API_V1` et tous les flags POC temporaires, supprimer les comptes, documents et assets fictifs, puis vérifier `/health` 200 et routes métier 503. Consigner les codes et le nettoyage dans l'issue #30.
 
 Le workflow manuel de déploiement du Worker TEST n'active jamais `ENABLE_API_V1` et vérifie qu'une route de restauration reste désactivée. **Aucune activation production** n'est couverte par ce protocole ; elle exige la validation M1–M6 et une décision séparée.
+
+## Limite des requêtes V1
+
+Le mode V1 exige la liaison Cloudflare `API_RATE_LIMITER`, configurée à 120 requêtes par 60 secondes par adresse IP et emplacement Cloudflare. Le Worker renvoie `429 rate_limited` avec `Retry-After: 60` lorsque la limite est atteinte. Si la liaison, l'adresse de connexion ou le service de limitation manque, il renvoie `503 rate_limit_unavailable` et ne sert pas les routes V1. `/health` et les requêtes CORS `OPTIONS` restent accessibles. Les anciens essais POC, sans `ENABLE_API_V1`, conservent leur comportement.
+
+Cette limite est approximative entre emplacements Cloudflare et ne constitue pas un plafond quotidien strict. La valeur `namespace_id` doit être réservée pour ce Worker dans le compte Cloudflare TEST avant activation ; le workflow manuel TEST doit déployer la même liaison que `wrangler.toml`.
+
+### Essai ciblé de la limite sur TEST
+
+Après la validation de la pile V1 et la réservation de TEST dans l'issue #30, déployer le SHA exact avec `API_RATE_LIMITER`, sans activer V1. Vérifier `/health` 200 et une route métier fermée 503. Confirmer que le namespace de la liaison appartient au seul Worker TEST, puis activer temporairement `ENABLE_API_V1=true` sans autre flag POC.
+
+Depuis une seule connexion de test, appeler séquentiellement `GET /groups/ci-limit/access` **sans jeton** pendant une fenêtre de 60 secondes. Les premières réponses doivent être 401 ; la limite doit ensuite produire au moins un `429 {"error":"rate_limited"}` avec `Retry-After: 60`. Le point de bascule exact peut varier selon le point de présence Cloudflare et le trafic déjà compté. Pendant le refus, vérifier `/health` 200 et un prévol CORS autorisé `OPTIONS` 204. Après l'expiration de la fenêtre, vérifier qu'une requête métier sans jeton redevient 401.
+
+Retirer `ENABLE_API_V1` et tous les flags temporaires, puis vérifier `/health` 200 et `POST /groups/ci-limit/expenses` 503. Aucun compte, dépense ou justificatif n'est nécessaire à cet essai. Ne pas chercher à provoquer un quota Cloudflare ou fournisseur réel ; le repli `rate_limit_unavailable` est couvert par les tests locaux. Consigner SHA, codes HTTP, heure et retrait des flags dans l'issue #30 avant de libérer TEST.

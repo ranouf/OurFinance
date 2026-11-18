@@ -1,3 +1,4 @@
+import { unavailableCode } from './provider-quota';
 import { serviceAccessToken } from './service-account';
 import { listExpenseDescendants } from './firestore-descendants';
 
@@ -22,7 +23,7 @@ export async function collectLiveRestoreInventory(uid: string, groupId: string, 
   const token = await serviceAccessToken(env.FIREBASE_SERVICE_ACCOUNT_JSON, env.FIREBASE_PROJECT_ID, transport);
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
   const checked = async (response: Response): Promise<Record<string, unknown>> => {
-    if (!response.ok) throw new RestoreInventoryError(response.status === 409 ? 409 : 503, 'firestore_unavailable');
+    if (!response.ok) throw new RestoreInventoryError(response.status === 409 ? 409 : 503, unavailableCode(response, 'firestore_unavailable'));
     return await response.json() as Record<string, unknown>;
   };
   // Inventory never writes. A read-write transaction can retain document locks

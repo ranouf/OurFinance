@@ -52,6 +52,15 @@ test('owner can recover only a staging restore ID, without archive or media deta
   strictEqual(state.rollbacks, 1);
 });
 
+test('restore state reports a Firestore quota refusal without exposing its body', async () => {
+  const state = await fixture();
+  const transport = async (input: string | URL | Request, init?: RequestInit) => String(input).endsWith(':beginTransaction')
+    ? Response.json({ message: 'private provider detail' }, { status: 429 })
+    : state.transport(input, init);
+  await rejects(readCurrentRestore('alice', 'group-a', state.env, transport as typeof fetch),
+    (error: unknown) => error instanceof RestoreCurrentError && error.status === 503 && error.code === 'provider_quota_exceeded');
+});
+
 test('ordinary or revoked member cannot discover a restore ID', async () => {
   for (const options of [{ role: 'member' }, { memberStatus: 'revoked' }]) {
     const state = await fixture(options);

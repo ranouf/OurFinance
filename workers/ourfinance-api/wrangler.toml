@@ -6,3 +6,11 @@ workers_dev = false
 [vars]
 FIREBASE_PROJECT_ID = "ourfinance-test"
 ALLOWED_ORIGIN = "https://ourfinance-test.web.app"
+
+[[ratelimits]]
+name = "API_RATE_LIMITER"
+namespace_id = "7491201"
+
+[ratelimits.simple]
+limit = 120
+period = 60

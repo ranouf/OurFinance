@@ -1,3 +1,4 @@
+import { unavailableCode } from './provider-quota';
 import { serviceAccessToken } from './service-account';
 
 export interface ImportEnv { readonly FIREBASE_PROJECT_ID: string; readonly FIREBASE_SERVICE_ACCOUNT_JSON: string; }
@@ -83,7 +84,7 @@ async function sha256(value: string): Promise<string> {
   return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('');
 }
 async function checked(response: Response): Promise<Record<string, unknown>> {
-  if (!response.ok) throw new ImportError(response.status === 409 ? 409 : 503, response.status === 409 ? 'import_conflict' : 'firestore_unavailable');
+  if (!response.ok) throw new ImportError(response.status === 409 ? 409 : 503, response.status === 409 ? 'import_conflict' : unavailableCode(response, 'firestore_unavailable'));
   return await response.json() as Record<string, unknown>;
 }
 async function withTransaction<T>(env: ImportEnv, transport: typeof fetch, run: (context: { root: string; read: (path: string) => Promise<Record<string, unknown> | null>; commit: (writes: unknown[]) => Promise<void> }) => Promise<T>): Promise<T> {
