@@ -24,6 +24,21 @@ test('one configured preview origin is allowed without widening the main origin'
   strictEqual(rejected.status, 403);
   strictEqual(rejected.headers.get('Access-Control-Allow-Origin'), null);
 });
+test('both exact TEST Hosting domains are allowed without accepting a lookalike origin', async () => {
+  const secondary = 'https://ourfinance-test.firebaseapp.com';
+  const configured = { ...env, ALLOWED_SECONDARY_ORIGIN: secondary };
+  for (const origin of [env.ALLOWED_ORIGIN, secondary]) {
+    const response = await handleRequest(new Request('https://worker.example/health', { headers: { Origin: origin } }), configured);
+    strictEqual(response.status, 200);
+    strictEqual(response.headers.get('Access-Control-Allow-Origin'), origin);
+    const preflight = await handleRequest(new Request('https://worker.example/groups/g/expenses', { method: 'OPTIONS', headers: { Origin: origin } }), configured);
+    strictEqual(preflight.status, 204);
+    strictEqual(preflight.headers.get('Access-Control-Allow-Origin'), origin);
+  }
+  const rejected = await handleRequest(new Request('https://worker.example/health', { headers: { Origin: `${secondary}.evil.example` } }), configured);
+  strictEqual(rejected.status, 403);
+  strictEqual(rejected.headers.get('Access-Control-Allow-Origin'), null);
+});
 test('group creation remains disabled by default even with server identity', async () => {
   const response = await handleRequest(new Request('https://worker.example/groups', { method: 'POST', headers: { Origin: env.ALLOWED_ORIGIN } }), { ...env, FIREBASE_SERVICE_ACCOUNT_JSON: 'configured' });
   strictEqual(response.status, 503);

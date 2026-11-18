@@ -6,6 +6,7 @@ workers_dev = false
 [vars]
 FIREBASE_PROJECT_ID = "ourfinance-test"
 ALLOWED_ORIGIN = "https://ourfinance-test.web.app"
+ALLOWED_SECONDARY_ORIGIN = "https://ourfinance-test.firebaseapp.com"
 
 [[ratelimits]]
 name = "API_RATE_LIMITER"
