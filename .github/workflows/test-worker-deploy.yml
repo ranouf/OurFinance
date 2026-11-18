@@ -74,7 +74,7 @@ jobs:
               .issue_url == "https://api.github.com/repos/ranouf/OurFinance/issues/30" and
               $reserved <= $checked and ($checked - $reserved) <= 3600 and
               (.body | contains($sha) and (ascii_downcase | contains("test")) and
-                (contains("réserv") or contains("reserv")))
+                test("r[ée]serv"; "i"))
             ' >/dev/null
       - name: Require successful PR validation on exact SHA
         env:
