@@ -1,5 +1,6 @@
 import { bearerToken, verifyFirebaseIdToken, verifyFirebaseVerifiedEmail, verifyFirebaseVerifiedIdentity } from './auth';
 import { createGroup } from './groups';
+import { updateGroupMetadata, GroupMetadataError } from './group-metadata';
 import { changeGroupCurrency, GroupCurrencyError } from './group-currency';
 import { changeGroupLifecycle, GroupLifecycleError } from './group-lifecycle';
 import { createExpense, ExpenseError, mutateExpense } from './expenses';
@@ -40,6 +41,8 @@ export interface Env extends Partial<CloudinaryEnv> {
   ENABLE_GROUP_CREATION?: string;
   ENABLE_GROUP_CURRENCY_POC?: string;
   GROUP_CURRENCY_POC_GROUP_ID?: string;
+  ENABLE_GROUP_METADATA_POC?: string;
+  GROUP_METADATA_POC_GROUP_ID?: string;
   ENABLE_GROUP_LIFECYCLE_POC?: string;
   GROUP_LIFECYCLE_POC_GROUP_ID?: string;
   ENABLE_MEDIA_POC?: string;
@@ -555,6 +558,23 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     }
   }
   const currencyMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/currency$/.exec(url.pathname);
+  const metadataMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/metadata$/.exec(url.pathname);
+  if (metadataMatch && request.method === 'PATCH') {
+    if (!routeEnabled(env, env.ENABLE_GROUP_METADATA_POC, env.GROUP_METADATA_POC_GROUP_ID, metadataMatch[1]) || !env.FIREBASE_SERVICE_ACCOUNT_JSON) return new Response(JSON.stringify({ error: 'Modification non configurée' }), { status: 503, headers });
+    let uid: string;
+    try { uid = await verifyFirebaseVerifiedEmail(bearerToken(request), env.FIREBASE_PROJECT_ID); }
+    catch { return new Response(JSON.stringify({ error: 'Non authentifié' }), { status: 401, headers }); }
+    try {
+      const body = await readLimitedJson(request, 4096);
+      await updateGroupMetadata(body, uid, metadataMatch[1], { FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT_JSON: env.FIREBASE_SERVICE_ACCOUNT_JSON });
+      return new Response(null, { status: 204, headers });
+    } catch (error) {
+      if (error instanceof ProviderQuotaError) return new Response(JSON.stringify({ error: error.message }), { status: 503, headers });
+      const status = error instanceof GroupMetadataError ? error.status : error instanceof RequestBodyError ? 400 : 503;
+      const code = error instanceof GroupMetadataError || error instanceof RequestBodyError ? error.code : 'group_unavailable';
+      return new Response(JSON.stringify({ error: code }), { status, headers });
+    }
+  }
   if (currencyMatch && request.method === 'PATCH') {
     if (!routeEnabled(env, env.ENABLE_GROUP_CURRENCY_POC, env.GROUP_CURRENCY_POC_GROUP_ID, currencyMatch[1]) || !env.FIREBASE_SERVICE_ACCOUNT_JSON) return new Response(JSON.stringify({ error: 'Modification non configurée' }), { status: 503, headers });
     let uid: string;

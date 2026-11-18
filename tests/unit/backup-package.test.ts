@@ -23,6 +23,19 @@ const user = { uid: 'member_a', emailVerified: true, getIdToken: async () => 'sy
 const png = Uint8Array.from(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLytQAAAABJRU5ErkJggg==', 'base64'));
 const transport = (async () => new Response(png, { status: 200, headers: { 'Content-Type': 'image/png' } })) as typeof fetch;
 
+test('V1 export preserves optional group metadata and accepts an older archive without it', async () => {
+  const decorated: ExportReader = { ...reader, read: async path => path === root
+    ? { id: 'group_test', data: { status: 'active', name: 'Groupe fictif', currency: 'CAD', iconId: 'home', color: 'violet', description: 'Frais' } }
+    : reader.read(path) };
+  const current = await buildBackupPackageV1(decorated, user, 'group_test', 'https://worker.example', transport);
+  const old = await buildBackupPackageV1(reader, user, 'group_test', 'https://worker.example', transport);
+  strictEqual(JSON.parse(current.groupJson).group.iconId, 'home');
+  strictEqual(JSON.parse(current.groupJson).group.description, 'Frais');
+  strictEqual(JSON.parse(old.groupJson).group.iconId, undefined);
+  await verifyBackupPackageV1(current);
+  await verifyBackupPackageV1(old);
+});
+
 test('builds an explicitly partial manifest with exact hashes and verifies all bytes', async () => {
   const packageValue = await buildBackupPackageV1(reader, user, 'group_test', 'https://worker.example', transport);
   strictEqual(packageValue.manifest.scope, 'group-v1-partial');

@@ -114,6 +114,11 @@ test('group currency change remains disabled without one explicit test group', a
   const response = await handleRequest(new Request('https://worker.example/groups/g1/currency', { method: 'PATCH' }), { ...env, FIREBASE_SERVICE_ACCOUNT_JSON: 'configured' });
   strictEqual(response.status, 503);
 });
+test('group metadata editing stays disabled without its own scoped TEST flag', async () => {
+  const response = await handleRequest(new Request('https://worker.example/groups/g1/metadata', { method: 'PATCH' }),
+    { ...env, FIREBASE_SERVICE_ACCOUNT_JSON: 'configured', ENABLE_GROUP_CURRENCY_POC: 'true', GROUP_CURRENCY_POC_GROUP_ID: 'g1' });
+  strictEqual(response.status, 503);
+});
 test('backup preferences remain disabled without one explicit test group', async () => {
   const response = await handleRequest(new Request('https://worker.example/groups/g1/backup/preferences'), { ...env, FIREBASE_SERVICE_ACCOUNT_JSON: 'configured' });
   strictEqual(response.status, 503);

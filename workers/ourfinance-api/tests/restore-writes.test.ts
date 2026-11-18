@@ -43,6 +43,18 @@ test('restore plan rejects missing or redirected staged media', () => {
   throws(() => buildRestoreWrites(group, live, [{ ...staged[0], publicId: `ourfinance-test/other/e/restore_${restoreId}/a` }], 'ourfinance-test', restoreId, at));
 });
 
+test('restore writes metadata and clears fields missing from a legacy archive', () => {
+  const decorated = { ...group, group: { ...group.group, iconId: 'home', color: 'violet', description: 'Frais' } };
+  const plan = buildRestoreWrites(decorated, live, staged, 'ourfinance-test', restoreId, at);
+  const write = plan.writes.find(row => (row as any).update?.name.endsWith('/groups/g')) as any;
+  strictEqual(write.update.fields.iconId.stringValue, 'home');
+  strictEqual(write.update.fields.description.stringValue, 'Frais');
+  const legacy = buildRestoreWrites(group, live, staged, 'ourfinance-test', restoreId, at);
+  const oldWrite = legacy.writes.find(row => (row as any).update?.name.endsWith('/groups/g')) as any;
+  strictEqual(oldWrite.update.fields.iconId, undefined);
+  strictEqual(oldWrite.updateMask.fieldPaths.includes('iconId'), true);
+});
+
 test('restore plan keeps receipt assets inside the target Firebase project', () => {
   const productionId = `ourfinance-prod/g/e/restore_${restoreId}/a`;
   const productionGroup = { ...group, receiptAssets: [{ ...group.receiptAssets[0], publicId: 'ourfinance-prod/g/e/a' }] };

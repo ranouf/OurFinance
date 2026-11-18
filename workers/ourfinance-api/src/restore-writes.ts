@@ -37,8 +37,11 @@ export function buildRestoreWrites(value: GroupExportV2, live: LiveRestoreInvent
   const groupPath = `groups/${backup.group.id}`;
   for (const path of diff.deleteGroupDocuments) remove(path);
   for (const path of diff.deleteUserDocuments) remove(path);
-  writes.push({ update: { name: `${root}/${groupPath}`, fields: { name: string(backup.group.name), status: string('active'), lastRestoreId: string(restoreId) } },
-    updateMask: { fieldPaths: ['name', 'status', 'lastRestoreId', 'restoreId', 'restoreOwnerId', 'restoringAt'] } });
+  writes.push({ update: { name: `${root}/${groupPath}`, fields: { name: string(backup.group.name), status: string('active'), lastRestoreId: string(restoreId),
+    ...(backup.group.iconId !== undefined ? { iconId: string(backup.group.iconId) } : {}),
+    ...(backup.group.color !== undefined ? { color: string(backup.group.color) } : {}),
+    ...(backup.group.description !== undefined ? { description: string(backup.group.description) } : {}) } },
+    updateMask: { fieldPaths: ['name', 'status', 'lastRestoreId', 'restoreId', 'restoreOwnerId', 'restoringAt', 'iconId', 'color', 'description'] } });
   const authors = new Map(backup.expenseAuthors.map(row => [row.expenseId, row.userId]));
   for (const row of backup.expenses) update(`${groupPath}/expenses/${row.id}`, {
     date: string(row.date), description: string(row.description), currency: string(row.currency), amountMinor: integer(row.amountMinor),

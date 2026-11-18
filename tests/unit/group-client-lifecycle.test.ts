@@ -11,6 +11,20 @@ const app = {} as FirebaseApp;
 const user = { uid: 'owner', emailVerified: true, getIdToken: async () => 'fixture-token' } as User;
 const emptyGroups: GroupRepository = { memberships: async () => [], group: async () => { throw new Error('unused'); }, memberCount: async () => 0 };
 
+test('group client sends metadata through an authenticated scoped route', async () => {
+  const requests: { method: string; url: string; body: unknown }[] = [];
+  const transport = async (input: string | URL | Request, init?: RequestInit) => {
+    requests.push({ method: init?.method ?? '', url: String(input), body: JSON.parse(String(init?.body)) });
+    return new Response(null, { status: 204 });
+  };
+  const service = new GroupService(app, 'https://worker.example', emptyGroups, transport as typeof fetch);
+  await service.updateMetadata(user, 'group-a', { name: 'Duplex', iconId: 'home', color: 'violet', description: '' });
+  deepStrictEqual(requests, [{ method: 'PATCH', url: 'https://worker.example/groups/group-a/metadata',
+    body: { name: 'Duplex', iconId: 'home', color: 'violet', description: '' } }]);
+  await rejects(service.updateMetadata(user, '../bad', { name: 'x' }), /indisponible/);
+  strictEqual(requests.length, 1);
+});
+
 test('group client revokes a member and archives only through scoped authenticated Worker routes', async () => {
   const requests: { path: string; method: string; auth: string | null }[] = [];
   const transport = async (input: string | URL | Request, init?: RequestInit) => {
