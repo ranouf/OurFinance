@@ -110,7 +110,7 @@ import { expenseMessage, expenseText } from './expense-text';
         @if (hasMore()) { <button class="mt-4 min-h-11 rounded-xl border border-pop-border px-4 py-2 text-sm font-bold text-pop-primary-dark disabled:opacity-50" type="button" [disabled]="busy()" (click)="loadMore()">{{ hasFilter() ? text('continueSearch') : text('loadMore') }}</button> }
         @if (!entries().length && !busy() && !message() && !(from && to && from > to)) { <p class="mt-5 rounded-2xl bg-pop-lavender p-5 text-center text-sm text-pop-muted">{{ hasMore() ? text('noPageResults') : text('noResults') }}</p> }
       }
-      @if (message()) { <p class="mt-4 text-sm text-rose-700" role="status">{{ displayMessage(message()) }}</p> }
+      @if (message()) { <p class="mt-4 text-sm text-rose-700" [attr.role]="message() === 'deleted' ? 'status' : 'alert'">{{ displayMessage(message()) }}</p> }
     </section>
   `,
 })

@@ -255,7 +255,7 @@ export class ExpenseForm implements OnChanges {
       this.pendingKey = undefined; this.pendingBody = undefined;
       this.message.set(this.editing ? 'updated' : 'saved'); this.draft.description = ''; this.draft.amount = ''; this.previewRows.set([]); this.saved.emit();
       if (this.editing) this.editCancelled.emit();
-    } catch (error) { this.message.set(error instanceof Error ? error.message : 'saveFailed'); }
+    } catch (error) { this.message.set(error instanceof TypeError ? 'saveFailed' : error instanceof Error ? error.message : 'saveFailed'); }
     finally { this.busy.set(false); }
   }
 }

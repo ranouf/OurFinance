@@ -34,7 +34,7 @@ import { expenseMessage, expenseText } from './expense-text';
           <button class="mt-2 min-h-11 rounded-xl border border-pop-border px-4 py-2 font-bold" type="button" (click)="closeImage()">{{ text('closeReceipt') }}</button>
         </div>
       }
-      @if (message()) { <p class="mt-2 text-sm" role="status">{{ displayMessage(message()) }}</p> }
+      @if (message()) { <p class="mt-2 text-sm" [attr.role]="message() === 'receiptAdded' || message() === 'receiptRemoved' ? 'status' : 'alert'">{{ displayMessage(message()) }}</p> }
     </section>
   `,
 })
@@ -75,7 +75,7 @@ export class ReceiptPanel implements OnChanges, OnDestroy {
     if (!file || !this.service || !this.user) return;
     this.busy.set(true);
     try { await this.service.upload(this.user, this.groupId, this.expenseId, file); this.message.set('receiptAdded'); this.receipts.set(await this.service.list(this.groupId, this.expenseId)); }
-    catch (error) { this.message.set(error instanceof Error ? error.message : 'receiptAddFailed'); }
+    catch (error) { this.message.set(error instanceof TypeError ? 'receiptAddFailed' : error instanceof Error ? error.message : 'receiptAddFailed'); }
     finally { this.busy.set(false); }
   }
 
@@ -83,7 +83,7 @@ export class ReceiptPanel implements OnChanges, OnDestroy {
     if (!this.service || !this.user) return;
     this.busy.set(true);
     try { const image = await this.service.read(this.user, this.groupId, this.expenseId, receipt.id); this.closeImage(); this.imageUrl.set(URL.createObjectURL(image)); this.message.set(''); }
-    catch (error) { this.message.set(error instanceof Error ? error.message : 'receiptReadFailed'); }
+    catch (error) { this.message.set(error instanceof TypeError ? 'receiptReadFailed' : error instanceof Error ? error.message : 'receiptReadFailed'); }
     finally { this.busy.set(false); }
   }
 
@@ -91,7 +91,7 @@ export class ReceiptPanel implements OnChanges, OnDestroy {
     if (!this.service || !this.user) return;
     this.busy.set(true);
     try { await this.service.remove(this.user, this.groupId, this.expenseId, receipt.id); this.closeImage(); this.receipts.set(this.receipts().filter(item => item.id !== receipt.id)); this.message.set('receiptRemoved'); }
-    catch (error) { this.message.set(error instanceof Error ? error.message : 'receiptRemoveFailed'); }
+    catch (error) { this.message.set(error instanceof TypeError ? 'receiptRemoveFailed' : error instanceof Error ? error.message : 'receiptRemoveFailed'); }
     finally { this.busy.set(false); }
   }
 }

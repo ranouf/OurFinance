@@ -30,7 +30,7 @@ import { expenseMessage, expenseText } from './expense-text';
         </ol>
       } @else if (!busy() && !message()) { <p class="mt-3 text-pop-muted">{{ text('noComments') }}</p> }
       @if (hasMore()) { <button class="mt-2 min-h-11 rounded-xl border border-pop-border px-4 py-2 font-bold text-pop-primary-dark disabled:opacity-50" type="button" [disabled]="busy()" (click)="loadMore()">{{ text('moreComments') }}</button> }
-      @if (message()) { <p class="mt-2 text-sm" role="status">{{ displayMessage(message()) }}</p> }
+      @if (message()) { <p class="mt-2 text-sm" [attr.role]="message() === 'commentPublished' ? 'status' : 'alert'">{{ displayMessage(message()) }}</p> }
     </section>
   `,
 })
@@ -82,9 +82,11 @@ export class CommentPanel implements OnChanges {
       await this.service.create(this.user, this.groupId, this.expenseId, text, idempotencyKey);
       this.pendingKey = undefined; this.pendingText = undefined; this.draft = '';
       this.message.set('commentPublished'); this.changed.emit();
-      const page = await this.service.history(this.groupId, this.expenseId);
-      this.entries.set(page.entries); this.last = page.last; this.hasMore.set(page.hasMore);
-    } catch (error) { this.message.set(error instanceof Error ? error.message : 'commentFailed'); }
+      try {
+        const page = await this.service.history(this.groupId, this.expenseId);
+        this.entries.set(page.entries); this.last = page.last; this.hasMore.set(page.hasMore);
+      } catch { this.message.set('commentsUnavailable'); }
+    } catch (error) { this.message.set(error instanceof TypeError ? 'commentFailed' : error instanceof Error ? error.message : 'commentFailed'); }
     finally { this.busy.set(false); }
   }
 }
