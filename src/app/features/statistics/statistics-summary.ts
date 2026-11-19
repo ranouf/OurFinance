@@ -80,7 +80,7 @@ export class StatisticsSummary implements OnChanges {
 
   ngOnChanges(changes: SimpleChanges): void {
     if (this.firebaseApp) this.service = new BalanceService(this.firebaseApp);
-    if (this.selectedGroupId !== this.preferredGroupId && this.groups.some(group => group.id === this.preferredGroupId)) {
+    if (this.selectedGroupId !== this.preferredGroupId && (!this.preferredGroupId || this.groups.some(group => group.id === this.preferredGroupId))) {
       this.selectedGroupId = this.preferredGroupId;
       void this.refresh();
     }
