@@ -101,7 +101,7 @@ import { ProfilePanel } from './features/profile/profile-panel';
               @if (app.recentExpensesBusy()) { <app-ui-alert variant="info" class="py-3">{{ t('loadingExpenseHistory') }}</app-ui-alert> }
               @else if (app.recentExpensesError()) { <app-ui-alert variant="error" class="py-3">{{ t('historyUnavailable') }}</app-ui-alert> }
               @else if (!app.recentExpenses().length) { <p class="py-3 text-sm text-pop-muted">{{ t('noRecentExpenses') }}</p> }
-              @else { @for (entry of app.recentExpenses(); track entry.id) { <a class="flex min-h-12 items-center gap-2 py-1.5 focus-visible:outline-2 focus-visible:outline-pop-primary" routerLink="/expenses" [queryParams]="{ expense: entry.id }" [fragment]="'expense-' + entry.id"><span class="flex size-9 shrink-0 items-center justify-center rounded-full text-lg" [class]="categoryColorClass(entry.categoryColor)" aria-hidden="true">{{ entry.categoryIcon }}</span><span class="min-w-0 flex-1"><strong class="block truncate text-sm">{{ entry.description }}</strong><small class="text-pop-muted">{{ entry.date }}</small></span><strong class="shrink-0 text-xs text-pop-primary-dark">{{ app.formatRecentExpense(entry) }}</strong></a> } }
+              @else { @for (entry of app.recentExpenses(); track entry.id) { <a class="flex min-h-12 items-center gap-2 py-1.5 focus-visible:outline-2 focus-visible:outline-pop-primary" routerLink="/expenses" [queryParams]="{ group: app.selectedGroupId(), expense: entry.id }" [fragment]="'expense-' + entry.id"><span class="flex size-9 shrink-0 items-center justify-center rounded-full text-lg" [class]="categoryColorClass(entry.categoryColor)" aria-hidden="true">{{ entry.categoryIcon }}</span><span class="min-w-0 flex-1"><strong class="block truncate text-sm">{{ entry.description }}</strong><small class="text-pop-muted">{{ entry.date }}</small></span><strong class="shrink-0 text-xs text-pop-primary-dark">{{ app.formatRecentExpense(entry) }}</strong></a> } }
             </div>
           </section>
           <section class="order-3 min-w-0 rounded-[1.7rem] border border-pop-border bg-white p-4 shadow-[0_9px_25px_#6455ec12]" [attr.aria-label]="t('byCategory')">
@@ -148,7 +148,7 @@ export class DashboardPage {
   memberBalanceLabel(value: bigint): string { return value > 0n ? t('receivable') : value < 0n ? t('payable') : t('balanced'); }
   searchExpenses(): void {
     const search = this.search.trim();
-    if (search) void this.router.navigate(['/expenses'], { queryParams: { search } });
+    if (search) void this.router.navigate(['/expenses'], { queryParams: { group: this.app.selectedGroupId(), search } });
   }
   readonly categoryColorClass = categoryColorClass;
   categoryIcon(id: string): string { return categoryById(id).icon; }
