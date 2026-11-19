@@ -115,6 +115,7 @@ export class ExpenseHistory implements OnChanges {
   @Output() readonly commented = new EventEmitter<void>();
   @Output() readonly editRequested = new EventEmitter<{ groupId: string; entry: ExpenseHistoryEntry }>();
   @Output() readonly deleted = new EventEmitter<void>();
+  @Output() readonly groupChange = new EventEmitter<string>();
   @Input({ required: true }) groups: Group[] = [];
   @Input() preferredGroupId = '';
   @Input({ required: true }) firebaseApp?: FirebaseApp;
@@ -155,9 +156,9 @@ export class ExpenseHistory implements OnChanges {
       this.service = new ExpenseService(this.firebaseApp, this.workerUrl);
       this.categoryService = new CategoryService(this.firebaseApp, this.workerUrl);
     }
-    if (!this.selectedGroupId && this.groups.some(group => group.id === this.preferredGroupId)) {
+    if (this.selectedGroupId !== this.preferredGroupId && this.groups.some(group => group.id === this.preferredGroupId)) {
       this.selectedGroupId = this.preferredGroupId;
-      this.onGroupChange();
+      this.onGroupChange(false);
     }
     if (changes['revision'] && !changes['revision'].firstChange && this.selectedGroupId) void this.refresh();
     if (changes['categoryRevision'] && !changes['categoryRevision'].firstChange && this.selectedGroupId) void this.loadFilters();
@@ -190,7 +191,8 @@ export class ExpenseHistory implements OnChanges {
     finally { this.deleteBusy.set(false); }
   }
   hasFilter(): boolean { return !!(this.searchTerm || this.selectedCategoryId || this.selectedParticipantId); }
-  onGroupChange(): void {
+  onGroupChange(emit = true): void {
+    if (emit) this.groupChange.emit(this.selectedGroupId);
     this.selectedCategoryId = '';
     this.selectedParticipantId = '';
     this.categoryOptions.set(categories);

@@ -32,7 +32,7 @@ import { expenseMessage, expenseText } from './expense-text';
       @if (editing) { <p class="mt-1 text-sm text-pop-muted">{{ text('authorOnly') }}</p> }
       <p class="mt-2 text-sm leading-6 text-pop-muted">{{ text('splitHelp') }}</p>
       <form class="mt-6 grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4" (ngSubmit)="save()">
-        <app-field class="block" controlId="group" [label]="text('group')"><app-dropdown controlId="group" [options]="groupDropdownOptions(groups, text('chooseGroup'), false)" name="group" [(ngModel)]="selectedGroupId" (ngModelChange)="loadGroup()" [disabled]="!!editing" required /></app-field>
+        <app-field class="block" controlId="group" [label]="text('group')"><app-dropdown controlId="group" [options]="groupDropdownOptions(groups, text('chooseGroup'), false)" name="group" [(ngModel)]="selectedGroupId" (ngModelChange)="onGroupChange()" [disabled]="!!editing" required /></app-field>
         @if (selectedGroupId) {
           <label class="block text-sm font-bold">{{ text('description') }}
             <input appUiControl class="mt-2 w-full" name="description" [(ngModel)]="draft.description" maxlength="160" required />
@@ -108,6 +108,7 @@ export class ExpenseForm implements OnChanges {
   @ViewChildren('payerCheckbox') private payerCheckboxes?: QueryList<ElementRef<HTMLInputElement>>;
   @Output() readonly saved = new EventEmitter<void>();
   @Output() readonly editCancelled = new EventEmitter<void>();
+  @Output() readonly groupChange = new EventEmitter<string>();
   @Input({ required: true }) groups: Group[] = [];
   @Input() preferredGroupId = '';
   @Input({ required: true }) user?: User;
@@ -142,7 +143,7 @@ export class ExpenseForm implements OnChanges {
       this.service = new ExpenseService(this.firebaseApp, this.workerUrl);
       this.categoryService = new CategoryService(this.firebaseApp, this.workerUrl);
     }
-    if (!this.editing && !this.selectedGroupId && this.groups.some(group => group.id === this.preferredGroupId)) {
+    if (!this.editing && this.selectedGroupId !== this.preferredGroupId && this.groups.some(group => group.id === this.preferredGroupId)) {
       this.selectedGroupId = this.preferredGroupId;
       void this.loadGroup();
     }
@@ -169,6 +170,7 @@ export class ExpenseForm implements OnChanges {
     return `${amount < 0 ? '-' : ''}${Math.floor(absolute / scale)}${digits ? '.' + String(absolute % scale).padStart(digits, '0') : ''}`;
   }
   clearValues(): void { this.previewRows.set([]); this.draft.rows.forEach(row => row.value = ''); }
+  onGroupChange(): void { this.groupChange.emit(this.selectedGroupId); void this.loadGroup(); }
   async loadGroup(): Promise<void> {
     const requestId = ++this.groupRequestId;
     this.members.set([]); this.memberNames.set({}); this.customCategories.set([]); this.previewRows.set([]); this.message.set(''); this.draft = this.emptyDraft();
