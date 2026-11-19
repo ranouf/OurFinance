@@ -47,16 +47,16 @@ import { expenseMessage, expenseText } from './expense-text';
           <summary class="cursor-pointer text-sm font-bold text-pop-primary-dark focus-visible:outline-2 focus-visible:outline-pop-primary">{{ text('moreFilters') }}</summary>
           <div class="mt-4 grid gap-3 sm:grid-cols-2">
             <label class="block text-sm font-bold">{{ text('from') }}
-              <input appUiControl class="mt-2 w-full" type="date" name="historyFrom" [(ngModel)]="from" (ngModelChange)="refresh()" />
+              <input appUiControl class="mt-2 w-full" type="date" name="historyFrom" [(ngModel)]="from" (ngModelChange)="refresh()" [attr.aria-invalid]="from && to && from > to ? 'true' : null" [attr.aria-describedby]="from && to && from > to ? 'history-date-error' : null" />
             </label>
             <label class="block text-sm font-bold">{{ text('to') }}
-              <input appUiControl class="mt-2 w-full" type="date" name="historyTo" [(ngModel)]="to" (ngModelChange)="refresh()" />
+              <input appUiControl class="mt-2 w-full" type="date" name="historyTo" [(ngModel)]="to" (ngModelChange)="refresh()" [attr.aria-invalid]="from && to && from > to ? 'true' : null" [attr.aria-describedby]="from && to && from > to ? 'history-date-error' : null" />
             </label>
           </div>
           <app-field class="mt-3 block" controlId="history-participant" [label]="text('participant')">
             <app-dropdown controlId="history-participant" name="historyParticipant" [options]="participantDropdownOptions()" [(ngModel)]="selectedParticipantId" (ngModelChange)="refresh()" />
           </app-field>
-          @if (from && to && from > to) { <p class="mt-2 text-sm text-rose-700">{{ text('invalidDates') }}</p> }
+          @if (from && to && from > to) { <p id="history-date-error" role="alert" class="mt-2 text-sm text-rose-700">{{ text('invalidDates') }}</p> }
         </details>
         @if (hasFilter()) { <p class="mt-2 text-sm text-pop-muted">{{ scannedCount() }} {{ text('scanned') }}</p> }
         @if (entries().length) {
