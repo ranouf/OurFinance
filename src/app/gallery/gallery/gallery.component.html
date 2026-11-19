@@ -65,7 +65,7 @@
     <section class="gallery-panel"><h3 class="text-sm">{{ ('gallery.demo.selectors' | translate) }}</h3><div class="mt-2 grid gap-3">
       <app-field controlId="gallery-currency" [label]="('gallery.demo.currency' | translate)"><app-select controlId="gallery-currency" [formControl]="selectControl" [options]="[{ value: 'cad', label: 'CAD' }, { value: 'eur', label: 'EUR' }, { value: 'jpy', label: 'JPY' }]" /></app-field>
       <app-field controlId="gallery-category" [label]="('gallery.kit.category' | translate)"><app-dropdown controlId="gallery-category" [formControl]="selectorCategory" [options]="[{ value: 'restaurant', label: ('gallery.kit.restaurant' | translate), iconName: 'utensils' }, { value: 'groceries', label: ('gallery.kit.groceries' | translate), iconName: 'shopping-cart' }]" /></app-field>
-      <div><h4 class="mb-1.5 text-sm font-bold">{{ ('gallery.demo.period' | translate) }}</h4><app-ui-tabs [tabs]="[{ value: 'days', label: ('gallery.demo.days' | translate) }, { value: 'months', label: ('gallery.demo.months' | translate) }, { value: 'years', label: ('gallery.demo.years' | translate) }]" [active]="activePeriod" (activeChange)="activePeriod = $event" /></div>
+      <div id="period-range"><app-ui-period-range [range]="periodRange" (rangeChange)="periodRange = $event" /></div>
     </div></section>
     <div class="grid content-start gap-3"><section id="choices" class="gallery-panel scroll-mt-4" [attr.aria-label]="('gallery.form.controls' | translate)"><h3 class="text-sm">{{ ('gallery.form.controls' | translate) }}</h3><div class="mt-2 grid gap-2.5">
       <app-checkbox controlId="demo-checkbox" [label]="('gallery.form.checkbox' | translate)" [formControl]="checkboxControl" />

@@ -31,13 +31,14 @@ import { UiStepper } from '../../shared/components/ui-stepper/ui-stepper';
 import { UiSuccessState } from '../../shared/components/ui-success-state/ui-success-state';
 import { UiTable } from '../../shared/components/ui-table/ui-table';
 import { UiTabs } from '../../shared/components/ui-tabs/ui-tabs';
+import { UiPeriodRange, type UiAppliedRange } from '../../shared/components/ui-period-range/ui-period-range';
 import { UiTooltip } from '../../shared/components/ui-tooltip/ui-tooltip';
 import { galleryAmount, galleryDate } from './gallery-format';
 import { TranslatePipe } from '@ngx-translate/core';
 
 @Component({
   selector: 'app-gallery',
-  imports: [CalendarComponent, CheckboxComponent, ControlErrorsComponent, DropdownComponent, FieldComponent, InputComponent, InviteQrCode, RadioGroupComponent, ReactiveFormsModule, SelectComponent, TextareaComponent, ToggleComponent, UiAccordion, UiAlert, UiAvatarStack, UiBadge, UiButton, UiCard, UiChip, UiToast, UiDialog, UiDonutChart, UiEmptyState, UiGroupCard, UiIconBadge, UiPagination, UiQuickAction, UiSkeleton, UiStepper, UiSuccessState, UiTable, UiTabs, UiTooltip, TranslatePipe],
+  imports: [CalendarComponent, CheckboxComponent, ControlErrorsComponent, DropdownComponent, FieldComponent, InputComponent, InviteQrCode, RadioGroupComponent, ReactiveFormsModule, SelectComponent, TextareaComponent, ToggleComponent, UiAccordion, UiAlert, UiAvatarStack, UiBadge, UiButton, UiCard, UiChip, UiToast, UiDialog, UiDonutChart, UiEmptyState, UiGroupCard, UiIconBadge, UiPagination, UiQuickAction, UiSkeleton, UiStepper, UiSuccessState, UiTable, UiTabs, UiPeriodRange, UiTooltip, TranslatePipe],
   templateUrl: './gallery.component.html',
 })
 export class GalleryComponent {
@@ -45,7 +46,7 @@ export class GalleryComponent {
   readonly demoDate = galleryDate;
   activeTab = 'all';
   activePage = 1;
-  activePeriod = 'months';
+  periodRange: UiAppliedRange = { start: '2026-11-17', end: '2026-11-17', unit: 'days' };
   activeSplit = 'equal';
   quantity = 2;
   chipSelected = false;

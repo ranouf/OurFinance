@@ -50,10 +50,16 @@ const defaults = {
 } as const;
 
 
+const periodText = {
+  fr: { period:  'Période', choosePeriod: 'Choisir une période', periodIntro: 'Choisissez un jour, un mois ou une année ; sélectionnez une deuxième borne pour une plage.', close: 'Fermer le sélecteur', units: 'Unité de période', days: 'Jour', months: 'Mois', years: 'Année', start: 'Début', end: 'Fin', firstBound: 'Choisir', previousMonths: 'Mois précédents', nextMonths: 'Mois suivants', previousYear: 'Année précédente', nextYear: 'Année suivante', previousYears: 'Années précédentes', nextYears: 'Années suivantes', cancel: 'Annuler', apply: 'Appliquer'  },
+  en: { period:  'Period', choosePeriod: 'Choose a period', periodIntro: 'Choose a day, month or year; select a second bound for a range.', close: 'Close period picker', units: 'Period unit', days: 'Day', months: 'Month', years: 'Year', start: 'Start', end: 'End', firstBound: 'Choose', previousMonths: 'Previous months', nextMonths: 'Next months', previousYear: 'Previous year', nextYear: 'Next year', previousYears: 'Previous years', nextYears: 'Next years', cancel: 'Cancel', apply: 'Apply'  },
+  ja: { period:  '期間', choosePeriod: '期間を選択', periodIntro: '日・月・年を選択。範囲を指定する場合は次に終了を選択してください。', close: '期間選択を閉じる', units: '期間の単位', days: '日', months: '月', years: '年', start: '開始', end: '終了', firstBound: '選択', previousMonths: '前の月', nextMonths: '次の月', previousYear: '前年', nextYear: '翌年', previousYears: '前の年', nextYears: '次の年', cancel: 'キャンセル', apply: '適用'  },
+} as const;
+
 export const galleryTranslations = {
-  fr: { gallery: { text: galleryText.fr, pattern: patternText.fr, demo: demoText.fr, form: formText.fr, kit: kitText.fr, layout: labels.fr }, validation: defaults.fr },
-  en: { gallery: { text: galleryText.en, pattern: patternText.en, demo: demoText.en, form: formText.en, kit: kitText.en, layout: labels.en }, validation: defaults.en },
-  ja: { gallery: { text: galleryText.ja, pattern: patternText.ja, demo: demoText.ja, form: formText.ja, kit: kitText.ja, layout: labels.ja }, validation: defaults.ja },
+  fr: { gallery: { text: galleryText.fr, pattern: patternText.fr, demo: demoText.fr, form: formText.fr, kit: kitText.fr, layout: labels.fr, period: periodText.fr }, validation: defaults.fr },
+  en: { gallery: { text: galleryText.en, pattern: patternText.en, demo: demoText.en, form: formText.en, kit: kitText.en, layout: labels.en, period: periodText.en }, validation: defaults.en },
+  ja: { gallery: { text: galleryText.ja, pattern: patternText.ja, demo: demoText.ja, form: formText.ja, kit: kitText.ja, layout: labels.ja, period: periodText.ja }, validation: defaults.ja },
 } as const;
 
 export class GalleryTranslateLoader implements TranslateLoader {

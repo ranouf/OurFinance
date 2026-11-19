@@ -3,7 +3,7 @@ import test from 'node:test';
 import { galleryTranslations } from '../../src/app/gallery/gallery/gallery-translations';
 
 test('the component gallery and validation errors have the same keys in FR, EN and JA', () => {
-  const paths = ['text', 'pattern', 'demo', 'form', 'kit', 'layout'] as const;
+  const paths = ['text', 'pattern', 'demo', 'form', 'kit', 'layout', 'period'] as const;
   for (const section of paths) {
     const expected = Object.keys(galleryTranslations.fr.gallery[section]).sort();
     for (const lang of ['en', 'ja'] as const) {
