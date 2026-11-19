@@ -9,7 +9,7 @@ import { locale } from '../../shared/utils/i18n';
 import { type ExpenseLedgerEntry, type SettlementLedgerEntry } from '../../shared/utils/ledger';
 import { type ChartData } from './chart-data';
 import { PeriodPicker, type AppliedRange } from './period-picker';
-import { selectedRange } from './period-range';
+import { localDateIso } from './period-range';
 import { StatisticsCharts } from './statistics-charts';
 import { statisticsText } from './statistics-text';
 import { StatisticsService, type StatisticsTotals } from './statistics-service';
@@ -70,7 +70,7 @@ export class StatisticsSummary implements OnChanges {
   readonly busy = signal(false);
   readonly message = signal('');
   selectedGroupId = '';
-  range: AppliedRange = { ...selectedRange('months', new Date().toISOString().slice(0, 7), new Date().toISOString().slice(0, 7))!, unit: 'months' };
+  range: AppliedRange = { start: localDateIso(new Date()), end: localDateIso(new Date()), unit: 'days' };
   private service?: BalanceService;
   private readonly statisticsService = new StatisticsService();
   private expenses: ExpenseLedgerEntry[] = [];
