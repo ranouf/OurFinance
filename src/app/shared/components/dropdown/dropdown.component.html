@@ -1,0 +1,26 @@
+<div class="relative">
+  <button [id]="controlId" type="button" role="combobox" aria-haspopup="listbox" [attr.aria-controls]="controlId + '-listbox'"
+    [attr.aria-expanded]="open()" [attr.aria-activedescendant]="open() ? controlId + '-option-' + activeIndex() : null"
+    [attr.aria-invalid]="invalid || null" [attr.aria-describedby]="describedBy || null" [disabled]="disabled"
+    class="flex min-h-11 w-full items-center gap-2 rounded-[10px] border border-pop-border bg-white px-3 text-left text-sm font-bold text-pop-text focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-pop-primary disabled:bg-slate-100 disabled:text-pop-muted"
+    [class.border-red-400]="invalid" (click)="toggle()" (keydown)="onKeydown($event)">
+    @if (selected()?.iconName; as icon) { <app-ui-icon-badge [name]="icon" [tone]="selected()?.tone || 'violet'" /> }
+    @else if (selected()?.flag; as flag) { <span class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-pop-lavender text-2xl leading-none" aria-hidden="true">{{ flag }}</span> }
+    @else if (selected()?.iconSrc; as icon) { <img class="size-6 shrink-0 object-contain" [src]="icon" alt="" /> }
+    <span class="min-w-0 flex-1 truncate">{{ selected()?.label || placeholder }}</span><span class="text-lg text-pop-primary-dark" aria-hidden="true">⌄</span>
+  </button>
+  @if (open()) {
+    <div [id]="controlId + '-listbox'" role="listbox" class="absolute z-30 mt-2 max-h-64 w-full overflow-auto rounded-2xl border border-pop-border bg-white p-1.5 shadow-[0_16px_36px_#45309030]">
+      @for (option of options; track option.value; let index = $index) {
+        <button [id]="controlId + '-option-' + index" type="button" role="option" [attr.aria-selected]="option.value === value" [disabled]="option.disabled"
+          class="flex min-h-12 w-full items-center gap-2.5 rounded-xl px-2 text-left text-sm hover:bg-pop-lavender focus-visible:outline-2 focus-visible:outline-pop-primary disabled:opacity-45"
+          [class.bg-pop-lavender]="option.value === value || index === activeIndex()" (click)="choose(option)">
+          @if (option.iconName) { <app-ui-icon-badge [name]="option.iconName" [tone]="option.tone || 'violet'" /> }
+          @else if (option.flag) { <span class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-pop-lavender text-2xl leading-none" aria-hidden="true">{{ option.flag }}</span> }
+          @else if (option.iconSrc) { <img class="size-6 shrink-0 object-contain" [src]="option.iconSrc" alt="" /> }
+          <span class="min-w-0 flex-1 font-semibold">{{ option.label }}</span>@if (option.value === value) { <span class="text-pop-primary" aria-hidden="true">✓</span> }
+        </button>
+      }
+    </div>
+  }
+</div>

@@ -1,0 +1,8 @@
+<div class="flex items-center" role="group" [attr.aria-label]="label">
+  @for (avatar of visible(); track avatar.name; let index = $index) {
+    <span class="flex size-9 items-center justify-center overflow-hidden rounded-full border-2 border-white bg-pop-lavender text-xs font-black text-pop-primary-dark shadow-[0_2px_6px_#5140a42b]" [class]="index > 0 ? '-ml-2' : ''" [attr.title]="avatar.name">
+      @if (avatar.imageUrl) { <span class="size-full rounded-full" [style.background-image]="'url(' + avatar.imageUrl + ')'" [style.background-size]="avatar.spritePosition ? '200% 200%' : 'cover'" [style.background-position]="avatar.spritePosition || 'center'" role="img" [attr.aria-label]="avatar.name"></span> } @else { {{ avatar.name.charAt(0) }} }
+    </span>
+  }
+  @if (remaining()) { <span class="-ml-2 flex size-9 items-center justify-center rounded-full border-2 border-white bg-pop-primary text-xs font-black text-white" [attr.aria-label]="'+' + remaining()">+{{ remaining() }}</span> }
+</div>

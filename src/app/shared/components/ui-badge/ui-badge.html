@@ -1,0 +1,9 @@
+<span
+  class="inline-flex min-h-7 items-center rounded-full px-3 py-1 text-xs font-extrabold"
+  [class.bg-pop-lavender]="tone === 'neutral'"
+  [class.text-pop-primary-dark]="tone === 'neutral'"
+  [class.bg-emerald-50]="tone === 'positive'"
+  [class.text-emerald-800]="tone === 'positive'"
+  [class.bg-red-50]="tone === 'negative'"
+  [class.text-red-800]="tone === 'negative'"
+><ng-content /></span>
