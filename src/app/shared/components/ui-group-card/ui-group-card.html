@@ -1,5 +1,5 @@
 <div class="flex min-h-14 items-center gap-2.5 rounded-xl border border-pop-border bg-white px-2.5 py-2 shadow-[0_2px_8px_#5140a412]" [class.bg-pop-lavender]="selected">
-  @if (iconSrc) { <span class="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-pop-peach"><img class="size-12 scale-110 object-cover" [src]="iconSrc" alt="" /></span> }
+  <app-ui-icon-badge [name]="icon" />
   <span class="min-w-0 flex-1"><strong class="block truncate text-xs font-black">{{ name }}</strong><small class="block text-[11px] text-pop-muted">{{ detail }}</small></span>
   <strong class="whitespace-nowrap text-xs font-black" [class.text-emerald-700]="amountTone === 'positive'" [class.text-red-600]="amountTone === 'negative'">{{ amount }}</strong>
   <span class="text-lg text-pop-primary-dark" aria-hidden="true">›</span>

@@ -23,6 +23,7 @@ import { UiDialog } from '../../shared/components/ui-dialog/ui-dialog';
 import { UiDonutChart } from '../../shared/components/ui-donut-chart/ui-donut-chart';
 import { UiEmptyState } from '../../shared/components/ui-empty-state/ui-empty-state';
 import { UiGroupCard } from '../../shared/components/ui-group-card/ui-group-card';
+import { UiIconBadge } from '../../shared/components/ui-icon-badge/ui-icon-badge';
 import { UiPagination } from '../../shared/components/ui-pagination/ui-pagination';
 import { UiQuickAction } from '../../shared/components/ui-quick-action/ui-quick-action';
 import { UiSkeleton } from '../../shared/components/ui-skeleton/ui-skeleton';
@@ -72,7 +73,7 @@ const kitText = {
 
 @Component({
   selector: 'app-gallery',
-  imports: [CalendarComponent, CheckboxComponent, ControlErrorsComponent, DropdownComponent, FieldComponent, InputComponent, InviteQrCode, RadioGroupComponent, ReactiveFormsModule, SelectComponent, TextareaComponent, ToggleComponent, UiAccordion, UiAlert, UiAvatarStack, UiBadge, UiButton, UiCard, UiChip, UiToast, UiDialog, UiDonutChart, UiEmptyState, UiGroupCard, UiPagination, UiQuickAction, UiSkeleton, UiStepper, UiSuccessState, UiTable, UiTabs, UiTooltip],
+  imports: [CalendarComponent, CheckboxComponent, ControlErrorsComponent, DropdownComponent, FieldComponent, InputComponent, InviteQrCode, RadioGroupComponent, ReactiveFormsModule, SelectComponent, TextareaComponent, ToggleComponent, UiAccordion, UiAlert, UiAvatarStack, UiBadge, UiButton, UiCard, UiChip, UiToast, UiDialog, UiDonutChart, UiEmptyState, UiGroupCard, UiIconBadge, UiPagination, UiQuickAction, UiSkeleton, UiStepper, UiSuccessState, UiTable, UiTabs, UiTooltip],
   templateUrl: './gallery.component.html',
 })
 export class GalleryComponent {

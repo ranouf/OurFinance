@@ -4,7 +4,8 @@
     [attr.aria-invalid]="invalid || null" [attr.aria-describedby]="describedBy || null" [disabled]="disabled"
     class="flex min-h-11 w-full items-center gap-2 rounded-[10px] border border-pop-border bg-white px-3 text-left text-sm font-bold text-pop-text focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-pop-primary disabled:bg-slate-100 disabled:text-pop-muted"
     [class.border-red-400]="invalid" (click)="toggle()" (keydown)="onKeydown($event)">
-    @if (selected()?.iconSrc; as icon) { <img class="size-6 shrink-0 object-contain" [src]="icon" alt="" /> }
+    @if (selected()?.iconName; as icon) { <svg class="size-6 shrink-0 text-pop-primary-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use [attr.href]="'/illustrations/lucide-actions.svg#' + icon" /></svg> }
+    @else if (selected()?.iconSrc; as icon) { <img class="size-6 shrink-0 object-contain" [src]="icon" alt="" /> }
     <span class="min-w-0 flex-1 truncate">{{ selected()?.label || placeholder }}</span><span class="text-lg" aria-hidden="true">⌄</span>
   </button>
   @if (open()) {
@@ -13,7 +14,8 @@
         <button [id]="controlId + '-option-' + index" type="button" role="option" [attr.aria-selected]="option.value === value" [disabled]="option.disabled"
           class="flex min-h-10 w-full items-center gap-2 rounded-lg px-2 text-left text-sm hover:bg-pop-lavender focus-visible:outline-2 focus-visible:outline-pop-primary disabled:opacity-45"
           [class.bg-pop-lavender]="option.value === value || index === activeIndex()" (click)="choose(option)">
-          @if (option.iconSrc) { <img class="size-6 shrink-0 object-contain" [src]="option.iconSrc" alt="" /> }
+          @if (option.iconName) { <svg class="size-6 shrink-0 text-pop-primary-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use [attr.href]="'/illustrations/lucide-actions.svg#' + option.iconName" /></svg> }
+          @else if (option.iconSrc) { <img class="size-6 shrink-0 object-contain" [src]="option.iconSrc" alt="" /> }
           <span class="flex-1">{{ option.label }}</span>@if (option.value === value) { <span aria-hidden="true">✓</span> }
         </button>
       }

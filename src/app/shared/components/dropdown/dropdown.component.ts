@@ -5,6 +5,7 @@ export interface DropdownOption {
   readonly value: string;
   readonly label: string;
   readonly iconSrc?: string;
+  readonly iconName?: 'house' | 'plane' | 'utensils' | 'shopping-cart' | 'tram-front';
   readonly disabled?: boolean;
 }
 
