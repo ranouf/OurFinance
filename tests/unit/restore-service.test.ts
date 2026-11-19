@@ -19,6 +19,7 @@ test('restore service scopes preview, prepare, receipts, commit and cleanup to o
   await service.postArchive('fixture-token', 'group-a', 'restore-1', 'restore', archive);
   await service.cleanup('fixture-token', 'group-a', 'restore-1');
   await service.outcome('fixture-token', 'group-a', 'restore-1');
+  await service.current('fixture-token', 'group-a');
   deepStrictEqual(calls.map(call => [call.path, call.method, call.auth, call.type, call.bytes, call.cache]), [
     ['https://worker.example/groups/group-a/backup/preview', 'POST', 'Bearer fixture-token', 'application/zip', 3, 'no-store'],
     ['https://worker.example/groups/group-a/backup/restores/restore-1/prepare', 'POST', 'Bearer fixture-token', 'application/zip', 3, 'no-store'],
@@ -27,6 +28,7 @@ test('restore service scopes preview, prepare, receipts, commit and cleanup to o
     ['https://worker.example/groups/group-a/backup/restores/restore-1', 'POST', 'Bearer fixture-token', 'application/zip', 3, 'no-store'],
     ['https://worker.example/groups/group-a/backup/restores/restore-1/cleanup', 'POST', 'Bearer fixture-token', null, 0, 'no-store'],
     ['https://worker.example/groups/group-a/backup/restores/restore-1/outcome', 'GET', 'Bearer fixture-token', null, 0, 'no-store'],
+    ['https://worker.example/groups/group-a/backup/restores/current', 'GET', 'Bearer fixture-token', null, 0, 'no-store'],
   ]);
   deepStrictEqual([...archive], [1, 2, 3]);
 });

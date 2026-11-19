@@ -42,6 +42,11 @@ export class RestoreService {
       { method: 'GET', headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
   }
 
+  async current(token: string, groupId: string): Promise<Response> {
+    return this.transport(this.url(groupId, 'current'),
+      { method: 'GET', headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
+  }
+
   private copy(bytes: Uint8Array): ArrayBuffer {
     if (bytes.byteLength > 20_000_000) throw new Error('archive_too_large');
     const copy = new Uint8Array(bytes.byteLength);

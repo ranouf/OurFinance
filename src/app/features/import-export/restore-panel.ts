@@ -3,7 +3,7 @@ import { DropdownComponent } from '../../shared/components/dropdown/dropdown.com
 import { groupDropdownOptions } from '../../shared/components/dropdown/dropdown-options';
 import { UiControlDirective } from '../../shared/components/ui-field/ui-control.directive';
 import { UiButton } from '../../shared/components/ui-button/ui-button';
-import { Component, Input, signal } from '@angular/core';
+import { Component, Input, OnChanges, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { FirebaseApp } from 'firebase/app';
 import type { User } from 'firebase/auth';
@@ -12,6 +12,7 @@ import { t } from '../../shared/utils/i18n';
 import { decodeBackupZipV2 } from './backup-zip-read';
 import { FirebaseExportReader } from './export-collector';
 import { restoreFailure, type RestoreFailureMessage } from './restore-failure';
+import { RestoreAttemptStore } from './restore-attempt-store';
 import { preflightBackupRestoreV2, type RestorePreflightV2 } from './restore-preflight-v2';
 import { RestoreService } from './restore-service';
 
@@ -25,14 +26,14 @@ interface RestoreDiffCounts { readonly create: number; readonly replace: number;
       <h2 class="text-lg font-semibold">{{ t('restoreHeading') }}</h2>
       <p class="mt-2 text-sm text-slate-700">{{ t('restorePartial') }}</p>
       <div class="mt-4 space-y-3">
-        <app-field class="block" controlId="restoreGroup" [label]="t('group')"><app-dropdown controlId="restoreGroup" [options]="groupDropdownOptions(groups, t('chooseGroup'), false)" name="restoreGroup"
+        <app-field class="block" controlId="restoreGroup" [label]="t('group')"><app-dropdown controlId="restoreGroup" [options]="groupDropdownOptions(groups, t('chooseGroup'), false)" name="restoreGroup" [disabled]="outcomePending()"
             [(ngModel)]="groupId" (ngModelChange)="clearPreview()" /></app-field>
         <label class="block text-sm font-medium">{{ t('restoreFile') }}
-          <input appUiControl class="mt-1 block w-full min-w-0 rounded-lg border border-slate-300 p-3 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pop-primary-dark" type="file"
+          <input appUiControl class="mt-1 block w-full min-w-0 rounded-lg border border-slate-300 p-3 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pop-primary-dark" type="file" [disabled]="outcomePending()"
             accept=".zip,application/zip" (change)="selectFile($event)" />
         </label>
         <app-ui-button variant="outline"  type="button"
-          [disabled]="busy() || !groupId || !selectedFile || !user?.emailVerified" (click)="previewFile()">
+          [disabled]="busy() || outcomePending() || !groupId || !selectedFile || !user?.emailVerified" (click)="previewFile()">
           {{ busy() ? t('exportPreparing') : t('restorePreview') }}
         </app-ui-button>
         @if (preview(); as plan) {
@@ -87,7 +88,7 @@ interface RestoreDiffCounts { readonly create: number; readonly replace: number;
     </section>
   `,
 })
-export class RestorePanel {
+export class RestorePanel implements OnChanges {
   readonly groupDropdownOptions = groupDropdownOptions;
   readonly t = t;
   @Input({ required: true }) groups: Group[] = [];
@@ -109,11 +110,27 @@ export class RestorePanel {
   private attemptGroupId?: string;
   private preparedAttemptId?: string;
   private commitAttemptId?: string;
+  private readonly attemptStore = new RestoreAttemptStore();
+  private recoveredUid?: string;
+
+  ngOnChanges(): void {
+    const user = this.user;
+    if (!user?.emailVerified || !this.workerUrl || !this.groups.length || this.recoveredUid === user.uid) return;
+    this.recoveredUid = user.uid;
+    const pending = this.attemptStore.find(user.uid, this.groups.map(group => group.id));
+    if (!pending) return;
+    this.groupId = pending.groupId;
+    this.attemptId.set(pending.restoreId);
+    this.attemptGroupId = pending.groupId;
+    this.message.set('restoreUncertain');
+    void this.checkOutcome();
+  }
 
   selectedGroupName(): string { return this.groups.find(group => group.id === this.groupId)?.name ?? ''; }
   outcomePending(): boolean { return ['restoreUncertain', 'restoreQuotaUncertain', 'restoreStillLocked', 'restoreOutcomeUnavailable'].includes(this.message() ?? ''); }
   reload(): void { window.location.reload(); }
   clearPreview(): void {
+    if (this.outcomePending()) { this.groupId = this.attemptGroupId ?? this.groupId; return; }
     this.preview.set(null);
     this.diff.set(null);
     this.archive = undefined;
@@ -205,19 +222,25 @@ export class RestorePanel {
           this.commitAttemptId = restoreId;
         }
         commitSubmitted = true;
+        this.attemptStore.remember(user.uid, group.id, restoreId);
         response = await sendZip('commit');
       } else {
         commitSubmitted = true;
+        this.attemptStore.remember(user.uid, group.id, restoreId);
         response = await sendZip('restore');
       }
       if (response.status === 200 || response.status === 202) {
+        if (response.status === 200) this.attemptStore.forget(user.uid, group.id, restoreId);
         this.clearPreview();
         this.attemptId.set(restoreId);
         this.attemptGroupId = group.id;
         this.message.set(response.status === 202 ? 'restoreCleanupPending' : 'restoreDone');
       } else {
         const body = await response.clone().json().catch(() => null) as { error?: string } | null;
-        if (body?.error === 'receipts_not_staged') this.commitAttemptId = undefined;
+        if (body?.error === 'receipts_not_staged') {
+          this.commitAttemptId = undefined;
+          this.attemptStore.forget(user.uid, group.id, restoreId);
+        }
         this.message.set(body?.error === 'receipts_not_staged' ? 'restorePreparedUncertain' :
           await restoreFailure(response, contents.receipts.length > 25, true));
       }
@@ -239,14 +262,24 @@ export class RestorePanel {
     this.busy.set(true);
     try {
       const token = await user.getIdToken();
-      const response = await new RestoreService(this.workerUrl).outcome(token, groupId, restoreId);
+      const service = new RestoreService(this.workerUrl);
+      const response = await service.outcome(token, groupId, restoreId);
       if (this.user?.uid !== user.uid || this.groupId !== groupId || this.attemptId() !== restoreId) return;
       if (response.ok) {
         const result = await response.json() as { restoreId?: string; outcome?: string };
         if (result.restoreId !== restoreId) throw new Error('restore_id_mismatch');
         if (result.outcome === 'committed') {
-          this.clearPreview();
-          this.message.set('restoreDone');
+          const current = await service.current(token, groupId);
+          if (!current.ok) throw new Error('restore_state_unavailable');
+          const state = await current.json() as { status?: string; restoreId?: string };
+          if (this.user?.uid !== user.uid || this.groupId !== groupId || this.attemptId() !== restoreId) return;
+          if (state.status === 'cleanup_pending' && state.restoreId === restoreId) this.message.set('restoreCleanupPending');
+          else if (state.status === 'active') {
+            this.attemptStore.forget(user.uid, groupId, restoreId);
+            this.message.set(null);
+            this.clearPreview();
+            this.message.set('restoreDone');
+          } else this.message.set('restoreOutcomeUnavailable');
         } else this.message.set(result.outcome === 'locked' ? 'restoreStillLocked' : 'restoreOutcomeUnavailable');
       } else this.message.set('restoreOutcomeUnavailable');
     } catch {
@@ -268,7 +301,7 @@ export class RestorePanel {
       const token = await user.getIdToken();
       for (let index = 0; index < 50; index++) {
         const response = await service.cleanup(token, groupId, restoreId);
-        if (response.status === 204) { this.message.set('restoreDone'); return; }
+        if (response.status === 204) { this.attemptStore.forget(user.uid, groupId, restoreId); this.message.set('restoreDone'); return; }
         if (response.status !== 202) {
           const failure = await restoreFailure(response, false);
           if (failure === 'restoreQuota') { this.message.set('restoreCleanupQuota'); return; }
