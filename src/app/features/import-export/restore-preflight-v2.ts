@@ -48,7 +48,7 @@ export function preflightGroupRestoreV2(groupJson: string, target: RestoreTarget
     importBatchCount: source.importBatches.length,
     commentCount: source.comments.length,
     activityCount: source.activity.length,
-    receiptCount: source.receipts.length,
+    receiptCount: source.receipts.filter(receipt => receipt.status === 'active').length,
     preferenceCount: source.preferences.filter(row => row.modeJson !== null).length,
     absentPreferenceCount: source.preferences.filter(row => row.modeJson === null).length,
   };
