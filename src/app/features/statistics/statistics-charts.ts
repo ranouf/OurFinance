@@ -1,3 +1,4 @@
+import { UiChip } from '../../shared/components/ui-chip/ui-chip';
 import { Component, Input } from '@angular/core';
 import { formatMinorExact } from '../../shared/utils/currency';
 import { categoryLabel } from '../../shared/utils/category-label';
@@ -11,6 +12,7 @@ const circumference = 2 * Math.PI * 40;
 
 @Component({
   selector: 'app-statistics-charts',
+  imports: [UiChip],
   template: `
     @if (hasData()) {
       <div class="mt-5 grid gap-5 xl:grid-cols-2">
@@ -26,10 +28,10 @@ const circumference = 2 * Math.PI * 40;
             </svg>
             <ul class="w-full min-w-0 space-y-1 min-[360px]:flex-1">
               @for (slice of data.categories; track slice.id; let index = $index) {
-                <li><button type="button" class="flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-3 py-2 text-left text-sm hover:bg-pop-lavender focus-visible:outline-2 focus-visible:outline-pop-primary" [class.bg-pop-lavender]="selectedCategoryId === slice.id" [attr.aria-pressed]="selectedCategoryId === slice.id" (click)="selectedCategoryId = slice.id">
+                <li><app-ui-chip class="block w-full" [wide]="true" [selected]="selectedCategoryId === slice.id" (selectedChange)="selectedCategoryId = slice.id">
                   <span class="min-w-0 truncate"><span class="mr-2 inline-block h-2.5 w-2.5 rounded-full" [style.background-color]="color(index)"></span>{{ categoryName(slice) }}</span>
                   <span class="shrink-0 font-medium">{{ percent(slice.amountMinor) }} %</span>
-                </button></li>
+                </app-ui-chip></li>
               }
             </ul>
           </div>
@@ -65,7 +67,7 @@ const circumference = 2 * Math.PI * 40;
         <div class="flex justify-between gap-3 text-xs text-pop-muted"><span>{{ data.timeline[0].period }}</span><span>{{ data.timeline[data.timeline.length - 1].period }}</span></div>
         <div class="mt-3 flex flex-wrap gap-2" [attr.aria-label]="text('periodValues')">
           @for (point of data.timeline; track point.period) {
-            <button type="button" class="min-h-11 rounded-xl border border-pop-border px-3 py-2 text-xs focus-visible:outline-2 focus-visible:outline-pop-primary" [class.border-pop-primary]="selectedPeriod === point.period" [attr.aria-pressed]="selectedPeriod === point.period" (click)="selectedPeriod = point.period">{{ point.period }}</button>
+            <app-ui-chip [selected]="selectedPeriod === point.period" (selectedChange)="selectedPeriod = point.period">{{ point.period }}</app-ui-chip>
           }
         </div>
         @if (chosenPeriod(); as point) { <p class="mt-3 text-sm" role="status">{{ point.period }} : <strong>{{ amount(point.amountMinor) }}</strong></p> }

@@ -1,3 +1,5 @@
+import { UiControlDirective } from '../../shared/components/ui-field/ui-control.directive';
+import { UiButton } from '../../shared/components/ui-button/ui-button';
 import { Component, Input, OnChanges, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { User } from 'firebase/auth';
@@ -10,7 +12,7 @@ type CleanupMessage = 'receiptCleanupDone' | 'receiptCleanupEmpty' | 'receiptCle
 
 @Component({
   selector: 'app-receipt-cleanup-panel',
-  imports: [FormsModule],
+  imports: [UiControlDirective, UiButton, FormsModule],
   templateUrl: './receipt-cleanup-panel.html',
 })
 export class ReceiptCleanupPanel implements OnChanges {

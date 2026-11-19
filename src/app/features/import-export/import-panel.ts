@@ -1,3 +1,7 @@
+import { UiCheckboxDirective } from '../../shared/components/checkbox/ui-checkbox.directive';
+import { UiControlDirective } from '../../shared/components/ui-field/ui-control.directive';
+import { UiAlert } from '../../shared/components/ui-alert/ui-alert';
+import { UiButton } from '../../shared/components/ui-button/ui-button';
 import { Component, Input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { FirebaseApp } from 'firebase/app';
@@ -22,7 +26,7 @@ interface ActiveBatch { readonly id: string; readonly recordCount: number; }
 
 @Component({
   selector: 'app-import-panel',
-  imports: [FormsModule],
+  imports: [UiCheckboxDirective, UiControlDirective, UiAlert, UiButton, FormsModule],
   templateUrl: './import-panel.html',
 })
 export class ImportPanel {

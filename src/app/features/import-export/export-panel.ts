@@ -1,3 +1,6 @@
+import { UiControlDirective } from '../../shared/components/ui-field/ui-control.directive';
+import { UiAlert } from '../../shared/components/ui-alert/ui-alert';
+import { UiButton } from '../../shared/components/ui-button/ui-button';
 import { Component, Input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { FirebaseApp } from 'firebase/app';
@@ -15,7 +18,7 @@ type ExportKind = 'csv' | 'json' | 'zip' | 'zip-v2';
 
 @Component({
   selector: 'app-export-panel',
-  imports: [FormsModule],
+  imports: [UiControlDirective, UiAlert, UiButton, FormsModule],
   template: `
     <section class="mt-6 rounded-3xl border border-pop-border bg-pop-surface p-5 text-pop-text shadow-sm md:p-7" [attr.aria-label]="t('exportGroup')">
       <div class="mb-5 h-1.5 w-14 rounded-full bg-pop-sun" aria-hidden="true"></div>
@@ -23,13 +26,13 @@ type ExportKind = 'csv' | 'json' | 'zip' | 'zip-v2';
       <p class="mt-1 text-sm text-pop-muted">{{ t(kind === 'zip-v2' ? 'exportV2Partial' : 'exportPartial') }}</p>
       <div class="mt-5 space-y-4">
         <label class="block text-sm font-bold">{{ t('group') }}
-          <select class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="exportGroup" [(ngModel)]="groupId">
+          <select appUiControl class="mt-2 w-full" name="exportGroup" [(ngModel)]="groupId">
             <option value="">{{ t('chooseGroup') }}</option>
             @for (group of groups; track group.id) { <option [value]="group.id">{{ group.name }}</option> }
           </select>
         </label>
         <label class="block text-sm font-bold">{{ t('exportFormat') }}
-          <select class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="exportKind" [(ngModel)]="kind">
+          <select appUiControl class="mt-2 w-full" name="exportKind" [(ngModel)]="kind">
             <option value="csv">{{ t('exportCsv') }}</option>
             <option value="json">{{ t('exportJson') }}</option>
             <option value="zip">{{ t('exportZip') }}</option>
@@ -38,11 +41,11 @@ type ExportKind = 'csv' | 'json' | 'zip' | 'zip-v2';
         </label>
         @if (kind === 'zip' || kind === 'zip-v2') { <p class="rounded-xl bg-pop-peach p-3 text-sm text-pop-text">{{ t('exportPrivate') }}</p> }
         @if (kind === 'zip-v2') { <p class="text-sm text-pop-muted">{{ t('exportV2Owner') }}</p> }
-        <button class="min-h-11 rounded-xl bg-pop-primary px-5 py-2 font-bold text-white hover:bg-pop-primary-dark focus-visible:outline-2 focus-visible:outline-pop-primary disabled:opacity-50" type="button"
+        <app-ui-button variant="primary"  type="button"
           [disabled]="busy() || !groupId || !user?.emailVerified || (kind === 'zip-v2' && !isOwner())" (click)="download()">
           {{ busy() ? t('exportPreparing') : t('exportDownload') }}
-        </button>
-        @if (message(); as key) { <p class="rounded-xl bg-pop-lavender p-3 text-sm" role="status">{{ t(key) }}</p> }
+        </app-ui-button>
+        @if (message(); as key) { <app-ui-alert variant="info">{{ t(key) }}</app-ui-alert> }
       </div>
     </section>
   `,

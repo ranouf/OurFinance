@@ -1,3 +1,5 @@
+import { UiAlert } from '../../shared/components/ui-alert/ui-alert';
+import { UiButton } from '../../shared/components/ui-button/ui-button';
 import { Component, EventEmitter, Input, OnInit, Output, computed, signal } from '@angular/core';
 import type { User } from 'firebase/auth';
 import { QrInvitationService, QrInviteRequestError, type QrInvitePreview } from '../../core/firebase/qr-invitation-service';
@@ -5,25 +7,25 @@ import { language, locale } from '../../shared/utils/i18n';
 import { qrInvitationText } from './qr-invitation-text';
 
 @Component({
-  selector: 'app-invite-acceptance-card',
+  selector: 'app-invite-acceptance-card', imports: [UiButton, UiAlert],
   template: `
     <section class="mx-auto mt-6 max-w-xl rounded-3xl border border-pop-border bg-white p-6 shadow-sm" [attr.aria-label]="text().received">
       <p class="font-extrabold text-pop-primary">{{ text().received }}</p>
-      @if (busy()) { <p class="mt-4" role="status">{{ text().loading }}</p> }
+      @if (busy()) { <app-ui-alert variant="info" class="mt-4">{{ text().loading }}</app-ui-alert> }
       @if (preview(); as group) {
         <h2 class="mt-4 break-words text-2xl font-extrabold text-pop-text">{{ group.groupName }}</h2>
         <p class="mt-1 font-bold text-pop-muted">{{ group.currency }}</p>
         <p class="mt-2 text-sm">{{ text().expires }} : {{ formatDate(group.expiresAt) }}</p>
         <div class="mt-5 flex flex-wrap gap-3">
-          <button class="min-h-11 rounded-xl bg-pop-primary px-4 py-2 font-extrabold text-white disabled:opacity-50" type="button" [disabled]="busy()" (click)="accept()">{{ text().join }}</button>
-          <button class="min-h-11 rounded-xl border border-pop-border px-4 py-2 font-bold" type="button" (click)="declined.emit()">{{ text().decline }}</button>
+          <app-ui-button variant="primary"  type="button" [disabled]="busy()" (click)="accept()">{{ text().join }}</app-ui-button>
+          <app-ui-button variant="secondary"  type="button" (click)="declined.emit()">{{ text().decline }}</app-ui-button>
         </div>
       } @else if (!busy()) {
-        <p class="mt-4 text-sm" role="alert">{{ text()[errorKey()] }}</p>
-        @if (!unusable()) { <button class="mt-3 min-h-11 rounded-xl border border-pop-primary px-4 py-2 font-bold text-pop-primary-dark" type="button" (click)="load()">{{ text().retry }}</button> }
+        <app-ui-alert variant="error" class="mt-4">{{ text()[errorKey()] }}</app-ui-alert>
+        @if (!unusable()) { <app-ui-button variant="outline" class="mt-3" type="button" (click)="load()">{{ text().retry }}</app-ui-button> }
       }
-      <button class="mt-5 block min-h-11 text-sm font-bold text-pop-primary-dark underline" type="button" (click)="changeAccount.emit()">{{ text().changeAccount }}</button>
-      @if (message()) { <p class="mt-3 text-sm" role="status">{{ message() }}</p> }
+      <app-ui-button variant="ghost" class="mt-5" type="button" (click)="changeAccount.emit()"><span class="underline">{{ text().changeAccount }}</span></app-ui-button>
+      @if (message()) { <app-ui-alert variant="info" class="mt-3">{{ message() }}</app-ui-alert> }
     </section>
   `,
 })

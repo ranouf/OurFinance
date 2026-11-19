@@ -1,3 +1,6 @@
+import { UiControlDirective } from '../../shared/components/ui-field/ui-control.directive';
+import { UiAlert } from '../../shared/components/ui-alert/ui-alert';
+import { UiButton } from '../../shared/components/ui-button/ui-button';
 import { Component, EventEmitter, Input, OnChanges, Output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { FirebaseApp } from 'firebase/app';
@@ -10,49 +13,49 @@ import { language, t, type MessageKey } from '../../shared/utils/i18n';
 
 @Component({
   selector: 'app-category-manager',
-  imports: [FormsModule],
+  imports: [UiControlDirective, UiAlert, UiButton, FormsModule],
   template: `
     <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-5" [attr.aria-label]="t('groupCategories')">
       <h2 class="text-lg font-semibold">{{ t('groupCategories') }}</h2>
       <p class="mt-1 text-sm text-slate-600">{{ t('categoryIntro') }}</p>
       <label class="mt-4 block text-sm font-medium">{{ t('group') }}
-        <select class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="categoryGroup" [(ngModel)]="selectedGroupId" (ngModelChange)="loadGroup()">
+        <select appUiControl class="mt-1 w-full" name="categoryGroup" [(ngModel)]="selectedGroupId" (ngModelChange)="loadGroup()">
           <option value="">{{ t('chooseGroup') }}</option>
           @for (group of groups; track group.id) { <option [value]="group.id">{{ group.name }}</option> }
         </select>
       </label>
       @if (selectedGroupId) {
         <label class="mt-4 block text-sm font-medium">{{ t('customCategory') }}
-          <select class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="managedCategory" [(ngModel)]="selectedId" (ngModelChange)="selectCategory()">
+          <select appUiControl class="mt-1 w-full" name="managedCategory" [(ngModel)]="selectedId" (ngModelChange)="selectCategory()">
             <option value="">{{ t('newCategory') }}</option>
             @for (category of items(); track category.id) { <option [value]="category.id">{{ category.icon }} {{ category.label }}{{ category.status === 'archived' ? t('archivedSuffix') : '' }}</option> }
           </select>
         </label>
         <label class="mt-3 block text-sm font-medium">{{ t('categoryName') }}
-          <input class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="categoryName" [(ngModel)]="draft.name" maxlength="40" />
+          <input appUiControl class="mt-1 w-full" name="categoryName" [(ngModel)]="draft.name" maxlength="40" />
         </label>
         <div class="mt-3 grid grid-cols-2 gap-3">
           <label class="block text-sm font-medium">{{ t('categoryIcon') }}
-            <select class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="categoryIcon" [(ngModel)]="draft.iconId">
+            <select appUiControl class="mt-1 w-full" name="categoryIcon" [(ngModel)]="draft.iconId">
               @for (icon of icons; track icon.id) { <option [value]="icon.id">{{ icon.glyph }} {{ iconLabel(icon.id) }}</option> }
             </select>
           </label>
           <label class="block text-sm font-medium">{{ t('categoryColor') }}
-            <select class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="categoryColor" [(ngModel)]="draft.color">
+            <select appUiControl class="mt-1 w-full" name="categoryColor" [(ngModel)]="draft.color">
               @for (color of colors; track color.id) { <option [value]="color.id">{{ colorLabel(color.id) }}</option> }
             </select>
           </label>
         </div>
         <p class="mt-3 text-sm"><span class="rounded-md px-2 py-1" [class]="colorClass(draft.color)">{{ previewIcon() }} {{ draft.name || t('categoryPreview') }}</span></p>
         <div class="mt-4 flex flex-wrap gap-2">
-          <button class="rounded-lg bg-teal-700 px-3 py-2 text-sm font-medium text-white disabled:opacity-50" type="button" [disabled]="busy() || !draft.name.trim()" (click)="save()">{{ selectedId ? t('saveCategory') : t('createCategory') }}</button>
+          <app-ui-button variant="primary"  type="button" [disabled]="busy() || !draft.name.trim()" (click)="save()">{{ selectedId ? t('saveCategory') : t('createCategory') }}</app-ui-button>
           @if (selectedId) {
-            <button class="rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:opacity-50" type="button" [disabled]="busy()" (click)="toggleArchive()">{{ selected()?.status === 'archived' ? t('reactivateCategory') : t('archiveCategory') }}</button>
+            <app-ui-button variant="secondary"  type="button" [disabled]="busy()" (click)="toggleArchive()">{{ selected()?.status === 'archived' ? t('reactivateCategory') : t('archiveCategory') }}</app-ui-button>
           }
         </div>
         @if (items().length) { <p class="mt-3 text-sm text-slate-600">{{ items().length }} {{ t(items().length === 1 ? 'categoryCountOne' : 'categoryCountMany') }}</p> }
       }
-      @if (message(); as key) { <p class="mt-4 text-sm" role="status">{{ t(key) }}</p> }
+      @if (message(); as key) { <app-ui-alert variant="info" class="mt-4">{{ t(key) }}</app-ui-alert> }
     </section>
   `,
 })

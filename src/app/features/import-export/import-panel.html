@@ -4,13 +4,13 @@
       <p class="mt-1 text-sm text-pop-muted">{{ text('intro') }}</p>
       <div class="mt-5 grid gap-4 md:grid-cols-2">
         <label class="block text-sm font-bold">{{ text('target') }}
-          <select class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="importGroup" [(ngModel)]="groupId" (ngModelChange)="loadGroup()">
+          <select appUiControl class="mt-2 w-full" name="importGroup" [(ngModel)]="groupId" (ngModelChange)="loadGroup()">
             <option value="">{{ t('chooseGroup') }}</option>
             @for (group of ownedGroups(); track group.id) { <option [value]="group.id">{{ group.name }} · {{ group.currency }}</option> }
           </select>
         </label>
         <label class="block text-sm font-bold">{{ text('file') }}
-          <input class="mt-2 block min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pop-primary-dark file:mr-3 file:rounded-lg file:border-0 file:bg-pop-lavender file:px-3 file:py-2 file:font-bold file:text-pop-primary-dark" type="file" accept=".csv,text/csv" (change)="loadFile($event)" [attr.aria-invalid]="message() === 'invalidFile' || message() === 'fileTooLarge' || message() === 'fileMissing' ? 'true' : null" [attr.aria-describedby]="message() === 'invalidFile' || message() === 'fileTooLarge' || message() === 'fileMissing' ? 'importFeedback' : null" />
+          <input appUiControl class="mt-2 block min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pop-primary-dark file:mr-3 file:rounded-lg file:border-0 file:bg-pop-lavender file:px-3 file:py-2 file:font-bold file:text-pop-primary-dark" type="file" accept=".csv,text/csv" (change)="loadFile($event)" [attr.aria-invalid]="message() === 'invalidFile' || message() === 'fileTooLarge' || message() === 'fileMissing' ? 'true' : null" [attr.aria-describedby]="message() === 'invalidFile' || message() === 'fileTooLarge' || message() === 'fileMissing' ? 'importFeedback' : null" />
         </label>
       </div>
       @if (!ownedGroups().length) { <p class="mt-4 rounded-xl bg-pop-peach p-3 text-sm">{{ text('ownerOnly') }}</p> }
@@ -20,21 +20,21 @@
           <p class="mt-1 text-sm text-pop-muted">{{ text('nativeHint') }}</p>
           <p class="mt-3 text-sm font-bold">{{ source.rows.length }} {{ text(source.rows.length === 1 ? 'nativeRecord' : 'nativeRecords') }} · {{ source.currency }}</p>
           <label class="mt-4 block text-sm font-bold">{{ text('nativeSourceGroup') }}
-            <input class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="nativeSourceGroup" [(ngModel)]="sourceGroupId" (ngModelChange)="clearPreview(); message.set('')" maxlength="128" autocomplete="off" required pattern="[A-Za-z0-9_-]{1,128}" [attr.aria-invalid]="message() === 'nativeSourceGroupInvalid' ? 'true' : null" [attr.aria-describedby]="message() === 'nativeSourceGroupInvalid' ? 'nativeSourceGroupError' : null" />
+            <input appUiControl class="mt-2 w-full" name="nativeSourceGroup" [(ngModel)]="sourceGroupId" (ngModelChange)="clearPreview(); message.set('')" maxlength="128" autocomplete="off" required pattern="[A-Za-z0-9_-]{1,128}" [attr.aria-invalid]="message() === 'nativeSourceGroupInvalid' ? 'true' : null" [attr.aria-describedby]="message() === 'nativeSourceGroupInvalid' ? 'nativeSourceGroupError' : null" />
           </label>
-          @if (message() === 'nativeSourceGroupInvalid') { <p id="nativeSourceGroupError" class="mt-2 text-sm font-semibold text-rose-700" role="alert">{{ text('nativeSourceGroupInvalid') }}</p> }
+          @if (message() === 'nativeSourceGroupInvalid') { <app-ui-alert variant="error" class="mt-2" id="nativeSourceGroupError">{{ text('nativeSourceGroupInvalid') }}</app-ui-alert> }
           <h4 class="mt-5 font-extrabold">{{ text('impacts') }}</h4>
           <div class="mt-3 grid gap-3 sm:grid-cols-2">
             @for (participant of source.participants; track participant) {
               <label class="block text-sm font-bold">{{ participant }} · {{ source.balances[participant] }} {{ source.currency }}
-                <select class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" [name]="'native_member_' + $index" [(ngModel)]="memberMapping[participant]" (ngModelChange)="clearPreview()">
+                <select appUiControl class="mt-2 w-full" [name]="'native_member_' + $index" [(ngModel)]="memberMapping[participant]" (ngModelChange)="clearPreview()">
                   <option value="">{{ text('chooseColumn') }}</option>
                   @for (member of members(); track member.userId) { <option [value]="member.userId">{{ memberLabel(member.userId) }}</option> }
                 </select>
               </label>
             }
           </div>
-          <button class="mt-5 min-h-11 rounded-xl bg-pop-primary px-5 py-2 font-bold text-white hover:bg-pop-primary-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pop-primary-dark disabled:opacity-50" type="button" [disabled]="busy() || !groupId" (click)="prepareNativePreview()">{{ text('preview') }}</button>
+          <app-ui-button variant="primary" class="mt-5" type="button" [disabled]="busy() || !groupId" (click)="prepareNativePreview()">{{ text('preview') }}</app-ui-button>
           @if (nativeAlreadyImported() || nativeAlreadyUndone()) {
             <p class="mt-3 text-sm font-bold">{{ text('nativeRemaining') }} : {{ source.rows.length - nativeAlreadyImported() - nativeAlreadyUndone() }} · {{ text('nativeExisting') }} : {{ nativeAlreadyImported() }} · {{ text('nativeUndone') }} : {{ nativeAlreadyUndone() }}</p>
             @if (nativeAlreadyUndone() && nativeBatches().length) { <p class="mt-2 text-sm text-pop-muted">{{ text('nativeUndoneHelp') }}</p> }
@@ -47,7 +47,7 @@
           <div class="mt-3 grid gap-3 sm:grid-cols-2">
             @for (field of fields; track field.key) {
               <label class="block text-sm font-bold">{{ text(field.label) }}
-                <select class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3" [name]="'import_' + field.key" [(ngModel)]="mapping[field.key]" (ngModelChange)="clearPreview()">
+                <select appUiControl class="mt-2 w-full" [name]="'import_' + field.key" [(ngModel)]="mapping[field.key]" (ngModelChange)="clearPreview()">
                   <option value="">{{ text('chooseColumn') }}</option>
                   @for (header of headers(); track header) { <option [value]="header">{{ header }}</option> }
                 </select>
@@ -60,30 +60,30 @@
             @for (header of impactCandidates(); track header) {
               <div class="rounded-xl border border-pop-border bg-pop-surface p-3">
                 <label class="flex min-h-11 items-center gap-2 text-sm font-bold">
-                  <input type="checkbox" [checked]="impactHeaders().includes(header)" (change)="toggleImpact(header, $event)" /> {{ text('useImpact') }} · {{ header }}
+                  <input appUiCheckbox type="checkbox" [checked]="impactHeaders().includes(header)" (change)="toggleImpact(header, $event)" /> {{ text('useImpact') }} · {{ header }}
                 </label>
                 @if (impactHeaders().includes(header)) {
                   <label class="mt-2 block text-sm">{{ text('targetMember') }}
-                    <select class="mt-1 min-h-11 w-full rounded-xl border border-pop-border p-2" [name]="'member_' + header" [(ngModel)]="memberMapping[header]" (ngModelChange)="recompute()">
+                    <select appUiControl class="mt-1 w-full" [name]="'member_' + header" [(ngModel)]="memberMapping[header]" (ngModelChange)="recompute()">
                       <option value="">{{ text('chooseColumn') }}</option>
                       @for (member of members(); track member.userId) { <option [value]="member.userId">{{ memberLabel(member.userId) }}</option> }
                     </select>
                   </label>
                   <label class="mt-2 block text-sm">{{ text('expected') }} · {{ selectedGroup()?.currency }}
-                    <input class="mt-1 min-h-11 w-full rounded-xl border border-pop-border p-2" [name]="'expected_' + header" inputmode="decimal" [(ngModel)]="expected[header]" (ngModelChange)="recompute()" placeholder="0.00" />
+                    <input appUiControl class="mt-1 w-full" [name]="'expected_' + header" inputmode="decimal" [(ngModel)]="expected[header]" (ngModelChange)="recompute()" placeholder="0.00" />
                   </label>
                 }
               </div>
             }
           </div>
-          <button class="mt-5 min-h-11 rounded-xl bg-pop-primary px-5 py-2 font-bold text-white hover:bg-pop-primary-dark disabled:opacity-50" type="button" [disabled]="busy()" (click)="preparePreview()">{{ text('preview') }}</button>
+          <app-ui-button variant="primary" class="mt-5" type="button" [disabled]="busy()" (click)="preparePreview()">{{ text('preview') }}</app-ui-button>
         </div>
       }
       @if (preview(); as result) {
         <div class="mt-6 rounded-2xl border border-pop-border p-4 sm:p-5">
           <h3 class="text-lg font-extrabold">{{ text('previewTitle') }}</h3>
           <label class="mt-4 block text-sm font-bold">{{ text('sourceGroup') }}
-            <select class="mt-2 min-h-11 w-full rounded-xl border border-pop-border p-3" name="sourceGroup" [(ngModel)]="sourceGroupId" (ngModelChange)="recompute()">
+            <select appUiControl class="mt-2 w-full" name="sourceGroup" [(ngModel)]="sourceGroupId" (ngModelChange)="recompute()">
               @for (source of sourceGroups(); track source) { <option [value]="source">{{ source }}</option> }
             </select>
           </label>
@@ -95,7 +95,7 @@
           </div>
           @if (otherGroupCount()) { <p class="mt-3 text-sm text-pop-muted">{{ otherGroupCount() }} {{ text('otherGroups') }}</p> }
           @if (foreignCount()) {
-            <label class="mt-4 flex min-h-11 items-start gap-3 rounded-xl bg-pop-peach p-3 text-sm"><input class="mt-1" type="checkbox" [(ngModel)]="excludeForeign" />{{ text('acknowledgeForeign') }}</label>
+            <label class="mt-4 flex min-h-11 items-start gap-3 rounded-xl bg-pop-peach p-3 text-sm"><input appUiCheckbox class="mt-1" type="checkbox" [(ngModel)]="excludeForeign" />{{ text('acknowledgeForeign') }}</label>
           }
           @if (result.errors.length || result.duplicateIds.length) {
             <ul class="mt-4 list-inside list-disc text-sm text-rose-700">
@@ -116,7 +116,7 @@
               }
             </div>
           }
-          <button class="mt-5 min-h-11 rounded-xl bg-pop-primary px-5 py-2 font-bold text-white hover:bg-pop-primary-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pop-primary-dark disabled:opacity-50" type="button" [disabled]="!canImport()" (click)="save()">{{ busy() ? text('importing') : text('import') }}</button>
+          <app-ui-button variant="primary" class="mt-5" type="button" [disabled]="!canImport()" (click)="save()">{{ busy() ? text('importing') : text('import') }}</app-ui-button>
         </div>
       }
       @if (nativeBatches().length && nativeSource(); as source) {
@@ -131,7 +131,7 @@
             }
           </ul>
           <p class="mt-4 rounded-xl bg-pop-mint-soft p-3 text-sm font-bold">{{ text('matched') }}</p>
-          <button class="mt-5 min-h-11 rounded-xl bg-pop-primary px-5 py-2 font-bold text-white hover:bg-pop-primary-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pop-primary-dark disabled:opacity-50" type="button" [disabled]="!canImport()" (click)="save()">{{ busy() ? text('importing') : text('import') }}</button>
+          <app-ui-button variant="primary" class="mt-5" type="button" [disabled]="!canImport()" (click)="save()">{{ busy() ? text('importing') : text('import') }}</app-ui-button>
         </div>
       }
       @if (batches().length) {
@@ -142,8 +142,8 @@
               <li class="rounded-xl bg-pop-lavender p-3 text-sm">
                 <p class="font-bold">{{ text('batch') }} {{ batch.id.slice(0, 8) }} · {{ batch.recordCount }} {{ text('records') }}</p>
                 @if (undoConfirmId() === batch.id) {
-                  <div class="mt-2 flex flex-wrap gap-2"><button class="min-h-11 rounded-xl bg-pop-coral px-4 font-bold text-pop-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pop-primary-dark" type="button" [disabled]="busy()" (click)="undo(batch.id)">{{ text('confirmUndo') }}</button><button class="min-h-11 rounded-xl border border-pop-border px-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pop-primary-dark" type="button" (click)="undoConfirmId.set('')">{{ text('cancel') }}</button></div>
-                } @else { <button class="mt-2 min-h-11 rounded-xl border border-pop-primary px-4 font-bold text-pop-primary-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pop-primary-dark" type="button" (click)="undoConfirmId.set(batch.id)">{{ text('undo') }}</button> }
+                  <div class="mt-2 flex flex-wrap gap-2"><app-ui-button variant="coral"  type="button" [disabled]="busy()" (click)="undo(batch.id)">{{ text('confirmUndo') }}</app-ui-button><app-ui-button variant="secondary"  type="button" (click)="undoConfirmId.set('')">{{ text('cancel') }}</app-ui-button></div>
+                } @else { <app-ui-button variant="outline" class="mt-2" type="button" (click)="undoConfirmId.set(batch.id)">{{ text('undo') }}</app-ui-button> }
               </li>
             }
           </ul>

@@ -1,3 +1,6 @@
+import { UiControlDirective } from '../../shared/components/ui-field/ui-control.directive';
+import { UiAlert } from '../../shared/components/ui-alert/ui-alert';
+import { UiButton } from '../../shared/components/ui-button/ui-button';
 import { Component, EventEmitter, Input, Output, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { FirebaseApp } from 'firebase/app';
@@ -8,7 +11,7 @@ import { currencyCatalog } from '../../shared/utils/currency';
 import { locale, t } from '../../shared/utils/i18n';
 
 @Component({
-  selector: 'app-group-currency-panel', imports: [FormsModule],
+  selector: 'app-group-currency-panel', imports: [UiControlDirective, UiAlert, UiButton, FormsModule],
   template: `
     @if (editableGroups().length) {
       <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-5" [attr.aria-label]="t('changeGroupCurrency')">
@@ -16,21 +19,21 @@ import { locale, t } from '../../shared/utils/i18n';
         <p class="mt-1 text-sm text-slate-600">{{ t('currencyBeforeFirst') }}</p>
         <form class="mt-4 space-y-3" (ngSubmit)="save()">
           <label class="block text-sm font-medium">{{ t('group') }}
-            <select class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="currencyGroup" [(ngModel)]="selectedGroupId" (ngModelChange)="selectGroup()" required>
+            <select appUiControl class="mt-1 w-full" name="currencyGroup" [(ngModel)]="selectedGroupId" (ngModelChange)="selectGroup()" required>
               <option value="">{{ t('chooseGroup') }}</option>
               @for (group of editableGroups(); track group.id) { <option [value]="group.id">{{ group.name }} · {{ group.currency }}</option> }
             </select>
           </label>
           @if (selectedGroupId) {
             <label class="block text-sm font-medium">{{ t('groupCurrency') }}
-              <select class="mt-1 w-full rounded-lg border border-slate-300 p-3" name="newGroupCurrency" [(ngModel)]="currencyCode" required>
+              <select appUiControl class="mt-1 w-full" name="newGroupCurrency" [(ngModel)]="currencyCode" required>
                 @for (currency of currencies(); track currency.code) { <option [value]="currency.code">{{ currency.code }} · {{ currency.name }} ({{ currency.symbol }}, {{ currency.minorDigits }})</option> }
               </select>
             </label>
-            <button class="rounded-lg bg-teal-700 px-4 py-2 text-white disabled:opacity-50" type="submit" [disabled]="busy() || currencyCode === selectedGroup()?.currency">{{ t('saveGroupCurrency') }}</button>
+            <app-ui-button variant="primary"  type="submit" [disabled]="busy() || currencyCode === selectedGroup()?.currency">{{ t('saveGroupCurrency') }}</app-ui-button>
           }
         </form>
-        @if (message()) { <p class="mt-3 text-sm" role="status">{{ message() }}</p> }
+        @if (message()) { <app-ui-alert variant="info" class="mt-3">{{ message() }}</app-ui-alert> }
       </section>
     }
   `,

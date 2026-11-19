@@ -1,3 +1,6 @@
+import { UiControlDirective } from '../../shared/components/ui-field/ui-control.directive';
+import { UiAlert } from '../../shared/components/ui-alert/ui-alert';
+import { UiButton } from '../../shared/components/ui-button/ui-button';
 import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { FirebaseApp } from 'firebase/app';
@@ -10,20 +13,20 @@ import { locale, t } from '../../shared/utils/i18n';
 
 @Component({
   selector: 'app-balance-summary',
-  imports: [FormsModule],
+  imports: [UiControlDirective, UiAlert, UiButton, FormsModule],
   template: `
     <section class="mt-6 rounded-3xl border border-pop-border bg-pop-surface p-5 text-pop-text shadow-sm md:p-7" [attr.aria-label]="t('groupBalances')">
       <div class="mb-5 h-1.5 w-14 rounded-full bg-pop-sun" aria-hidden="true"></div>
       <h2 class="text-2xl font-extrabold tracking-tight">{{ t('groupBalances') }}</h2>
       <p class="mt-1 text-sm text-pop-muted">{{ t('balanceIntro') }}</p>
       <label class="mt-5 block text-sm font-bold">{{ t('group') }}
-        <select class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="balanceGroup" [(ngModel)]="selectedGroupId" (ngModelChange)="onGroupChange()">
+        <select appUiControl class="mt-2 w-full" name="balanceGroup" [(ngModel)]="selectedGroupId" (ngModelChange)="onGroupChange()">
           <option value="">{{ t('chooseGroup') }}</option>
           @for (group of groups; track group.id) { <option [value]="group.id">{{ group.name }}</option> }
         </select>
       </label>
       @if (selectedGroupId) {
-        <button class="mt-3 min-h-11 rounded-xl bg-pop-primary px-5 py-2 text-sm font-bold text-white hover:bg-pop-primary-dark disabled:opacity-50" type="button" [disabled]="busy()" (click)="refresh()">{{ t('refresh') }}</button>
+        <app-ui-button variant="primary" class="mt-3" type="button" [disabled]="busy()" (click)="refresh()">{{ t('refresh') }}</app-ui-button>
         @for (currency of currencies(); track currency) {
           <div class="mt-5">
             <h3 class="font-extrabold text-pop-primary-dark">{{ currency }}</h3>
@@ -39,7 +42,7 @@ import { locale, t } from '../../shared/utils/i18n';
         } @empty { @if (!busy() && !message()) { <p class="mt-5 rounded-2xl bg-pop-lavender p-5 text-sm text-pop-muted">{{ t('noBalance') }}</p> } }
         @if (incompleteCount()) { <p class="mt-3 text-sm text-amber-800">{{ incompleteCount() }} {{ t('unknownShares') }}</p> }
       }
-      @if (message()) { <p class="mt-4 text-sm text-rose-700" role="status">{{ message() }}</p> }
+      @if (message()) { <app-ui-alert variant="info" class="mt-4">{{ message() }}</app-ui-alert> }
     </section>
   `,
 })

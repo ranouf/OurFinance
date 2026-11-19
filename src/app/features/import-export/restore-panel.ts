@@ -1,3 +1,5 @@
+import { UiControlDirective } from '../../shared/components/ui-field/ui-control.directive';
+import { UiButton } from '../../shared/components/ui-button/ui-button';
 import { Component, Input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { FirebaseApp } from 'firebase/app';
@@ -14,27 +16,27 @@ interface RestoreDiffCounts { readonly create: number; readonly replace: number;
 
 @Component({
   selector: 'app-restore-panel',
-  imports: [FormsModule],
+  imports: [UiControlDirective, UiButton, FormsModule],
   template: `
     <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-5" [attr.aria-label]="t('restoreHeading')">
       <h2 class="text-lg font-semibold">{{ t('restoreHeading') }}</h2>
       <p class="mt-2 text-sm text-slate-700">{{ t('restorePartial') }}</p>
       <div class="mt-4 space-y-3">
         <label class="block text-sm font-medium">{{ t('group') }}
-          <select class="mt-1 w-full rounded-lg border border-slate-300 p-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pop-primary-dark" name="restoreGroup"
+          <select appUiControl class="mt-1 w-full" name="restoreGroup"
             [(ngModel)]="groupId" (ngModelChange)="clearPreview()">
             <option value="">{{ t('chooseGroup') }}</option>
             @for (group of groups; track group.id) { <option [value]="group.id">{{ group.name }}</option> }
           </select>
         </label>
         <label class="block text-sm font-medium">{{ t('restoreFile') }}
-          <input class="mt-1 block w-full min-w-0 rounded-lg border border-slate-300 p-3 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pop-primary-dark" type="file"
+          <input appUiControl class="mt-1 block w-full min-w-0 rounded-lg border border-slate-300 p-3 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pop-primary-dark" type="file"
             accept=".zip,application/zip" (change)="selectFile($event)" />
         </label>
-        <button class="rounded-lg border border-teal-700 px-4 py-2 text-teal-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pop-primary-dark disabled:opacity-50" type="button"
+        <app-ui-button variant="outline"  type="button"
           [disabled]="busy() || !groupId || !selectedFile || !user?.emailVerified" (click)="previewFile()">
           {{ busy() ? t('exportPreparing') : t('restorePreview') }}
-        </button>
+        </app-ui-button>
         @if (preview(); as plan) {
           <div class="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
             <p class="font-semibold">{{ t('restoreReplace') }}</p>
@@ -54,12 +56,12 @@ interface RestoreDiffCounts { readonly create: number; readonly replace: number;
             }
             <p class="mt-3">{{ t('restoreConfirmHelp') }}</p>
             <label class="mt-2 block font-medium">{{ t('groupName') }}
-              <input class="mt-1 w-full rounded-lg border border-slate-300 p-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pop-primary-dark" type="text" name="restoreConfirmation"
+              <input appUiControl class="mt-1 w-full" type="text" name="restoreConfirmation"
                 [(ngModel)]="confirmation" autocomplete="off" />
             </label>
-            <button class="mt-3 rounded-lg bg-rose-700 px-4 py-2 text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pop-primary-dark disabled:opacity-50" type="button"
+            <app-ui-button variant="danger" class="mt-3" type="button"
               [disabled]="busy() || !diff() || confirmation !== selectedGroupName() || message() === 'restoreUncertain' || message() === 'restoreQuotaUncertain'"
-              (click)="restore()">{{ t('restoreAction') }}</button>
+              (click)="restore()">{{ t('restoreAction') }}</app-ui-button>
           </div>
         }
         @if (message()) {
@@ -68,15 +70,15 @@ interface RestoreDiffCounts { readonly create: number; readonly replace: number;
             @if (message() === 'restoreUncertain' || message() === 'restoreQuotaUncertain' || message() === 'restorePreparedUncertain' || message() === 'restorePreparedQuota') { <span class="break-all">{{ attemptId() }}</span> }
           </p>
           @if (message() === 'restorePreparedUncertain' || message() === 'restorePreparedQuota') {
-            <button class="rounded-lg border border-teal-700 px-4 py-2 text-teal-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pop-primary-dark disabled:opacity-50" type="button"
-              [disabled]="busy()" (click)="restore()">{{ t(message() === 'restorePreparedQuota' ? 'restoreQuotaRetry' : 'restorePreparedRetry') }}</button>
+            <app-ui-button variant="outline"  type="button"
+              [disabled]="busy()" (click)="restore()">{{ t(message() === 'restorePreparedQuota' ? 'restoreQuotaRetry' : 'restorePreparedRetry') }}</app-ui-button>
           }
           @if (message() === 'restoreDone' || message() === 'restoreCleanupPending' || message() === 'restoreCleanupQuota') {
-            <button class="rounded-lg border border-teal-700 px-4 py-2 text-teal-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pop-primary-dark" type="button"
-              (click)="reload()">{{ t('restoreReload') }}</button>
+            <app-ui-button variant="outline"  type="button"
+              (click)="reload()">{{ t('restoreReload') }}</app-ui-button>
             @if (message() === 'restoreCleanupPending' || message() === 'restoreCleanupQuota') {
-              <button class="ml-2 rounded-lg border border-teal-700 px-4 py-2 text-teal-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pop-primary-dark disabled:opacity-50" type="button"
-                [disabled]="busy()" (click)="retryCleanup()">{{ t('restoreCleanupRetry') }}</button>
+              <app-ui-button variant="outline" class="ml-2" type="button"
+                [disabled]="busy()" (click)="retryCleanup()">{{ t('restoreCleanupRetry') }}</app-ui-button>
             }
           }
         }
