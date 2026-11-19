@@ -61,8 +61,8 @@ import { expenseMessage, expenseText } from './expense-text';
                 <legend class="px-2 text-sm font-extrabold text-pop-primary-dark">{{ text('paidBy') }}</legend>
                 @for (row of draft.paymentRows; track row.userId; let i = $index) {
                   <div class="mt-3 flex min-h-11 items-center gap-3 rounded-xl bg-pop-surface px-3 py-2">
-                    <label class="flex min-w-0 flex-1 items-center gap-2 text-sm"><input appUiCheckbox #payerCheckbox class="size-5 shrink-0 accent-pop-primary focus-visible:outline-2 focus-visible:outline-pop-primary" type="checkbox" [name]="'payer-selected-' + i" [(ngModel)]="row.selected" (ngModelChange)="paymentError.set(false); message.set('')" [attr.aria-invalid]="paymentError() ? 'true' : null" [attr.aria-describedby]="paymentError() ? 'payment-error' : null" /><span class="min-w-0 break-all">{{ row.userId === user?.uid ? text('me') : row.userId }}</span></label>
-                    @if (row.selected) { <input appUiControl #paymentInput class="w-24" [class.border-rose-600]="paymentError()" [name]="'payer-value-' + i" [(ngModel)]="row.value" (ngModelChange)="paymentError.set(false); message.set('')" inputmode="decimal" [attr.aria-label]="text('paymentFor') + ' ' + (row.userId === user?.uid ? text('me') : row.userId)" [attr.aria-invalid]="paymentError() ? 'true' : null" [attr.aria-describedby]="paymentError() ? 'payment-error' : null" [placeholder]="draft.currency" /> }
+                    <label class="flex min-w-0 flex-1 items-center gap-2 text-sm"><input appUiCheckbox #payerCheckbox class="size-5 shrink-0 accent-pop-primary focus-visible:outline-2 focus-visible:outline-pop-primary" type="checkbox" [name]="'payer-selected-' + i" [(ngModel)]="row.selected" (ngModelChange)="paymentError.set(false); message.set('')" [attr.aria-invalid]="paymentError() ? 'true' : null" [attr.aria-describedby]="paymentError() ? 'payment-error' : null" /><span class="min-w-0 break-all">{{ memberLabel(row.userId) }}</span></label>
+                    @if (row.selected) { <input appUiControl #paymentInput class="w-24" [class.border-rose-600]="paymentError()" [name]="'payer-value-' + i" [(ngModel)]="row.value" (ngModelChange)="paymentError.set(false); message.set('')" inputmode="decimal" [attr.aria-label]="text('paymentFor') + ' ' + (memberLabel(row.userId))" [attr.aria-invalid]="paymentError() ? 'true' : null" [attr.aria-describedby]="paymentError() ? 'payment-error' : null" [placeholder]="draft.currency" /> }
                   </div>
                 }
                 @if (paymentError()) { <app-ui-alert variant="error" class="mt-3" id="payment-error">{{ displayMessage(message()) }}</app-ui-alert> }
@@ -75,16 +75,16 @@ import { expenseMessage, expenseText } from './expense-text';
               </app-field>
               @for (row of draft.rows; track row.userId; let i = $index) {
                 <div class="mt-3 flex min-h-11 items-center gap-3 rounded-xl bg-pop-surface px-3 py-2">
-                  <label class="flex min-w-0 flex-1 items-center gap-2 text-sm"><input appUiCheckbox class="size-5 shrink-0 accent-pop-primary" type="checkbox" [name]="'selected-' + i" [(ngModel)]="row.selected" /><span class="min-w-0 break-all">{{ row.userId === user?.uid ? text('me') : row.userId }}</span></label>
+                  <label class="flex min-w-0 flex-1 items-center gap-2 text-sm"><input appUiCheckbox class="size-5 shrink-0 accent-pop-primary" type="checkbox" [name]="'selected-' + i" [(ngModel)]="row.selected" /><span class="min-w-0 break-all">{{ memberLabel(row.userId) }}</span></label>
                   @if (draft.kind !== 'equal' && row.selected) {
-                    <input appUiControl class="w-24" [name]="'value-' + i" [(ngModel)]="row.value" inputmode="decimal" [attr.aria-label]="text('valueFor') + ' ' + (row.userId === user?.uid ? text('me') : row.userId)" [placeholder]="draft.kind === 'percentage' ? '%' : draft.kind === 'shares' ? text('shares') : draft.currency" />
+                    <input appUiControl class="w-24" [name]="'value-' + i" [(ngModel)]="row.value" inputmode="decimal" [attr.aria-label]="text('valueFor') + ' ' + (memberLabel(row.userId))" [placeholder]="draft.kind === 'percentage' ? '%' : draft.kind === 'shares' ? text('shares') : draft.currency" />
                   }
                 </div>
               }
               <app-ui-button variant="outline" class="mt-4" type="button" (click)="preview()">{{ text('calculate') }}</app-ui-button>
               @if (previewRows().length) {
                 <ul class="mt-3 space-y-1 rounded-xl bg-pop-surface p-3 text-sm" [attr.aria-label]="text('calculated')">
-                  @for (row of previewRows(); track row.userId) { <li>{{ row.userId === user?.uid ? text('me') : row.userId }} : {{ formatMinor(row.amountMinor, draft.currency, locale()) }}</li> }
+                  @for (row of previewRows(); track row.userId) { <li>{{ memberLabel(row.userId) }} : {{ formatMinor(row.amountMinor, draft.currency, locale()) }}</li> }
                 </ul>
               }
             </fieldset>
@@ -100,7 +100,8 @@ import { expenseMessage, expenseText } from './expense-text';
 export class ExpenseForm implements OnChanges {
   readonly groupDropdownOptions = groupDropdownOptions;
   expenseCategoryOptions(): DropdownOption[] { return categoryDropdownOptions(this.availableCategories(), category => categoryLabel(category.id, language(), category.label)); }
-  payerOptions(): DropdownOption[] { return this.members().map(member => ({ value: member.userId, label: member.userId === this.user?.uid ? this.text('me') : member.userId })); }
+  payerOptions(): DropdownOption[] { return this.members().map(member => ({ value: member.userId, label: this.memberLabel(member.userId) })); }
+  memberLabel(userId: string): string { return userId === this.user?.uid ? this.text('me') : userId; }
   splitModeOptions(): DropdownOption[] { return (['equal', 'exact', 'percentage', 'shares', 'adjustment'] as const).map(value => ({ value, label: this.text(value) })); }
   constructor(private readonly changeDetector: ChangeDetectorRef) {}
   @ViewChildren('paymentInput') private paymentInputs?: QueryList<ElementRef<HTMLInputElement>>;
