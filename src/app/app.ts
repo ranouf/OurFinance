@@ -49,6 +49,7 @@ export class App implements OnInit, OnDestroy {
   readonly busy = signal(false);
   readonly showPassword = signal(false);
   readonly message = signal('');
+  readonly groupCreateFailed = signal(false);
   readonly pendingInvite = signal<string | null>(null);
   private readonly router = inject(Router);
   private readonly routeEvent = toSignal(this.router.events.pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd)));
@@ -304,7 +305,7 @@ export class App implements OnInit, OnDestroy {
   async createGroup(): Promise<void> {
     const user = this.auth?.user();
     if (!user || !this.firebaseApp || this.busy()) return;
-    this.busy.set(true); this.message.set('');
+    this.busy.set(true); this.groupCreateFailed.set(false);
     try {
       if (!this.groupService) { const { GroupService } = await import('./core/firebase/group-service'); this.groupService = new GroupService(this.firebaseApp, this.workerUrl); }
       await this.groupService.create(user, this.groupName, this.groupCurrency, {
@@ -314,11 +315,12 @@ export class App implements OnInit, OnDestroy {
       });
       this.groupName = ''; this.groupIconId = ''; this.groupColor = ''; this.groupDescription = '';
       await this.loadGroups(); }
-    catch { this.message.set(t('groupCreateFailed')); }
+    catch { this.groupCreateFailed.set(true); }
     finally { this.busy.set(false); }
   }
   private clearSessionData(): void {
     this.groupLoadVersion++;
+    this.groupCreateFailed.set(false);
     this.balanceRequestId++;
     this.recentExpenseRequestId++;
     this.email = '';

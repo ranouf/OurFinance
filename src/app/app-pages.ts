@@ -215,6 +215,7 @@ export class DashboardPage {
           <label class="block text-sm font-bold" for="group-description">{{ metadataText().description }} · {{ metadataText().optional }}</label>
           <textarea appUiControl id="group-description" class="min-h-24 w-full" name="groupDescription" [(ngModel)]="app.groupDescription" maxlength="500"></textarea>
           <app-ui-button variant="coral" [block]="true" size="lg" class="w-full sm:w-auto" type="submit" [disabled]="app.busy() || !app.online()">+ {{ t('createGroup') }}</app-ui-button>
+          @if (app.groupCreateFailed()) { <app-ui-alert variant="error">{{ t('groupCreateFailed') }}</app-ui-alert> }
         </form>
       } @else if (!app.groupsError()) { <app-ui-alert variant="error">{{ t('groupServiceMissing') }}</app-ui-alert> }
       @if (!app.groupsError() && !app.groupsBusy() && app.workerUrl && app.auth?.user(); as user) {
