@@ -3,7 +3,7 @@ import { DropdownComponent } from '../../shared/components/dropdown/dropdown.com
 import { groupDropdownOptions } from '../../shared/components/dropdown/dropdown-options';
 import { UiAlert } from '../../shared/components/ui-alert/ui-alert';
 import { UiButton } from '../../shared/components/ui-button/ui-button';
-import { Component, Input, OnChanges, SimpleChanges, signal } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { FirebaseApp } from 'firebase/app';
 import type { User } from 'firebase/auth';
@@ -34,7 +34,7 @@ const labels: Record<string, MessageKey> = {
   template: `
     <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-5" [attr.aria-label]="t('groupActivity')">
       <h2 class="text-lg font-semibold">{{ t('groupActivity') }}</h2>
-      <app-field class="mt-4" controlId="activityGroup" [label]="t('group')"><app-dropdown controlId="activityGroup" [options]="groupDropdownOptions(groups, t('chooseGroup'), false)" name="activityGroup" [(ngModel)]="selectedGroupId" (ngModelChange)="refresh()" /></app-field>
+      <app-field class="mt-4" controlId="activityGroup" [label]="t('group')"><app-dropdown controlId="activityGroup" [options]="groupDropdownOptions(groups, t('chooseGroup'), false)" name="activityGroup" [(ngModel)]="selectedGroupId" (ngModelChange)="onGroupChange()" /></app-field>
       @if (selectedGroupId) {
         <app-ui-button variant="outline" class="mt-3" type="button" [disabled]="busy()" (click)="refresh()">{{ t('refresh') }}</app-ui-button>
         @if (busy()) { <app-ui-alert variant="info" class="mt-4">{{ t('loadingActivity') }}</app-ui-alert> }
@@ -56,6 +56,7 @@ const labels: Record<string, MessageKey> = {
 })
 export class ActivityHistory implements OnChanges {
   readonly groupDropdownOptions = groupDropdownOptions;
+  @Output() readonly groupChange = new EventEmitter<string>();
   @Input({ required: true }) groups: Group[] = [];
   @Input({ required: true }) firebaseApp?: FirebaseApp;
   @Input({ required: true }) user?: User;
@@ -83,6 +84,7 @@ export class ActivityHistory implements OnChanges {
     if (changes['revision'] && !changes['revision'].firstChange && this.selectedGroupId) void this.refresh();
   }
   label(action: string): string { return t(labels[action] ?? 'activityRecorded'); }
+  onGroupChange(): void { this.groupChange.emit(this.selectedGroupId); void this.refresh(); }
   actorLabel(userId: string): string { return userId === this.user?.uid ? t('me') : this.memberNames()[userId] || t('otherMember'); }
   date(entry: ActivityEntry): string { return new Intl.DateTimeFormat(locale(), { dateStyle: 'medium', timeStyle: 'short' }).format(entry.at.toDate()); }
   async refresh(): Promise<void> {
