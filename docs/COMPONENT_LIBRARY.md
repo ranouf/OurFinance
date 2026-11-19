@@ -8,6 +8,8 @@ Les composants présentent les données et émettent des événements. Les appel
 
 Le sélecteur générique `UiPeriodRange` expose `range` (`start`, `end` inclusifs au format ISO et `unit`) et `rangeChange`. Il s'ouvre sur l'unité déjà appliquée, ou sur **Jour** par défaut, et propose **Jour**, **Mois** et **Année**. Un seul choix définit une période unique ; un second choix définit une plage. Un mois ou une année s'étend à ses dates de début et de fin. Le panneau s'ouvre sous le champ, se repositionne lors du défilement et se ferme si son champ quitte la vue ; les bornes ont une couleur forte et les dates intermédiaires restent surlignées. `translationPrefix` permet à un hôte de fournir ses libellés via `ngx-translate` ; la galerie emploie `gallery.period`. Le composant reste indépendant des statistiques et n'est utilisé par aucune page métier dans cette PR.
 
+`BrowserDateTimePipe` formate une date avec la langue du navigateur par défaut. Son premier paramètre choisit l'affichage (`Date`, `DateTime`, `ShortDate`, `LongDate`, `Month`, `MonthYear`, `ShortWeekday`, `Weekday`, `Day`, `DayMonth` ou `Year`) ; les paramètres suivants permettent une langue et un fuseau explicites. Exemple : `value | browserDateTime:dateFormat.MonthYear`. Les dates calendaires ISO sans heure conservent leur jour même si un autre fuseau est passé. Le sélecteur utilise ce pipe pour les en-têtes et les mois, avec la langue active de la galerie.
+
 ## Vérification
 
 - `npm run typecheck`, `npm run lint`, `npm run test:unit`, `npm run build`.

@@ -1,13 +1,15 @@
 import { ChangeDetectorRef, Component, ElementRef, EventEmitter, HostListener, inject, Input, OnDestroy, Output, ViewChild } from '@angular/core';
 import { locale } from '../../utils/i18n';
 import { TranslatePipe } from '@ngx-translate/core';
+import { BrowserDateTimePipe } from '../../pipes/browser-date-time.pipe';
+import { BrowserDateTimeFormat, formatBrowserDateTime } from '../../utils/browser-date-time';
 import { localDateIso, selectedRange, selectionFromRange, type SelectionUnit } from './ui-period-range-model';
 
 export interface UiAppliedRange { readonly start: string; readonly end: string; readonly unit?: SelectionUnit; }
 
 @Component({
   selector: 'app-ui-period-range',
-  imports: [TranslatePipe],
+  imports: [BrowserDateTimePipe, TranslatePipe],
   templateUrl: './ui-period-range.html',
 })
 export class UiPeriodRange implements OnDestroy {
@@ -20,6 +22,8 @@ export class UiPeriodRange implements OnDestroy {
   readonly today = localDateIso(new Date());
   @Input() translationPrefix = 'gallery.period';
   readonly String = String;
+  readonly dateFormat = BrowserDateTimeFormat;
+  readonly displayLocale = locale;
   open = false;
   unit: SelectionUnit = 'days';
   first = '';
@@ -126,11 +130,7 @@ export class UiPeriodRange implements OnDestroy {
     this.changeDetector.detectChanges();
   }
   moveMonth(delta: number): void { this.cursorMonth = new Date(Date.UTC(this.cursorMonth.getUTCFullYear(), this.cursorMonth.getUTCMonth() + delta, 1)); }
-  monthLabel(offset: number): string { return new Intl.DateTimeFormat(locale(), { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(Date.UTC(this.cursorMonth.getUTCFullYear(), this.cursorMonth.getUTCMonth() + offset, 1))); }
-  monthLabelShort(index: number): string {
-    const date = new Date(Date.UTC(this.cursorMonth.getUTCFullYear(), this.cursorMonth.getUTCMonth() + index, 1));
-    return new Intl.DateTimeFormat(locale(), { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(date);
-  }
+  monthDate(offset: number): string { return `${this.monthValue(offset)}-01`; }
   weekdays(): string[] { return Array.from({ length: 7 }, (_, index) => new Intl.DateTimeFormat(locale(), { weekday: 'narrow', timeZone: 'UTC' }).format(new Date(Date.UTC(2024, 0, index + 1)))); }
   calendarCells(offset: number): (string | null)[] {
     const year = this.cursorMonth.getUTCFullYear();
@@ -149,7 +149,6 @@ export class UiPeriodRange implements OnDestroy {
   yearStart(): number { return Math.floor(this.cursorYear / 12) * 12; }
   yearChoices(): number[] { return Array.from({ length: 12 }, (_, index) => this.yearStart() + index); }
   private format(value: string, unit: SelectionUnit): string {
-    const date = new Date(`${value}T00:00:00Z`);
-    return new Intl.DateTimeFormat(locale(), unit === 'years' ? { year: 'numeric', timeZone: 'UTC' } : unit === 'months' ? { month: 'long', year: 'numeric', timeZone: 'UTC' } : { dateStyle: 'medium', timeZone: 'UTC' }).format(date);
+    return formatBrowserDateTime(value, unit === 'years' ? BrowserDateTimeFormat.Year : unit === 'months' ? BrowserDateTimeFormat.MonthYear : BrowserDateTimeFormat.ShortDate, locale());
   }
 }

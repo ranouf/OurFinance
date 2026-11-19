@@ -19,13 +19,13 @@
           @if (unit === 'days') {
             <div class="mt-4 flex items-center justify-between gap-3">
               <button class="min-h-11 rounded-xl border border-pop-border px-3 py-2" type="button" [attr.aria-label]="(translationPrefix + '.previousMonths' | translate)" (click)="moveMonth(-1)">←</button>
-              <span class="text-center text-sm font-medium">{{ monthLabel(0) }} – {{ monthLabel(1) }}</span>
+              <span class="text-center text-sm font-medium">{{ monthDate(0) | browserDateTime:dateFormat.MonthYear:displayLocale() }} – {{ monthDate(1) | browserDateTime:dateFormat.MonthYear:displayLocale() }}</span>
               <button class="min-h-11 rounded-xl border border-pop-border px-3 py-2" type="button" [attr.aria-label]="(translationPrefix + '.nextMonths' | translate)" (click)="moveMonth(1)">→</button>
             </div>
             <div class="mt-3 grid gap-4 md:grid-cols-2">
               @for (offset of [0, 1]; track offset) {
                 <div [class.max-md:hidden]="offset === 1">
-                  <h4 class="text-center text-sm font-semibold">{{ monthLabel(offset) }}</h4>
+                  <h4 class="text-center text-sm font-semibold">{{ monthDate(offset) | browserDateTime:dateFormat.MonthYear:displayLocale() }}</h4>
                   <div class="mt-2 grid grid-cols-7 gap-1 text-center text-xs text-pop-muted">
                     @for (day of weekdays(); track $index) { <span>{{ day }}</span> }
                   </div>
@@ -42,12 +42,12 @@
           } @else if (unit === 'months') {
             <div class="mt-4 flex items-center justify-between">
               <button class="min-h-11 rounded-xl border border-pop-border px-3 py-2" type="button" [attr.aria-label]="(translationPrefix + '.previousMonths' | translate)" (click)="moveMonth(-12)">←</button>
-              <span class="text-center font-semibold">{{ monthLabel(0) }} – {{ monthLabel(11) }}</span>
+              <span class="text-center font-semibold">{{ monthDate(0) | browserDateTime:dateFormat.MonthYear:displayLocale() }} – {{ monthDate(11) | browserDateTime:dateFormat.MonthYear:displayLocale() }}</span>
               <button class="min-h-11 rounded-xl border border-pop-border px-3 py-2" type="button" [attr.aria-label]="(translationPrefix + '.nextMonths' | translate)" (click)="moveMonth(12)">→</button>
             </div>
             <div class="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
               @for (month of months; track $index) {
-                <button class="min-h-16 rounded-xl border border-pop-border bg-pop-lavender px-2 py-2 text-sm focus-visible:outline-2 focus-visible:outline-pop-primary" type="button" [class.bg-pop-primary]="isBoundary(monthValue($index))" [class.text-white]="isBoundary(monthValue($index))" [class.bg-pop-lavender]="isInterior(monthValue($index))" [attr.aria-pressed]="inDraft(monthValue($index))" (click)="select(monthValue($index))">{{ monthLabelShort($index) }}</button>
+                <button class="min-h-16 rounded-xl border border-pop-border bg-pop-lavender px-2 py-2 text-sm focus-visible:outline-2 focus-visible:outline-pop-primary" type="button" [class.bg-pop-primary]="isBoundary(monthValue($index))" [class.text-white]="isBoundary(monthValue($index))" [class.bg-pop-lavender]="isInterior(monthValue($index))" [attr.aria-pressed]="inDraft(monthValue($index))" (click)="select(monthValue($index))">{{ monthDate($index) | browserDateTime:dateFormat.MonthYear:displayLocale() }}</button>
               }
             </div>
           } @else {
