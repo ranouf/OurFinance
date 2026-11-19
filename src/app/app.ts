@@ -51,7 +51,10 @@ export class App implements OnInit, OnDestroy {
   readonly pendingInvite = signal<string | null>(null);
   private readonly router = inject(Router);
   private readonly routeEvent = toSignal(this.router.events.pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd)));
-  readonly isComponentsGallery = computed(() => { this.routeEvent(); return isDevMode() && this.router.url.split('?')[0] === '/ui/components'; });
+  readonly isComponentsGallery = computed(() => {
+    this.routeEvent();
+    return isDevMode() && (this.router.url.split('?')[0] === '/ui/components' || (typeof window !== 'undefined' && window.location.pathname === '/ui/components'));
+  });
   readonly pageTitle = computed(() => {
     this.routeEvent();
     const path = this.router.url.split('?')[0];
