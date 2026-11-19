@@ -103,3 +103,9 @@ const sourceErrors: Readonly<Record<string, ExpenseTextKey>> = {
 export function expenseMessage(value: string): string {
   return value in messages.fr ? expenseText(value as ExpenseTextKey) : sourceErrors[value] ? expenseText(sourceErrors[value]) : value;
 }
+
+export function unnamedExpenseMember(userId: string, members: readonly { userId: string }[]): string {
+  const index = members.findIndex(member => member.userId === userId);
+  const label = expenseText('otherMember');
+  return index < 0 ? label : `${label} ${index + 1}`;
+}

@@ -22,7 +22,7 @@ import { categoryLabel } from '../../shared/utils/category-label';
 import { language, locale } from '../../shared/utils/i18n';
 import { parseMinor, prepareExpense, type ExpenseDraft } from './expense-draft';
 import type { SplitMode } from '../../shared/utils/split-engine';
-import { expenseMessage, expenseText } from './expense-text';
+import { expenseMessage, expenseText, unnamedExpenseMember } from './expense-text';
 
 @Component({
   selector: 'app-expense-form', imports: [FieldComponent, ControlErrorsComponent, DropdownComponent, UiCheckboxDirective, UiControlDirective, UiAlert, UiButton, FormsModule],
@@ -216,7 +216,10 @@ export class ExpenseForm implements OnChanges {
       }
     } catch { if (requestId === this.groupRequestId) this.message.set('membersUnavailable'); }
   }
-  memberLabel(userId: string): string { return userId === this.user?.uid ? this.text('me') : this.memberNames()[userId] || `${this.text('otherMember')} ${userId.slice(0, 8)}`; }
+  memberLabel(userId: string): string {
+    if (userId === this.user?.uid) return this.text('me');
+    return this.memberNames()[userId] || unnamedExpenseMember(userId, this.members());
+  }
   private applyPreference(mode: SplitMode): void {
     this.draft.kind = mode.kind;
     const values = new Map<string, string>();
