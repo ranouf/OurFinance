@@ -175,8 +175,8 @@ export class DashboardPage {
   template: `
     <div class="mx-auto max-w-5xl space-y-6">
       <header class="relative overflow-hidden rounded-[1.8rem] bg-pop-primary px-6 py-7 text-white shadow-[0_12px_30px_#6455ec30] sm:min-h-52 sm:px-9 sm:py-10">
-        <div class="relative z-10 max-w-[62%] sm:max-w-md"><p class="text-sm font-bold text-white/75">ourfinance. · {{ t('navGroups') }}</p><h1 class="mt-2 text-3xl font-black sm:text-4xl">{{ t('myGroups') }}</h1><p class="mt-3 text-sm text-white/90 sm:text-base">{{ t('groupsPageIntro') }}</p>
-          @if (!app.groupsError() && !app.groupsBusy() && app.selectedGroup(); as selected) { <p class="mt-4 inline-flex max-w-full flex-wrap gap-1 rounded-full bg-white/15 px-3 py-2 text-sm font-bold"><span class="break-words">{{ selected.name }}</span><span>· {{ selected.currency }}</span></p> }
+        <div class="relative z-10 max-w-[62%] sm:max-w-md"><p class="text-sm font-bold text-white">ourfinance. · {{ t('navGroups') }}</p><h1 class="mt-2 text-3xl font-black sm:text-4xl">{{ t('myGroups') }}</h1><p class="mt-3 text-sm text-white/90 sm:text-base">{{ t('groupsPageIntro') }}</p>
+          @if (!app.groupsError() && !app.groupsBusy() && app.selectedGroup(); as selected) { <p class="mt-4 inline-flex max-w-full flex-wrap gap-1 rounded-full bg-pop-primary-dark px-3 py-2 text-sm font-bold"><span class="break-words">{{ selected.name }}</span><span>· {{ selected.currency }}</span></p> }
         </div>
         <img class="pointer-events-none absolute -bottom-5 -right-8 w-44 max-w-[55%] sm:bottom-[-3.5rem] sm:right-0 sm:w-80" src="/illustrations/friends-planning-trip.webp" alt="" />
       </header>
@@ -290,7 +290,7 @@ export class StatisticsPage { readonly app = inject(App); readonly t = t; }
       @if (app.firebaseApp && app.auth?.user(); as user) {
         <app-profile-panel [user]="user" [firebaseApp]="app.firebaseApp" />
         @if (app.groups().length) {
-          <div id="activity"><app-activity-history [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [revision]="app.expenseRevision() + app.settlementRevision() + app.categoryRevision() + app.commentRevision()" /></div>
+          <div id="activity"><app-activity-history [groups]="app.groups()" [preferredGroupId]="app.selectedGroupId()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" [revision]="app.expenseRevision() + app.settlementRevision() + app.categoryRevision() + app.commentRevision()" (groupChange)="app.selectedGroupId.set($event)" /></div>
           <app-export-panel [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" />
           @if (app.workerUrl) { <app-import-panel [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" />
             <app-restore-panel [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" />

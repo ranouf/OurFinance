@@ -3,8 +3,9 @@ export type RestoreFailureMessage = 'restoreInvalid' | 'restoreUnavailable' | 'r
 
 export async function restoreFailure(response: Response, prepared: boolean, committing = false): Promise<RestoreFailureMessage> {
   const body = await response.json().catch(() => null) as { error?: string } | null;
-  if (body?.error === 'provider_quota_exceeded') return prepared ? 'restorePreparedQuota' : committing ? 'restoreQuotaUncertain' : 'restoreQuota';
+  if (body?.error === 'provider_quota_exceeded') return committing ? 'restoreQuotaUncertain' : prepared ? 'restorePreparedQuota' : 'restoreQuota';
   if (body?.error === 'recovery_required') return 'restoreUncertain';
+  if (committing) return 'restoreUncertain';
   if (prepared) return 'restorePreparedUncertain';
   return response.status === 503 ? 'restoreUnavailable' : 'restoreInvalid';
 }
