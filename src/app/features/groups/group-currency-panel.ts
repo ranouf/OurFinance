@@ -3,7 +3,7 @@ import { DropdownComponent } from '../../shared/components/dropdown/dropdown.com
 import { currencyDropdownOptions, groupDropdownOptions } from '../../shared/components/dropdown/dropdown-options';
 import { UiAlert } from '../../shared/components/ui-alert/ui-alert';
 import { UiButton } from '../../shared/components/ui-button/ui-button';
-import { Component, EventEmitter, Input, Output, computed, signal } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, Output, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { FirebaseApp } from 'firebase/app';
 import type { User } from 'firebase/auth';
@@ -33,10 +33,11 @@ import { locale, t } from '../../shared/utils/i18n';
     }
   `,
 })
-export class GroupCurrencyPanel {
+export class GroupCurrencyPanel implements OnChanges {
   readonly groupDropdownOptions = groupDropdownOptions;
   readonly currencyDropdownOptions = currencyDropdownOptions;
   @Input({ required: true }) groups: readonly Group[] = [];
+  @Input() preferredGroupId = '';
   @Input({ required: true }) user?: User;
   @Input({ required: true }) firebaseApp?: FirebaseApp;
   @Input({ required: true }) workerUrl?: string;
@@ -48,6 +49,12 @@ export class GroupCurrencyPanel {
   readonly messageVariant = signal<'error' | 'success'>('error');
   selectedGroupId = '';
   currencyCode = '';
+  ngOnChanges(): void {
+    if (this.preferredGroupId && this.editableGroups().some(group => group.id === this.preferredGroupId) && this.selectedGroupId !== this.preferredGroupId) {
+      this.selectedGroupId = this.preferredGroupId;
+      this.selectGroup();
+    }
+  }
   editableGroups(): Group[] { return this.groups.filter(group => group.status === 'active' && !group.currencyLocked && group.ownerId === this.user?.uid); }
   selectedGroup(): Group | undefined { return this.editableGroups().find(group => group.id === this.selectedGroupId); }
   selectGroup(): void { this.currencyCode = this.selectedGroup()?.currency ?? ''; this.message.set(''); }
