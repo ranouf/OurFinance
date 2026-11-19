@@ -15,10 +15,10 @@
     <input appUiControl id="metadata-name" name="metadataName" [(ngModel)]="name" maxlength="80" required />
     <div class="grid gap-4 sm:grid-cols-2">
       <app-field controlId="metadata-icon" [label]="text().icon + ' · ' + text().optional">
-        <app-dropdown controlId="metadata-icon" name="metadataIcon" [options]="iconOptions()" [(ngModel)]="iconId" />
+        <app-dropdown controlId="metadata-icon" name="metadataIcon" [options]="editableIconOptions()" [(ngModel)]="iconId" />
       </app-field>
       <app-field controlId="metadata-color" [label]="text().color + ' · ' + text().optional">
-        <app-dropdown controlId="metadata-color" name="metadataColor" [options]="colorOptions()" [(ngModel)]="color" />
+        <app-dropdown controlId="metadata-color" name="metadataColor" [options]="editableColorOptions()" [(ngModel)]="color" />
       </app-field>
     </div>
     <div><label class="block text-sm font-bold" for="metadata-description">{{ text().description }} · {{ text().optional }}</label>

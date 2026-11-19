@@ -171,7 +171,7 @@ export class DashboardPage {
 }
 
 @Component({
-  imports: [FieldComponent, DropdownComponent, UiGroupCard, UiControlDirective, UiButton, UiAlert, FormsModule, GroupCurrencyPanel, GroupLifecyclePanel, GroupMetadataPanel, QrInvitationPanel, CategoryManager],
+  imports: [FieldComponent, DropdownComponent, UiGroupCard, UiControlDirective, UiButton, UiAlert, FormsModule, RouterLink, GroupCurrencyPanel, GroupLifecyclePanel, GroupMetadataPanel, QrInvitationPanel, CategoryManager],
   template: `
     <div class="mx-auto max-w-5xl space-y-6">
       <header class="relative overflow-hidden rounded-[1.8rem] bg-pop-primary px-6 py-7 text-white shadow-[0_12px_30px_#6455ec30] sm:min-h-52 sm:px-9 sm:py-10">
@@ -185,10 +185,17 @@ export class DashboardPage {
       @else if (app.groups().length) {
         <section [attr.aria-label]="t('myGroups')"><div class="mb-3 flex items-center justify-between gap-3"><h2 class="text-xl font-black">{{ t('myGroups') }}</h2><span class="rounded-full bg-pop-lavender px-3 py-1 text-xs font-bold text-pop-primary-dark">{{ app.groups().length }}</span></div><div class="grid gap-3 sm:grid-cols-2">
           @for (group of app.groups(); track group.id) {
-            <app-ui-group-card [name]="group.name" [detail]="(group.memberCount ?? 1) + ' ' + t('membersCount')" [amount]="group.currency" [icon]="$index % 2 ? 'plane' : 'house'" [selected]="app.selectedGroupId() === group.id" [interactive]="true" (activated)="app.selectedGroupId.set(group.id)" />
+            <app-ui-group-card [name]="group.name" [detail]="(group.memberCount ?? 1) + ' ' + t('membersCount') + ' · ' + group.currency" [amount]="app.formatGroupBalance(group)" [amountTone]="app.groupBalanceTone(group)" [icon]="categoryDropdownIcon(group.iconId || 'home') || 'house'" [selected]="app.selectedGroupId() === group.id" [interactive]="true" (activated)="app.selectedGroupId.set(group.id)" />
           }
         </div></section>
       } @else { <p class="rounded-2xl border border-pop-border bg-white p-5 text-pop-muted">{{ t('noGroups') }} {{ t('gettingStartedIntro') }}</p> }
+      @if (!app.groupsError() && app.selectedGroup(); as selected) {
+        <section class="grid grid-cols-2 gap-3 rounded-2xl border border-pop-border bg-white p-4 sm:flex sm:items-center" [attr.aria-label]="t('myBalance')">
+          <div class="col-span-2 min-w-0 sm:flex-1"><p class="truncate text-sm font-bold">{{ selected.name }} · {{ selected.currency }}</p><p class="text-sm text-pop-muted">{{ t('myBalance') }} : <strong class="text-pop-text">{{ app.formatGroupBalance(selected) }}</strong></p></div>
+          <a class="inline-flex min-h-11 items-center justify-center rounded-xl bg-pop-lavender px-3 text-sm font-bold text-pop-primary-dark" routerLink="/expenses" [queryParams]="{ group: selected.id }">{{ t('navExpenses') }}</a>
+          <a class="inline-flex min-h-11 items-center justify-center rounded-xl bg-pop-lavender px-3 text-sm font-bold text-pop-primary-dark" routerLink="/statistics" fragment="settlement-form">{{ t('totalRepayments') }}</a>
+        </section>
+      }
       @if (app.groupServiceReady() && app.auth?.user()?.emailVerified && !app.groupsError()) {
         <form class="max-w-2xl space-y-4 rounded-[1.7rem] border border-pop-border bg-white p-5 shadow-sm sm:p-7" (ngSubmit)="app.createGroup()">
           <div class="flex items-center gap-3"><span class="flex h-11 w-11 items-center justify-center rounded-2xl bg-pop-lavender text-2xl text-pop-primary" aria-hidden="true">＋</span><div><h2 class="text-xl font-black">{{ t('createGroup') }}</h2><p class="text-sm text-pop-muted">{{ t('groupCreateHelp') }}</p></div></div>
@@ -212,9 +219,9 @@ export class DashboardPage {
       @if (!app.groupsError() && !app.groupsBusy() && app.workerUrl && app.auth?.user(); as user) {
         @if (app.firebaseApp && app.selectedGroup(); as selected) { <app-group-lifecycle-panel [group]="selected" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" (changed)="app.onInvitationJoined()" /> }
         @if (app.firebaseApp && app.selectedGroup(); as selected) { <app-group-metadata-panel [group]="selected" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" (changed)="app.onInvitationJoined()" /> }
-        @if (app.firebaseApp && app.groups().length) { <app-group-currency-panel [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" (changed)="app.onInvitationJoined()" /> }
+        @if (app.firebaseApp && app.groups().length) { <app-group-currency-panel [groups]="app.groups()" [preferredGroupId]="app.selectedGroupId()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" (changed)="app.onInvitationJoined()" /> }
         <app-qr-invitation-panel id="qr-invitations" [groups]="app.groups()" [preferredGroupId]="app.selectedGroupId()" [user]="user" [workerUrl]="app.workerUrl" />
-        @if (app.firebaseApp && app.groups().length) { <app-category-manager [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" (changed)="app.onCategoryChanged()" /> }
+        @if (app.firebaseApp && app.groups().length) { <app-category-manager [groups]="app.groups()" [preferredGroupId]="app.selectedGroupId()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" (changed)="app.onCategoryChanged()" /> }
       }
       @if (app.message() && !app.groupsError()) { <app-ui-alert variant="error">{{ app.message() }}</app-ui-alert> }
     </div>
@@ -224,6 +231,7 @@ export class GroupsPage {
   readonly app = inject(App);
   readonly t = t;
   readonly currencyDropdownOptions = currencyDropdownOptions;
+  readonly categoryDropdownIcon = categoryDropdownIcon;
   readonly metadataText = computed(() => groupMetadataText[language()]);
   readonly iconOptions = computed<DropdownOption[]>(() => [
     { value: '', label: this.metadataText().none },

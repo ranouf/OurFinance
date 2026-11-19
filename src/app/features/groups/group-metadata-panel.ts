@@ -35,6 +35,8 @@ export class GroupMetadataPanel implements OnChanges {
     { value: '', label: this.text().none },
     ...this.colors.map((color, index) => ({ value: color.id, label: this.text().colors[index] })),
   ]);
+  editableIconOptions(): DropdownOption[] { return this.group.iconId ? this.iconOptions().slice(1) : this.iconOptions(); }
+  editableColorOptions(): DropdownOption[] { return this.group.color ? this.colorOptions().slice(1) : this.colorOptions(); }
   readonly busy = signal(false);
   readonly failed = signal(false);
   readonly message = signal('');
