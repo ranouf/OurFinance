@@ -1,3 +1,7 @@
+import { categoryDropdownOptions } from '../../shared/utils/category-dropdown-options';
+import { FieldComponent } from '../../shared/components/field/field.component';
+import { DropdownComponent, type DropdownOption } from '../../shared/components/dropdown/dropdown.component';
+import { groupDropdownOptions } from '../../shared/components/dropdown/dropdown-options';
 import { UiCheckboxDirective } from '../../shared/components/checkbox/ui-checkbox.directive';
 import { UiControlDirective } from '../../shared/components/ui-field/ui-control.directive';
 import { UiAlert } from '../../shared/components/ui-alert/ui-alert';
@@ -19,7 +23,7 @@ import type { SplitMode } from '../../shared/utils/split-engine';
 import { expenseMessage, expenseText } from './expense-text';
 
 @Component({
-  selector: 'app-expense-form', imports: [UiCheckboxDirective, UiControlDirective, UiAlert, UiButton, FormsModule],
+  selector: 'app-expense-form', imports: [FieldComponent, DropdownComponent, UiCheckboxDirective, UiControlDirective, UiAlert, UiButton, FormsModule],
   template: `
     <section class="mt-6 rounded-3xl border border-pop-border bg-pop-surface p-5 text-pop-text shadow-sm md:p-7" [attr.aria-label]="editing ? text('editExpense') : text('newExpense')">
       <div class="mb-5 h-1.5 w-14 rounded-full bg-pop-coral" aria-hidden="true"></div>
@@ -27,12 +31,7 @@ import { expenseMessage, expenseText } from './expense-text';
       @if (editing) { <p class="mt-1 text-sm text-pop-muted">{{ text('authorOnly') }}</p> }
       <p class="mt-2 text-sm leading-6 text-pop-muted">{{ text('splitHelp') }}</p>
       <form class="mt-6 grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4" (ngSubmit)="save()">
-        <label class="block text-sm font-bold">{{ text('group') }}
-          <select appUiControl class="mt-2 w-full" name="group" [(ngModel)]="selectedGroupId" (ngModelChange)="loadGroup()" [disabled]="!!editing" required>
-            <option value="">{{ text('chooseGroup') }}</option>
-            @for (group of groups; track group.id) { <option [value]="group.id">{{ group.name }}</option> }
-          </select>
-        </label>
+        <app-field class="block" controlId="group" [label]="text('group')"><app-dropdown controlId="group" [options]="groupDropdownOptions(groups, text('chooseGroup'), false)" name="group" [(ngModel)]="selectedGroupId" (ngModelChange)="loadGroup()" [disabled]="!!editing" required /></app-field>
         @if (selectedGroupId) {
           <label class="block text-sm font-bold">{{ text('description') }}
             <input appUiControl class="mt-2 w-full" name="description" [(ngModel)]="draft.description" maxlength="160" required />
@@ -48,19 +47,15 @@ import { expenseMessage, expenseText } from './expense-text';
           <label class="block text-sm font-bold">{{ text('date') }}
             <input appUiControl class="mt-2 w-full" type="date" name="date" [(ngModel)]="draft.date" required />
           </label>
-          <label class="block text-sm font-bold">{{ text('category') }}
-            <select appUiControl class="mt-2 w-full" name="category" [(ngModel)]="draft.categoryId">
-                @for (category of availableCategories(); track category.id) { <option [value]="category.id">{{ category.icon }} {{ categoryLabel(category.id, language(), category.label) }}</option> }
-            </select>
-          </label>
+          <app-field class="block" controlId="expense-category" [label]="text('category')">
+            <app-dropdown controlId="expense-category" name="category" [options]="expenseCategoryOptions()" [(ngModel)]="draft.categoryId" />
+          </app-field>
           @if (members().length) {
             @if (members().length > 1) { <label class="flex min-h-11 items-center gap-2 text-sm font-bold"><input appUiCheckbox class="size-5 accent-pop-primary focus-visible:outline-2 focus-visible:outline-pop-primary" type="checkbox" name="multiplePayers" [(ngModel)]="draft.multiplePayers" />{{ text('multiplePayers') }}</label> }
             @if (!draft.multiplePayers) {
-              <label class="block text-sm font-bold">{{ text('paidBy') }}
-                <select appUiControl class="mt-2 w-full" name="payer" [(ngModel)]="draft.payerId" required>
-                  @for (member of members(); track member.userId) { <option [value]="member.userId">{{ member.userId === user?.uid ? text('me') : member.userId }}</option> }
-                </select>
-              </label>
+              <app-field class="block" controlId="expense-payer" [label]="text('paidBy')" [required]="true">
+                <app-dropdown controlId="expense-payer" name="payer" [options]="payerOptions()" [(ngModel)]="draft.payerId" required />
+              </app-field>
             } @else {
               <fieldset class="rounded-2xl border border-pop-border bg-pop-lavender p-4">
                 <legend class="px-2 text-sm font-extrabold text-pop-primary-dark">{{ text('paidBy') }}</legend>
@@ -75,9 +70,9 @@ import { expenseMessage, expenseText } from './expense-text';
             }
             <fieldset class="rounded-2xl border border-pop-border bg-pop-lavender p-4">
               <legend class="px-2 text-sm font-extrabold text-pop-primary-dark">{{ text('split') }}</legend>
-              <select appUiControl class="mt-2 w-full" name="mode" [(ngModel)]="draft.kind" (ngModelChange)="clearValues()" [attr.aria-label]="text('splitMethod')">
-                <option value="equal">{{ text('equal') }}</option><option value="exact">{{ text('exact') }}</option><option value="percentage">{{ text('percentage') }}</option><option value="shares">{{ text('shares') }}</option><option value="adjustment">{{ text('adjustment') }}</option>
-              </select>
+              <app-field controlId="expense-split-mode" [label]="text('splitMethod')">
+                <app-dropdown controlId="expense-split-mode" name="mode" [options]="splitModeOptions()" [(ngModel)]="draft.kind" (ngModelChange)="clearValues()" />
+              </app-field>
               @for (row of draft.rows; track row.userId; let i = $index) {
                 <div class="mt-3 flex min-h-11 items-center gap-3 rounded-xl bg-pop-surface px-3 py-2">
                   <label class="flex min-w-0 flex-1 items-center gap-2 text-sm"><input appUiCheckbox class="size-5 shrink-0 accent-pop-primary" type="checkbox" [name]="'selected-' + i" [(ngModel)]="row.selected" /><span class="min-w-0 break-all">{{ row.userId === user?.uid ? text('me') : row.userId }}</span></label>
@@ -103,6 +98,10 @@ import { expenseMessage, expenseText } from './expense-text';
   `,
 })
 export class ExpenseForm implements OnChanges {
+  readonly groupDropdownOptions = groupDropdownOptions;
+  expenseCategoryOptions(): DropdownOption[] { return categoryDropdownOptions(this.availableCategories(), category => categoryLabel(category.id, language(), category.label)); }
+  payerOptions(): DropdownOption[] { return this.members().map(member => ({ value: member.userId, label: member.userId === this.user?.uid ? this.text('me') : member.userId })); }
+  splitModeOptions(): DropdownOption[] { return (['equal', 'exact', 'percentage', 'shares', 'adjustment'] as const).map(value => ({ value, label: this.text(value) })); }
   constructor(private readonly changeDetector: ChangeDetectorRef) {}
   @ViewChildren('paymentInput') private paymentInputs?: QueryList<ElementRef<HTMLInputElement>>;
   @ViewChildren('payerCheckbox') private payerCheckboxes?: QueryList<ElementRef<HTMLInputElement>>;

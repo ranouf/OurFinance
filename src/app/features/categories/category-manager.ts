@@ -1,3 +1,6 @@
+import { FieldComponent } from '../../shared/components/field/field.component';
+import { DropdownComponent, type DropdownOption } from '../../shared/components/dropdown/dropdown.component';
+import { groupDropdownOptions } from '../../shared/components/dropdown/dropdown-options';
 import { UiControlDirective } from '../../shared/components/ui-field/ui-control.directive';
 import { UiAlert } from '../../shared/components/ui-alert/ui-alert';
 import { UiButton } from '../../shared/components/ui-button/ui-button';
@@ -13,38 +16,26 @@ import { language, t, type MessageKey } from '../../shared/utils/i18n';
 
 @Component({
   selector: 'app-category-manager',
-  imports: [UiControlDirective, UiAlert, UiButton, FormsModule],
+  imports: [FieldComponent, DropdownComponent, UiControlDirective, UiAlert, UiButton, FormsModule],
   template: `
     <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-5" [attr.aria-label]="t('groupCategories')">
       <h2 class="text-lg font-semibold">{{ t('groupCategories') }}</h2>
       <p class="mt-1 text-sm text-slate-600">{{ t('categoryIntro') }}</p>
-      <label class="mt-4 block text-sm font-medium">{{ t('group') }}
-        <select appUiControl class="mt-1 w-full" name="categoryGroup" [(ngModel)]="selectedGroupId" (ngModelChange)="loadGroup()">
-          <option value="">{{ t('chooseGroup') }}</option>
-          @for (group of groups; track group.id) { <option [value]="group.id">{{ group.name }}</option> }
-        </select>
-      </label>
+      <app-field class="mt-4" controlId="categoryGroup" [label]="t('group')"><app-dropdown controlId="categoryGroup" [options]="groupDropdownOptions(groups, t('chooseGroup'), false)" name="categoryGroup" [(ngModel)]="selectedGroupId" (ngModelChange)="loadGroup()" /></app-field>
       @if (selectedGroupId) {
-        <label class="mt-4 block text-sm font-medium">{{ t('customCategory') }}
-          <select appUiControl class="mt-1 w-full" name="managedCategory" [(ngModel)]="selectedId" (ngModelChange)="selectCategory()">
-            <option value="">{{ t('newCategory') }}</option>
-            @for (category of items(); track category.id) { <option [value]="category.id">{{ category.icon }} {{ category.label }}{{ category.status === 'archived' ? t('archivedSuffix') : '' }}</option> }
-          </select>
-        </label>
+        <app-field class="mt-4 block" controlId="managed-category" [label]="t('customCategory')">
+          <app-dropdown controlId="managed-category" name="managedCategory" [options]="managedCategoryOptions()" [(ngModel)]="selectedId" (ngModelChange)="selectCategory()" />
+        </app-field>
         <label class="mt-3 block text-sm font-medium">{{ t('categoryName') }}
           <input appUiControl class="mt-1 w-full" name="categoryName" [(ngModel)]="draft.name" maxlength="40" />
         </label>
         <div class="mt-3 grid grid-cols-2 gap-3">
-          <label class="block text-sm font-medium">{{ t('categoryIcon') }}
-            <select appUiControl class="mt-1 w-full" name="categoryIcon" [(ngModel)]="draft.iconId">
-              @for (icon of icons; track icon.id) { <option [value]="icon.id">{{ icon.glyph }} {{ iconLabel(icon.id) }}</option> }
-            </select>
-          </label>
-          <label class="block text-sm font-medium">{{ t('categoryColor') }}
-            <select appUiControl class="mt-1 w-full" name="categoryColor" [(ngModel)]="draft.color">
-              @for (color of colors; track color.id) { <option [value]="color.id">{{ colorLabel(color.id) }}</option> }
-            </select>
-          </label>
+          <app-field class="block" controlId="category-icon" [label]="t('categoryIcon')">
+            <app-dropdown controlId="category-icon" name="categoryIcon" [options]="iconOptions()" [(ngModel)]="draft.iconId" />
+          </app-field>
+          <app-field class="block" controlId="category-color" [label]="t('categoryColor')">
+            <app-dropdown controlId="category-color" name="categoryColor" [options]="colorOptions()" [(ngModel)]="draft.color" />
+          </app-field>
         </div>
         <p class="mt-3 text-sm"><span class="rounded-md px-2 py-1" [class]="colorClass(draft.color)">{{ previewIcon() }} {{ draft.name || t('categoryPreview') }}</span></p>
         <div class="mt-4 flex flex-wrap gap-2">
@@ -60,6 +51,10 @@ import { language, t, type MessageKey } from '../../shared/utils/i18n';
   `,
 })
 export class CategoryManager implements OnChanges {
+  managedCategoryOptions(): DropdownOption[] { return [{ value: '', label: this.t('newCategory') }, ...this.items().map(category => ({ value: category.id, label: `${category.icon} ${category.label}${category.status === 'archived' ? this.t('archivedSuffix') : ''}` }))]; }
+  iconOptions(): DropdownOption[] { return this.icons.map(icon => ({ value: icon.id, label: `${icon.glyph} ${this.iconLabel(icon.id)}` })); }
+  colorOptions(): DropdownOption[] { return this.colors.map(color => ({ value: color.id, label: this.colorLabel(color.id) })); }
+  readonly groupDropdownOptions = groupDropdownOptions;
   readonly t = t;
   @Input({ required: true }) groups: Group[] = [];
   @Input({ required: true }) firebaseApp?: FirebaseApp;

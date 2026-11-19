@@ -1,4 +1,6 @@
-import { UiControlDirective } from '../../shared/components/ui-field/ui-control.directive';
+import { FieldComponent } from '../../shared/components/field/field.component';
+import { DropdownComponent } from '../../shared/components/dropdown/dropdown.component';
+import { groupDropdownOptions } from '../../shared/components/dropdown/dropdown-options';
 import { UiAlert } from '../../shared/components/ui-alert/ui-alert';
 import { UiButton } from '../../shared/components/ui-button/ui-button';
 import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, signal } from '@angular/core';
@@ -13,18 +15,13 @@ import { locale, t } from '../../shared/utils/i18n';
 
 @Component({
   selector: 'app-balance-summary',
-  imports: [UiControlDirective, UiAlert, UiButton, FormsModule],
+  imports: [FieldComponent, DropdownComponent, UiAlert, UiButton, FormsModule],
   template: `
     <section class="mt-6 rounded-3xl border border-pop-border bg-pop-surface p-5 text-pop-text shadow-sm md:p-7" [attr.aria-label]="t('groupBalances')">
       <div class="mb-5 h-1.5 w-14 rounded-full bg-pop-sun" aria-hidden="true"></div>
       <h2 class="text-2xl font-extrabold tracking-tight">{{ t('groupBalances') }}</h2>
       <p class="mt-1 text-sm text-pop-muted">{{ t('balanceIntro') }}</p>
-      <label class="mt-5 block text-sm font-bold">{{ t('group') }}
-        <select appUiControl class="mt-2 w-full" name="balanceGroup" [(ngModel)]="selectedGroupId" (ngModelChange)="onGroupChange()">
-          <option value="">{{ t('chooseGroup') }}</option>
-          @for (group of groups; track group.id) { <option [value]="group.id">{{ group.name }}</option> }
-        </select>
-      </label>
+      <app-field class="mt-5" controlId="balanceGroup" [label]="t('group')"><app-dropdown controlId="balanceGroup" [options]="groupDropdownOptions(groups, t('chooseGroup'), false)" name="balanceGroup" [(ngModel)]="selectedGroupId" (ngModelChange)="onGroupChange()" /></app-field>
       @if (selectedGroupId) {
         <app-ui-button variant="primary" class="mt-3" type="button" [disabled]="busy()" (click)="refresh()">{{ t('refresh') }}</app-ui-button>
         @for (currency of currencies(); track currency) {
@@ -47,6 +44,7 @@ import { locale, t } from '../../shared/utils/i18n';
   `,
 })
 export class BalanceSummary implements OnChanges {
+  readonly groupDropdownOptions = groupDropdownOptions;
   @Output() readonly groupChange = new EventEmitter<string>();
   @Input({ required: true }) groups: Group[] = [];
   @Input() preferredGroupId = '';

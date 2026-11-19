@@ -1,4 +1,6 @@
-import { UiControlDirective } from '../../shared/components/ui-field/ui-control.directive';
+import { FieldComponent } from '../../shared/components/field/field.component';
+import { DropdownComponent } from '../../shared/components/dropdown/dropdown.component';
+import { groupDropdownOptions } from '../../shared/components/dropdown/dropdown-options';
 import { UiAlert } from '../../shared/components/ui-alert/ui-alert';
 import { UiButton } from '../../shared/components/ui-button/ui-button';
 import { Component, Input, OnChanges, SimpleChanges, signal } from '@angular/core';
@@ -26,16 +28,11 @@ const labels: Record<string, MessageKey> = {
 
 @Component({
   selector: 'app-activity-history',
-  imports: [UiControlDirective, UiAlert, UiButton, FormsModule],
+  imports: [FieldComponent, DropdownComponent, UiAlert, UiButton, FormsModule],
   template: `
     <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-5" [attr.aria-label]="t('groupActivity')">
       <h2 class="text-lg font-semibold">{{ t('groupActivity') }}</h2>
-      <label class="mt-4 block text-sm font-medium">{{ t('group') }}
-        <select appUiControl class="mt-1 w-full" name="activityGroup" [(ngModel)]="selectedGroupId" (ngModelChange)="refresh()">
-          <option value="">{{ t('chooseGroup') }}</option>
-          @for (group of groups; track group.id) { <option [value]="group.id">{{ group.name }}</option> }
-        </select>
-      </label>
+      <app-field class="mt-4" controlId="activityGroup" [label]="t('group')"><app-dropdown controlId="activityGroup" [options]="groupDropdownOptions(groups, t('chooseGroup'), false)" name="activityGroup" [(ngModel)]="selectedGroupId" (ngModelChange)="refresh()" /></app-field>
       @if (selectedGroupId) {
         <app-ui-button variant="outline" class="mt-3" type="button" [disabled]="busy()" (click)="refresh()">{{ t('refresh') }}</app-ui-button>
         @if (entries().length) {
@@ -55,6 +52,7 @@ const labels: Record<string, MessageKey> = {
   `,
 })
 export class ActivityHistory implements OnChanges {
+  readonly groupDropdownOptions = groupDropdownOptions;
   @Input({ required: true }) groups: Group[] = [];
   @Input({ required: true }) firebaseApp?: FirebaseApp;
   @Input({ required: true }) user?: User;

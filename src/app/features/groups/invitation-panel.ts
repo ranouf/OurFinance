@@ -1,3 +1,6 @@
+import { FieldComponent } from '../../shared/components/field/field.component';
+import { DropdownComponent } from '../../shared/components/dropdown/dropdown.component';
+import { groupDropdownOptions } from '../../shared/components/dropdown/dropdown-options';
 import { UiControlDirective } from '../../shared/components/ui-field/ui-control.directive';
 import { UiAlert } from '../../shared/components/ui-alert/ui-alert';
 import { UiButton } from '../../shared/components/ui-button/ui-button';
@@ -9,19 +12,16 @@ import type { Group } from '../../core/firebase/group-model';
 
 @Component({
   selector: 'app-invitation-panel',
-  imports: [UiControlDirective, UiAlert, UiButton, FormsModule],
+  imports: [FieldComponent, DropdownComponent, UiControlDirective, UiAlert, UiButton, FormsModule],
   template: `
     <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-5" aria-label="Invitations">
       <h2 class="text-lg font-semibold">Invitations</h2>
       <p class="mt-1 text-sm text-slate-600">Le propriétaire invite une adresse confirmée. Transmettez le code par un canal privé ; il n'est conservé que pendant cette session.</p>
       @if (ownedGroups().length) {
         <form class="mt-4 space-y-3" (ngSubmit)="create()">
-          <label class="block text-sm font-medium">Groupe
-            <select appUiControl class="mt-1 w-full" name="invitationGroup" [(ngModel)]="selectedGroupId" required>
-              <option value="">Choisir un groupe</option>
-              @for (group of ownedGroups(); track group.id) { <option [value]="group.id">{{ group.name }}</option> }
-            </select>
-          </label>
+          <app-field class="block" controlId="invitation-group" label="Groupe">
+            <app-dropdown controlId="invitation-group" name="invitationGroup" [options]="groupDropdownOptions(ownedGroups(), 'Choisir un groupe')" [(ngModel)]="selectedGroupId" required />
+          </app-field>
           <label class="block text-sm font-medium">Courriel du destinataire
             <input appUiControl class="mt-1 w-full" type="email" name="targetEmail" [(ngModel)]="targetEmail" autocomplete="off" required />
           </label>
@@ -46,6 +46,7 @@ import type { Group } from '../../core/firebase/group-model';
   `,
 })
 export class InvitationPanel {
+  readonly groupDropdownOptions = groupDropdownOptions;
   @Input({ required: true }) groups: Group[] = [];
   @Input({ required: true }) user?: User;
   @Input({ required: true }) workerUrl = '';

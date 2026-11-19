@@ -1,4 +1,6 @@
-import { UiControlDirective } from '../../shared/components/ui-field/ui-control.directive';
+import { FieldComponent } from '../../shared/components/field/field.component';
+import { DropdownComponent } from '../../shared/components/dropdown/dropdown.component';
+import { groupDropdownOptions } from '../../shared/components/dropdown/dropdown-options';
 import { UiAlert } from '../../shared/components/ui-alert/ui-alert';
 import { UiButton } from '../../shared/components/ui-button/ui-button';
 import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, signal } from '@angular/core';
@@ -20,19 +22,14 @@ import { StatisticsService, type StatisticsTotals } from './statistics-service';
 
 @Component({
   selector: 'app-statistics-summary',
-  imports: [UiControlDirective, UiAlert, UiButton, FormsModule, UiPeriodRange, StatisticsCharts],
+  imports: [FieldComponent, DropdownComponent, UiAlert, UiButton, FormsModule, UiPeriodRange, StatisticsCharts],
   template: `
     <section class="mt-6 rounded-3xl border border-pop-border bg-pop-surface p-5 text-pop-text shadow-sm md:p-7" [attr.aria-label]="text('title')">
       <div class="mb-5 hidden h-1.5 w-14 rounded-full bg-pop-sun sm:block" aria-hidden="true"></div>
       <h2 class="sr-only text-2xl font-extrabold tracking-tight sm:not-sr-only">{{ text('title') }}</h2>
       <p class="sr-only mt-1 text-sm text-pop-muted sm:not-sr-only">{{ text('intro') }}</p>
       <div class="grid gap-3 sm:grid-cols-2 sm:items-end">
-        @if (groups.length > 1) { <label class="mt-5 block text-sm font-bold">{{ text('group') }}
-            <select appUiControl class="mt-2 w-full" name="statisticsGroup" [(ngModel)]="selectedGroupId" (ngModelChange)="onGroupChange()">
-              <option value="">{{ text('chooseGroup') }}</option>
-              @for (group of groups; track group.id) { <option [value]="group.id">{{ group.name }}</option> }
-            </select>
-          </label> }
+        @if (groups.length > 1) { <app-field class="mt-5" controlId="statisticsGroup" [label]="text('group')"><app-dropdown controlId="statisticsGroup" [options]="groupDropdownOptions(groups, text('chooseGroup'), false)" name="statisticsGroup" [(ngModel)]="selectedGroupId" (ngModelChange)="onGroupChange()" /></app-field> }
         @if (selectedGroupId) { <app-ui-period-range [range]="range" (rangeChange)="setRange($event)" /> }
       </div>
       @if (selectedGroupId) {
@@ -61,6 +58,7 @@ import { StatisticsService, type StatisticsTotals } from './statistics-service';
   `,
 })
 export class StatisticsSummary implements OnChanges {
+  readonly groupDropdownOptions = groupDropdownOptions;
   @Output() readonly groupChange = new EventEmitter<string>();
   @Input({ required: true }) groups: Group[] = [];
   @Input() preferredGroupId = '';

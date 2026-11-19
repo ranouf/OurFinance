@@ -5,12 +5,7 @@
     <h2 class="text-2xl font-extrabold tracking-tight">{{ text('receiptCleanupHeading') }}</h2>
     <p class="mt-1 text-sm text-pop-muted">{{ text('receiptCleanupHelp') }}</p>
     <div class="mt-5 flex flex-wrap items-end gap-3">
-      <label class="min-w-48 flex-1 text-sm font-bold">{{ text('group') }}
-        <select appUiControl class="mt-2 w-full"
-          name="receiptCleanupGroup" [(ngModel)]="groupId" (ngModelChange)="message.set(null)">
-          @for (group of ownerGroups(); track group.id) { <option [value]="group.id">{{ group.name }}</option> }
-        </select>
-      </label>
+      <app-field class="min-w-48 flex-1" controlId="receiptCleanupGroup" [label]="text('group')"><app-dropdown controlId="receiptCleanupGroup" [options]="groupDropdownOptions(ownerGroups(), undefined, false)" name="receiptCleanupGroup" [(ngModel)]="groupId" (ngModelChange)="message.set(null)" /></app-field>
       <app-ui-button variant="primary"
         type="button" [disabled]="busy() || !user?.emailVerified" (click)="run()">
         {{ busy() ? text('receiptCleanupRunning') : text('receiptCleanupAction') }}

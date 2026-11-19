@@ -1,3 +1,6 @@
+import { categoryDropdownOptions } from '../../shared/utils/category-dropdown-options';
+import { FieldComponent } from '../../shared/components/field/field.component';
+import { DropdownComponent, type DropdownOption } from '../../shared/components/dropdown/dropdown.component';
 import { UiControlDirective } from '../../shared/components/ui-field/ui-control.directive';
 import { UiAlert } from '../../shared/components/ui-alert/ui-alert';
 import { UiButton } from '../../shared/components/ui-button/ui-button';
@@ -21,24 +24,18 @@ import { expenseMessage, expenseText } from './expense-text';
 
 @Component({
   selector: 'app-expense-history',
-  imports: [UiControlDirective, UiAlert, UiButton, FormsModule, ReceiptPanel, CommentPanel],
+  imports: [FieldComponent, DropdownComponent, UiControlDirective, UiAlert, UiButton, FormsModule, ReceiptPanel, CommentPanel],
   template: `
     <section class="mt-6 rounded-3xl border border-pop-border bg-pop-surface p-5 text-pop-text shadow-sm md:p-7" [attr.aria-label]="text('history')">
       <div class="mb-5 h-1.5 w-14 rounded-full bg-pop-sun" aria-hidden="true"></div>
       <h2 class="text-2xl font-extrabold tracking-tight">{{ text('history') }}</h2>
-      <label class="mt-5 block text-sm font-bold">{{ text('group') }}
-        <select appUiControl class="mt-2 w-full" name="historyGroup" [(ngModel)]="selectedGroupId" (ngModelChange)="onGroupChange()">
-          <option value="">{{ text('chooseGroup') }}</option>
-          @for (group of groups; track group.id) { <option [value]="group.id">{{ group.name }}</option> }
-        </select>
-      </label>
+      <app-field class="mt-5 block" controlId="history-group" [label]="text('group')">
+        <app-dropdown controlId="history-group" name="historyGroup" [options]="groupOptions()" [(ngModel)]="selectedGroupId" (ngModelChange)="onGroupChange()" />
+      </app-field>
       @if (selectedGroupId) {
-        <label class="mt-4 block text-sm font-bold">{{ text('category') }}
-          <select appUiControl class="mt-2 w-full" name="historyCategory" [(ngModel)]="selectedCategoryId" (ngModelChange)="refresh()">
-            <option value="">{{ text('allCategories') }}</option>
-            @for (category of categoryOptions(); track category.id) { <option [value]="category.id">{{ category.icon }} {{ categoryLabel(category.id, language(), category.label) }}</option> }
-          </select>
-        </label>
+        <app-field class="mt-4 block" controlId="history-category" [label]="text('category')">
+          <app-dropdown controlId="history-category" name="historyCategory" [options]="categoryDropdownOptions()" [(ngModel)]="selectedCategoryId" (ngModelChange)="refresh()" />
+        </app-field>
         <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end">
           <label class="block min-w-0 flex-1 text-sm font-bold">{{ text('searchAll') }}
             <input appUiControl class="mt-2 w-full" type="search" name="historySearch" [(ngModel)]="search" [placeholder]="text('searchPlaceholder')" />
@@ -55,12 +52,9 @@ import { expenseMessage, expenseText } from './expense-text';
               <input appUiControl class="mt-2 w-full" type="date" name="historyTo" [(ngModel)]="to" (ngModelChange)="refresh()" />
             </label>
           </div>
-          <label class="mt-3 block text-sm font-bold">{{ text('participant') }}
-            <select appUiControl class="mt-2 w-full" name="historyParticipant" [(ngModel)]="selectedParticipantId" (ngModelChange)="refresh()">
-              <option value="">{{ text('allParticipants') }}</option>
-              @for (member of participantOptions(); track member.userId) { <option [value]="member.userId">{{ memberLabel(member.userId) }}</option> }
-            </select>
-          </label>
+          <app-field class="mt-3 block" controlId="history-participant" [label]="text('participant')">
+            <app-dropdown controlId="history-participant" name="historyParticipant" [options]="participantDropdownOptions()" [(ngModel)]="selectedParticipantId" (ngModelChange)="refresh()" />
+          </app-field>
           @if (from && to && from > to) { <p class="mt-2 text-sm text-rose-700">{{ text('invalidDates') }}</p> }
         </details>
         @if (hasFilter()) { <p class="mt-2 text-sm text-pop-muted">{{ scannedCount() }} {{ text('scanned') }}</p> }
@@ -170,6 +164,9 @@ export class ExpenseHistory implements OnChanges {
   amount(entry: ExpenseHistoryEntry): string { return this.format(entry.amountMinor, entry.currency); }
   format(amountMinor: number, currency: string): string { return formatMinor(amountMinor, currency, locale()); }
   displayDate(date: string): string { return new Intl.DateTimeFormat(locale(), { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date(`${date}T12:00:00Z`)); }
+  groupOptions(): DropdownOption[] { return [{ value: '', label: this.text('chooseGroup') }, ...this.groups.map(group => ({ value: group.id, label: group.name }))]; }
+  categoryDropdownOptions(): DropdownOption[] { return categoryDropdownOptions(this.categoryOptions(), category => categoryLabel(category.id, language(), category.label), this.text('allCategories')); }
+  participantDropdownOptions(): DropdownOption[] { return [{ value: '', label: this.text('allParticipants') }, ...this.participantOptions().map(member => ({ value: member.userId, label: this.memberLabel(member.userId) }))]; }
   memberLabel(userId: string): string { return userId === this.user?.uid ? this.text('me') : userId; }
   groupOwnerId(): string { return this.groups.find(group => group.id === this.selectedGroupId)?.ownerId ?? ''; }
   onToggle(expenseId: string, event: Event): void {

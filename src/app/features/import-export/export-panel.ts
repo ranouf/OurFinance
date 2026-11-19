@@ -1,4 +1,6 @@
-import { UiControlDirective } from '../../shared/components/ui-field/ui-control.directive';
+import { FieldComponent } from '../../shared/components/field/field.component';
+import { DropdownComponent, type DropdownOption } from '../../shared/components/dropdown/dropdown.component';
+import { groupDropdownOptions } from '../../shared/components/dropdown/dropdown-options';
 import { UiAlert } from '../../shared/components/ui-alert/ui-alert';
 import { UiButton } from '../../shared/components/ui-button/ui-button';
 import { Component, Input, signal } from '@angular/core';
@@ -18,27 +20,17 @@ type ExportKind = 'csv' | 'json' | 'zip' | 'zip-v2';
 
 @Component({
   selector: 'app-export-panel',
-  imports: [UiControlDirective, UiAlert, UiButton, FormsModule],
+  imports: [FieldComponent, DropdownComponent, UiAlert, UiButton, FormsModule],
   template: `
     <section class="mt-6 rounded-3xl border border-pop-border bg-pop-surface p-5 text-pop-text shadow-sm md:p-7" [attr.aria-label]="t('exportGroup')">
       <div class="mb-5 h-1.5 w-14 rounded-full bg-pop-sun" aria-hidden="true"></div>
       <h2 class="text-2xl font-extrabold tracking-tight">{{ t('exportGroup') }}</h2>
       <p class="mt-1 text-sm text-pop-muted">{{ t(kind === 'zip-v2' ? 'exportV2Partial' : 'exportPartial') }}</p>
       <div class="mt-5 space-y-4">
-        <label class="block text-sm font-bold">{{ t('group') }}
-          <select appUiControl class="mt-2 w-full" name="exportGroup" [(ngModel)]="groupId">
-            <option value="">{{ t('chooseGroup') }}</option>
-            @for (group of groups; track group.id) { <option [value]="group.id">{{ group.name }}</option> }
-          </select>
-        </label>
-        <label class="block text-sm font-bold">{{ t('exportFormat') }}
-          <select appUiControl class="mt-2 w-full" name="exportKind" [(ngModel)]="kind">
-            <option value="csv">{{ t('exportCsv') }}</option>
-            <option value="json">{{ t('exportJson') }}</option>
-            <option value="zip">{{ t('exportZip') }}</option>
-            <option value="zip-v2">{{ t('exportZipV2') }}</option>
-          </select>
-        </label>
+        <app-field class="block" controlId="exportGroup" [label]="t('group')"><app-dropdown controlId="exportGroup" [options]="groupDropdownOptions(groups, t('chooseGroup'), false)" name="exportGroup" [(ngModel)]="groupId" /></app-field>
+        <app-field class="block" controlId="export-kind" [label]="t('exportFormat')">
+          <app-dropdown controlId="export-kind" name="exportKind" [options]="exportKindOptions()" [(ngModel)]="kind" />
+        </app-field>
         @if (kind === 'zip' || kind === 'zip-v2') { <p class="rounded-xl bg-pop-peach p-3 text-sm text-pop-text">{{ t('exportPrivate') }}</p> }
         @if (kind === 'zip-v2') { <p class="text-sm text-pop-muted">{{ t('exportV2Owner') }}</p> }
         <app-ui-button variant="primary"  type="button"
@@ -51,6 +43,8 @@ type ExportKind = 'csv' | 'json' | 'zip' | 'zip-v2';
   `,
 })
 export class ExportPanel {
+  exportKindOptions(): DropdownOption[] { return [{ value: 'csv', label: this.t('exportCsv') }, { value: 'json', label: this.t('exportJson') }, { value: 'zip', label: this.t('exportZip') }, { value: 'zip-v2', label: this.t('exportZipV2') }]; }
+  readonly groupDropdownOptions = groupDropdownOptions;
   readonly t = t;
   @Input({ required: true }) groups: Group[] = [];
   @Input({ required: true }) user?: User;

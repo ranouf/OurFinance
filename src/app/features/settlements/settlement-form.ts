@@ -1,3 +1,6 @@
+import { FieldComponent } from '../../shared/components/field/field.component';
+import { DropdownComponent, type DropdownOption } from '../../shared/components/dropdown/dropdown.component';
+import { groupDropdownOptions } from '../../shared/components/dropdown/dropdown-options';
 import { UiControlDirective } from '../../shared/components/ui-field/ui-control.directive';
 import { UiAlert } from '../../shared/components/ui-alert/ui-alert';
 import { UiButton } from '../../shared/components/ui-button/ui-button';
@@ -14,26 +17,18 @@ import { settlementMessage, settlementText } from './settlement-text';
 
 @Component({
   selector: 'app-settlement-form',
-  imports: [UiControlDirective, UiAlert, UiButton, FormsModule],
+  imports: [FieldComponent, DropdownComponent, UiControlDirective, UiAlert, UiButton, FormsModule],
   template: `
     <section class="mt-6 rounded-3xl border border-pop-border bg-pop-surface p-5 text-pop-text shadow-sm md:p-7" [attr.aria-label]="text('title')">
       <div class="mb-5 h-1.5 w-14 rounded-full bg-pop-sun" aria-hidden="true"></div>
       <h2 class="text-2xl font-extrabold tracking-tight">{{ text('title') }}</h2>
       <p class="mt-1 text-sm text-pop-muted">{{ text('intro') }}</p>
       <form class="mt-5 space-y-4" (ngSubmit)="save()">
-        <label class="block text-sm font-bold">{{ t('group') }}
-          <select appUiControl class="mt-2 w-full" name="settlementGroup" [(ngModel)]="selectedGroupId" (ngModelChange)="onGroupChange()" required>
-            <option value="">{{ t('chooseGroup') }}</option>
-            @for (group of groups; track group.id) { <option [value]="group.id">{{ group.name }}</option> }
-          </select>
-        </label>
+        <app-field class="block" controlId="settlementGroup" [label]="t('group')"><app-dropdown controlId="settlementGroup" [options]="groupDropdownOptions(groups, t('chooseGroup'), false)" name="settlementGroup" [(ngModel)]="selectedGroupId" (ngModelChange)="onGroupChange()" required /></app-field>
         @if (selectedGroupId) {
-          <label class="block text-sm font-bold">{{ text('recipient') }}
-            <select appUiControl class="mt-2 w-full" name="settlementRecipient" [(ngModel)]="recipientId" required>
-              <option value="">{{ text('chooseMember') }}</option>
-              @for (member of recipients(); track member.userId) { <option [value]="member.userId">{{ memberLabel(member.userId) }}</option> }
-            </select>
-          </label>
+          <app-field class="block" controlId="settlement-recipient" [label]="text('recipient')">
+            <app-dropdown controlId="settlement-recipient" name="settlementRecipient" [options]="recipientOptions()" [(ngModel)]="recipientId" required />
+          </app-field>
           <div class="grid grid-cols-2 gap-3">
             <label class="block text-sm font-bold">{{ text('amount') }}
               <input appUiControl class="mt-2 w-full" name="settlementAmount" [(ngModel)]="amount" inputmode="decimal" placeholder="0,00" required />
@@ -53,6 +48,8 @@ import { settlementMessage, settlementText } from './settlement-text';
   `,
 })
 export class SettlementForm implements OnChanges {
+  readonly groupDropdownOptions = groupDropdownOptions;
+  recipientOptions(): DropdownOption[] { return [{ value: '', label: this.text('chooseMember') }, ...this.recipients().map(member => ({ value: member.userId, label: this.memberLabel(member.userId) }))]; }
   @Output() readonly saved = new EventEmitter<void>();
   @Output() readonly groupChange = new EventEmitter<string>();
   @Input({ required: true }) groups: Group[] = [];

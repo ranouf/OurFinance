@@ -1,3 +1,6 @@
+import { FieldComponent } from '../../shared/components/field/field.component';
+import { DropdownComponent } from '../../shared/components/dropdown/dropdown.component';
+import { groupDropdownOptions } from '../../shared/components/dropdown/dropdown-options';
 import { UiControlDirective } from '../../shared/components/ui-field/ui-control.directive';
 import { UiButton } from '../../shared/components/ui-button/ui-button';
 import { Component, Input, signal } from '@angular/core';
@@ -16,19 +19,14 @@ interface RestoreDiffCounts { readonly create: number; readonly replace: number;
 
 @Component({
   selector: 'app-restore-panel',
-  imports: [UiControlDirective, UiButton, FormsModule],
+  imports: [FieldComponent, DropdownComponent, UiControlDirective, UiButton, FormsModule],
   template: `
     <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-5" [attr.aria-label]="t('restoreHeading')">
       <h2 class="text-lg font-semibold">{{ t('restoreHeading') }}</h2>
       <p class="mt-2 text-sm text-slate-700">{{ t('restorePartial') }}</p>
       <div class="mt-4 space-y-3">
-        <label class="block text-sm font-medium">{{ t('group') }}
-          <select appUiControl class="mt-1 w-full" name="restoreGroup"
-            [(ngModel)]="groupId" (ngModelChange)="clearPreview()">
-            <option value="">{{ t('chooseGroup') }}</option>
-            @for (group of groups; track group.id) { <option [value]="group.id">{{ group.name }}</option> }
-          </select>
-        </label>
+        <app-field class="block" controlId="restoreGroup" [label]="t('group')"><app-dropdown controlId="restoreGroup" [options]="groupDropdownOptions(groups, t('chooseGroup'), false)" name="restoreGroup"
+            [(ngModel)]="groupId" (ngModelChange)="clearPreview()" /></app-field>
         <label class="block text-sm font-medium">{{ t('restoreFile') }}
           <input appUiControl class="mt-1 block w-full min-w-0 rounded-lg border border-slate-300 p-3 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pop-primary-dark" type="file"
             accept=".zip,application/zip" (change)="selectFile($event)" />
@@ -87,6 +85,7 @@ interface RestoreDiffCounts { readonly create: number; readonly replace: number;
   `,
 })
 export class RestorePanel {
+  readonly groupDropdownOptions = groupDropdownOptions;
   readonly t = t;
   @Input({ required: true }) groups: Group[] = [];
   @Input({ required: true }) user?: User;

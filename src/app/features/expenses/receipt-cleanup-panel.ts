@@ -1,4 +1,6 @@
-import { UiControlDirective } from '../../shared/components/ui-field/ui-control.directive';
+import { FieldComponent } from '../../shared/components/field/field.component';
+import { DropdownComponent } from '../../shared/components/dropdown/dropdown.component';
+import { groupDropdownOptions } from '../../shared/components/dropdown/dropdown-options';
 import { UiButton } from '../../shared/components/ui-button/ui-button';
 import { Component, Input, OnChanges, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -12,10 +14,11 @@ type CleanupMessage = 'receiptCleanupDone' | 'receiptCleanupEmpty' | 'receiptCle
 
 @Component({
   selector: 'app-receipt-cleanup-panel',
-  imports: [UiControlDirective, UiButton, FormsModule],
+  imports: [FieldComponent, DropdownComponent, UiButton, FormsModule],
   templateUrl: './receipt-cleanup-panel.html',
 })
 export class ReceiptCleanupPanel implements OnChanges {
+  readonly groupDropdownOptions = groupDropdownOptions;
   @Input({ required: true }) groups: Group[] = [];
   @Input({ required: true }) user?: User;
   @Input({ required: true }) workerUrl?: string;

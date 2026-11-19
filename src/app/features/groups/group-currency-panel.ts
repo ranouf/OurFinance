@@ -1,4 +1,6 @@
-import { UiControlDirective } from '../../shared/components/ui-field/ui-control.directive';
+import { FieldComponent } from '../../shared/components/field/field.component';
+import { DropdownComponent } from '../../shared/components/dropdown/dropdown.component';
+import { currencyDropdownOptions, groupDropdownOptions } from '../../shared/components/dropdown/dropdown-options';
 import { UiAlert } from '../../shared/components/ui-alert/ui-alert';
 import { UiButton } from '../../shared/components/ui-button/ui-button';
 import { Component, EventEmitter, Input, Output, computed, signal } from '@angular/core';
@@ -11,25 +13,18 @@ import { currencyCatalog } from '../../shared/utils/currency';
 import { locale, t } from '../../shared/utils/i18n';
 
 @Component({
-  selector: 'app-group-currency-panel', imports: [UiControlDirective, UiAlert, UiButton, FormsModule],
+  selector: 'app-group-currency-panel', imports: [FieldComponent, DropdownComponent, UiAlert, UiButton, FormsModule],
   template: `
     @if (editableGroups().length) {
       <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-5" [attr.aria-label]="t('changeGroupCurrency')">
         <h2 class="text-lg font-semibold">{{ t('changeGroupCurrency') }}</h2>
         <p class="mt-1 text-sm text-slate-600">{{ t('currencyBeforeFirst') }}</p>
         <form class="mt-4 space-y-3" (ngSubmit)="save()">
-          <label class="block text-sm font-medium">{{ t('group') }}
-            <select appUiControl class="mt-1 w-full" name="currencyGroup" [(ngModel)]="selectedGroupId" (ngModelChange)="selectGroup()" required>
-              <option value="">{{ t('chooseGroup') }}</option>
-              @for (group of editableGroups(); track group.id) { <option [value]="group.id">{{ group.name }} · {{ group.currency }}</option> }
-            </select>
-          </label>
+          <app-field class="block" controlId="currencyGroup" [label]="t('group')"><app-dropdown controlId="currencyGroup" [options]="groupDropdownOptions(editableGroups(), t('chooseGroup'), true)" name="currencyGroup" [(ngModel)]="selectedGroupId" (ngModelChange)="selectGroup()" required /></app-field>
           @if (selectedGroupId) {
-            <label class="block text-sm font-medium">{{ t('groupCurrency') }}
-              <select appUiControl class="mt-1 w-full" name="newGroupCurrency" [(ngModel)]="currencyCode" required>
-                @for (currency of currencies(); track currency.code) { <option [value]="currency.code">{{ currency.code }} · {{ currency.name }} ({{ currency.symbol }}, {{ currency.minorDigits }})</option> }
-              </select>
-            </label>
+            <app-field class="block" controlId="new-group-currency" [label]="t('groupCurrency')" [required]="true">
+              <app-dropdown controlId="new-group-currency" name="newGroupCurrency" [options]="currencyDropdownOptions(currencies(), true)" [searchable]="true" [searchLabel]="t('search')" [(ngModel)]="currencyCode" required />
+            </app-field>
             <app-ui-button variant="primary"  type="submit" [disabled]="busy() || currencyCode === selectedGroup()?.currency">{{ t('saveGroupCurrency') }}</app-ui-button>
           }
         </form>
@@ -39,6 +34,8 @@ import { locale, t } from '../../shared/utils/i18n';
   `,
 })
 export class GroupCurrencyPanel {
+  readonly groupDropdownOptions = groupDropdownOptions;
+  readonly currencyDropdownOptions = currencyDropdownOptions;
   @Input({ required: true }) groups: readonly Group[] = [];
   @Input({ required: true }) user?: User;
   @Input({ required: true }) firebaseApp?: FirebaseApp;

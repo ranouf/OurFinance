@@ -1,3 +1,6 @@
+import { FieldComponent } from '../../shared/components/field/field.component';
+import { DropdownComponent } from '../../shared/components/dropdown/dropdown.component';
+import { groupDropdownOptions } from '../../shared/components/dropdown/dropdown-options';
 import { UiControlDirective } from '../../shared/components/ui-field/ui-control.directive';
 import { UiAlert } from '../../shared/components/ui-alert/ui-alert';
 import { UiButton } from '../../shared/components/ui-button/ui-button';
@@ -12,19 +15,14 @@ import { qrInvitationText } from './qr-invitation-text';
 
 @Component({
   selector: 'app-qr-invitation-panel',
-  imports: [UiControlDirective, UiAlert, UiButton, FormsModule, InviteQrCode],
+  imports: [FieldComponent, DropdownComponent, UiControlDirective, UiAlert, UiButton, FormsModule, InviteQrCode],
   template: `
     <section class="mt-6 rounded-3xl border border-pop-border bg-white p-5 shadow-sm sm:p-7" [attr.aria-label]="text().heading">
       <h2 class="text-xl font-extrabold text-pop-text">{{ text().heading }}</h2>
       <p class="mt-2 text-sm text-pop-muted">{{ text().intro }}</p>
       @if (ownedGroups().length) {
         <form class="mt-5 grid gap-3 sm:grid-cols-2" (ngSubmit)="create()">
-          <label class="text-sm font-bold text-pop-text">{{ text().group }}
-            <select appUiControl class="mt-1 w-full" name="qrGroup" [(ngModel)]="selectedGroupId" required (ngModelChange)="onGroupChanged()">
-              <option value="">{{ text().choose }}</option>
-              @for (group of ownedGroups(); track group.id) { <option [value]="group.id">{{ group.name }} · {{ group.currency }}</option> }
-            </select>
-          </label>
+          <app-field class="block" controlId="qrGroup" [label]="text().group"><app-dropdown controlId="qrGroup" [options]="groupDropdownOptions(ownedGroups(), text().choose, true)" name="qrGroup" [(ngModel)]="selectedGroupId" required (ngModelChange)="onGroupChanged()" /></app-field>
           <label class="text-sm font-bold text-pop-text">{{ text().target }}
             <input appUiControl class="mt-1 w-full" type="email" name="qrTarget" [(ngModel)]="targetEmail" autocomplete="off" />
           </label>
@@ -61,6 +59,7 @@ import { qrInvitationText } from './qr-invitation-text';
   `,
 })
 export class QrInvitationPanel {
+  readonly groupDropdownOptions = groupDropdownOptions;
   @Input({ required: true }) groups: Group[] = [];
   @Input({ required: true }) user?: User;
   @Input({ required: true }) workerUrl = '';

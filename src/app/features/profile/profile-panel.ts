@@ -1,3 +1,5 @@
+import { FieldComponent } from '../../shared/components/field/field.component';
+import { DropdownComponent, type DropdownOption } from '../../shared/components/dropdown/dropdown.component';
 import { UiControlDirective } from '../../shared/components/ui-field/ui-control.directive';
 import { UiAlert } from '../../shared/components/ui-alert/ui-alert';
 import { UiButton } from '../../shared/components/ui-button/ui-button';
@@ -11,7 +13,7 @@ import { setLanguage, t, type MessageKey } from '../../shared/utils/i18n';
 
 @Component({
   selector: 'app-profile-panel',
-  imports: [UiControlDirective, UiAlert, UiButton, FormsModule],
+  imports: [FieldComponent, DropdownComponent, UiControlDirective, UiAlert, UiButton, FormsModule],
   template: `
     <section [attr.aria-label]="t('myProfile')">
       <div class="relative min-h-40 overflow-hidden rounded-[1.7rem] bg-pop-primary p-6 text-white shadow-[0_12px_30px_#6455ec30] sm:min-h-48 sm:p-8">
@@ -29,11 +31,9 @@ import { setLanguage, t, type MessageKey } from '../../shared/utils/i18n';
             <label class="block text-sm font-bold">{{ t('displayName') }}
               <input appUiControl class="mt-2 w-full" name="profileName" [(ngModel)]="displayName" maxlength="80" required />
             </label>
-            <label class="block text-sm font-bold">{{ t('language') }}
-              <select appUiControl class="mt-2 w-full" name="profileLanguage" [(ngModel)]="preferredLanguage" (ngModelChange)="applyLanguage()">
-                <option value="fr">Français</option><option value="en">English</option><option value="ja">日本語</option>
-              </select>
-            </label>
+            <app-field class="block" controlId="profile-language" [label]="t('language')">
+              <app-dropdown controlId="profile-language" name="profileLanguage" [options]="languageOptions" [(ngModel)]="preferredLanguage" (ngModelChange)="applyLanguage()" />
+            </app-field>
             <label class="block text-sm font-bold">{{ t('timeZone') }}
               <input appUiControl class="mt-2 w-full" name="profileZone" [(ngModel)]="timeZone" list="profile-zones" required />
               <datalist id="profile-zones">@for (zone of zones; track zone) { <option [value]="zone"></option> }</datalist>
@@ -56,6 +56,7 @@ import { setLanguage, t, type MessageKey } from '../../shared/utils/i18n';
   `,
 })
 export class ProfilePanel implements OnChanges {
+  readonly languageOptions: DropdownOption[] = [{ value: 'fr', label: 'Français' }, { value: 'en', label: 'English' }, { value: 'ja', label: '日本語' }];
   @Input({ required: true }) user?: User;
   @Input({ required: true }) firebaseApp?: FirebaseApp;
   readonly zones = Intl.supportedValuesOf('timeZone');

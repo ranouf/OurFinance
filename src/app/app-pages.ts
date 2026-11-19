@@ -1,3 +1,6 @@
+import { FieldComponent } from './shared/components/field/field.component';
+import { DropdownComponent } from './shared/components/dropdown/dropdown.component';
+import { currencyDropdownOptions } from './shared/components/dropdown/dropdown-options';
 import { UiGroupCard } from './shared/components/ui-group-card/ui-group-card';
 import { UiControlDirective } from './shared/components/ui-field/ui-control.directive';
 import { UiButton } from './shared/components/ui-button/ui-button';
@@ -158,7 +161,7 @@ export class DashboardPage {
 }
 
 @Component({
-  imports: [UiGroupCard, UiControlDirective, UiButton, UiAlert, FormsModule, GroupCurrencyPanel, GroupLifecyclePanel, QrInvitationPanel, CategoryManager],
+  imports: [FieldComponent, DropdownComponent, UiGroupCard, UiControlDirective, UiButton, UiAlert, FormsModule, GroupCurrencyPanel, GroupLifecyclePanel, QrInvitationPanel, CategoryManager],
   template: `
     <div class="mx-auto max-w-5xl space-y-6">
       <header class="relative overflow-hidden rounded-[1.8rem] bg-pop-primary px-6 py-7 text-white shadow-[0_12px_30px_#6455ec30] sm:min-h-52 sm:px-9 sm:py-10">
@@ -178,7 +181,9 @@ export class DashboardPage {
         <form class="max-w-2xl space-y-4 rounded-[1.7rem] border border-pop-border bg-white p-5 shadow-sm sm:p-7" (ngSubmit)="app.createGroup()">
           <div class="flex items-center gap-3"><span class="flex h-11 w-11 items-center justify-center rounded-2xl bg-pop-lavender text-2xl text-pop-primary" aria-hidden="true">＋</span><div><h2 class="text-xl font-black">{{ t('createGroup') }}</h2><p class="text-sm text-pop-muted">{{ t('groupCreateHelp') }}</p></div></div>
           <label class="block text-sm font-bold">{{ t('groupName') }}<input appUiControl class="mt-1 w-full" name="groupName" [(ngModel)]="app.groupName" maxlength="80" required /></label>
-          <label class="block text-sm font-bold">{{ t('groupCurrency') }}<select appUiControl class="mt-1 w-full" name="groupCurrency" [(ngModel)]="app.groupCurrency">@for (currency of app.currencies(); track currency.code) { <option [value]="currency.code">{{ currency.code }} · {{ currency.name }}</option> }</select></label>
+          <app-field class="block" controlId="group-currency" [label]="t('groupCurrency')">
+            <app-dropdown controlId="group-currency" name="groupCurrency" [options]="currencyDropdownOptions(app.currencies())" [searchable]="true" [searchLabel]="t('search')" [(ngModel)]="app.groupCurrency" />
+          </app-field>
           <app-ui-button variant="coral" [block]="true" size="lg" class="w-full sm:w-auto" type="submit" [disabled]="app.busy() || !app.online()">+ {{ t('createGroup') }}</app-ui-button>
         </form>
       } @else { <app-ui-alert variant="info">{{ t('groupServiceMissing') }}</app-ui-alert> }
@@ -192,7 +197,7 @@ export class DashboardPage {
     </div>
   `,
 })
-export class GroupsPage { readonly app = inject(App); readonly t = t; }
+export class GroupsPage { readonly app = inject(App); readonly t = t; readonly currencyDropdownOptions = currencyDropdownOptions; }
 
 @Component({
   imports: [UiButton, ExpenseForm, ExpenseHistory],

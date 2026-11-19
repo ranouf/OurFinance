@@ -2,6 +2,7 @@ import { Component, Input } from '@angular/core';
 
 @Component({
   selector: 'app-field',
+  host: { class: 'block' },
   templateUrl: './field.component.html',
 })
 export class FieldComponent {
