@@ -3,7 +3,8 @@ import { DropdownComponent } from '../../shared/components/dropdown/dropdown.com
 import { groupDropdownOptions } from '../../shared/components/dropdown/dropdown-options';
 import { UiControlDirective } from '../../shared/components/ui-field/ui-control.directive';
 import { UiButton } from '../../shared/components/ui-button/ui-button';
-import { Component, Input, OnChanges, signal } from '@angular/core';
+import { UiAlert } from '../../shared/components/ui-alert/ui-alert';
+import { Component, ElementRef, Input, OnChanges, signal, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { FirebaseApp } from 'firebase/app';
 import type { User } from 'firebase/auth';
@@ -20,7 +21,7 @@ interface RestoreDiffCounts { readonly create: number; readonly replace: number;
 
 @Component({
   selector: 'app-restore-panel',
-  imports: [FieldComponent, DropdownComponent, UiControlDirective, UiButton, FormsModule],
+  imports: [FieldComponent, DropdownComponent, UiControlDirective, UiAlert, UiButton, FormsModule],
   template: `
     <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-5" [attr.aria-label]="t('restoreHeading')">
       <h2 class="text-lg font-semibold">{{ t('restoreHeading') }}</h2>
@@ -29,8 +30,8 @@ interface RestoreDiffCounts { readonly create: number; readonly replace: number;
         <app-field class="block" controlId="restoreGroup" [label]="t('group')"><app-dropdown controlId="restoreGroup" [options]="groupDropdownOptions(groups, t('chooseGroup'), false)" name="restoreGroup" [disabled]="outcomePending()"
             [(ngModel)]="groupId" (ngModelChange)="clearPreview()" /></app-field>
         <label class="block text-sm font-medium">{{ t('restoreFile') }}
-          <input appUiControl class="mt-1 block w-full min-w-0 rounded-lg border border-slate-300 p-3 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pop-primary-dark" type="file" [disabled]="outcomePending()"
-            accept=".zip,application/zip" (change)="selectFile($event)" />
+          <input #restoreFileInput appUiControl class="mt-1 block w-full min-w-0 rounded-lg border border-slate-300 p-3 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pop-primary-dark" type="file" [disabled]="outcomePending()"
+            accept=".zip,application/zip" [attr.aria-invalid]="message() === 'restoreInvalid' ? 'true' : null" [attr.aria-describedby]="message() === 'restoreInvalid' ? 'restoreFeedback' : null" (change)="selectFile($event)" />
         </label>
         <app-ui-button variant="outline"  type="button"
           [disabled]="busy() || outcomePending() || !groupId || !selectedFile || !user?.emailVerified" (click)="previewFile()">
@@ -64,10 +65,9 @@ interface RestoreDiffCounts { readonly create: number; readonly replace: number;
           </div>
         }
         @if (message()) {
-          <p [class]="message()?.includes('Quota') ? 'rounded-xl border border-pop-sun bg-pop-peach p-3 text-sm text-pop-text' : 'text-sm'"
-            [attr.role]="message() === 'restoreDone' ? 'status' : 'alert'">{{ t(message()!) }}
+          <app-ui-alert id="restoreFeedback" [variant]="feedbackVariant()" class="block">{{ t(message()!) }}
             @if (outcomePending() || message() === 'restorePreparedUncertain' || message() === 'restorePreparedQuota') { <span class="break-all">{{ attemptId() }}</span> }
-          </p>
+          </app-ui-alert>
           @if (message() === 'restorePreparedUncertain' || message() === 'restorePreparedQuota') {
             <app-ui-button variant="outline"  type="button"
               [disabled]="busy()" (click)="restore()">{{ t(message() === 'restorePreparedQuota' ? 'restoreQuotaRetry' : 'restorePreparedRetry') }}</app-ui-button>
@@ -89,6 +89,7 @@ interface RestoreDiffCounts { readonly create: number; readonly replace: number;
   `,
 })
 export class RestorePanel implements OnChanges {
+  @ViewChild('restoreFileInput') private fileInput?: ElementRef<HTMLInputElement>;
   readonly groupDropdownOptions = groupDropdownOptions;
   readonly t = t;
   @Input({ required: true }) groups: Group[] = [];
@@ -128,6 +129,10 @@ export class RestorePanel implements OnChanges {
 
   selectedGroupName(): string { return this.groups.find(group => group.id === this.groupId)?.name ?? ''; }
   outcomePending(): boolean { return ['restoreUncertain', 'restoreQuotaUncertain', 'restoreStillLocked', 'restoreOutcomeUnavailable'].includes(this.message() ?? ''); }
+  feedbackVariant(): 'error' | 'warning' | 'success' {
+    const message = this.message();
+    return message === 'restoreDone' ? 'success' : message?.includes('Quota') || message?.includes('Uncertain') || message === 'restoreStillLocked' || message === 'restoreCleanupPending' ? 'warning' : 'error';
+  }
   reload(): void { window.location.reload(); }
   clearPreview(): void {
     if (this.outcomePending()) { this.groupId = this.attemptGroupId ?? this.groupId; return; }
@@ -182,6 +187,7 @@ export class RestorePanel implements OnChanges {
     } catch (error) {
       const message = error instanceof Error ? error.message : '';
       this.message.set(message === 'restoreQuota' ? 'restoreQuota' : message === 'restoreUnavailable' ? 'restoreUnavailable' : 'restoreInvalid');
+      if (this.message() === 'restoreInvalid') this.fileInput?.nativeElement.focus();
     }
     finally { this.busy.set(false); }
   }
