@@ -1,13 +1,15 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { App } from './app';
 import { LoginPage } from './login-page';
-import { t } from './shared/utils/i18n';
-import { categoryById, categoryColorClass } from './shared/utils/categories';
+import { language, t } from './shared/utils/i18n';
+import { categoryById, categoryColorClass, categoryColors, categoryIcons } from './shared/utils/categories';
 import { GroupOverview } from './features/groups/group-overview';
 import { GroupCurrencyPanel } from './features/groups/group-currency-panel';
 import { GroupLifecyclePanel } from './features/groups/group-lifecycle-panel';
+import { GroupMetadataPanel } from './features/groups/group-metadata-panel';
+import { groupMetadataText } from './features/groups/group-metadata-text';
 import { QrInvitationPanel } from './features/groups/qr-invitation-panel';
 import { InviteAcceptanceCard } from './features/groups/invite-acceptance-card';
 import { CategoryManager } from './features/categories/category-manager';
@@ -154,7 +156,7 @@ export class DashboardPage {
 }
 
 @Component({
-  imports: [FormsModule, GroupCurrencyPanel, GroupLifecyclePanel, QrInvitationPanel, CategoryManager],
+  imports: [FormsModule, GroupCurrencyPanel, GroupLifecyclePanel, GroupMetadataPanel, QrInvitationPanel, CategoryManager],
   template: `
     <div class="mx-auto max-w-5xl space-y-6">
       <header class="relative overflow-hidden rounded-[1.8rem] bg-pop-primary px-6 py-7 text-white shadow-[0_12px_30px_#6455ec30] sm:min-h-52 sm:px-9 sm:py-10">
@@ -177,11 +179,26 @@ export class DashboardPage {
           <div class="flex items-center gap-3"><span class="flex h-11 w-11 items-center justify-center rounded-2xl bg-pop-lavender text-2xl text-pop-primary" aria-hidden="true">＋</span><div><h2 class="text-xl font-black">{{ t('createGroup') }}</h2><p class="text-sm text-pop-muted">{{ t('groupCreateHelp') }}</p></div></div>
           <label class="block text-sm font-bold">{{ t('groupName') }}<input class="mt-1 min-h-11 w-full rounded-xl border border-pop-border bg-pop-background px-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="groupName" [(ngModel)]="app.groupName" maxlength="80" required /></label>
           <label class="block text-sm font-bold">{{ t('groupCurrency') }}<select class="mt-1 min-h-11 w-full rounded-xl border border-pop-border bg-pop-background px-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="groupCurrency" [(ngModel)]="app.groupCurrency">@for (currency of app.currencies(); track currency.code) { <option [value]="currency.code">{{ currency.code }} · {{ currency.name }}</option> }</select></label>
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div><label class="block text-sm font-bold" for="group-icon">{{ metadataText().icon }} · {{ metadataText().optional }}</label>
+              <select id="group-icon" class="mt-1 min-h-11 w-full rounded-xl border border-pop-border bg-pop-background px-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="groupIconId" [(ngModel)]="app.groupIconId">
+                <option value="">{{ metadataText().none }}</option>
+                @for (icon of icons; track icon.id) { <option [value]="icon.id">{{ metadataText().icons[$index] }}</option> }
+              </select></div>
+            <div><label class="block text-sm font-bold" for="group-color">{{ metadataText().color }} · {{ metadataText().optional }}</label>
+              <select id="group-color" class="mt-1 min-h-11 w-full rounded-xl border border-pop-border bg-pop-background px-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="groupColor" [(ngModel)]="app.groupColor">
+                <option value="">{{ metadataText().none }}</option>
+                @for (color of colors; track color.id) { <option [value]="color.id">{{ metadataText().colors[$index] }}</option> }
+              </select></div>
+          </div>
+          <div><label class="block text-sm font-bold" for="group-description">{{ metadataText().description }} · {{ metadataText().optional }}</label>
+            <textarea id="group-description" class="mt-1 min-h-24 w-full rounded-xl border border-pop-border bg-pop-background p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="groupDescription" [(ngModel)]="app.groupDescription" maxlength="500"></textarea></div>
           <button class="min-h-12 w-full rounded-xl bg-pop-coral px-5 font-extrabold text-pop-text disabled:opacity-50 sm:w-auto" type="submit" [disabled]="app.busy() || !app.online()">+ {{ t('createGroup') }}</button>
         </form>
       } @else { <p class="rounded-xl bg-amber-50 p-4 text-sm text-amber-900" role="status">{{ t('groupServiceMissing') }}</p> }
       @if (app.workerUrl && app.auth?.user(); as user) {
         @if (app.firebaseApp && app.selectedGroup(); as selected) { <app-group-lifecycle-panel [group]="selected" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" (changed)="app.onInvitationJoined()" /> }
+        @if (app.firebaseApp && app.selectedGroup(); as selected) { <app-group-metadata-panel [group]="selected" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" (changed)="app.onInvitationJoined()" /> }
         @if (app.firebaseApp && app.groups().length) { <app-group-currency-panel [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" (changed)="app.onInvitationJoined()" /> }
         <app-qr-invitation-panel [groups]="app.groups()" [user]="user" [workerUrl]="app.workerUrl" />
         @if (app.firebaseApp && app.groups().length) { <app-category-manager [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" (changed)="app.onCategoryChanged()" /> }
@@ -190,7 +207,13 @@ export class DashboardPage {
     </div>
   `,
 })
-export class GroupsPage { readonly app = inject(App); readonly t = t; }
+export class GroupsPage {
+  readonly app = inject(App);
+  readonly t = t;
+  readonly metadataText = computed(() => groupMetadataText[language()]);
+  readonly icons = categoryIcons;
+  readonly colors = categoryColors;
+}
 
 @Component({
   imports: [ExpenseForm, ExpenseHistory],
@@ -239,7 +262,7 @@ export class StatisticsPage { readonly app = inject(App); readonly t = t; }
       @if (app.firebaseApp && app.auth?.user(); as user) {
         <app-profile-panel [user]="user" [firebaseApp]="app.firebaseApp" />
         @if (app.groups().length) {
-          <div id="activity"><app-activity-history [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [revision]="app.expenseRevision() + app.settlementRevision() + app.categoryRevision() + app.commentRevision()" /></div>
+          <div id="activity"><app-activity-history [groups]="app.groups()" [preferredGroupId]="app.selectedGroupId()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" [revision]="app.expenseRevision() + app.settlementRevision() + app.categoryRevision() + app.commentRevision()" /></div>
           <app-export-panel [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" />
           @if (app.workerUrl) { <app-import-panel [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" />
             <app-restore-panel [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" />

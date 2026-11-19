@@ -23,6 +23,8 @@ import { setLanguage, t, type MessageKey } from '../../shared/utils/i18n';
         <div class="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,0.8fr)] lg:items-start">
           <form class="space-y-5 rounded-[1.5rem] border border-pop-border bg-white p-5 shadow-sm sm:p-7" (ngSubmit)="save()">
             <h3 class="text-lg font-black">{{ t('myProfile') }}</h3>
+            <p class="text-sm text-pop-muted">{{ t('email') }} : {{ user?.email }}</p>
+            @if (!user?.emailVerified) { <p class="text-sm font-semibold text-rose-700" role="alert">{{ t('verifyEmail') }}</p> }
             <label class="block text-sm font-bold">{{ t('displayName') }}
               <input class="mt-2 min-h-12 w-full rounded-xl border border-pop-border bg-pop-background px-4 focus-visible:outline-2 focus-visible:outline-pop-primary" name="profileName" [(ngModel)]="displayName" maxlength="80" required />
             </label>
@@ -48,7 +50,7 @@ import { setLanguage, t, type MessageKey } from '../../shared/utils/i18n';
           </div>
         </div>
       }
-      @if (message(); as key) { <p class="mt-4 rounded-xl bg-pop-lavender p-4 text-sm font-semibold text-pop-primary-dark" role="status">{{ t(key) }}</p> }
+      @if (message(); as key) { <p class="mt-4 rounded-xl bg-pop-lavender p-4 text-sm font-semibold text-pop-primary-dark" [attr.role]="key === 'profileSaved' || key === 'googleLinkDone' ? 'status' : 'alert'">{{ t(key) }}</p> }
     </section>
   `,
 })

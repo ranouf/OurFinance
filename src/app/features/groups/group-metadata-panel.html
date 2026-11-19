@@ -1,0 +1,34 @@
+<section class="max-w-2xl rounded-[1.7rem] border border-pop-border bg-white p-5 shadow-sm sm:p-7" [attr.aria-label]="text().heading">
+<h2 class="text-xl font-black">{{ text().heading }}</h2>
+@if (group.status === 'archived') { <p class="mt-3 text-sm text-pop-muted">{{ text().archived }}</p> }
+@if (!canManage()) {
+  <dl class="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+    <div><dt class="font-bold">{{ text().name }}</dt><dd class="break-words">{{ group.name }}</dd></div>
+    <div><dt class="font-bold">{{ text().icon }}</dt><dd>{{ iconLabel(group.iconId) }}</dd></div>
+    <div><dt class="font-bold">{{ text().color }}</dt><dd>{{ colorLabel(group.color) }}</dd></div>
+    <div><dt class="font-bold">{{ text().description }}</dt><dd class="break-words">{{ group.description || text().none }}</dd></div>
+  </dl>
+}
+@if (canManage()) {
+  <form class="mt-4 space-y-4" (ngSubmit)="save()">
+    <label class="block text-sm font-bold" for="metadata-name">{{ text().name }}</label>
+    <input id="metadata-name" class="min-h-11 w-full rounded-xl border border-pop-border bg-pop-background px-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="metadataName" [(ngModel)]="name" maxlength="80" required />
+    <div class="grid gap-4 sm:grid-cols-2">
+      <div><label class="block text-sm font-bold" for="metadata-icon">{{ text().icon }} · {{ text().optional }}</label>
+        <select id="metadata-icon" class="mt-1 min-h-11 w-full rounded-xl border border-pop-border bg-pop-background px-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="metadataIcon" [(ngModel)]="iconId">
+          @if (!group.iconId) { <option value="">{{ text().none }}</option> }
+          @for (icon of icons; track icon.id) { <option [value]="icon.id">{{ text().icons[$index] }}</option> }
+        </select></div>
+      <div><label class="block text-sm font-bold" for="metadata-color">{{ text().color }} · {{ text().optional }}</label>
+        <select id="metadata-color" class="mt-1 min-h-11 w-full rounded-xl border border-pop-border bg-pop-background px-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="metadataColor" [(ngModel)]="color">
+          @if (!group.color) { <option value="">{{ text().none }}</option> }
+          @for (item of colors; track item.id) { <option [value]="item.id">{{ text().colors[$index] }}</option> }
+        </select></div>
+    </div>
+    <div><label class="block text-sm font-bold" for="metadata-description">{{ text().description }} · {{ text().optional }}</label>
+      <textarea id="metadata-description" class="mt-1 min-h-24 w-full rounded-xl border border-pop-border bg-pop-background p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="metadataDescription" [(ngModel)]="description" maxlength="500"></textarea></div>
+    <button class="min-h-11 rounded-xl bg-pop-primary px-5 font-bold text-white disabled:opacity-50" type="submit" [disabled]="busy() || !name.trim()">{{ text().save }}</button>
+  </form>
+}
+@if (message()) { <p class="mt-3 text-sm" [attr.role]="failed() ? 'alert' : 'status'">{{ message() }}</p> }
+</section>

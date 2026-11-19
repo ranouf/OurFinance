@@ -6,6 +6,7 @@ import type { DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import { CommentService, type ExpenseComment } from '../../core/firebase/comment-service';
 import { locale } from '../../shared/utils/i18n';
 import { expenseMessage, expenseText } from './expense-text';
+import { publishThenRefresh } from './publish-refresh';
 
 @Component({
   selector: 'app-comment-panel',
@@ -23,14 +24,14 @@ import { expenseMessage, expenseText } from './expense-text';
         <ol class="mt-4 divide-y divide-pop-border">
           @for (entry of entries(); track entry.id) {
             <li class="py-3">
-              <p class="font-bold">{{ entry.authorId === user?.uid ? text('me') : text('otherMember') }} · {{ date(entry) }}</p>
+              <p class="font-bold">{{ authorLabel(entry.authorId) }} · {{ date(entry) }}</p>
               <p class="mt-1 whitespace-pre-wrap break-words">{{ entry.text }}</p>
             </li>
           }
         </ol>
       } @else if (!busy() && !message()) { <p class="mt-3 text-pop-muted">{{ text('noComments') }}</p> }
       @if (hasMore()) { <button class="mt-2 min-h-11 rounded-xl border border-pop-border px-4 py-2 font-bold text-pop-primary-dark disabled:opacity-50" type="button" [disabled]="busy()" (click)="loadMore()">{{ text('moreComments') }}</button> }
-      @if (message()) { <p class="mt-2 text-sm" role="status">{{ displayMessage(message()) }}</p> }
+      @if (message()) { <p class="mt-2 text-sm" [attr.role]="message() === 'commentPublished' || message() === 'commentPublishedRefreshFailed' ? 'status' : 'alert'">{{ displayMessage(message()) }}</p> }
     </section>
   `,
 })
@@ -40,6 +41,7 @@ export class CommentPanel implements OnChanges {
   @Input({ required: true }) user?: User;
   @Input({ required: true }) groupId = '';
   @Input({ required: true }) expenseId = '';
+  @Input() memberNames: Readonly<Record<string, string>> = {};
   @Output() readonly changed = new EventEmitter<void>();
   readonly entries = signal<ExpenseComment[]>([]);
   readonly hasMore = signal(false);
@@ -58,6 +60,7 @@ export class CommentPanel implements OnChanges {
     if (changes['groupId'] || changes['expenseId']) void this.refresh();
   }
   date(entry: ExpenseComment): string { return new Intl.DateTimeFormat(locale(), { dateStyle: 'medium', timeStyle: 'short' }).format(entry.createdAt.toDate()); }
+  authorLabel(userId: string): string { return userId === this.user?.uid ? this.text('me') : this.memberNames[userId] || this.text('otherMember'); }
   async refresh(): Promise<void> { this.entries.set([]); this.last = undefined; this.hasMore.set(false); this.message.set(''); await this.loadMore(); }
   async loadMore(): Promise<void> {
     if (!this.service || !this.groupId || !this.expenseId || this.busy()) return;
@@ -77,12 +80,17 @@ export class CommentPanel implements OnChanges {
     this.pendingKey = idempotencyKey; this.pendingText = text;
     this.busy.set(true);
     try {
-      await this.service.create(this.user, this.groupId, this.expenseId, text, idempotencyKey);
+      const result = await publishThenRefresh(
+        () => this.service!.create(this.user!, this.groupId, this.expenseId, text, idempotencyKey),
+        () => this.service!.history(this.groupId, this.expenseId),
+      );
       this.pendingKey = undefined; this.pendingText = undefined; this.draft = '';
-      this.message.set('commentPublished'); this.changed.emit();
-      const page = await this.service.history(this.groupId, this.expenseId);
-      this.entries.set(page.entries); this.last = page.last; this.hasMore.set(page.hasMore);
-    } catch (error) { this.message.set(error instanceof Error ? error.message : 'commentFailed'); }
+      this.message.set(result.refreshed ? 'commentPublished' : 'commentPublishedRefreshFailed'); this.changed.emit();
+      if (result.refreshed) {
+        const page = result.value;
+        this.entries.set(page.entries); this.last = page.last; this.hasMore.set(page.hasMore);
+      }
+    } catch (error) { this.message.set(error instanceof TypeError ? 'commentFailed' : error instanceof Error ? error.message : 'commentFailed'); }
     finally { this.busy.set(false); }
   }
 }
