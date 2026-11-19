@@ -17,7 +17,7 @@ import { loadSharedMemberProfiles } from '../../core/firebase/member-profile-ser
 import { formatMinor } from '../../shared/utils/currency';
 import { categories, categoryColorClass, type CategoryDefinition } from '../../shared/utils/categories';
 import { categoryLabel } from '../../shared/utils/category-label';
-import { language, locale } from '../../shared/utils/i18n';
+import { language, locale, usesSingular } from '../../shared/utils/i18n';
 import { CommentPanel } from './comment-panel';
 import { matchesDescription } from './matches-description';
 import { ReceiptPanel } from './receipt-panel';
@@ -58,7 +58,7 @@ import { expenseMessage, expenseText } from './expense-text';
           </app-field>
           @if (from && to && from > to) { <p id="history-date-error" role="alert" class="mt-2 text-sm text-rose-700">{{ text('invalidDates') }}</p> }
         </details>
-        @if (hasFilter()) { <p class="mt-2 text-sm text-pop-muted">{{ scannedCount() }} {{ text(scannedCount() === 1 ? 'scannedOne' : 'scanned') }}</p> }
+        @if (hasFilter()) { <p class="mt-2 text-sm text-pop-muted">{{ scannedCount() }} {{ text(usesSingular(scannedCount()) ? 'scannedOne' : 'scanned') }}</p> }
         @if (entries().length) {
           <ul class="mt-5 space-y-3">
             @for (entry of entries(); track entry.id) {
@@ -134,6 +134,7 @@ export class ExpenseHistory implements OnChanges {
   readonly opened = signal<ReadonlySet<string>>(new Set());
   readonly deleteConfirmId = signal('');
   readonly deleteBusy = signal(false);
+  readonly usesSingular = usesSingular;
   readonly text = expenseText;
   readonly displayMessage = expenseMessage;
   readonly categoryLabel = categoryLabel;
