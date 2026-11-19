@@ -85,8 +85,9 @@ export class App implements OnInit, OnDestroy {
   readonly settlementTotalMinor = signal<bigint>(0n);
   readonly dashboardMemberBalances = signal<readonly { userId: string; balanceMinor: bigint }[]>([]);
   readonly dashboardMemberNames = signal<Record<string, string>>({});
-  dashboardMemberName(userId: string): string | null {
-    return userId === this.auth?.user()?.uid ? (this.auth?.user()?.displayName || null) : this.dashboardMemberNames()[userId] || null;
+  dashboardMemberName(userId: string): string {
+    if (userId === this.auth?.user()?.uid) return this.auth?.user()?.displayName?.trim() || t('me');
+    return this.dashboardMemberNames()[userId] || `${t('otherMember')} ${this.dashboardMemberBalances().findIndex(item => item.userId === userId) + 1}`;
   }
   readonly dashboardCategories = signal<readonly { id: string; label?: string; amountMinor: bigint }[]>([]);
   readonly recentExpenses = signal<ExpenseHistoryEntry[]>([]);
