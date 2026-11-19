@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import { deepStrictEqual, rejects, strictEqual } from 'node:assert';
 import type { User } from 'firebase/auth';
-import { ImportService } from '../../src/app/features/import-export/import-service';
+import { ImportNotConfiguredError, ImportService } from '../../src/app/features/import-export/import-service';
 
 const batchId = '01234567-89ab-4def-8abc-0123456789ab';
 const user = { emailVerified: true, getIdToken: async () => 'synthetic-token' } as Pick<User, 'emailVerified' | 'getIdToken'>;
@@ -34,6 +34,9 @@ test('blocks unverified users and insecure Worker URLs before transport', async 
 });
 
 test('surfaces disabled routes and rejects malformed success responses', async () => {
-  await rejects(new ImportService('https://worker.example', (async () => new Response(null, { status: 503 })) as typeof fetch).create(user, batch), /désactivé/);
+  const disabled = new ImportService('https://worker.example', async () => Response.json({ error: 'Import non configuré' }, { status: 503 }));
+  await rejects(disabled.create(user, batch), ImportNotConfiguredError);
+  const unavailable = new ImportService('https://worker.example', async () => new Response(null, { status: 503 }));
+  await rejects(unavailable.create(user, batch), /Import refusé \(HTTP 503\)/);
   await rejects(new ImportService('https://worker.example', (async () => Response.json({ batchId, recordCount: 0 }, { status: 201 })) as typeof fetch).create(user, batch), /invalide/);
 });

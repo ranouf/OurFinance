@@ -18,7 +18,7 @@ import { parseMinor } from '../expenses/expense-draft';
 import { parseCsv } from './csv';
 import { FirebaseExportReader } from './export-collector';
 import { previewMappedCsv, type ImportPreviewV1, type ImportRecordV1 } from './import-v1';
-import { ImportService } from './import-service';
+import { ImportNotConfiguredError, ImportService } from './import-service';
 import { importErrorText, importText, type ImportTextKey } from './import-text';
 import { pendingNativeImportBatches, prepareImportBatch, prepareNativeImportBatches, type PreparedImportBatch } from './prepare-batch';
 import { reconcileImpacts, type Reconciliation } from './reconcile';
@@ -182,7 +182,7 @@ export class ImportPanel {
           for (const record of batch.body.records) this.existingSourceIds.add(record.sourceId);
         }
         await this.refreshAfterImport();
-      } catch { await this.loadGroup(); if (this.message() !== 'unavailable') this.message.set('importFailed'); }
+      } catch (error) { await this.loadGroup(); if (this.message() !== 'unavailable') this.message.set(error instanceof ImportNotConfiguredError ? 'importNotConfigured' : 'importFailed'); }
       finally { this.busy.set(false); }
       return;
     }
@@ -199,7 +199,7 @@ export class ImportPanel {
         for (const record of preview.records) this.existingSourceIds.add(record.sourceId);
       }
       await this.refreshAfterImport();
-    } catch { this.message.set('importFailed'); await this.refreshBatches().catch(() => {}); }
+    } catch (error) { this.message.set(error instanceof ImportNotConfiguredError ? 'importNotConfigured' : 'importFailed'); await this.refreshBatches().catch(() => {}); }
     finally { this.busy.set(false); }
   }
 
