@@ -13,6 +13,7 @@ import type { DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import { CategoryService } from '../../core/firebase/category-service';
 import { ExpenseService, type ExpenseHistoryEntry } from '../../core/firebase/expense-service';
 import type { Group, GroupMember } from '../../core/firebase/group-model';
+import { loadSharedMemberProfiles } from '../../core/firebase/member-profile-service';
 import { formatMinor } from '../../shared/utils/currency';
 import { categories, categoryColorClass, type CategoryDefinition } from '../../shared/utils/categories';
 import { categoryLabel } from '../../shared/utils/category-label';
@@ -46,16 +47,16 @@ import { expenseMessage, expenseText } from './expense-text';
           <summary class="cursor-pointer text-sm font-bold text-pop-primary-dark focus-visible:outline-2 focus-visible:outline-pop-primary">{{ text('moreFilters') }}</summary>
           <div class="mt-4 grid gap-3 sm:grid-cols-2">
             <label class="block text-sm font-bold">{{ text('from') }}
-              <input appUiControl class="mt-2 w-full" type="date" name="historyFrom" [(ngModel)]="from" (ngModelChange)="refresh()" />
+              <input appUiControl class="mt-2 w-full" type="date" name="historyFrom" [(ngModel)]="from" (ngModelChange)="refresh()" [attr.aria-invalid]="from && to && from > to ? 'true' : null" [attr.aria-describedby]="from && to && from > to ? 'history-date-error' : null" />
             </label>
             <label class="block text-sm font-bold">{{ text('to') }}
-              <input appUiControl class="mt-2 w-full" type="date" name="historyTo" [(ngModel)]="to" (ngModelChange)="refresh()" />
+              <input appUiControl class="mt-2 w-full" type="date" name="historyTo" [(ngModel)]="to" (ngModelChange)="refresh()" [attr.aria-invalid]="from && to && from > to ? 'true' : null" [attr.aria-describedby]="from && to && from > to ? 'history-date-error' : null" />
             </label>
           </div>
           <app-field class="mt-3 block" controlId="history-participant" [label]="text('participant')">
             <app-dropdown controlId="history-participant" name="historyParticipant" [options]="participantDropdownOptions()" [(ngModel)]="selectedParticipantId" (ngModelChange)="refresh()" />
           </app-field>
-          @if (from && to && from > to) { <p class="mt-2 text-sm text-rose-700">{{ text('invalidDates') }}</p> }
+          @if (from && to && from > to) { <p id="history-date-error" role="alert" class="mt-2 text-sm text-rose-700">{{ text('invalidDates') }}</p> }
         </details>
         @if (hasFilter()) { <p class="mt-2 text-sm text-pop-muted">{{ scannedCount() }} {{ text('scanned') }}</p> }
         @if (entries().length) {
@@ -96,7 +97,7 @@ import { expenseMessage, expenseText } from './expense-text';
                       } @empty { <p class="mt-1 text-slate-600">{{ text('unavailable') }}</p> }
                     </div>
                     @if (opened().has(entry.id)) { <app-receipt-panel [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" [user]="user" [groupId]="selectedGroupId" [expenseId]="entry.id" [groupOwnerId]="groupOwnerId()" /> }
-                    @if (opened().has(entry.id)) { <app-comment-panel [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" [user]="user" [groupId]="selectedGroupId" [expenseId]="entry.id" (changed)="commented.emit()" /> }
+                    @if (opened().has(entry.id)) { <app-comment-panel [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" [user]="user" [groupId]="selectedGroupId" [expenseId]="entry.id" [memberNames]="memberNames()" (changed)="commented.emit()" /> }
                   </div>
                 </details>
               </li>
@@ -114,6 +115,7 @@ export class ExpenseHistory implements OnChanges {
   @Output() readonly commented = new EventEmitter<void>();
   @Output() readonly editRequested = new EventEmitter<{ groupId: string; entry: ExpenseHistoryEntry }>();
   @Output() readonly deleted = new EventEmitter<void>();
+  @Output() readonly groupChange = new EventEmitter<string>();
   @Input({ required: true }) groups: Group[] = [];
   @Input() preferredGroupId = '';
   @Input({ required: true }) firebaseApp?: FirebaseApp;
@@ -124,6 +126,7 @@ export class ExpenseHistory implements OnChanges {
   readonly entries = signal<ExpenseHistoryEntry[]>([]);
   readonly categoryOptions = signal<readonly CategoryDefinition[]>(categories);
   readonly participantOptions = signal<readonly GroupMember[]>([]);
+  readonly memberNames = signal<Record<string, string>>({});
   readonly hasMore = signal(false);
   readonly busy = signal(false);
   readonly message = signal('');
@@ -154,9 +157,9 @@ export class ExpenseHistory implements OnChanges {
       this.service = new ExpenseService(this.firebaseApp, this.workerUrl);
       this.categoryService = new CategoryService(this.firebaseApp, this.workerUrl);
     }
-    if (!this.selectedGroupId && this.groups.some(group => group.id === this.preferredGroupId)) {
+    if (this.selectedGroupId !== this.preferredGroupId && this.groups.some(group => group.id === this.preferredGroupId)) {
       this.selectedGroupId = this.preferredGroupId;
-      this.onGroupChange();
+      this.onGroupChange(false);
     }
     if (changes['revision'] && !changes['revision'].firstChange && this.selectedGroupId) void this.refresh();
     if (changes['categoryRevision'] && !changes['categoryRevision'].firstChange && this.selectedGroupId) void this.loadFilters();
@@ -168,7 +171,7 @@ export class ExpenseHistory implements OnChanges {
   groupOptions(): DropdownOption[] { return [{ value: '', label: this.text('chooseGroup') }, ...this.groups.map(group => ({ value: group.id, label: group.name }))]; }
   categoryDropdownOptions(): DropdownOption[] { return categoryDropdownOptions(this.categoryOptions(), category => categoryLabel(category.id, language(), category.label), this.text('allCategories')); }
   participantDropdownOptions(): DropdownOption[] { return [{ value: '', label: this.text('allParticipants') }, ...this.participantOptions().map(member => ({ value: member.userId, label: this.memberLabel(member.userId) }))]; }
-  memberLabel(userId: string): string { return userId === this.user?.uid ? this.text('me') : userId; }
+  memberLabel(userId: string): string { return userId === this.user?.uid ? this.text('me') : this.memberNames()[userId] || `${this.text('otherMember')} ${userId.slice(0, 8)}`; }
   groupOwnerId(): string { return this.groups.find(group => group.id === this.selectedGroupId)?.ownerId ?? ''; }
   onToggle(expenseId: string, event: Event): void {
     const next = new Set(this.opened());
@@ -189,11 +192,13 @@ export class ExpenseHistory implements OnChanges {
     finally { this.deleteBusy.set(false); }
   }
   hasFilter(): boolean { return !!(this.searchTerm || this.selectedCategoryId || this.selectedParticipantId); }
-  onGroupChange(): void {
+  onGroupChange(emit = true): void {
+    if (emit) this.groupChange.emit(this.selectedGroupId);
     this.selectedCategoryId = '';
     this.selectedParticipantId = '';
     this.categoryOptions.set(categories);
     this.participantOptions.set([]);
+    this.memberNames.set({});
     void this.loadFilters();
     void this.refresh();
   }
@@ -203,10 +208,14 @@ export class ExpenseHistory implements OnChanges {
     const requestId = ++this.filterRequestId;
     if (!groupId || !this.service || !this.categoryService) return;
     try {
-      const [customCategories, members] = await Promise.all([this.categoryService.list(groupId), this.service.members(groupId)]);
+      const [customCategories, members, names] = await Promise.all([
+        this.categoryService.list(groupId), this.service.members(groupId),
+        this.user && this.workerUrl ? loadSharedMemberProfiles(this.workerUrl, groupId, this.user).catch(() => []) : [],
+      ]);
       if (requestId !== this.filterRequestId) return;
       this.categoryOptions.set([...categories, ...customCategories]);
       this.participantOptions.set(members);
+      this.memberNames.set(Object.fromEntries(names.filter(item => item.displayName).map(item => [item.userId, item.displayName!])));
     } catch {
       if (requestId === this.filterRequestId) this.message.set('categoriesUnavailable');
     }
