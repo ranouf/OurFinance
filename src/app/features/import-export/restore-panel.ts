@@ -47,7 +47,7 @@ interface RestoreDiffCounts { readonly create: number; readonly replace: number;
               <li>{{ t('restoreImports') }} : {{ plan.importCount }}</li>
               <li>{{ t('restoreComments') }} : {{ plan.commentCount }}</li>
               <li>{{ t('restoreReceipts') }} : {{ plan.receiptCount }}</li>
-              <li>{{ t('restorePreferences') }} : {{ plan.preferenceCount }} + {{ plan.absentPreferenceCount }} {{ t('restoreAbsent') }}</li>
+              <li>{{ t('restorePreferences') }} : {{ plan.preferenceCount }} · {{ t('restoreAbsent') }} : {{ plan.absentPreferenceCount }}</li>
             </ul>
             @if (diff(); as changes) {
               <p class="mt-3 font-semibold">{{ t('restoreChanges') }}</p>
