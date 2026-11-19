@@ -27,8 +27,8 @@ const group: GroupExportV2 = {
   preferences: [{ userId: 'alice', modeJson: '{"kind":"equal","users":["alice"]}', memberIds: ['alice'], updatedAt: '2026-11-16T18:00:00.000Z' }],
 };
 
-async function packageFixture(): Promise<BackupPackageV2> {
-  const groupJson = serializeGroupExportV2(group);
+async function packageFixture(source = group): Promise<BackupPackageV2> {
+  const groupJson = serializeGroupExportV2(source);
   const bytes = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 0]);
   const sha256 = await sha256Hex(bytes);
   return {
@@ -92,8 +92,12 @@ test('V2 rejects manifest and receipt substitutions even with intact group bytes
   for (const candidate of candidates) await rejects(verifyBackupPackageV2(candidate));
 });
 
-test('restore preflight verifies the archived receipt and original group before any write', async () => {
-  const backup = await packageFixture();
+test('restore preflight counts the active receipt and skips the deleted one before any write', async () => {
+  const backup = await packageFixture({ ...group,
+    receiptOwners: [...group.receiptOwners, { ...group.receiptOwners[0], attachmentId: 'removed' }],
+    receiptAssets: [...group.receiptAssets, { expenseId: 'e', attachmentId: 'removed', publicId: 'ourfinance-test/g/e/removed' }],
+    receipts: [...group.receipts,
+    { ...group.receipts[0], attachmentId: 'removed', status: 'deleted' }] });
   const target = { groupId: 'g', currency: 'CAD', memberIds: ['alice'], ownerId: 'alice', memberStatuses: { alice: 'active' as const } };
   const result = await preflightBackupRestoreV2(backup, target);
   strictEqual(result.receiptCount, 1);
