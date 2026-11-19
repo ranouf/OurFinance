@@ -16,6 +16,7 @@ import { Group } from './core/firebase/group-model';
 import { capturePendingInvite, clearPendingInvite } from './core/firebase/pending-invite';
 import type { ExpenseHistoryEntry } from './core/firebase/expense-service';
 import { dashboardMetrics } from './features/dashboard/dashboard-metrics';
+import { accessibleGroupId, groupSelectionStorageKey } from './features/dashboard/group-selection';
 import { loadSharedMemberProfiles } from './core/firebase/member-profile-service';
 import { categoryLabel } from './shared/utils/category-label';
 import { qrInvitationText } from './features/groups/qr-invitation-text';
@@ -161,7 +162,7 @@ export class App implements OnInit, OnDestroy {
     effect(() => {
       const groupId = this.selectedGroupId();
       const userId = this.auth?.user()?.uid;
-      if (groupId && userId && typeof window !== 'undefined') window.sessionStorage.setItem(`ourfinance.group.${userId}`, groupId);
+      if (groupId && userId && typeof window !== 'undefined') window.sessionStorage.setItem(groupSelectionStorageKey(userId), groupId);
     });
     effect(() => {
       const destination = this.authRedirect();
@@ -218,10 +219,8 @@ export class App implements OnInit, OnDestroy {
       if (requestId !== this.groupLoadVersion || this.auth?.user()?.uid !== user.uid) return;
       this.groups.set(groups);
       const requestedGroupId = typeof window !== 'undefined' && window.location.pathname === '/expenses' ? new URLSearchParams(window.location.search).get('group') : null;
-      const storedGroupId = typeof window !== 'undefined' ? window.sessionStorage.getItem(`ourfinance.group.${user.uid}`) : null;
-      const preferredGroupId = requestedGroupId || this.selectedGroupId() || storedGroupId;
-      if (preferredGroupId && groups.some(group => group.id === preferredGroupId)) this.selectedGroupId.set(preferredGroupId);
-      else this.selectedGroupId.set(groups[0]?.id ?? '');
+      const storedGroupId = typeof window !== 'undefined' ? window.sessionStorage.getItem(groupSelectionStorageKey(user.uid)) : null;
+      this.selectedGroupId.set(accessibleGroupId(groups.map(group => group.id), requestedGroupId, this.selectedGroupId(), storedGroupId));
     }
     catch { if (requestId === this.groupLoadVersion && this.auth?.user()?.uid === user.uid) { this.groupsError.set(true); this.message.set(t('groupsUnavailable')); } }
     finally { if (requestId === this.groupLoadVersion) this.groupsBusy.set(false); }
