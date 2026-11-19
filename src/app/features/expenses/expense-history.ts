@@ -58,7 +58,7 @@ import { expenseMessage, expenseText } from './expense-text';
           </app-field>
           @if (from && to && from > to) { <p id="history-date-error" role="alert" class="mt-2 text-sm text-rose-700">{{ text('invalidDates') }}</p> }
         </details>
-        @if (hasFilter()) { <p class="mt-2 text-sm text-pop-muted">{{ scannedCount() }} {{ text('scanned') }}</p> }
+        @if (hasFilter()) { <p class="mt-2 text-sm text-pop-muted">{{ scannedCount() }} {{ text(scannedCount() === 1 ? 'scannedOne' : 'scanned') }}</p> }
         @if (entries().length) {
           <ul class="mt-5 space-y-3">
             @for (entry of entries(); track entry.id) {
