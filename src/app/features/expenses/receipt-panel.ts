@@ -1,4 +1,3 @@
-import { UiControlDirective } from '../../shared/components/ui-field/ui-control.directive';
 import { UiAlert } from '../../shared/components/ui-alert/ui-alert';
 import { UiButton } from '../../shared/components/ui-button/ui-button';
 import { Component, Input, OnChanges, OnDestroy, SimpleChanges, signal } from '@angular/core';
@@ -9,15 +8,15 @@ import { expenseMessage, expenseText } from './expense-text';
 import { publishThenRefresh } from './publish-refresh';
 
 @Component({
-  selector: 'app-receipt-panel', imports: [UiControlDirective, UiButton, UiAlert],
+  selector: 'app-receipt-panel', imports: [UiButton, UiAlert],
   template: `
     <section class="rounded-2xl border border-pop-border bg-pop-lavender p-4" [attr.aria-label]="text('privateReceipts')">
       <h3 class="font-extrabold text-pop-text">{{ text('privateReceipts') }}</h3>
       <p class="mt-1 text-pop-muted">{{ text('receiptHelp') }}</p>
       <div class="mt-3 flex flex-wrap items-center gap-2">
-        <label class="flex min-h-11 cursor-pointer items-center rounded-xl border border-pop-primary px-4 py-2 font-bold text-pop-primary-dark">
+        <label class="flex min-h-11 cursor-pointer items-center rounded-xl border border-pop-primary px-4 py-2 font-bold text-pop-primary-dark focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-pop-primary">
           {{ text('addReceipt') }}
-          <input appUiControl class="sr-only" type="file" accept="image/png,image/jpeg" [disabled]="busy()" (change)="upload($event)" />
+          <input class="sr-only" type="file" accept="image/png,image/jpeg" [disabled]="busy()" (change)="upload($event)" />
         </label>
         <app-ui-button variant="secondary"  type="button" [disabled]="busy()" (click)="refresh()">{{ text('refresh') }}</app-ui-button>
       </div>

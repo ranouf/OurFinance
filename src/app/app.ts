@@ -16,6 +16,7 @@ import { Group } from './core/firebase/group-model';
 import { capturePendingInvite, clearPendingInvite } from './core/firebase/pending-invite';
 import type { ExpenseHistoryEntry } from './core/firebase/expense-service';
 import { dashboardMetrics } from './features/dashboard/dashboard-metrics';
+import { accessibleGroupId, groupSelectionStorageKey } from './features/dashboard/group-selection';
 import { loadSharedMemberProfiles } from './core/firebase/member-profile-service';
 import { categoryLabel } from './shared/utils/category-label';
 import { qrInvitationText } from './features/groups/qr-invitation-text';
@@ -90,10 +91,20 @@ export class App implements OnInit, OnDestroy {
   readonly monthlyPaidMinor = signal<bigint>(0n);
   readonly settlementTotalMinor = signal<bigint>(0n);
   readonly dashboardMemberBalances = signal<readonly { userId: string; balanceMinor: bigint }[]>([]);
+  readonly dashboardActiveMembers = signal<readonly { userId: string; balanceMinor: bigint }[]>([]);
+  readonly dashboardGroupBalances = signal<Record<string, bigint>>({});
+  formatGroupBalance(group: Group): string {
+    const balance = this.dashboardGroupBalances()[group.id];
+    return balance === undefined ? group.currency : formatMinorExact(balance, group.currency, locale());
+  }
+  groupBalanceTone(group: Group): 'positive' | 'negative' | 'neutral' {
+    const balance = this.dashboardGroupBalances()[group.id] ?? 0n;
+    return balance > 0n ? 'positive' : balance < 0n ? 'negative' : 'neutral';
+  }
   readonly dashboardMemberNames = signal<Record<string, string>>({});
   dashboardMemberName(userId: string): string {
     if (userId === this.auth?.user()?.uid) return this.auth?.user()?.displayName?.trim() || t('me');
-    return this.dashboardMemberNames()[userId] || `${t('otherMember')} ${this.dashboardMemberBalances().findIndex(item => item.userId === userId) + 1}`;
+    return this.dashboardMemberNames()[userId] || `${t('otherMember')} ${this.dashboardActiveMembers().findIndex(item => item.userId === userId) + 1}`;
   }
   readonly dashboardCategories = signal<readonly { id: string; label?: string; amountMinor: bigint }[]>([]);
   readonly recentExpenses = signal<ExpenseHistoryEntry[]>([]);
@@ -137,6 +148,9 @@ export class App implements OnInit, OnDestroy {
   readonly groupServiceReady = signal(false);
   groupName = '';
   groupCurrency = 'CAD';
+  groupIconId = '';
+  groupColor = '';
+  groupDescription = '';
 
   constructor() {
     effect(() => {
@@ -157,6 +171,11 @@ export class App implements OnInit, OnDestroy {
         void this.loadSelectedBalance(group);
         void this.loadRecentExpenses(group);
       } else this.recentExpenses.set([]);
+    });
+    effect(() => {
+      const groupId = this.selectedGroupId();
+      const userId = this.auth?.user()?.uid;
+      if (groupId && userId && typeof window !== 'undefined') window.sessionStorage.setItem(groupSelectionStorageKey(userId), groupId);
     });
     effect(() => {
       const destination = this.authRedirect();
@@ -206,21 +225,38 @@ export class App implements OnInit, OnDestroy {
     if (!user || !this.firebaseApp) return;
     const requestId = ++this.groupLoadVersion;
     this.groupsBusy.set(true);
+    if (this.groupsError()) this.message.set('');
     this.groupsError.set(false);
     try {
       if (!this.groupService) { const { GroupService } = await import('./core/firebase/group-service'); this.groupService = new GroupService(this.firebaseApp, this.workerUrl); }
       const groups = await this.groupService.list(user);
       if (requestId !== this.groupLoadVersion || this.auth?.user()?.uid !== user.uid) return;
       this.groups.set(groups);
-      if (!groups.some(group => group.id === this.selectedGroupId())) this.selectedGroupId.set(groups[0]?.id ?? '');
+      this.dashboardGroupBalances.set({});
+      void this.loadGroupBalances(groups, user.uid, requestId);
+      const requestedGroupId = typeof window !== 'undefined' && window.location.pathname === '/expenses' ? new URLSearchParams(window.location.search).get('group') : null;
+      const storedGroupId = typeof window !== 'undefined' ? window.sessionStorage.getItem(groupSelectionStorageKey(user.uid)) : null;
+      this.selectedGroupId.set(accessibleGroupId(groups.map(group => group.id), requestedGroupId, this.selectedGroupId(), storedGroupId));
     }
     catch { if (requestId === this.groupLoadVersion && this.auth?.user()?.uid === user.uid) { this.groupsError.set(true); this.message.set(t('groupsUnavailable')); } }
     finally { if (requestId === this.groupLoadVersion) this.groupsBusy.set(false); }
+  }
+  private async loadGroupBalances(groups: readonly Group[], userId: string, requestId: number): Promise<void> {
+    const { BalanceService } = await import('./core/firebase/balance-service');
+    const service = new BalanceService(this.firebaseApp!);
+    const balances = await Promise.allSettled(groups.map(async group => {
+      const result = await service.load(group.id);
+      return [group.id, result.totals.find(item => item.userId === userId && item.currency === group.currency)?.balanceMinor ?? 0n] as const;
+    }));
+    if (requestId !== this.groupLoadVersion || this.auth?.user()?.uid !== userId) return;
+    this.dashboardGroupBalances.set(Object.fromEntries(balances.filter(result => result.status === 'fulfilled').map(result => result.value)));
   }
   private async loadSelectedBalance(group: Group): Promise<void> {
     const requestId = ++this.balanceRequestId;
     this.balanceBusy.set(true);
     this.balanceError.set(false);
+    this.dashboardMemberBalances.set([]);
+    this.dashboardActiveMembers.set([]);
     this.dashboardMemberNames.set({});
     try {
       const { BalanceService } = await import('./core/firebase/balance-service');
@@ -235,11 +271,16 @@ export class App implements OnInit, OnDestroy {
       this.monthlyPaidMinor.set(metrics.monthlyPaidMinor);
       this.settlementTotalMinor.set(metrics.settlementTotalMinor);
       this.dashboardMemberBalances.set(metrics.memberBalances);
+      this.dashboardActiveMembers.set(metrics.memberBalances);
       this.dashboardCategories.set(metrics.categories);
       const currentUser = this.auth?.user();
       if (this.workerUrl && currentUser) {
         void loadSharedMemberProfiles(this.workerUrl, group.id, currentUser).then(profiles => {
-          if (requestId === this.balanceRequestId) this.dashboardMemberNames.set(Object.fromEntries(profiles.filter(item => item.displayName).map(item => [item.userId, item.displayName!])))
+          if (requestId === this.balanceRequestId) {
+            this.dashboardMemberNames.set(Object.fromEntries(profiles.filter(item => item.displayName).map(item => [item.userId, item.displayName!])));
+            if (profiles.length) this.dashboardActiveMembers.set((profiles.some(item => item.userId === currentUser.uid) ? profiles : [{ userId: currentUser.uid }, ...profiles])
+              .map(item => ({ userId: item.userId, balanceMinor: metrics.memberBalances.find(balance => balance.userId === item.userId)?.balanceMinor ?? 0n })));
+          }
         }).catch(() => { /* Names are optional until the protected profile route is available. */ });
       }
     } catch {
@@ -266,7 +307,13 @@ export class App implements OnInit, OnDestroy {
     this.busy.set(true); this.message.set('');
     try {
       if (!this.groupService) { const { GroupService } = await import('./core/firebase/group-service'); this.groupService = new GroupService(this.firebaseApp, this.workerUrl); }
-      await this.groupService.create(user, this.groupName, this.groupCurrency); this.groupName = ''; await this.loadGroups(); }
+      await this.groupService.create(user, this.groupName, this.groupCurrency, {
+        ...(this.groupIconId ? { iconId: this.groupIconId } : {}),
+        ...(this.groupColor ? { color: this.groupColor } : {}),
+        ...(this.groupDescription.trim() ? { description: this.groupDescription.trim() } : {}),
+      });
+      this.groupName = ''; this.groupIconId = ''; this.groupColor = ''; this.groupDescription = '';
+      await this.loadGroups(); }
     catch { this.message.set(t('groupCreateFailed')); }
     finally { this.busy.set(false); }
   }
@@ -278,6 +325,9 @@ export class App implements OnInit, OnDestroy {
     this.password = '';
     this.groupName = '';
     this.groupCurrency = 'CAD';
+    this.groupIconId = '';
+    this.groupColor = '';
+    this.groupDescription = '';
     this.message.set('');
     this.groups.set([]);
     this.groupsBusy.set(false);
@@ -289,6 +339,8 @@ export class App implements OnInit, OnDestroy {
     this.monthlyPaidMinor.set(0n);
     this.settlementTotalMinor.set(0n);
     this.dashboardMemberBalances.set([]);
+    this.dashboardActiveMembers.set([]);
+    this.dashboardGroupBalances.set({});
     this.dashboardMemberNames.set({});
     this.dashboardCategories.set([]);
     this.recentExpenses.set([]);
@@ -330,4 +382,5 @@ export class App implements OnInit, OnDestroy {
   onSettlementSaved(): void { this.settlementRevision.update(value => value + 1); }
   onCommentAdded(): void { this.commentRevision.update(value => value + 1); }
   onInvitationJoined(): void { void this.loadGroups(); }
+  refreshGroups(): void { void this.loadGroups(); }
 }
