@@ -1,6 +1,7 @@
-import { ChangeDetectorRef, Component, ElementRef, EventEmitter, HostListener, inject, Input, OnDestroy, Output, ViewChild } from '@angular/core';
-import { locale } from '../../utils/i18n';
-import { TranslatePipe } from '@ngx-translate/core';
+import { ChangeDetectorRef, Component, ElementRef, EventEmitter, HostListener, effect, inject, Input, OnDestroy, Output, ViewChild } from '@angular/core';
+import { language, locale } from '../../utils/i18n';
+import { TranslatePipe, TranslateService, provideTranslateLoader, provideTranslateService } from '@ngx-translate/core';
+import { GalleryTranslateLoader } from '../../../gallery/gallery/gallery-translations';
 import { BrowserDateTimePipe } from '../../pipes/browser-date-time.pipe';
 import { BrowserDateTimeFormat, formatBrowserDateTime } from '../../utils/browser-date-time';
 import { localDateIso, selectedRange, selectionFromRange, type SelectionUnit } from './ui-period-range-model';
@@ -10,10 +11,13 @@ export interface UiAppliedRange { readonly start: string; readonly end: string; 
 @Component({
   selector: 'app-ui-period-range',
   imports: [BrowserDateTimePipe, TranslatePipe],
+  providers: [...provideTranslateService({ loader: provideTranslateLoader(GalleryTranslateLoader), fallbackLang: 'en', lang: language() })],
   templateUrl: './ui-period-range.html',
 })
 export class UiPeriodRange implements OnDestroy {
   private readonly changeDetector = inject(ChangeDetectorRef);
+  private readonly translate = inject(TranslateService);
+  constructor() { effect(() => { void this.translate.use(language()); }); }
   @ViewChild('trigger') trigger?: ElementRef<HTMLButtonElement>;
   @ViewChild('dialog') dialog?: ElementRef<HTMLElement>;
   @Input() range: UiAppliedRange = { start: localDateIso(new Date()), end: localDateIso(new Date()), unit: 'days' };

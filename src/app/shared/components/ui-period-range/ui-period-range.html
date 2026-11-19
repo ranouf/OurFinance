@@ -1,6 +1,6 @@
     <div class="mt-4">
       <span class="block text-sm font-bold">{{ (translationPrefix + '.period' | translate) }}</span>
-      <button #trigger class="mt-2 flex min-h-11 w-full scroll-mt-24 items-center gap-2 rounded-xl border border-pop-border bg-pop-surface p-3 text-left text-sm focus-visible:outline-2 focus-visible:outline-pop-primary" type="button" [attr.aria-expanded]="open" aria-haspopup="dialog" (click)="show()">
+      <button #trigger class="mt-2 flex min-h-11 w-full scroll-mt-24 items-center gap-2 rounded-xl border border-pop-border bg-pop-surface p-3 text-left text-sm focus-visible:outline-2 focus-visible:outline-pop-primary" type="button" [attr.aria-label]="(translationPrefix + '.period' | translate) + ' : ' + label()" [attr.aria-expanded]="open" aria-haspopup="dialog" (click)="show()">
         <svg class="h-5 w-5 shrink-0 text-pop-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
         <span class="min-w-0 flex-1" aria-live="polite">{{ label() }}</span><span aria-hidden="true">▾</span>
       </button>
