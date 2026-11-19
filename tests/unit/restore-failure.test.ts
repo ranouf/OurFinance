@@ -23,4 +23,5 @@ test('les autres refus restent distincts du quota', async () => {
   assert.equal(await restoreFailure(failure(400, 'invalid_archive'), false), 'restoreInvalid');
   assert.equal(await restoreFailure(failure(503, 'group_creation_disabled'), true), 'restorePreparedUncertain');
   assert.equal(await restoreFailure(failure(503, 'group_creation_disabled'), true, true), 'restoreUncertain');
+  assert.equal(await restoreFailure(new Response('not-json', { status: 400 }), false), 'restoreInvalid');
 });
