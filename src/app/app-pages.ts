@@ -10,7 +10,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { App } from './app';
 import { LoginPage } from './login-page';
-import { language, t } from './shared/utils/i18n';
+import { groupMemberCountLabel, language, t } from './shared/utils/i18n';
 import { categoryById, categoryColorClass, categoryColors, categoryIcons } from './shared/utils/categories';
 import { categoryDropdownIcon } from './shared/utils/category-dropdown-options';
 import { GroupOverview } from './features/groups/group-overview';
@@ -67,7 +67,7 @@ import { ProfilePanel } from './features/profile/profile-panel';
           </div>
           <div class="hidden min-h-64 grid-cols-[52%_48%] sm:grid">
             <div class="relative overflow-hidden"><img class="absolute inset-0 h-full w-full object-cover object-[16%_45%]" src="/illustrations/cafe-hero-mobile.webp" alt="" /><div class="absolute inset-y-0 right-0 w-20 bg-gradient-to-r from-transparent to-pop-primary"></div></div>
-            <div class="flex min-w-0 flex-col justify-center px-5 py-6 lg:px-8"><p class="text-xs font-bold uppercase tracking-wider text-white">{{ t('myGroups') }} · {{ group.currency }}</p><h1 class="mt-1 break-words text-2xl font-black lg:text-4xl">{{ group.name }}</h1><p class="mt-2 text-sm text-white/80">{{ group.memberCount ?? 1 }} {{ t('membersCount') }}</p>
+            <div class="flex min-w-0 flex-col justify-center px-5 py-6 lg:px-8"><p class="text-xs font-bold uppercase tracking-wider text-white">{{ t('myGroups') }} · {{ group.currency }}</p><h1 class="mt-1 break-words text-2xl font-black lg:text-4xl">{{ group.name }}</h1><p class="mt-2 text-sm text-white/80">{{ groupMemberCountLabel(group.memberCount ?? 1) }}</p>
               @if (app.balanceBusy()) { <app-ui-alert variant="info" class="mt-5">{{ t('loadingBalances') }}</app-ui-alert> } @else if (app.balanceError()) { <app-ui-alert variant="error" class="mt-5">{{ t('balancesUnavailable') }}</app-ui-alert> } @else { <div class="mt-5 grid grid-cols-2 gap-3"><div><span class="block text-xs text-white/80">{{ t('myBalance') }}</span><strong class="text-xl lg:text-2xl">{{ app.selectedBalance() }}</strong></div><div><span class="block text-xs text-white/80">{{ t('groupTotal') }}</span><strong class="text-xl lg:text-2xl">{{ app.groupSpent() }}</strong></div><div><span class="block text-xs text-white/80">{{ t('totalRepayments') }}</span><strong class="text-xl lg:text-2xl">{{ app.settlementTotal() }}</strong></div></div> }
             </div>
           </div>
@@ -83,7 +83,7 @@ import { ProfilePanel } from './features/profile/profile-panel';
           </div>
         </section>
         <div class="mt-4 flex max-w-full min-w-0 snap-x gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:overflow-visible" [attr.aria-label]="t('myGroups')">
-          @for (item of app.groups(); track item.id) { <app-ui-group-card class="shrink-0 snap-start sm:w-full" [class.w-full]="app.groups().length === 1" [class.w-[80%]]="app.groups().length > 1" [name]="item.name" [detail]="(item.memberCount ?? 1) + ' ' + t('membersCount') + ' · ' + item.currency" [amount]="app.formatGroupBalance(item)" [amountTone]="app.groupBalanceTone(item)" [icon]="categoryDropdownIcon(item.iconId || 'home') || 'house'" [selected]="app.selectedGroupId() === item.id" [interactive]="true" (activated)="app.selectedGroupId.set(item.id)" /> }
+          @for (item of app.groups(); track item.id) { <app-ui-group-card class="shrink-0 snap-start sm:w-full" [class.w-full]="app.groups().length === 1" [class.w-[80%]]="app.groups().length > 1" [name]="item.name" [detail]="groupMemberCountLabel(item.memberCount ?? 1) + ' · ' + item.currency" [amount]="app.formatGroupBalance(item)" [amountTone]="app.groupBalanceTone(item)" [icon]="categoryDropdownIcon(item.iconId || 'home') || 'house'" [selected]="app.selectedGroupId() === item.id" [interactive]="true" (activated)="app.selectedGroupId.set(item.id)" /> }
         </div>
         <a class="mt-2 flex min-h-11 items-center justify-center rounded-2xl bg-pop-lavender text-sm font-extrabold text-pop-primary-dark sm:hidden" routerLink="/groups">+ {{ t('createGroup') }}</a>
         <div class="flex flex-col">
@@ -150,6 +150,7 @@ import { ProfilePanel } from './features/profile/profile-panel';
   `,
 })
 export class DashboardPage {
+  readonly groupMemberCountLabel = groupMemberCountLabel;
   readonly app = inject(App);
   private readonly router = inject(Router);
   readonly t = t;
@@ -185,7 +186,7 @@ export class DashboardPage {
       @else if (app.groups().length) {
         <section [attr.aria-label]="t('myGroups')"><div class="mb-3 flex items-center justify-between gap-3"><h2 class="text-xl font-black">{{ t('myGroups') }}</h2><span class="rounded-full bg-pop-lavender px-3 py-1 text-xs font-bold text-pop-primary-dark">{{ app.groups().length }}</span></div><div class="grid gap-3 sm:grid-cols-2">
           @for (group of app.groups(); track group.id) {
-            <app-ui-group-card [name]="group.name" [detail]="(group.memberCount ?? 1) + ' ' + t('membersCount') + ' · ' + group.currency" [amount]="app.formatGroupBalance(group)" [amountTone]="app.groupBalanceTone(group)" [icon]="categoryDropdownIcon(group.iconId || 'home') || 'house'" [selected]="app.selectedGroupId() === group.id" [interactive]="true" (activated)="app.selectedGroupId.set(group.id)" />
+            <app-ui-group-card [name]="group.name" [detail]="groupMemberCountLabel(group.memberCount ?? 1) + ' · ' + group.currency" [amount]="app.formatGroupBalance(group)" [amountTone]="app.groupBalanceTone(group)" [icon]="categoryDropdownIcon(group.iconId || 'home') || 'house'" [selected]="app.selectedGroupId() === group.id" [interactive]="true" (activated)="app.selectedGroupId.set(group.id)" />
           }
         </div></section>
       } @else { <p class="rounded-2xl border border-pop-border bg-white p-5 text-pop-muted">{{ t('noGroups') }} {{ t('gettingStartedIntro') }}</p> }
@@ -228,6 +229,7 @@ export class DashboardPage {
   `,
 })
 export class GroupsPage {
+  readonly groupMemberCountLabel = groupMemberCountLabel;
   readonly app = inject(App);
   readonly t = t;
   readonly currencyDropdownOptions = currencyDropdownOptions;
