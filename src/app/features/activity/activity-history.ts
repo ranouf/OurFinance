@@ -47,7 +47,7 @@ const labels: Record<string, MessageKey> = {
         } @else if (!busy() && !message()) { <p class="mt-4 text-sm text-slate-600">{{ t('noActivity') }}</p> }
         @if (hasMore()) { <app-ui-button variant="secondary" class="mt-3" type="button" [disabled]="busy()" (click)="loadMore()">{{ t('showMore') }}</app-ui-button> }
       }
-      @if (message()) { <app-ui-alert variant="error" class="mt-4">{{ message() }}</app-ui-alert> }
+      @if (message(); as key) { <app-ui-alert variant="error" class="mt-4">{{ t(key) }}</app-ui-alert> }
     </section>
   `,
 })
@@ -61,7 +61,7 @@ export class ActivityHistory implements OnChanges {
   readonly t = t;
   readonly hasMore = signal(false);
   readonly busy = signal(false);
-  readonly message = signal('');
+  readonly message = signal<MessageKey | null>(null);
   selectedGroupId = '';
   private service?: ActivityService;
   private last?: QueryDocumentSnapshot<DocumentData>;
@@ -83,7 +83,7 @@ export class ActivityHistory implements OnChanges {
   private async load(): Promise<void> {
     const groupId = this.selectedGroupId;
     const requestId = ++this.requestId;
-    this.message.set('');
+    this.message.set(null);
     if (!groupId || !this.service) { this.busy.set(false); return; }
     this.busy.set(true);
     try {
@@ -92,7 +92,7 @@ export class ActivityHistory implements OnChanges {
       this.entries.update(entries => [...entries, ...page.entries]);
       this.last = page.last;
       this.hasMore.set(page.hasMore);
-    } catch { if (requestId === this.requestId) this.message.set('Activité indisponible.'); }
+    } catch { if (requestId === this.requestId) this.message.set('activityUnavailable'); }
     finally { if (requestId === this.requestId) this.busy.set(false); }
   }
 }
