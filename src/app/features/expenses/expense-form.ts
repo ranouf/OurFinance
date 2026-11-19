@@ -14,6 +14,7 @@ import type { Group } from '../../core/firebase/group-model';
 import { ExpenseService } from '../../core/firebase/expense-service';
 import type { ExpenseHistoryEntry } from '../../core/firebase/expense-service';
 import { CategoryService } from '../../core/firebase/category-service';
+import { loadSharedMemberProfiles } from '../../core/firebase/member-profile-service';
 import { formatMinor, minorDigits } from '../../shared/utils/currency';
 import { categories, type CustomCategory } from '../../shared/utils/categories';
 import { categoryLabel } from '../../shared/utils/category-label';
@@ -31,7 +32,7 @@ import { expenseMessage, expenseText } from './expense-text';
       @if (editing) { <p class="mt-1 text-sm text-pop-muted">{{ text('authorOnly') }}</p> }
       <p class="mt-2 text-sm leading-6 text-pop-muted">{{ text('splitHelp') }}</p>
       <form class="mt-6 grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4" (ngSubmit)="save()">
-        <app-field class="block" controlId="group" [label]="text('group')"><app-dropdown controlId="group" [options]="groupDropdownOptions(groups, text('chooseGroup'), false)" name="group" [(ngModel)]="selectedGroupId" (ngModelChange)="loadGroup()" [disabled]="!!editing" required /></app-field>
+        <app-field class="block" controlId="group" [label]="text('group')"><app-dropdown controlId="group" [options]="groupDropdownOptions(groups, text('chooseGroup'), false)" name="group" [(ngModel)]="selectedGroupId" (ngModelChange)="onGroupChange()" [disabled]="!!editing" required /></app-field>
         @if (selectedGroupId) {
           <label class="block text-sm font-bold">{{ text('description') }}
             <input appUiControl class="mt-2 w-full" name="description" [(ngModel)]="draft.description" maxlength="160" required />
@@ -93,7 +94,7 @@ import { expenseMessage, expenseText } from './expense-text';
           } @else { <p class="text-sm text-pop-muted">{{ text('noMembers') }}</p> }
         }
       </form>
-      @if (message() && !paymentError()) { <p class="mt-4 rounded-xl bg-pop-lavender p-3 text-sm text-pop-text" [attr.role]="message() === 'saved' || message() === 'updated' ? 'status' : 'alert'">{{ displayMessage(message()) }}</p> }
+      @if (message() && !paymentError()) { <app-ui-alert class="mt-4" [variant]="message() === 'saved' || message() === 'updated' ? 'success' : 'error'">{{ displayMessage(message()) }}</app-ui-alert> }
     </section>
   `,
 })
@@ -101,13 +102,13 @@ export class ExpenseForm implements OnChanges {
   readonly groupDropdownOptions = groupDropdownOptions;
   expenseCategoryOptions(): DropdownOption[] { return categoryDropdownOptions(this.availableCategories(), category => categoryLabel(category.id, language(), category.label)); }
   payerOptions(): DropdownOption[] { return this.members().map(member => ({ value: member.userId, label: this.memberLabel(member.userId) })); }
-  memberLabel(userId: string): string { return userId === this.user?.uid ? this.text('me') : userId; }
   splitModeOptions(): DropdownOption[] { return (['equal', 'exact', 'percentage', 'shares', 'adjustment'] as const).map(value => ({ value, label: this.text(value) })); }
   constructor(private readonly changeDetector: ChangeDetectorRef) {}
   @ViewChildren('paymentInput') private paymentInputs?: QueryList<ElementRef<HTMLInputElement>>;
   @ViewChildren('payerCheckbox') private payerCheckboxes?: QueryList<ElementRef<HTMLInputElement>>;
   @Output() readonly saved = new EventEmitter<void>();
   @Output() readonly editCancelled = new EventEmitter<void>();
+  @Output() readonly groupChange = new EventEmitter<string>();
   @Input({ required: true }) groups: Group[] = [];
   @Input() preferredGroupId = '';
   @Input({ required: true }) user?: User;
@@ -123,12 +124,14 @@ export class ExpenseForm implements OnChanges {
   readonly text = expenseText;
   readonly displayMessage = expenseMessage;
   readonly members = signal<{ userId: string }[]>([]);
+  readonly memberNames = signal<Record<string, string>>({});
   readonly customCategories = signal<CustomCategory[]>([]);
   readonly busy = signal(false);
   readonly message = signal('');
   readonly paymentError = signal(false);
   readonly previewRows = signal<{ userId: string; amountMinor: number }[]>([]);
   selectedGroupId = '';
+  private groupRequestId = 0;
   draft: ExpenseDraft = this.emptyDraft();
   private service?: ExpenseService;
   private categoryService?: CategoryService;
@@ -140,7 +143,7 @@ export class ExpenseForm implements OnChanges {
       this.service = new ExpenseService(this.firebaseApp, this.workerUrl);
       this.categoryService = new CategoryService(this.firebaseApp, this.workerUrl);
     }
-    if (!this.editing && !this.selectedGroupId && this.groups.some(group => group.id === this.preferredGroupId)) {
+    if (!this.editing && this.selectedGroupId !== this.preferredGroupId && this.groups.some(group => group.id === this.preferredGroupId)) {
       this.selectedGroupId = this.preferredGroupId;
       void this.loadGroup();
     }
@@ -167,8 +170,10 @@ export class ExpenseForm implements OnChanges {
     return `${amount < 0 ? '-' : ''}${Math.floor(absolute / scale)}${digits ? '.' + String(absolute % scale).padStart(digits, '0') : ''}`;
   }
   clearValues(): void { this.previewRows.set([]); this.draft.rows.forEach(row => row.value = ''); }
+  onGroupChange(): void { this.groupChange.emit(this.selectedGroupId); void this.loadGroup(); }
   async loadGroup(): Promise<void> {
-    this.members.set([]); this.customCategories.set([]); this.previewRows.set([]); this.message.set(''); this.draft = this.emptyDraft();
+    const requestId = ++this.groupRequestId;
+    this.members.set([]); this.memberNames.set({}); this.customCategories.set([]); this.previewRows.set([]); this.message.set(''); this.draft = this.emptyDraft();
     this.pendingKey = undefined; this.pendingBody = undefined;
     const groupId = this.selectedGroupId;
     const group = this.groups.find(item => item.id === groupId);
@@ -176,14 +181,19 @@ export class ExpenseForm implements OnChanges {
     this.draft.currency = group.currency;
     try {
       await this.loadCategories();
-      const members = (await this.service.members(groupId)).filter(member => member.status === 'active');
-      if (this.selectedGroupId !== groupId) return;
-      this.members.set(members);
-      this.draft.payerId = members.find(member => member.userId === this.user?.uid)?.userId ?? members[0]?.userId ?? '';
-      this.draft.rows = members.map(member => ({ userId: member.userId, selected: false, value: '' }));
-      this.draft.paymentRows = members.map(member => ({ userId: member.userId, selected: false, value: '' }));
-      const preference = this.editing?.groupId === groupId ? this.editing.entry.splitMode : await this.service.preference(this.user, groupId, new Set(members.map(member => member.userId)));
-      if (this.selectedGroupId === groupId && preference) {
+      const [members, names] = await Promise.all([
+        this.service.members(groupId),
+        this.workerUrl ? loadSharedMemberProfiles(this.workerUrl, groupId, this.user).catch(() => []) : [],
+      ]);
+      if (this.selectedGroupId !== groupId || requestId !== this.groupRequestId) return;
+      this.memberNames.set(Object.fromEntries(names.filter(item => item.displayName).map(item => [item.userId, item.displayName!])));
+      const activeMembers = members.filter(member => member.status === 'active');
+      this.members.set(activeMembers);
+      this.draft.payerId = activeMembers.find(member => member.userId === this.user?.uid)?.userId ?? activeMembers[0]?.userId ?? '';
+      this.draft.rows = activeMembers.map(member => ({ userId: member.userId, selected: false, value: '' }));
+      this.draft.paymentRows = activeMembers.map(member => ({ userId: member.userId, selected: false, value: '' }));
+      const preference = this.editing?.groupId === groupId ? this.editing.entry.splitMode : await this.service.preference(this.user, groupId, new Set(activeMembers.map(member => member.userId)));
+      if (this.selectedGroupId === groupId && requestId === this.groupRequestId && preference) {
         if (this.editing?.groupId === groupId) {
           const entry = this.editing.entry;
           this.draft.description = entry.description;
@@ -197,8 +207,9 @@ export class ExpenseForm implements OnChanges {
         this.applyPreference(preference);
         this.changeDetector.markForCheck();
       }
-    } catch { this.message.set('membersUnavailable'); }
+    } catch { if (requestId === this.groupRequestId) this.message.set('membersUnavailable'); }
   }
+  memberLabel(userId: string): string { return userId === this.user?.uid ? this.text('me') : this.memberNames()[userId] || `${this.text('otherMember')} ${userId.slice(0, 8)}`; }
   private applyPreference(mode: SplitMode): void {
     this.draft.kind = mode.kind;
     const values = new Map<string, string>();
@@ -249,7 +260,7 @@ export class ExpenseForm implements OnChanges {
       this.pendingKey = undefined; this.pendingBody = undefined;
       this.message.set(this.editing ? 'updated' : 'saved'); this.draft.description = ''; this.draft.amount = ''; this.previewRows.set([]); this.saved.emit();
       if (this.editing) this.editCancelled.emit();
-    } catch (error) { this.message.set(error instanceof Error ? error.message : 'saveFailed'); }
+    } catch (error) { this.message.set(error instanceof TypeError ? 'saveFailed' : error instanceof Error ? error.message : 'saveFailed'); }
     finally { this.busy.set(false); }
   }
 }
