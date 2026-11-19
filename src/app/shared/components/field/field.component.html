@@ -1,0 +1,6 @@
+<div class="text-sm text-pop-text">
+  <label class="mb-1.5 block font-bold" [for]="controlId">{{ label }} @if (required) { <span class="text-red-700" aria-hidden="true">*</span> }</label>
+  <ng-content select="app-input, app-select, app-dropdown, app-textarea, app-radio-group, input, select, textarea, app-checkbox, app-toggle, app-calendar" />
+  @if (hint) { <p [id]="controlId + '-hint'" class="mt-1.5 text-pop-muted">{{ hint }}</p> }
+  <ng-content select="app-control-errors" />
+</div>

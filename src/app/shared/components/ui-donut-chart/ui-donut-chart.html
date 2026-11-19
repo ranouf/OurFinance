@@ -1,0 +1,6 @@
+<div class="flex flex-wrap items-center gap-4">
+  <div class="flex size-28 shrink-0 items-center justify-center rounded-full" [style.background]="chartBackground()" role="img" [attr.aria-label]="totalLabel + ' ' + total">
+    <span class="flex size-16 flex-col items-center justify-center rounded-full bg-white text-center"><strong class="text-xs font-black">{{ total }}</strong><small class="text-[10px] text-pop-muted">{{ totalLabel }}</small></span>
+  </div>
+  <ul class="min-w-32 flex-1 space-y-1 text-[11px]">@for (slice of slices; track slice.label) { <li class="flex items-center gap-1.5"><span class="size-2.5 rounded-full" [style.background]="slice.color" aria-hidden="true"></span><span class="flex-1">{{ slice.label }}</span><strong>{{ slice.percent }} %</strong><span>{{ slice.amount }}</span></li> }</ul>
+</div>

@@ -1,0 +1,8 @@
+<fieldset class="text-sm text-pop-text" [disabled]="disabled">
+  <legend class="mb-2 font-bold">{{ label }}</legend>
+  <div class="flex flex-wrap gap-4">
+    @for (option of options; track option.value) {
+      <label class="inline-flex min-h-11 cursor-pointer items-center gap-2 font-semibold"><input class="size-5 accent-pop-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pop-primary-dark" type="radio" [name]="name" [value]="option.value" [checked]="value === option.value" (change)="select(option.value)" />{{ option.label }}</label>
+    }
+  </div>
+</fieldset>

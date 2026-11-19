@@ -1,0 +1,4 @@
+<span class="group relative inline-flex">
+  <button type="button" class="flex size-8 items-center justify-center rounded-full border border-pop-primary text-sm font-black text-pop-primary-dark focus-visible:outline-2 focus-visible:outline-pop-primary" [attr.aria-label]="label" [attr.aria-describedby]="tooltipId">i</button>
+  <span [id]="tooltipId" role="tooltip" class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 hidden w-44 -translate-x-1/2 rounded-lg bg-pop-text px-3 py-2 text-xs font-semibold text-white shadow-lg group-hover:block group-focus-within:block">{{ text }}</span>
+</span>

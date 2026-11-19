@@ -1,0 +1,8 @@
+<div class="block text-sm font-bold text-pop-text">
+  <label class="mb-1.5 block" [for]="controlId">{{ label }}</label>
+  <div class="rounded-xl border border-pop-border bg-white focus-within:border-pop-primary focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-pop-primary-dark" [class.border-red-600]="!!error" [class.focus-within:outline-red-700]="!!error">
+    <ng-content />
+  </div>
+  @if (error) { <p class="mt-1.5 font-semibold text-red-700" [id]="controlId + '-error'" role="alert">{{ error }}</p> }
+  @else if (hint) { <p class="mt-1.5 font-normal text-pop-muted" [id]="controlId + '-hint'">{{ hint }}</p> }
+</div>

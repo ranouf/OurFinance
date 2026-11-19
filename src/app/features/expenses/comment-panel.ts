@@ -1,3 +1,6 @@
+import { UiControlDirective } from '../../shared/components/ui-field/ui-control.directive';
+import { UiAlert } from '../../shared/components/ui-alert/ui-alert';
+import { UiButton } from '../../shared/components/ui-button/ui-button';
 import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { FirebaseApp } from 'firebase/app';
@@ -10,15 +13,15 @@ import { publishThenRefresh } from './publish-refresh';
 
 @Component({
   selector: 'app-comment-panel',
-  imports: [FormsModule],
+  imports: [UiControlDirective, UiAlert, UiButton, FormsModule],
   template: `
     <section class="rounded-2xl border border-pop-border bg-pop-lavender p-4" [attr.aria-label]="text('comments')">
       <h3 class="font-extrabold text-pop-text">{{ text('comments') }}</h3>
       <form class="mt-3 space-y-2" (ngSubmit)="save()">
         <label class="block font-bold">{{ text('newComment') }}
-          <textarea class="mt-2 w-full rounded-xl border border-pop-border bg-pop-surface p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="commentText" [(ngModel)]="draft" maxlength="1000" rows="3" required></textarea>
+          <textarea appUiControl class="mt-2 w-full" name="commentText" [(ngModel)]="draft" maxlength="1000" rows="3" required></textarea>
         </label>
-        <button class="min-h-11 rounded-xl bg-pop-primary px-4 py-2 font-bold text-white hover:bg-pop-primary-dark disabled:opacity-50" type="submit" [disabled]="busy() || !draft.trim()">{{ text('publishComment') }}</button>
+        <app-ui-button variant="primary"  type="submit" [disabled]="busy() || !draft.trim()">{{ text('publishComment') }}</app-ui-button>
       </form>
       @if (entries().length) {
         <ol class="mt-4 divide-y divide-pop-border">
@@ -30,8 +33,8 @@ import { publishThenRefresh } from './publish-refresh';
           }
         </ol>
       } @else if (!busy() && !message()) { <p class="mt-3 text-pop-muted">{{ text('noComments') }}</p> }
-      @if (hasMore()) { <button class="mt-2 min-h-11 rounded-xl border border-pop-border px-4 py-2 font-bold text-pop-primary-dark disabled:opacity-50" type="button" [disabled]="busy()" (click)="loadMore()">{{ text('moreComments') }}</button> }
-      @if (message()) { <p class="mt-2 text-sm" [attr.role]="message() === 'commentPublished' || message() === 'commentPublishedRefreshFailed' ? 'status' : 'alert'">{{ displayMessage(message()) }}</p> }
+      @if (hasMore()) { <app-ui-button variant="secondary" class="mt-2" type="button" [disabled]="busy()" (click)="loadMore()">{{ text('moreComments') }}</app-ui-button> }
+      @if (message()) { <app-ui-alert [variant]="message() === 'commentPublished' ? 'success' : message() === 'commentPublishedRefreshFailed' ? 'info' : 'error'" class="mt-2">{{ displayMessage(message()) }}</app-ui-alert> }
     </section>
   `,
 })

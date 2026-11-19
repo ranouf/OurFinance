@@ -1,0 +1,6 @@
+<label class="inline-flex min-h-11 cursor-pointer items-center gap-3 text-sm font-semibold text-pop-text" [for]="controlId">
+  <input class="size-5 accent-pop-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pop-primary-dark disabled:cursor-not-allowed" type="checkbox"
+    [id]="controlId" [checked]="checked" [disabled]="disabled" [attr.aria-invalid]="invalid || null" [attr.aria-describedby]="describedBy || null"
+    (change)="change($event)" (blur)="touch()" />
+  <span>{{ label }}</span>
+</label>
