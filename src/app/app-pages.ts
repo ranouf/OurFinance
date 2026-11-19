@@ -73,8 +73,8 @@ import { ProfilePanel } from './features/profile/profile-panel';
             }
           </div>
         </section>
-        <div class="mt-4 flex max-w-full min-w-0 snap-x gap-3 overflow-x-auto pb-1 sm:hidden" [attr.aria-label]="t('myGroups')">
-          @for (item of app.groups(); track item.id) { <app-ui-group-card class="shrink-0 snap-start" [class.w-full]="app.groups().length === 1" [class.w-[80%]]="app.groups().length > 1" [name]="item.name" [detail]="(item.memberCount ?? 1) + ' ' + t('membersCount')" [amount]="item.currency" [icon]="$index % 2 ? 'plane' : 'house'" [selected]="app.selectedGroupId() === item.id" [interactive]="true" (activated)="app.selectedGroupId.set(item.id)" /> }
+        <div class="mt-4 flex max-w-full min-w-0 snap-x gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:overflow-visible" [attr.aria-label]="t('myGroups')">
+          @for (item of app.groups(); track item.id) { <app-ui-group-card class="shrink-0 snap-start sm:w-full" [class.w-full]="app.groups().length === 1" [class.w-[80%]]="app.groups().length > 1" [name]="item.name" [detail]="(item.memberCount ?? 1) + ' ' + t('membersCount')" [amount]="item.currency" [icon]="$index % 2 ? 'plane' : 'house'" [selected]="app.selectedGroupId() === item.id" [interactive]="true" (activated)="app.selectedGroupId.set(item.id)" /> }
         </div>
         <a class="mt-2 flex min-h-11 items-center justify-center rounded-2xl bg-pop-lavender text-sm font-extrabold text-pop-primary-dark sm:hidden" routerLink="/groups">+ {{ t('createGroup') }}</a>
         <div class="flex flex-col">
@@ -101,7 +101,7 @@ import { ProfilePanel } from './features/profile/profile-panel';
               @if (app.recentExpensesBusy()) { <app-ui-alert variant="info" class="py-3">{{ t('loadingExpenseHistory') }}</app-ui-alert> }
               @else if (app.recentExpensesError()) { <app-ui-alert variant="error" class="py-3">{{ t('historyUnavailable') }}</app-ui-alert> }
               @else if (!app.recentExpenses().length) { <p class="py-3 text-sm text-pop-muted">{{ t('noRecentExpenses') }}</p> }
-              @else { @for (entry of app.recentExpenses(); track entry.id) { <div class="flex min-h-12 items-center gap-2 py-1.5"><span class="flex size-9 shrink-0 items-center justify-center rounded-full text-lg" [class]="categoryColorClass(entry.categoryColor)" aria-hidden="true">{{ entry.categoryIcon }}</span><span class="min-w-0 flex-1"><strong class="block truncate text-sm">{{ entry.description }}</strong><small class="text-pop-muted">{{ entry.date }}</small></span><strong class="shrink-0 text-xs text-pop-primary-dark">{{ app.formatRecentExpense(entry) }}</strong></div> } }
+              @else { @for (entry of app.recentExpenses(); track entry.id) { <a class="flex min-h-12 items-center gap-2 py-1.5 focus-visible:outline-2 focus-visible:outline-pop-primary" routerLink="/expenses" [queryParams]="{ expense: entry.id }" [fragment]="'expense-' + entry.id"><span class="flex size-9 shrink-0 items-center justify-center rounded-full text-lg" [class]="categoryColorClass(entry.categoryColor)" aria-hidden="true">{{ entry.categoryIcon }}</span><span class="min-w-0 flex-1"><strong class="block truncate text-sm">{{ entry.description }}</strong><small class="text-pop-muted">{{ entry.date }}</small></span><strong class="shrink-0 text-xs text-pop-primary-dark">{{ app.formatRecentExpense(entry) }}</strong></a> } }
             </div>
           </section>
           <section class="order-3 min-w-0 rounded-[1.7rem] border border-pop-border bg-white p-4 shadow-[0_9px_25px_#6455ec12]" [attr.aria-label]="t('byCategory')">
