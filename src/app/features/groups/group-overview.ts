@@ -1,3 +1,4 @@
+import { UiAlert } from '../../shared/components/ui-alert/ui-alert';
 import { Component, Input, OnChanges, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import type { FirebaseApp } from 'firebase/app';
@@ -22,7 +23,7 @@ const actions: Record<string, MessageKey> = {
 
 @Component({
   selector: 'app-group-overview',
-  imports: [RouterLink],
+  imports: [UiAlert, RouterLink],
   template: `
     <section class="mt-6 rounded-2xl border border-pop-border bg-white p-5 sm:p-6" [attr.aria-label]="t('recentActivity')">
       <div class="flex flex-wrap items-center justify-between gap-2">
@@ -31,9 +32,9 @@ const actions: Record<string, MessageKey> = {
       </div>
       <p class="mt-1 break-words text-sm font-semibold text-pop-muted">{{ group.name }} · {{ group.currency }}</p>
       @if (busy()) {
-        <p class="mt-4 text-sm text-pop-muted" role="status">{{ t('loadingActivity') }}</p>
+        <app-ui-alert variant="info" class="mt-4">{{ t('loadingActivity') }}</app-ui-alert>
       } @else if (error()) {
-        <p class="mt-4 text-sm text-pop-muted" role="status">{{ t('activityUnavailable') }}</p>
+        <app-ui-alert variant="error" class="mt-4">{{ t('activityUnavailable') }}</app-ui-alert>
       } @else if (entries().length) {
         <ol class="mt-4 divide-y divide-pop-border">
           @for (entry of entries(); track entry.id) {

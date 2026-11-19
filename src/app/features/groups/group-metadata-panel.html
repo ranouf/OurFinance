@@ -12,23 +12,19 @@
 @if (canManage()) {
   <form class="mt-4 space-y-4" (ngSubmit)="save()">
     <label class="block text-sm font-bold" for="metadata-name">{{ text().name }}</label>
-    <input id="metadata-name" class="min-h-11 w-full rounded-xl border border-pop-border bg-pop-background px-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="metadataName" [(ngModel)]="name" maxlength="80" required />
+    <input appUiControl id="metadata-name" name="metadataName" [(ngModel)]="name" maxlength="80" required />
     <div class="grid gap-4 sm:grid-cols-2">
-      <div><label class="block text-sm font-bold" for="metadata-icon">{{ text().icon }} · {{ text().optional }}</label>
-        <select id="metadata-icon" class="mt-1 min-h-11 w-full rounded-xl border border-pop-border bg-pop-background px-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="metadataIcon" [(ngModel)]="iconId">
-          @if (!group.iconId) { <option value="">{{ text().none }}</option> }
-          @for (icon of icons; track icon.id) { <option [value]="icon.id">{{ text().icons[$index] }}</option> }
-        </select></div>
-      <div><label class="block text-sm font-bold" for="metadata-color">{{ text().color }} · {{ text().optional }}</label>
-        <select id="metadata-color" class="mt-1 min-h-11 w-full rounded-xl border border-pop-border bg-pop-background px-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="metadataColor" [(ngModel)]="color">
-          @if (!group.color) { <option value="">{{ text().none }}</option> }
-          @for (item of colors; track item.id) { <option [value]="item.id">{{ text().colors[$index] }}</option> }
-        </select></div>
+      <app-field controlId="metadata-icon" [label]="text().icon + ' · ' + text().optional">
+        <app-dropdown controlId="metadata-icon" name="metadataIcon" [options]="iconOptions()" [(ngModel)]="iconId" />
+      </app-field>
+      <app-field controlId="metadata-color" [label]="text().color + ' · ' + text().optional">
+        <app-dropdown controlId="metadata-color" name="metadataColor" [options]="colorOptions()" [(ngModel)]="color" />
+      </app-field>
     </div>
     <div><label class="block text-sm font-bold" for="metadata-description">{{ text().description }} · {{ text().optional }}</label>
-      <textarea id="metadata-description" class="mt-1 min-h-24 w-full rounded-xl border border-pop-border bg-pop-background p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="metadataDescription" [(ngModel)]="description" maxlength="500"></textarea></div>
-    <button class="min-h-11 rounded-xl bg-pop-primary px-5 font-bold text-white disabled:opacity-50" type="submit" [disabled]="busy() || !name.trim()">{{ text().save }}</button>
+      <textarea appUiControl id="metadata-description" class="mt-1 min-h-24" name="metadataDescription" [(ngModel)]="description" maxlength="500"></textarea></div>
+    <app-ui-button variant="primary" type="submit" [disabled]="busy() || !name.trim()">{{ text().save }}</app-ui-button>
   </form>
 }
-@if (message()) { <p class="mt-3 text-sm" [attr.role]="failed() ? 'alert' : 'status'">{{ message() }}</p> }
+@if (message()) { <app-ui-alert class="mt-3" [variant]="failed() ? 'error' : 'success'">{{ message() }}</app-ui-alert> }
 </section>

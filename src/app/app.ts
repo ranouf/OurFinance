@@ -1,4 +1,4 @@
-import { Component, HostListener, OnDestroy, OnInit, computed, effect, inject, signal } from '@angular/core';
+import { Component, HostListener, OnDestroy, OnInit, computed, effect, inject, isDevMode, signal } from '@angular/core';
 import { Router, RouterOutlet } from '@angular/router';
 import { NavigationEnd } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -25,7 +25,8 @@ import { language, locale, setLanguage, t } from './shared/utils/i18n';
   selector: 'app-root',
   imports: [AppShell, RouterOutlet],
   template: `
-    <app-shell [signedIn]="!!auth?.user()" [hasGroups]="groups().length > 0" [userInitial]="userInitial()" [userName]="auth?.user()?.displayName || auth?.user()?.email || ''" [pageTitle]="pageTitle()" (signOut)="logout()">
+    @if (isComponentsGallery()) { <router-outlet /> }
+    @else { <app-shell [signedIn]="!!auth?.user()" [hasGroups]="groups().length > 0" [userInitial]="userInitial()" [userName]="auth?.user()?.displayName || auth?.user()?.email || ''" [pageTitle]="pageTitle()" (signOut)="logout()">
       @if (!online()) { <p class="mx-auto max-w-6xl rounded-xl bg-amber-50 p-3 text-sm text-amber-900" role="status">{{ t('offline') }}</p> }
       @if (state() === 'loading') { <p class="mx-auto max-w-6xl p-6" role="status">{{ t('loadingConfig') }}</p> }
       @else if (state() === 'unconfigured') { <p class="mx-auto max-w-6xl p-6" role="status">{{ t('missingConfig') }}</p> }
@@ -37,7 +38,7 @@ import { language, locale, setLanguage, t } from './shared/utils/i18n';
         </div>
       }
       @else { <router-outlet /> }
-    </app-shell>
+    </app-shell> }
   `
 })
 export class App implements OnInit, OnDestroy {
@@ -50,6 +51,10 @@ export class App implements OnInit, OnDestroy {
   readonly pendingInvite = signal<string | null>(null);
   private readonly router = inject(Router);
   private readonly routeEvent = toSignal(this.router.events.pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd)));
+  readonly isComponentsGallery = computed(() => {
+    this.routeEvent();
+    return isDevMode() && (this.router.url.split('?')[0] === '/ui/components' || (typeof window !== 'undefined' && window.location.pathname === '/ui/components'));
+  });
   readonly pageTitle = computed(() => {
     this.routeEvent();
     const path = this.router.url.split('?')[0];
@@ -58,6 +63,7 @@ export class App implements OnInit, OnDestroy {
   readonly qrText = computed(() => qrInvitationText[language()]);
   readonly authRedirect = computed(() => {
     this.routeEvent();
+    if (this.isComponentsGallery()) return null;
     if (this.state() !== 'ready') return null;
     return authDestination(this.auth?.ready() ?? false, this.router.url.split('?')[0], this.auth?.user() ?? null, !!this.pendingInvite());
   });
@@ -85,8 +91,9 @@ export class App implements OnInit, OnDestroy {
   readonly settlementTotalMinor = signal<bigint>(0n);
   readonly dashboardMemberBalances = signal<readonly { userId: string; balanceMinor: bigint }[]>([]);
   readonly dashboardMemberNames = signal<Record<string, string>>({});
-  dashboardMemberName(userId: string): string | null {
-    return userId === this.auth?.user()?.uid ? (this.auth?.user()?.displayName || null) : this.dashboardMemberNames()[userId] || null;
+  dashboardMemberName(userId: string): string {
+    if (userId === this.auth?.user()?.uid) return this.auth?.user()?.displayName?.trim() || t('me');
+    return this.dashboardMemberNames()[userId] || `${t('otherMember')} ${this.dashboardMemberBalances().findIndex(item => item.userId === userId) + 1}`;
   }
   readonly dashboardCategories = signal<readonly { id: string; label?: string; amountMinor: bigint }[]>([]);
   readonly recentExpenses = signal<ExpenseHistoryEntry[]>([]);
@@ -303,7 +310,7 @@ export class App implements OnInit, OnDestroy {
     this.balanceError.set(false);
     this.editingExpense.set(undefined);
   }
-  async logout(): Promise<void> { this.clearSessionData(); await this.auth?.logout(); await this.router.navigateByUrl('/login'); }
+  async logout(): Promise<void> { this.clearSessionData(); this.mode.set('login'); await this.auth?.logout(); await this.router.navigateByUrl('/login'); }
   async refreshVerification(): Promise<void> {
     this.busy.set(true);
     try { await this.auth?.refreshVerification(); }

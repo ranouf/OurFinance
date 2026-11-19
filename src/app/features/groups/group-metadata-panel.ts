@@ -6,11 +6,16 @@ import { GroupLifecycleRequestError, GroupService } from '../../core/firebase/gr
 import type { Group } from '../../core/firebase/group-model';
 import { categoryColors, categoryIcons } from '../../shared/utils/categories';
 import { language } from '../../shared/utils/i18n';
+import { FieldComponent } from '../../shared/components/field/field.component';
+import { DropdownComponent, type DropdownOption } from '../../shared/components/dropdown/dropdown.component';
+import { UiControlDirective } from '../../shared/components/ui-field/ui-control.directive';
+import { UiButton } from '../../shared/components/ui-button/ui-button';
+import { UiAlert } from '../../shared/components/ui-alert/ui-alert';
 import { groupMetadataText } from './group-metadata-text';
 
 @Component({
   selector: 'app-group-metadata-panel',
-  imports: [FormsModule],
+  imports: [FormsModule, FieldComponent, DropdownComponent, UiControlDirective, UiButton, UiAlert],
   templateUrl: './group-metadata-panel.html',
 })
 export class GroupMetadataPanel implements OnChanges {
@@ -22,6 +27,14 @@ export class GroupMetadataPanel implements OnChanges {
   readonly text = computed(() => groupMetadataText[language()]);
   readonly icons = categoryIcons;
   readonly colors = categoryColors;
+  readonly iconOptions = computed<DropdownOption[]>(() => [
+    { value: '', label: this.text().none },
+    ...this.icons.map((icon, index) => ({ value: icon.id, label: this.text().icons[index] })),
+  ]);
+  readonly colorOptions = computed<DropdownOption[]>(() => [
+    { value: '', label: this.text().none },
+    ...this.colors.map((color, index) => ({ value: color.id, label: this.text().colors[index] })),
+  ]);
   readonly busy = signal(false);
   readonly failed = signal(false);
   readonly message = signal('');
