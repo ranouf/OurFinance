@@ -41,7 +41,7 @@ import { expenseMessage, expenseText, unnamedExpenseMember } from './expense-tex
           </label>
           <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
             <label class="block text-sm font-bold">{{ text('amount') }}
-              <input #amountInput appUiControl class="mt-2 w-full" name="amount" [(ngModel)]="draft.amount" (ngModelChange)="amountError.set('')" [attr.aria-invalid]="amountError() ? 'true' : null" [attr.aria-describedby]="amountError() ? 'expense-amount-error' : null" aria-required="true" inputmode="decimal" placeholder="0,00" />
+              <input #amountInput appUiControl class="mt-2 w-full" name="amount" [(ngModel)]="draft.amount" (ngModelChange)="previewRows.set([]); amountError.set('')" [attr.aria-invalid]="amountError() ? 'true' : null" [attr.aria-describedby]="amountError() ? 'expense-amount-error' : null" aria-required="true" inputmode="decimal" placeholder="0,00" />
               @if (amountError()) { <app-control-errors errorId="expense-amount-error" [explicitMessage]="displayMessage(amountError())" /> }
             </label>
             <div class="block text-sm font-bold">{{ text('fixedCurrency') }}
@@ -79,9 +79,9 @@ import { expenseMessage, expenseText, unnamedExpenseMember } from './expense-tex
               </app-field>
               @for (row of draft.rows; track row.userId; let i = $index) {
                 <div class="mt-3 flex min-h-11 items-center gap-3 rounded-xl bg-pop-surface px-3 py-2">
-                  <label class="flex min-w-0 flex-1 items-center gap-2 text-sm"><input appUiCheckbox class="size-5 shrink-0 accent-pop-primary" type="checkbox" [name]="'selected-' + i" [(ngModel)]="row.selected" /><span class="min-w-0 break-all">{{ memberLabel(row.userId) }}</span></label>
+                  <label class="flex min-w-0 flex-1 items-center gap-2 text-sm"><input appUiCheckbox class="size-5 shrink-0 accent-pop-primary" type="checkbox" [name]="'selected-' + i" [(ngModel)]="row.selected" (ngModelChange)="previewRows.set([])" /><span class="min-w-0 break-all">{{ memberLabel(row.userId) }}</span></label>
                   @if (draft.kind !== 'equal' && row.selected) {
-                    <input appUiControl class="w-24" [name]="'value-' + i" [(ngModel)]="row.value" inputmode="decimal" [attr.aria-label]="text('valueFor') + ' ' + (memberLabel(row.userId))" [placeholder]="draft.kind === 'percentage' ? '%' : draft.kind === 'shares' ? text('shares') : draft.currency" />
+                    <input appUiControl class="w-24" [name]="'value-' + i" [(ngModel)]="row.value" (ngModelChange)="previewRows.set([])" inputmode="decimal" [attr.aria-label]="text('valueFor') + ' ' + (memberLabel(row.userId))" [placeholder]="draft.kind === 'percentage' ? '%' : draft.kind === 'shares' ? text('shares') : draft.currency" />
                   }
                 </div>
               }
