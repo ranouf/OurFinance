@@ -15,7 +15,9 @@ import { qrInvitationText } from './qr-invitation-text';
       @if (preview(); as group) {
         <h2 class="mt-4 break-words text-2xl font-extrabold text-pop-text">{{ group.groupName }}</h2>
         <p class="mt-1 font-bold text-pop-muted">{{ group.currency }}</p>
+        @if (user.email) { <p class="mt-3 break-all text-sm text-pop-muted">{{ text().joinAs }} <strong class="text-pop-text">{{ user.email }}</strong></p> }
         <p class="mt-2 text-sm">{{ text().expires }} : {{ formatDate(group.expiresAt) }}</p>
+        <p class="mt-2 text-sm text-pop-muted">{{ text().singleUse }}</p>
         <div class="mt-5 flex flex-wrap gap-3">
           <app-ui-button variant="primary"  type="button" [disabled]="busy()" (click)="accept()">{{ text().join }}</app-ui-button>
           <app-ui-button variant="secondary"  type="button" (click)="declined.emit()">{{ text().decline }}</app-ui-button>
