@@ -28,7 +28,7 @@ import { locale, t } from '../../shared/utils/i18n';
             <app-ui-button variant="primary"  type="submit" [disabled]="busy() || currencyCode === selectedGroup()?.currency">{{ t('saveGroupCurrency') }}</app-ui-button>
           }
         </form>
-        @if (message()) { <app-ui-alert [variant]="message() === t('currencyChanged') ? 'success' : 'error'" class="mt-3">{{ message() }}</app-ui-alert> }
+        @if (message()) { <app-ui-alert [variant]="messageVariant()" class="mt-3">{{ message() }}</app-ui-alert> }
       </section>
     }
   `,
@@ -45,6 +45,7 @@ export class GroupCurrencyPanel {
   readonly currencies = computed(() => currencyCatalog(locale()));
   readonly busy = signal(false);
   readonly message = signal('');
+  readonly messageVariant = signal<'error' | 'success'>('error');
   selectedGroupId = '';
   currencyCode = '';
   editableGroups(): Group[] { return this.groups.filter(group => group.status === 'active' && !group.currencyLocked && group.ownerId === this.user?.uid); }
@@ -53,10 +54,10 @@ export class GroupCurrencyPanel {
   async save(): Promise<void> {
     const group = this.selectedGroup();
     if (!this.user || !this.firebaseApp || !this.workerUrl || !group || this.busy() || this.currencyCode === group.currency) return;
-    this.busy.set(true); this.message.set('');
+    this.busy.set(true); this.message.set(''); this.messageVariant.set('error');
     try {
       await new GroupService(this.firebaseApp, this.workerUrl).changeCurrency(this.user, group.id, this.currencyCode);
-      this.message.set(t('currencyChanged'));
+      this.messageVariant.set('success'); this.message.set(t('currencyChanged'));
       this.changed.emit();
     } catch (error) {
       const code = error instanceof Error ? error.message : '';

@@ -43,7 +43,7 @@ import { settlementMessage, settlementText } from './settlement-text';
           <app-ui-button variant="primary" [block]="true" class="w-full" type="submit" [disabled]="busy() || !recipientId">{{ text('save') }}</app-ui-button>
         }
       </form>
-      @if (message()) { <app-ui-alert [variant]="message() === 'Remboursement enregistré.' ? 'success' : 'error'" class="mt-4">{{ displayMessage(message()) }}</app-ui-alert> }
+      @if (message()) { <app-ui-alert [variant]="messageVariant()" class="mt-4">{{ displayMessage(message()) }}</app-ui-alert> }
     </section>
   `,
 })
@@ -60,6 +60,7 @@ export class SettlementForm implements OnChanges {
   readonly recipients = signal<GroupMember[]>([]);
   readonly busy = signal(false);
   readonly message = signal('');
+  readonly messageVariant = signal<'error' | 'success'>('error');
   readonly text = settlementText;
   readonly t = t;
   readonly displayMessage = settlementMessage;
@@ -106,6 +107,7 @@ export class SettlementForm implements OnChanges {
 
   async save(): Promise<void> {
     if (!this.settlementService || !this.user || !this.selectedGroupId || this.busy()) return;
+    this.messageVariant.set('error');
     if (!this.recipients().some(member => member.userId === this.recipientId)) { this.message.set('Choisissez un membre actif.'); return; }
     let amountMinor: number;
     try { amountMinor = parseMinor(this.amount, this.currency); }
@@ -120,7 +122,7 @@ export class SettlementForm implements OnChanges {
     try {
       await this.settlementService.create(this.user, this.selectedGroupId, { idempotencyKey, ...content } satisfies SettlementRequest);
       this.pendingKey = undefined; this.pendingBody = undefined;
-      this.amount = ''; this.message.set('Remboursement enregistré.'); this.saved.emit();
+      this.amount = ''; this.messageVariant.set('success'); this.message.set('Remboursement enregistré.'); this.saved.emit();
     } catch (error) { this.message.set(error instanceof Error ? error.message : 'Enregistrement impossible'); }
     finally { this.busy.set(false); }
   }

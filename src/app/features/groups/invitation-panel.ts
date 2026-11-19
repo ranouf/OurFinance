@@ -41,7 +41,7 @@ import type { Group } from '../../core/firebase/group-model';
         </label>
         <app-ui-button variant="outline"  type="submit" [disabled]="busy()">Rejoindre le groupe</app-ui-button>
       </form>
-      @if (message()) { <app-ui-alert [variant]="message().includes('impossible') || message().includes('invalide') ? 'error' : 'success'" class="mt-3">{{ message() }}</app-ui-alert> }
+      @if (message()) { <app-ui-alert [variant]="messageVariant()" class="mt-3">{{ message() }}</app-ui-alert> }
     </section>
   `,
 })
@@ -54,6 +54,7 @@ export class InvitationPanel {
   readonly busy = signal(false);
   readonly hasCode = signal(false);
   readonly message = signal('');
+  readonly messageVariant = signal<'error' | 'success'>('success');
   selectedGroupId = '';
   targetEmail = '';
   receivedCode = '';
@@ -66,14 +67,14 @@ export class InvitationPanel {
     this.busy.set(true); this.message.set(''); this.code = ''; this.hasCode.set(false);
     try {
       this.code = await new InvitationService(this.workerUrl).create(this.user, this.selectedGroupId, this.targetEmail);
-      this.hasCode.set(true); this.message.set('Invitation créée. Copiez le code avant de quitter cette page.');
-    } catch { this.message.set('Création de l’invitation impossible.'); }
+      this.hasCode.set(true); this.setResult('Invitation créée. Copiez le code avant de quitter cette page.', 'success');
+    } catch { this.setResult('Création de l’invitation impossible.', 'error'); }
     finally { this.busy.set(false); }
   }
 
   async copy(): Promise<void> {
-    try { await navigator.clipboard.writeText(this.code); this.message.set('Code copié. Transmettez-le par un canal privé.'); }
-    catch { this.message.set('Copie impossible. Réessayez depuis un navigateur autorisant le presse-papiers.'); }
+    try { await navigator.clipboard.writeText(this.code); this.setResult('Code copié. Transmettez-le par un canal privé.', 'success'); }
+    catch { this.setResult('Copie impossible. Réessayez depuis un navigateur autorisant le presse-papiers.', 'error'); }
   }
 
   async accept(): Promise<void> {
@@ -83,8 +84,13 @@ export class InvitationPanel {
     this.busy.set(true); this.message.set('');
     try {
       await new InvitationService(this.workerUrl).accept(this.user, code);
-      this.joined.emit(); this.message.set('Invitation acceptée. Le groupe est maintenant disponible.');
-    } catch { this.message.set('Code invalide, expiré ou déjà utilisé.'); }
+      this.joined.emit(); this.setResult('Invitation acceptée. Le groupe est maintenant disponible.', 'success');
+    } catch { this.setResult('Code invalide, expiré ou déjà utilisé.', 'error'); }
     finally { this.busy.set(false); }
+  }
+
+  private setResult(message: string, variant: 'error' | 'success'): void {
+    this.messageVariant.set(variant);
+    this.message.set(message);
   }
 }
