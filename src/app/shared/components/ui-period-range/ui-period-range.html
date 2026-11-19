@@ -1,0 +1,70 @@
+    <div class="mt-4">
+      <span class="block text-sm font-bold">{{ (translationPrefix + '.period' | translate) }}</span>
+      <button #trigger class="mt-2 flex min-h-11 w-full scroll-mt-24 items-center gap-2 rounded-xl border border-pop-border bg-pop-surface p-3 text-left text-sm focus-visible:outline-2 focus-visible:outline-pop-primary" type="button" [attr.aria-label]="(translationPrefix + '.period' | translate) + ' : ' + label()" [attr.aria-expanded]="open" aria-haspopup="dialog" (click)="show()">
+        <svg class="h-5 w-5 shrink-0 text-pop-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
+        <span class="min-w-0 flex-1" aria-live="polite">{{ label() }}</span><span aria-hidden="true">▾</span>
+      </button>
+    </div>
+    @if (open) {
+      <div #dialog class="fixed z-50 w-[min(760px,calc(100vw-16px))] overflow-y-auto rounded-3xl border border-pop-border bg-pop-surface p-4 text-pop-text shadow-xl sm:p-6" [style.left.px]="panelLeft" [style.top.px]="panelTop" [style.max-height.px]="panelMaxHeight" role="dialog" [attr.aria-label]="(translationPrefix + '.choosePeriod' | translate)">
+          <div class="flex items-start justify-between gap-3">
+            <div><h3 class="text-lg font-extrabold">{{ (translationPrefix + '.choosePeriod' | translate) }}</h3><p class="mt-1 text-sm text-pop-muted">{{ (translationPrefix + '.periodIntro' | translate) }}</p></div>
+            <button class="min-h-11 rounded-xl border border-pop-border px-3 py-2 focus-visible:outline-2 focus-visible:outline-pop-primary" type="button" [attr.aria-label]="(translationPrefix + '.close' | translate)" (click)="cancel()">✕</button>
+          </div>
+          <div class="mt-5 grid grid-cols-3 gap-2 rounded-2xl bg-pop-lavender p-1" role="group" [attr.aria-label]="(translationPrefix + '.units' | translate)">
+            <button class="min-h-11 rounded-xl px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-pop-primary" type="button" [attr.aria-pressed]="unit === 'days'" [class.bg-pop-primary]="unit === 'days'" [class.text-white]="unit === 'days'" (click)="selectUnit('days')">{{ (translationPrefix + '.days' | translate) }}</button>
+            <button class="min-h-11 rounded-xl px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-pop-primary" type="button" [attr.aria-pressed]="unit === 'months'" [class.bg-pop-primary]="unit === 'months'" [class.text-white]="unit === 'months'" (click)="selectUnit('months')">{{ (translationPrefix + '.months' | translate) }}</button>
+            <button class="min-h-11 rounded-xl px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-pop-primary" type="button" [attr.aria-pressed]="unit === 'years'" [class.bg-pop-primary]="unit === 'years'" [class.text-white]="unit === 'years'" (click)="selectUnit('years')">{{ (translationPrefix + '.years' | translate) }}</button>
+          </div>
+          @if (unit === 'days') {
+            <div class="relative mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+              <button class="absolute left-0 top-1/2 flex size-11 -translate-y-1/2 items-center justify-center rounded-xl border border-pop-border focus-visible:outline-2 focus-visible:outline-pop-primary" type="button" [attr.aria-label]="(translationPrefix + '.previousMonths' | translate)" (click)="moveMonth(-1)"><svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="/illustrations/lucide-actions.svg#chevron-left" /></svg></button>
+              <h4 class="px-11 text-center text-lg font-extrabold md:px-0">{{ monthDate(0) | browserDateTime:dateFormat.MonthYear:displayLocale() }}</h4>
+              <h4 class="hidden text-center text-lg font-extrabold md:block">{{ monthDate(1) | browserDateTime:dateFormat.MonthYear:displayLocale() }}</h4>
+              <button class="absolute right-0 top-1/2 flex size-11 -translate-y-1/2 items-center justify-center rounded-xl border border-pop-border focus-visible:outline-2 focus-visible:outline-pop-primary" type="button" [attr.aria-label]="(translationPrefix + '.nextMonths' | translate)" (click)="moveMonth(1)"><svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="/illustrations/lucide-actions.svg#chevron-right" /></svg></button>
+            </div>
+            <div class="mt-3 grid gap-4 md:grid-cols-2">
+              @for (offset of [0, 1]; track offset) {
+                <div [class.max-md:hidden]="offset === 1">
+                  <div class="mt-2 grid grid-cols-7 gap-1 text-center text-xs text-pop-muted">
+                    @for (day of weekdays(); track $index) { <span>{{ day }}</span> }
+                  </div>
+                  <div class="mt-1 grid grid-cols-7 gap-1">
+                    @for (date of calendarCells(offset); track $index) {
+                      @if (date) {
+                        <button class="min-h-11 rounded-xl text-sm focus-visible:outline-2 focus-visible:outline-pop-primary" type="button" [class.bg-pop-primary]="isBoundary(date)" [class.text-white]="isBoundary(date)" [class.bg-pop-lavender]="isInterior(date)" [class.ring-2]="date === today && !inDraft(date)" [class.ring-pop-primary]="date === today && !inDraft(date)" [attr.aria-pressed]="inDraft(date)" [attr.aria-label]="date" (click)="select(date)">{{ dayNumber(date) }}</button>
+                      } @else { <span></span> }
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          } @else if (unit === 'months') {
+            <div class="mt-4 flex items-center justify-between">
+              <button class="flex size-11 items-center justify-center rounded-xl border border-pop-border focus-visible:outline-2 focus-visible:outline-pop-primary" type="button" [attr.aria-label]="(translationPrefix + '.previousMonths' | translate)" (click)="moveMonth(-12)"><svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="/illustrations/lucide-actions.svg#chevron-left" /></svg></button>
+              <span class="text-center font-semibold">{{ monthDate(0) | browserDateTime:dateFormat.MonthYear:displayLocale() }} – {{ monthDate(11) | browserDateTime:dateFormat.MonthYear:displayLocale() }}</span>
+              <button class="flex size-11 items-center justify-center rounded-xl border border-pop-border focus-visible:outline-2 focus-visible:outline-pop-primary" type="button" [attr.aria-label]="(translationPrefix + '.nextMonths' | translate)" (click)="moveMonth(12)"><svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="/illustrations/lucide-actions.svg#chevron-right" /></svg></button>
+            </div>
+            <div class="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+              @for (month of months; track $index) {
+                <button class="min-h-16 rounded-xl border border-pop-border bg-pop-lavender px-2 py-2 text-sm focus-visible:outline-2 focus-visible:outline-pop-primary" type="button" [class.bg-pop-primary]="isBoundary(monthValue($index))" [class.text-white]="isBoundary(monthValue($index))" [class.bg-pop-lavender]="isInterior(monthValue($index))" [attr.aria-pressed]="inDraft(monthValue($index))" (click)="select(monthValue($index))">{{ monthDate($index) | browserDateTime:dateFormat.MonthYear:displayLocale() }}</button>
+              }
+            </div>
+          } @else {
+            <div class="mt-4 flex items-center justify-between">
+              <button class="flex size-11 items-center justify-center rounded-xl border border-pop-border focus-visible:outline-2 focus-visible:outline-pop-primary" type="button" [attr.aria-label]="(translationPrefix + '.previousYears' | translate)" (click)="cursorYear = cursorYear - 12"><svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="/illustrations/lucide-actions.svg#chevron-left" /></svg></button>
+              <span class="font-semibold">{{ yearStart() }} – {{ yearStart() + 11 }}</span>
+              <button class="flex size-11 items-center justify-center rounded-xl border border-pop-border focus-visible:outline-2 focus-visible:outline-pop-primary" type="button" [attr.aria-label]="(translationPrefix + '.nextYears' | translate)" (click)="cursorYear = cursorYear + 12"><svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="/illustrations/lucide-actions.svg#chevron-right" /></svg></button>
+            </div>
+            <div class="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4">
+              @for (year of yearChoices(); track year) {
+                <button class="min-h-11 rounded-xl border border-pop-border p-2 text-sm focus-visible:outline-2 focus-visible:outline-pop-primary" type="button" [class.bg-pop-primary]="isBoundary(String(year))" [class.text-white]="isBoundary(String(year))" [class.bg-pop-lavender]="isInterior(String(year))" [attr.aria-pressed]="inDraft(String(year))" (click)="select(String(year))">{{ year }}</button>
+              }
+            </div>
+          }
+          <div class="mt-6 flex justify-end gap-2 border-t border-pop-border pt-4">
+            <button class="min-h-11 rounded-xl border border-pop-border px-4 py-2" type="button" (click)="cancel()">{{ (translationPrefix + '.cancel' | translate) }}</button>
+            <button class="min-h-11 rounded-xl bg-pop-primary px-4 py-2 font-bold text-white disabled:opacity-50" type="button" [disabled]="!draftRange()" (click)="apply()">{{ (translationPrefix + '.apply' | translate) }}</button>
+          </div>
+      </div>
+    }

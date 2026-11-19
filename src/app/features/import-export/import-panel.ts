@@ -1,3 +1,10 @@
+import { UiControlDirective } from '../../shared/components/ui-field/ui-control.directive';
+import { FieldComponent } from '../../shared/components/field/field.component';
+import { DropdownComponent, type DropdownOption } from '../../shared/components/dropdown/dropdown.component';
+import { groupDropdownOptions } from '../../shared/components/dropdown/dropdown-options';
+import { UiCheckboxDirective } from '../../shared/components/checkbox/ui-checkbox.directive';
+import { UiAlert } from '../../shared/components/ui-alert/ui-alert';
+import { UiButton } from '../../shared/components/ui-button/ui-button';
 import { Component, Input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { FirebaseApp } from 'firebase/app';
@@ -22,10 +29,15 @@ interface ActiveBatch { readonly id: string; readonly recordCount: number; }
 
 @Component({
   selector: 'app-import-panel',
-  imports: [FormsModule],
+  imports: [UiControlDirective, FieldComponent, DropdownComponent, UiCheckboxDirective, UiAlert, UiButton, FormsModule],
   templateUrl: './import-panel.html',
 })
 export class ImportPanel {
+  readonly groupDropdownOptions = groupDropdownOptions;
+  memberOptions(): DropdownOption[] { return [{ value: '', label: this.text('chooseColumn') }, ...this.members().map(member => ({ value: member.userId, label: this.memberLabel(member.userId) }))]; }
+  headerOptions(): DropdownOption[] { return [{ value: '', label: this.text('chooseColumn') }, ...this.headers().map(header => ({ value: header, label: header }))]; }
+  sourceGroupOptions(): DropdownOption[] { return this.sourceGroups().map(source => ({ value: source, label: source })); }
+
   @Input({ required: true }) groups: Group[] = [];
   @Input({ required: true }) user?: User;
   @Input({ required: true }) firebaseApp?: FirebaseApp;

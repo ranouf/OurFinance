@@ -1,0 +1,15 @@
+<div class="w-full max-w-xs rounded-2xl border border-pop-border bg-white p-4 text-sm shadow-sm" role="group" [attr.aria-label]="label">
+  <div class="mb-3 flex items-center justify-between gap-2">
+    <button class="flex size-9 items-center justify-center rounded-xl text-pop-primary-dark hover:bg-pop-lavender focus-visible:outline-2 focus-visible:outline-pop-primary-dark disabled:opacity-50" type="button" [disabled]="disabled" [attr.aria-label]="previousLabel" (click)="move(-1)">‹</button>
+    <strong class="text-pop-primary-dark">{{ monthLabel }}</strong>
+    <button class="flex size-9 items-center justify-center rounded-xl text-pop-primary-dark hover:bg-pop-lavender focus-visible:outline-2 focus-visible:outline-pop-primary-dark disabled:opacity-50" type="button" [disabled]="disabled" [attr.aria-label]="nextLabel" (click)="move(1)">›</button>
+  </div>
+  <div class="grid grid-cols-7 gap-1 text-center">
+    @for (day of weekdays; track $index) { <span class="py-1 text-xs font-bold text-pop-muted" aria-hidden="true">{{ day }}</span> }
+    @for (gap of leadingDays; track gap) { <span aria-hidden="true"></span> }
+    @for (day of days; track day) {
+      <button class="flex size-9 items-center justify-center rounded-full text-pop-text hover:bg-pop-lavender focus-visible:outline-2 focus-visible:outline-pop-primary-dark disabled:text-pop-muted/50" type="button"
+        [class.bg-pop-primary]="selected === date(day)" [class.text-white]="selected === date(day)" [disabled]="!available(day)" [attr.aria-label]="dayLabel(day)" [attr.aria-pressed]="selected === date(day)" (click)="select(day)">{{ day }}</button>
+    }
+  </div>
+</div>

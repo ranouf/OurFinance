@@ -1,3 +1,8 @@
+import { FieldComponent } from '../../shared/components/field/field.component';
+import { DropdownComponent, type DropdownOption } from '../../shared/components/dropdown/dropdown.component';
+import { UiControlDirective } from '../../shared/components/ui-field/ui-control.directive';
+import { UiAlert } from '../../shared/components/ui-alert/ui-alert';
+import { UiButton } from '../../shared/components/ui-button/ui-button';
 import { ChangeDetectorRef, Component, Input, OnChanges, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { FirebaseApp } from 'firebase/app';
@@ -8,7 +13,7 @@ import { setLanguage, t, type MessageKey } from '../../shared/utils/i18n';
 
 @Component({
   selector: 'app-profile-panel',
-  imports: [FormsModule],
+  imports: [FieldComponent, DropdownComponent, UiControlDirective, UiAlert, UiButton, FormsModule],
   template: `
     <section [attr.aria-label]="t('myProfile')">
       <div class="relative min-h-40 overflow-hidden rounded-[1.7rem] bg-pop-primary p-6 text-white shadow-[0_12px_30px_#6455ec30] sm:min-h-48 sm:p-8">
@@ -18,7 +23,7 @@ import { setLanguage, t, type MessageKey } from '../../shared/utils/i18n';
         </div>
         <img class="pointer-events-none absolute -bottom-5 -right-8 h-40 w-40 object-contain sm:-bottom-14 sm:right-2 sm:h-64 sm:w-64" src="/illustrations/profile-settings.webp" alt="" />
       </div>
-      @if (loading()) { <p class="mt-5 rounded-2xl border border-pop-border bg-white p-5 text-sm text-pop-muted" role="status">{{ t('loadingProfile') }}</p> }
+      @if (loading()) { <app-ui-alert variant="info" class="mt-5">{{ t('loadingProfile') }}</app-ui-alert> }
       @else {
         <div class="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,0.8fr)] lg:items-start">
           <form class="space-y-5 rounded-[1.5rem] border border-pop-border bg-white p-5 shadow-sm sm:p-7" (ngSubmit)="save()">
@@ -26,35 +31,34 @@ import { setLanguage, t, type MessageKey } from '../../shared/utils/i18n';
             <p class="text-sm text-pop-muted">{{ t('email') }} : {{ user?.email }}</p>
             @if (!user?.emailVerified) { <p class="text-sm font-semibold text-rose-700" role="alert">{{ t('verifyEmail') }}</p> }
             <label class="block text-sm font-bold">{{ t('displayName') }}
-              <input class="mt-2 min-h-12 w-full rounded-xl border border-pop-border bg-pop-background px-4 focus-visible:outline-2 focus-visible:outline-pop-primary" name="profileName" [(ngModel)]="displayName" maxlength="80" required />
+              <input appUiControl class="mt-2 w-full" name="profileName" [(ngModel)]="displayName" maxlength="80" required />
             </label>
-            <label class="block text-sm font-bold">{{ t('language') }}
-              <select class="mt-2 min-h-12 w-full rounded-xl border border-pop-border bg-pop-background px-4 focus-visible:outline-2 focus-visible:outline-pop-primary" name="profileLanguage" [(ngModel)]="preferredLanguage" (ngModelChange)="applyLanguage()">
-                <option value="fr">Français</option><option value="en">English</option><option value="ja">日本語</option>
-              </select>
-            </label>
+            <app-field class="block" controlId="profile-language" [label]="t('language')">
+              <app-dropdown controlId="profile-language" name="profileLanguage" [options]="languageOptions" [(ngModel)]="preferredLanguage" (ngModelChange)="applyLanguage()" />
+            </app-field>
             <label class="block text-sm font-bold">{{ t('timeZone') }}
-              <input class="mt-2 min-h-12 w-full rounded-xl border border-pop-border bg-pop-background px-4 focus-visible:outline-2 focus-visible:outline-pop-primary" name="profileZone" [(ngModel)]="timeZone" list="profile-zones" required />
+              <input appUiControl class="mt-2 w-full" name="profileZone" [(ngModel)]="timeZone" list="profile-zones" required />
               <datalist id="profile-zones">@for (zone of zones; track zone) { <option [value]="zone"></option> }</datalist>
             </label>
-            <button class="min-h-12 w-full rounded-xl bg-pop-coral px-5 font-extrabold text-pop-text disabled:opacity-50" type="submit" [disabled]="busy() || !user?.emailVerified">{{ t('saveProfile') }}</button>
+            <app-ui-button variant="coral" [block]="true" size="lg" class="w-full" type="submit" [disabled]="busy() || !user?.emailVerified">{{ t('saveProfile') }}</app-ui-button>
           </form>
           <div class="rounded-[1.5rem] border border-pop-border bg-white p-5 shadow-sm sm:p-7">
             <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-pop-lavender text-2xl" aria-hidden="true">🔐</div>
             <h3 class="text-lg font-black">{{ t('signInMethods') }}</h3>
             @if (googleLinked()) { <p class="mt-2 text-sm text-pop-muted">{{ t('googleLinked') }}</p> }
             @else {
-              <button class="mt-4 min-h-11 rounded-xl border border-pop-primary px-4 text-sm font-bold text-pop-primary-dark disabled:opacity-50" type="button"
-                [disabled]="busy() || !user?.emailVerified" (click)="linkGoogle()">{{ t('linkGoogle') }}</button>
+              <app-ui-button variant="outline" class="mt-4" type="button"
+                [disabled]="busy() || !user?.emailVerified" (click)="linkGoogle()">{{ t('linkGoogle') }}</app-ui-button>
             }
           </div>
         </div>
       }
-      @if (message(); as key) { <p class="mt-4 rounded-xl bg-pop-lavender p-4 text-sm font-semibold text-pop-primary-dark" [attr.role]="key === 'profileSaved' || key === 'googleLinkDone' ? 'status' : 'alert'">{{ t(key) }}</p> }
+      @if (message(); as key) { <app-ui-alert [variant]="key === 'profileSaved' || key === 'googleLinkDone' ? 'success' : 'error'" class="mt-4">{{ t(key) }}</app-ui-alert> }
     </section>
   `,
 })
 export class ProfilePanel implements OnChanges {
+  readonly languageOptions: DropdownOption[] = [{ value: 'fr', label: 'Français' }, { value: 'en', label: 'English' }, { value: 'ja', label: '日本語' }];
   @Input({ required: true }) user?: User;
   @Input({ required: true }) firebaseApp?: FirebaseApp;
   readonly zones = Intl.supportedValuesOf('timeZone');

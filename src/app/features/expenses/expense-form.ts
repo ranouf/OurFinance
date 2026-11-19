@@ -1,3 +1,11 @@
+import { categoryDropdownOptions } from '../../shared/utils/category-dropdown-options';
+import { FieldComponent } from '../../shared/components/field/field.component';
+import { DropdownComponent, type DropdownOption } from '../../shared/components/dropdown/dropdown.component';
+import { groupDropdownOptions } from '../../shared/components/dropdown/dropdown-options';
+import { UiCheckboxDirective } from '../../shared/components/checkbox/ui-checkbox.directive';
+import { UiControlDirective } from '../../shared/components/ui-field/ui-control.directive';
+import { UiAlert } from '../../shared/components/ui-alert/ui-alert';
+import { UiButton } from '../../shared/components/ui-button/ui-button';
 import { ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, OnChanges, Output, QueryList, SimpleChanges, ViewChildren, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { FirebaseApp } from 'firebase/app';
@@ -15,7 +23,7 @@ import type { SplitMode } from '../../shared/utils/split-engine';
 import { expenseMessage, expenseText } from './expense-text';
 
 @Component({
-  selector: 'app-expense-form', imports: [FormsModule],
+  selector: 'app-expense-form', imports: [FieldComponent, DropdownComponent, UiCheckboxDirective, UiControlDirective, UiAlert, UiButton, FormsModule],
   template: `
     <section class="mt-6 rounded-3xl border border-pop-border bg-pop-surface p-5 text-pop-text shadow-sm md:p-7" [attr.aria-label]="editing ? text('editExpense') : text('newExpense')">
       <div class="mb-5 h-1.5 w-14 rounded-full bg-pop-coral" aria-hidden="true"></div>
@@ -23,74 +31,65 @@ import { expenseMessage, expenseText } from './expense-text';
       @if (editing) { <p class="mt-1 text-sm text-pop-muted">{{ text('authorOnly') }}</p> }
       <p class="mt-2 text-sm leading-6 text-pop-muted">{{ text('splitHelp') }}</p>
       <form class="mt-6 grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4" (ngSubmit)="save()">
-        <label class="block text-sm font-bold">{{ text('group') }}
-          <select class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 text-pop-text focus-visible:outline-2 focus-visible:outline-pop-primary" name="group" [(ngModel)]="selectedGroupId" (ngModelChange)="loadGroup()" [disabled]="!!editing" required>
-            <option value="">{{ text('chooseGroup') }}</option>
-            @for (group of groups; track group.id) { <option [value]="group.id">{{ group.name }}</option> }
-          </select>
-        </label>
+        <app-field class="block" controlId="group" [label]="text('group')"><app-dropdown controlId="group" [options]="groupDropdownOptions(groups, text('chooseGroup'), false)" name="group" [(ngModel)]="selectedGroupId" (ngModelChange)="loadGroup()" [disabled]="!!editing" required /></app-field>
         @if (selectedGroupId) {
           <label class="block text-sm font-bold">{{ text('description') }}
-            <input class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 text-pop-text focus-visible:outline-2 focus-visible:outline-pop-primary" name="description" [(ngModel)]="draft.description" maxlength="160" required />
+            <input appUiControl class="mt-2 w-full" name="description" [(ngModel)]="draft.description" maxlength="160" required />
           </label>
           <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
             <label class="block text-sm font-bold">{{ text('amount') }}
-              <input class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 text-lg font-extrabold text-pop-text focus-visible:outline-2 focus-visible:outline-pop-primary" name="amount" [(ngModel)]="draft.amount" inputmode="decimal" placeholder="0,00" required />
+              <input appUiControl class="mt-2 w-full" name="amount" [(ngModel)]="draft.amount" inputmode="decimal" placeholder="0,00" required />
             </label>
             <div class="block text-sm font-bold">{{ text('fixedCurrency') }}
               <div class="mt-2 min-h-11 rounded-xl border border-pop-border bg-pop-lavender p-3 text-lg font-extrabold text-pop-primary-dark" [attr.aria-label]="text('fixedCurrency')">{{ draft.currency }}</div>
             </div>
           </div>
           <label class="block text-sm font-bold">{{ text('date') }}
-            <input class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 text-pop-text focus-visible:outline-2 focus-visible:outline-pop-primary" type="date" name="date" [(ngModel)]="draft.date" required />
+            <input appUiControl class="mt-2 w-full" type="date" name="date" [(ngModel)]="draft.date" required />
           </label>
-          <label class="block text-sm font-bold">{{ text('category') }}
-            <select class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 text-pop-text focus-visible:outline-2 focus-visible:outline-pop-primary" name="category" [(ngModel)]="draft.categoryId">
-                @for (category of availableCategories(); track category.id) { <option [value]="category.id">{{ category.icon }} {{ categoryLabel(category.id, language(), category.label) }}</option> }
-            </select>
-          </label>
+          <app-field class="block" controlId="expense-category" [label]="text('category')">
+            <app-dropdown controlId="expense-category" name="category" [options]="expenseCategoryOptions()" [(ngModel)]="draft.categoryId" />
+          </app-field>
           @if (members().length) {
-            @if (members().length > 1) { <label class="flex min-h-11 items-center gap-2 text-sm font-bold"><input class="size-5 accent-pop-primary focus-visible:outline-2 focus-visible:outline-pop-primary" type="checkbox" name="multiplePayers" [(ngModel)]="draft.multiplePayers" />{{ text('multiplePayers') }}</label> }
+            @if (members().length > 1) { <label class="flex min-h-11 items-center gap-2 text-sm font-bold"><input appUiCheckbox class="size-5 accent-pop-primary focus-visible:outline-2 focus-visible:outline-pop-primary" type="checkbox" name="multiplePayers" [(ngModel)]="draft.multiplePayers" />{{ text('multiplePayers') }}</label> }
             @if (!draft.multiplePayers) {
-              <label class="block text-sm font-bold">{{ text('paidBy') }}
-                <select class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 text-pop-text focus-visible:outline-2 focus-visible:outline-pop-primary" name="payer" [(ngModel)]="draft.payerId" required>
-                  @for (member of members(); track member.userId) { <option [value]="member.userId">{{ member.userId === user?.uid ? text('me') : member.userId }}</option> }
-                </select>
-              </label>
+              <app-field class="block" controlId="expense-payer" [label]="text('paidBy')" [required]="true">
+                <app-dropdown controlId="expense-payer" name="payer" [options]="payerOptions()" [(ngModel)]="draft.payerId" required />
+              </app-field>
             } @else {
               <fieldset class="rounded-2xl border border-pop-border bg-pop-lavender p-4">
                 <legend class="px-2 text-sm font-extrabold text-pop-primary-dark">{{ text('paidBy') }}</legend>
                 @for (row of draft.paymentRows; track row.userId; let i = $index) {
                   <div class="mt-3 flex min-h-11 items-center gap-3 rounded-xl bg-pop-surface px-3 py-2">
-                    <label class="flex min-w-0 flex-1 items-center gap-2 text-sm"><input #payerCheckbox class="size-5 shrink-0 accent-pop-primary focus-visible:outline-2 focus-visible:outline-pop-primary" type="checkbox" [name]="'payer-selected-' + i" [(ngModel)]="row.selected" (ngModelChange)="paymentError.set(false); message.set('')" [attr.aria-invalid]="paymentError() ? 'true' : null" [attr.aria-describedby]="paymentError() ? 'payment-error' : null" /><span class="min-w-0 break-all">{{ row.userId === user?.uid ? text('me') : row.userId }}</span></label>
-                    @if (row.selected) { <input #paymentInput class="min-h-11 w-24 rounded-xl border border-pop-border p-2 text-right focus-visible:outline-2 focus-visible:outline-pop-primary" [class.border-rose-600]="paymentError()" [name]="'payer-value-' + i" [(ngModel)]="row.value" (ngModelChange)="paymentError.set(false); message.set('')" inputmode="decimal" [attr.aria-label]="text('paymentFor') + ' ' + (row.userId === user?.uid ? text('me') : row.userId)" [attr.aria-invalid]="paymentError() ? 'true' : null" [attr.aria-describedby]="paymentError() ? 'payment-error' : null" [placeholder]="draft.currency" /> }
+                    <label class="flex min-w-0 flex-1 items-center gap-2 text-sm"><input appUiCheckbox #payerCheckbox class="size-5 shrink-0 accent-pop-primary focus-visible:outline-2 focus-visible:outline-pop-primary" type="checkbox" [name]="'payer-selected-' + i" [(ngModel)]="row.selected" (ngModelChange)="paymentError.set(false); message.set('')" [attr.aria-invalid]="paymentError() ? 'true' : null" [attr.aria-describedby]="paymentError() ? 'payment-error' : null" /><span class="min-w-0 break-all">{{ memberLabel(row.userId) }}</span></label>
+                    @if (row.selected) { <input appUiControl #paymentInput class="w-24" [class.border-rose-600]="paymentError()" [name]="'payer-value-' + i" [(ngModel)]="row.value" (ngModelChange)="paymentError.set(false); message.set('')" inputmode="decimal" [attr.aria-label]="text('paymentFor') + ' ' + (memberLabel(row.userId))" [attr.aria-invalid]="paymentError() ? 'true' : null" [attr.aria-describedby]="paymentError() ? 'payment-error' : null" [placeholder]="draft.currency" /> }
                   </div>
                 }
-                @if (paymentError()) { <p id="payment-error" class="mt-3 text-sm font-bold text-rose-700" role="alert">{{ displayMessage(message()) }}</p> }
+                @if (paymentError()) { <app-ui-alert variant="error" class="mt-3" id="payment-error">{{ displayMessage(message()) }}</app-ui-alert> }
               </fieldset>
             }
             <fieldset class="rounded-2xl border border-pop-border bg-pop-lavender p-4">
               <legend class="px-2 text-sm font-extrabold text-pop-primary-dark">{{ text('split') }}</legend>
-              <select class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 text-pop-text focus-visible:outline-2 focus-visible:outline-pop-primary" name="mode" [(ngModel)]="draft.kind" (ngModelChange)="clearValues()" [attr.aria-label]="text('splitMethod')">
-                <option value="equal">{{ text('equal') }}</option><option value="exact">{{ text('exact') }}</option><option value="percentage">{{ text('percentage') }}</option><option value="shares">{{ text('shares') }}</option><option value="adjustment">{{ text('adjustment') }}</option>
-              </select>
+              <app-field controlId="expense-split-mode" [label]="text('splitMethod')">
+                <app-dropdown controlId="expense-split-mode" name="mode" [options]="splitModeOptions()" [(ngModel)]="draft.kind" (ngModelChange)="clearValues()" />
+              </app-field>
               @for (row of draft.rows; track row.userId; let i = $index) {
                 <div class="mt-3 flex min-h-11 items-center gap-3 rounded-xl bg-pop-surface px-3 py-2">
-                  <label class="flex min-w-0 flex-1 items-center gap-2 text-sm"><input class="size-5 shrink-0 accent-pop-primary" type="checkbox" [name]="'selected-' + i" [(ngModel)]="row.selected" /><span class="min-w-0 break-all">{{ row.userId === user?.uid ? text('me') : row.userId }}</span></label>
+                  <label class="flex min-w-0 flex-1 items-center gap-2 text-sm"><input appUiCheckbox class="size-5 shrink-0 accent-pop-primary" type="checkbox" [name]="'selected-' + i" [(ngModel)]="row.selected" /><span class="min-w-0 break-all">{{ memberLabel(row.userId) }}</span></label>
                   @if (draft.kind !== 'equal' && row.selected) {
-                    <input class="min-h-11 w-24 rounded-xl border border-pop-border p-2 text-right focus-visible:outline-2 focus-visible:outline-pop-primary" [name]="'value-' + i" [(ngModel)]="row.value" inputmode="decimal" [attr.aria-label]="text('valueFor') + ' ' + (row.userId === user?.uid ? text('me') : row.userId)" [placeholder]="draft.kind === 'percentage' ? '%' : draft.kind === 'shares' ? text('shares') : draft.currency" />
+                    <input appUiControl class="w-24" [name]="'value-' + i" [(ngModel)]="row.value" inputmode="decimal" [attr.aria-label]="text('valueFor') + ' ' + (memberLabel(row.userId))" [placeholder]="draft.kind === 'percentage' ? '%' : draft.kind === 'shares' ? text('shares') : draft.currency" />
                   }
                 </div>
               }
-              <button class="mt-4 min-h-11 rounded-xl border border-pop-primary px-4 py-2 text-sm font-bold text-pop-primary-dark hover:bg-pop-surface focus-visible:outline-2 focus-visible:outline-pop-primary" type="button" (click)="preview()">{{ text('calculate') }}</button>
+              <app-ui-button variant="outline" class="mt-4" type="button" (click)="preview()">{{ text('calculate') }}</app-ui-button>
               @if (previewRows().length) {
                 <ul class="mt-3 space-y-1 rounded-xl bg-pop-surface p-3 text-sm" [attr.aria-label]="text('calculated')">
-                  @for (row of previewRows(); track row.userId) { <li>{{ row.userId === user?.uid ? text('me') : row.userId }} : {{ formatMinor(row.amountMinor, draft.currency, locale()) }}</li> }
+                  @for (row of previewRows(); track row.userId) { <li>{{ memberLabel(row.userId) }} : {{ formatMinor(row.amountMinor, draft.currency, locale()) }}</li> }
                 </ul>
               }
             </fieldset>
-            <button class="min-h-11 w-full rounded-xl bg-pop-primary px-5 py-3 font-extrabold text-white shadow-sm hover:bg-pop-primary-dark focus-visible:outline-2 focus-visible:outline-pop-primary disabled:opacity-50" type="submit" [disabled]="busy()">{{ editing ? text('saveEdit') : text('save') }}</button>
-            @if (editing) { <button class="min-h-11 w-full rounded-xl border border-pop-border px-4 py-3 font-bold text-pop-text" type="button" (click)="editCancelled.emit()">{{ text('cancelEdit') }}</button> }
+            <app-ui-button variant="primary" [block]="true" class="w-full" type="submit" [disabled]="busy()">{{ editing ? text('saveEdit') : text('save') }}</app-ui-button>
+            @if (editing) { <app-ui-button variant="secondary" [block]="true" class="w-full" type="button" (click)="editCancelled.emit()">{{ text('cancelEdit') }}</app-ui-button> }
           } @else { <p class="text-sm text-pop-muted">{{ text('noMembers') }}</p> }
         }
       </form>
@@ -99,6 +98,11 @@ import { expenseMessage, expenseText } from './expense-text';
   `,
 })
 export class ExpenseForm implements OnChanges {
+  readonly groupDropdownOptions = groupDropdownOptions;
+  expenseCategoryOptions(): DropdownOption[] { return categoryDropdownOptions(this.availableCategories(), category => categoryLabel(category.id, language(), category.label)); }
+  payerOptions(): DropdownOption[] { return this.members().map(member => ({ value: member.userId, label: this.memberLabel(member.userId) })); }
+  memberLabel(userId: string): string { return userId === this.user?.uid ? this.text('me') : userId; }
+  splitModeOptions(): DropdownOption[] { return (['equal', 'exact', 'percentage', 'shares', 'adjustment'] as const).map(value => ({ value, label: this.text(value) })); }
   constructor(private readonly changeDetector: ChangeDetectorRef) {}
   @ViewChildren('paymentInput') private paymentInputs?: QueryList<ElementRef<HTMLInputElement>>;
   @ViewChildren('payerCheckbox') private payerCheckboxes?: QueryList<ElementRef<HTMLInputElement>>;

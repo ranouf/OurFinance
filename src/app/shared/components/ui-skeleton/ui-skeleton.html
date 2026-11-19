@@ -1,0 +1,4 @@
+<div class="flex items-center gap-2" role="status" [attr.aria-label]="label">
+  <span class="size-10 shrink-0 animate-pulse rounded-full bg-pop-lavender" aria-hidden="true"></span>
+  <span class="grid flex-1 gap-2" aria-hidden="true">@for (index of lineIndexes(); track index) { <span class="h-2.5 animate-pulse rounded-full bg-pop-lavender" [class]="index % 2 === 1 ? 'w-3/4' : ''"></span> }</span>
+</div>
