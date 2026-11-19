@@ -21,7 +21,7 @@ import { language, locale, usesSingular } from '../../shared/utils/i18n';
 import { CommentPanel } from './comment-panel';
 import { matchesDescription } from './matches-description';
 import { ReceiptPanel } from './receipt-panel';
-import { expenseMessage, expenseText } from './expense-text';
+import { expenseMessage, expenseText, unnamedExpenseMember } from './expense-text';
 
 @Component({
   selector: 'app-expense-history',
@@ -172,7 +172,10 @@ export class ExpenseHistory implements OnChanges {
   groupOptions(): DropdownOption[] { return [{ value: '', label: this.text('chooseGroup') }, ...this.groups.map(group => ({ value: group.id, label: group.name }))]; }
   categoryDropdownOptions(): DropdownOption[] { return categoryDropdownOptions(this.categoryOptions(), category => categoryLabel(category.id, language(), category.label), this.text('allCategories')); }
   participantDropdownOptions(): DropdownOption[] { return [{ value: '', label: this.text('allParticipants') }, ...this.participantOptions().map(member => ({ value: member.userId, label: this.memberLabel(member.userId) }))]; }
-  memberLabel(userId: string): string { return userId === this.user?.uid ? this.text('me') : this.memberNames()[userId] || `${this.text('otherMember')} ${userId.slice(0, 8)}`; }
+  memberLabel(userId: string): string {
+    if (userId === this.user?.uid) return this.text('me');
+    return this.memberNames()[userId] || unnamedExpenseMember(userId, this.participantOptions());
+  }
   groupOwnerId(): string { return this.groups.find(group => group.id === this.selectedGroupId)?.ownerId ?? ''; }
   onToggle(expenseId: string, event: Event): void {
     const next = new Set(this.opened());
