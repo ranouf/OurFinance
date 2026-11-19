@@ -1,4 +1,4 @@
-import { Component, ElementRef, HostListener, Input, forwardRef, signal } from '@angular/core';
+import { Component, ElementRef, HostListener, Input, booleanAttribute, forwardRef, signal } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { UiIconBadge, type UiIconTone } from '../ui-icon-badge/ui-icon-badge';
 
@@ -6,7 +6,7 @@ export interface DropdownOption {
   readonly value: string;
   readonly label: string;
   readonly iconSrc?: string;
-  readonly iconName?: 'house' | 'plane' | 'utensils' | 'shopping-cart' | 'tram-front';
+  readonly iconName?: 'house' | 'plane' | 'utensils' | 'shopping-cart' | 'tram-front' | 'graduation-cap' | 'heart-pulse' | 'ticket' | 'gift' | 'wrench' | 'map-pin';
   readonly tone?: UiIconTone;
   readonly flag?: string;
   readonly disabled?: boolean;
@@ -14,6 +14,7 @@ export interface DropdownOption {
 
 @Component({
   selector: 'app-dropdown',
+  host: { class: 'block' },
   imports: [UiIconBadge],
   templateUrl: './dropdown.component.html',
   providers: [{ provide: NG_VALUE_ACCESSOR, useExisting: forwardRef(() => DropdownComponent), multi: true }],
@@ -27,12 +28,20 @@ export class DropdownComponent implements ControlValueAccessor {
   readonly open = signal(false);
   readonly activeIndex = signal(0);
   value = '';
-  disabled = false;
+  @Input() disabled = false;
+  @Input({ transform: booleanAttribute }) required = false;
+  @Input() searchable = false;
+  @Input() searchLabel = 'Search options';
+  readonly searchTerm = signal('');
   private onChange: (value: string) => void = () => {};
   private onTouched: () => void = () => {};
 
   constructor(private readonly host: ElementRef<HTMLElement>) {}
 
+  filteredOptions(): readonly DropdownOption[] {
+    const term = this.searchTerm().trim().toLocaleLowerCase();
+    return term ? this.options.filter(option => `${option.label} ${option.value}`.toLocaleLowerCase().includes(term)) : this.options;
+  }
   selected(): DropdownOption | undefined { return this.options.find(option => option.value === this.value); }
   writeValue(value: string | null): void { this.value = value ?? ''; }
   registerOnChange(fn: (value: string) => void): void { this.onChange = fn; }
@@ -43,7 +52,7 @@ export class DropdownComponent implements ControlValueAccessor {
     if (this.disabled) return;
     const next = !this.open();
     this.open.set(next);
-    if (next) this.activeIndex.set(Math.max(0, this.options.findIndex(option => option.value === this.value)));
+    if (next) { this.searchTerm.set(''); this.activeIndex.set(Math.max(0, this.options.findIndex(option => option.value === this.value))); }
     this.onTouched();
   }
 
@@ -53,6 +62,7 @@ export class DropdownComponent implements ControlValueAccessor {
     this.onChange(option.value);
     this.onTouched();
     this.open.set(false);
+    this.searchTerm.set('');
     this.host.nativeElement.querySelector<HTMLButtonElement>('[role="combobox"]')?.focus();
   }
 
@@ -65,15 +75,23 @@ export class DropdownComponent implements ControlValueAccessor {
       if (!this.open()) this.open.set(true);
       const step = event.key === 'ArrowDown' ? 1 : -1;
       let index = this.activeIndex();
-      for (let count = 0; count < this.options.length; count++) {
-        index = (index + step + this.options.length) % this.options.length;
-        if (!this.options[index].disabled) { this.activeIndex.set(index); break; }
+      const choices = this.filteredOptions();
+      for (let count = 0; count < choices.length; count++) {
+        index = (index + step + choices.length) % choices.length;
+        if (!choices[index].disabled) { this.activeIndex.set(index); break; }
       }
     } else if ((event.key === 'Enter' || event.key === ' ') && this.open()) {
       event.preventDefault();
-      const option = this.options[this.activeIndex()];
+      const option = this.filteredOptions()[this.activeIndex()];
       if (option) this.choose(option);
     }
+  }
+
+  onSearch(event: Event): void { this.searchTerm.set((event.target as HTMLInputElement).value); this.activeIndex.set(0); }
+  onSearchKeydown(event: KeyboardEvent): void {
+    event.stopPropagation();
+    if (event.key === 'Enter') event.preventDefault();
+    if (event.key === 'Escape') { this.open.set(false); this.host.nativeElement.querySelector<HTMLButtonElement>('[role=combobox]')?.focus(); }
   }
 
   @HostListener('document:click', ['$event'])

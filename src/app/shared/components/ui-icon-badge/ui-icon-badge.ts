@@ -9,6 +9,6 @@ export type UiIconTone = 'violet' | 'coral' | 'mint' | 'sky' | 'amber';
   </span>`,
 })
 export class UiIconBadge {
-  @Input({ required: true }) name: 'house' | 'plane' | 'utensils' | 'shopping-cart' | 'tram-front' = 'house';
+  @Input({ required: true }) name: 'house' | 'plane' | 'utensils' | 'shopping-cart' | 'tram-front' | 'graduation-cap' | 'heart-pulse' | 'ticket' | 'gift' | 'wrench' | 'map-pin' = 'house';
   @Input() tone: UiIconTone = 'violet';
 }

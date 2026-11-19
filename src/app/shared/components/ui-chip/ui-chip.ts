@@ -7,5 +7,6 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
 export class UiChip {
   @Input() selected = false;
   @Input() disabled = false;
+  @Input() wide = false;
   @Output() selectedChange = new EventEmitter<boolean>();
 }

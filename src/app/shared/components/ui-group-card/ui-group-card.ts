@@ -1,4 +1,4 @@
-import { Component, Input } from '@angular/core';
+import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { UiIconBadge, type UiIconTone } from '../ui-icon-badge/ui-icon-badge';
 
 @Component({
@@ -14,4 +14,6 @@ export class UiGroupCard {
   @Input() iconTone: UiIconTone = 'violet';
   @Input() amountTone: 'positive' | 'negative' | 'neutral' = 'neutral';
   @Input() selected = false;
+  @Input() interactive = false;
+  @Output() readonly activated = new EventEmitter<void>();
 }

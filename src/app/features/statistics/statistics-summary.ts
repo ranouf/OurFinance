@@ -1,3 +1,8 @@
+import { FieldComponent } from '../../shared/components/field/field.component';
+import { DropdownComponent } from '../../shared/components/dropdown/dropdown.component';
+import { groupDropdownOptions } from '../../shared/components/dropdown/dropdown-options';
+import { UiAlert } from '../../shared/components/ui-alert/ui-alert';
+import { UiButton } from '../../shared/components/ui-button/ui-button';
 import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { FirebaseApp } from 'firebase/app';
@@ -8,7 +13,7 @@ import { formatMinorExact } from '../../shared/utils/currency';
 import { locale } from '../../shared/utils/i18n';
 import { type ExpenseLedgerEntry, type SettlementLedgerEntry } from '../../shared/utils/ledger';
 import { type ChartData } from './chart-data';
-import { PeriodPicker, type AppliedRange } from './period-picker';
+import { UiPeriodRange, type UiAppliedRange } from '../../shared/components/ui-period-range/ui-period-range';
 import { selectedRange } from './period-range';
 import { StatisticsCharts } from './statistics-charts';
 import { statisticsText } from './statistics-text';
@@ -17,23 +22,18 @@ import { StatisticsService, type StatisticsTotals } from './statistics-service';
 
 @Component({
   selector: 'app-statistics-summary',
-  imports: [FormsModule, PeriodPicker, StatisticsCharts],
+  imports: [FieldComponent, DropdownComponent, UiAlert, UiButton, FormsModule, UiPeriodRange, StatisticsCharts],
   template: `
     <section class="mt-6 rounded-3xl border border-pop-border bg-pop-surface p-5 text-pop-text shadow-sm md:p-7" [attr.aria-label]="text('title')">
       <div class="mb-5 hidden h-1.5 w-14 rounded-full bg-pop-sun sm:block" aria-hidden="true"></div>
       <h2 class="sr-only text-2xl font-extrabold tracking-tight sm:not-sr-only">{{ text('title') }}</h2>
       <p class="sr-only mt-1 text-sm text-pop-muted sm:not-sr-only">{{ text('intro') }}</p>
       <div class="grid gap-3 sm:grid-cols-2 sm:items-end">
-        @if (groups.length > 1) { <label class="mt-5 block text-sm font-bold">{{ text('group') }}
-            <select class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="statisticsGroup" [(ngModel)]="selectedGroupId" (ngModelChange)="onGroupChange()">
-              <option value="">{{ text('chooseGroup') }}</option>
-              @for (group of groups; track group.id) { <option [value]="group.id">{{ group.name }}</option> }
-            </select>
-          </label> }
-        @if (selectedGroupId) { <app-period-picker [range]="range" (rangeChange)="setRange($event)" /> }
+        @if (groups.length > 1) { <app-field class="mt-5" controlId="statisticsGroup" [label]="text('group')"><app-dropdown controlId="statisticsGroup" [options]="groupDropdownOptions(groups, text('chooseGroup'), false)" name="statisticsGroup" [(ngModel)]="selectedGroupId" (ngModelChange)="onGroupChange()" /></app-field> }
+        @if (selectedGroupId) { <app-ui-period-range [range]="range" (rangeChange)="setRange($event)" /> }
       </div>
       @if (selectedGroupId) {
-        <button class="mt-3 min-h-11 rounded-xl bg-pop-primary px-5 py-2 text-sm font-bold text-white hover:bg-pop-primary-dark disabled:opacity-50" type="button" [disabled]="busy()" (click)="refresh()">{{ text('refresh') }}</button>
+        <app-ui-button variant="primary" class="mt-3" type="button" [disabled]="busy()" (click)="refresh()">{{ text('refresh') }}</app-ui-button>
         @for (row of statistics(); track row.currency) {
           <div class="mt-5 border-t border-pop-border pt-5 text-sm">
             <h3 class="font-extrabold text-pop-primary-dark">{{ row.currency }}</h3>
@@ -53,11 +53,12 @@ import { StatisticsService, type StatisticsTotals } from './statistics-service';
         } @empty { @if (!busy() && !message()) { <p class="mt-5 rounded-2xl bg-pop-lavender p-5 text-sm text-pop-muted">{{ text('empty') }}</p> } }
         @if (incompleteCount()) { <p class="mt-3 text-sm text-amber-800">{{ incompleteCount() }} {{ text('incomplete') }}</p> }
       }
-      @if (message()) { <p class="mt-4 text-sm text-rose-700" role="status">{{ text('unavailable') }}</p> }
+      @if (message()) { <app-ui-alert variant="error" class="mt-4">{{ text('unavailable') }}</app-ui-alert> }
     </section>
   `,
 })
 export class StatisticsSummary implements OnChanges {
+  readonly groupDropdownOptions = groupDropdownOptions;
   @Output() readonly groupChange = new EventEmitter<string>();
   @Input({ required: true }) groups: Group[] = [];
   @Input() preferredGroupId = '';
@@ -70,7 +71,7 @@ export class StatisticsSummary implements OnChanges {
   readonly busy = signal(false);
   readonly message = signal('');
   selectedGroupId = '';
-  range: AppliedRange = { ...selectedRange('months', new Date().toISOString().slice(0, 7), new Date().toISOString().slice(0, 7))!, unit: 'months' };
+  range: UiAppliedRange = { ...selectedRange('months', new Date().toISOString().slice(0, 7), new Date().toISOString().slice(0, 7))!, unit: 'months' };
   private service?: BalanceService;
   private readonly statisticsService = new StatisticsService();
   private expenses: ExpenseLedgerEntry[] = [];
@@ -88,7 +89,7 @@ export class StatisticsSummary implements OnChanges {
   }
   amount(value: bigint, currency: string): string { return formatMinorExact(value, currency, locale()); }
   onGroupChange(): void { this.groupChange.emit(this.selectedGroupId); void this.refresh(); }
-  setRange(range: AppliedRange): void { this.range = range; this.recompute(); }
+  setRange(range: UiAppliedRange): void { this.range = range; this.recompute(); }
   async refresh(): Promise<void> {
     const groupId = this.selectedGroupId;
     const requestId = ++this.requestId;

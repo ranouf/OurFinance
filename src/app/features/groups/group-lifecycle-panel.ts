@@ -1,3 +1,5 @@
+import { UiAlert } from '../../shared/components/ui-alert/ui-alert';
+import { UiButton } from '../../shared/components/ui-button/ui-button';
 import { Component, EventEmitter, Input, OnChanges, Output, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import type { FirebaseApp } from 'firebase/app';
@@ -10,7 +12,7 @@ import { groupLifecycleText } from './group-lifecycle-text';
 
 @Component({
   selector: 'app-group-lifecycle-panel',
-  imports: [RouterLink],
+  imports: [UiAlert, UiButton, RouterLink],
   templateUrl: './group-lifecycle-panel.html',
 })
 export class GroupLifecyclePanel implements OnChanges {
