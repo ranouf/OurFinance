@@ -1,3 +1,9 @@
+import { categoryDropdownOptions } from '../../shared/utils/category-dropdown-options';
+import { FieldComponent } from '../../shared/components/field/field.component';
+import { DropdownComponent, type DropdownOption } from '../../shared/components/dropdown/dropdown.component';
+import { UiControlDirective } from '../../shared/components/ui-field/ui-control.directive';
+import { UiAlert } from '../../shared/components/ui-alert/ui-alert';
+import { UiButton } from '../../shared/components/ui-button/ui-button';
 import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
@@ -18,46 +24,37 @@ import { expenseMessage, expenseText } from './expense-text';
 
 @Component({
   selector: 'app-expense-history',
-  imports: [FormsModule, ReceiptPanel, CommentPanel],
+  imports: [FieldComponent, DropdownComponent, UiControlDirective, UiAlert, UiButton, FormsModule, ReceiptPanel, CommentPanel],
   template: `
     <section class="mt-6 rounded-3xl border border-pop-border bg-pop-surface p-5 text-pop-text shadow-sm md:p-7" [attr.aria-label]="text('history')">
       <div class="mb-5 h-1.5 w-14 rounded-full bg-pop-sun" aria-hidden="true"></div>
       <h2 class="text-2xl font-extrabold tracking-tight">{{ text('history') }}</h2>
-      <label class="mt-5 block text-sm font-bold">{{ text('group') }}
-        <select class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="historyGroup" [(ngModel)]="selectedGroupId" (ngModelChange)="onGroupChange()">
-          <option value="">{{ text('chooseGroup') }}</option>
-          @for (group of groups; track group.id) { <option [value]="group.id">{{ group.name }}</option> }
-        </select>
-      </label>
+      <app-field class="mt-5 block" controlId="history-group" [label]="text('group')">
+        <app-dropdown controlId="history-group" name="historyGroup" [options]="groupOptions()" [(ngModel)]="selectedGroupId" (ngModelChange)="onGroupChange()" />
+      </app-field>
       @if (selectedGroupId) {
-        <label class="mt-4 block text-sm font-bold">{{ text('category') }}
-          <select class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="historyCategory" [(ngModel)]="selectedCategoryId" (ngModelChange)="refresh()">
-            <option value="">{{ text('allCategories') }}</option>
-            @for (category of categoryOptions(); track category.id) { <option [value]="category.id">{{ category.icon }} {{ categoryLabel(category.id, language(), category.label) }}</option> }
-          </select>
-        </label>
+        <app-field class="mt-4 block" controlId="history-category" [label]="text('category')">
+          <app-dropdown controlId="history-category" name="historyCategory" [options]="categoryDropdownOptions()" [(ngModel)]="selectedCategoryId" (ngModelChange)="refresh()" />
+        </app-field>
         <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end">
           <label class="block min-w-0 flex-1 text-sm font-bold">{{ text('searchAll') }}
-            <input class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" type="search" name="historySearch" [(ngModel)]="search" [placeholder]="text('searchPlaceholder')" />
+            <input appUiControl class="mt-2 w-full" type="search" name="historySearch" [(ngModel)]="search" [placeholder]="text('searchPlaceholder')" />
           </label>
-          <button class="min-h-11 rounded-xl bg-pop-primary px-5 py-2 text-sm font-bold text-white hover:bg-pop-primary-dark focus-visible:outline-2 focus-visible:outline-pop-primary disabled:opacity-50" type="button" [disabled]="busy()" (click)="refresh()">{{ text('search') }}</button>
+          <app-ui-button variant="primary"  type="button" [disabled]="busy()" (click)="refresh()">{{ text('search') }}</app-ui-button>
         </div>
         <details class="mt-3 rounded-xl border border-pop-border px-4 py-3">
           <summary class="cursor-pointer text-sm font-bold text-pop-primary-dark focus-visible:outline-2 focus-visible:outline-pop-primary">{{ text('moreFilters') }}</summary>
           <div class="mt-4 grid gap-3 sm:grid-cols-2">
             <label class="block text-sm font-bold">{{ text('from') }}
-              <input class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" type="date" name="historyFrom" [(ngModel)]="from" (ngModelChange)="refresh()" />
+              <input appUiControl class="mt-2 w-full" type="date" name="historyFrom" [(ngModel)]="from" (ngModelChange)="refresh()" />
             </label>
             <label class="block text-sm font-bold">{{ text('to') }}
-              <input class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" type="date" name="historyTo" [(ngModel)]="to" (ngModelChange)="refresh()" />
+              <input appUiControl class="mt-2 w-full" type="date" name="historyTo" [(ngModel)]="to" (ngModelChange)="refresh()" />
             </label>
           </div>
-          <label class="mt-3 block text-sm font-bold">{{ text('participant') }}
-            <select class="mt-2 min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="historyParticipant" [(ngModel)]="selectedParticipantId" (ngModelChange)="refresh()">
-              <option value="">{{ text('allParticipants') }}</option>
-              @for (member of participantOptions(); track member.userId) { <option [value]="member.userId">{{ memberLabel(member.userId) }}</option> }
-            </select>
-          </label>
+          <app-field class="mt-3 block" controlId="history-participant" [label]="text('participant')">
+            <app-dropdown controlId="history-participant" name="historyParticipant" [options]="participantDropdownOptions()" [(ngModel)]="selectedParticipantId" (ngModelChange)="refresh()" />
+          </app-field>
           @if (from && to && from > to) { <p class="mt-2 text-sm text-rose-700">{{ text('invalidDates') }}</p> }
         </details>
         @if (hasFilter()) { <p class="mt-2 text-sm text-pop-muted">{{ scannedCount() }} {{ text('scanned') }}</p> }
@@ -75,14 +72,14 @@ import { expenseMessage, expenseText } from './expense-text';
                     <p>{{ text('category') }} : {{ categoryLabel(entry.categoryId, language(), entry.categoryLabel) }}</p>
                     @if (entry.createdBy === user?.uid) {
                       <div class="flex flex-wrap gap-2">
-                        @if (entry.splitMode) { <button class="min-h-11 rounded-xl border border-pop-primary px-4 py-2 font-bold text-pop-primary-dark" type="button" (click)="editRequested.emit({ groupId: selectedGroupId, entry })">{{ text('edit') }}</button> }
-                        <button class="min-h-11 rounded-xl border border-pop-coral px-4 py-2 font-bold text-pop-text" type="button" (click)="deleteConfirmId.set(entry.id)">{{ text('remove') }}</button>
+                        @if (entry.splitMode) { <app-ui-button variant="outline"  type="button" (click)="editRequested.emit({ groupId: selectedGroupId, entry })">{{ text('edit') }}</app-ui-button> }
+                        <app-ui-button variant="outline"  type="button" (click)="deleteConfirmId.set(entry.id)">{{ text('remove') }}</app-ui-button>
                       </div>
                       @if (deleteConfirmId() === entry.id) {
                         <div class="flex flex-wrap items-center gap-2 rounded-xl bg-pop-peach p-3">
                           <span>{{ text('removePrompt') }}</span>
-                          <button class="min-h-11 rounded-xl bg-pop-coral px-4 py-2 font-bold text-pop-text disabled:opacity-50" type="button" [disabled]="deleteBusy()" (click)="deleteExpense(entry)">{{ text('confirm') }}</button>
-                          <button class="min-h-11 rounded-xl border border-pop-border px-4 py-2" type="button" (click)="deleteConfirmId.set('')">{{ text('cancel') }}</button>
+                          <app-ui-button variant="coral"  type="button" [disabled]="deleteBusy()" (click)="deleteExpense(entry)">{{ text('confirm') }}</app-ui-button>
+                          <app-ui-button variant="secondary"  type="button" (click)="deleteConfirmId.set('')">{{ text('cancel') }}</app-ui-button>
                         </div>
                       }
                     }
@@ -106,10 +103,10 @@ import { expenseMessage, expenseText } from './expense-text';
             }
           </ul>
         }
-        @if (hasMore()) { <button class="mt-4 min-h-11 rounded-xl border border-pop-border px-4 py-2 text-sm font-bold text-pop-primary-dark disabled:opacity-50" type="button" [disabled]="busy()" (click)="loadMore()">{{ hasFilter() ? text('continueSearch') : text('loadMore') }}</button> }
+        @if (hasMore()) { <app-ui-button variant="secondary" class="mt-4" type="button" [disabled]="busy()" (click)="loadMore()">{{ hasFilter() ? text('continueSearch') : text('loadMore') }}</app-ui-button> }
         @if (!entries().length && !busy() && !message() && !(from && to && from > to)) { <p class="mt-5 rounded-2xl bg-pop-lavender p-5 text-center text-sm text-pop-muted">{{ hasMore() ? text('noPageResults') : text('noResults') }}</p> }
       }
-      @if (message()) { <p class="mt-4 text-sm text-rose-700" role="status">{{ displayMessage(message()) }}</p> }
+      @if (message()) { <app-ui-alert [variant]="message() === 'deleted' ? 'success' : 'error'" class="mt-4">{{ displayMessage(message()) }}</app-ui-alert> }
     </section>
   `,
 })
@@ -167,6 +164,9 @@ export class ExpenseHistory implements OnChanges {
   amount(entry: ExpenseHistoryEntry): string { return this.format(entry.amountMinor, entry.currency); }
   format(amountMinor: number, currency: string): string { return formatMinor(amountMinor, currency, locale()); }
   displayDate(date: string): string { return new Intl.DateTimeFormat(locale(), { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date(`${date}T12:00:00Z`)); }
+  groupOptions(): DropdownOption[] { return [{ value: '', label: this.text('chooseGroup') }, ...this.groups.map(group => ({ value: group.id, label: group.name }))]; }
+  categoryDropdownOptions(): DropdownOption[] { return categoryDropdownOptions(this.categoryOptions(), category => categoryLabel(category.id, language(), category.label), this.text('allCategories')); }
+  participantDropdownOptions(): DropdownOption[] { return [{ value: '', label: this.text('allParticipants') }, ...this.participantOptions().map(member => ({ value: member.userId, label: this.memberLabel(member.userId) }))]; }
   memberLabel(userId: string): string { return userId === this.user?.uid ? this.text('me') : userId; }
   groupOwnerId(): string { return this.groups.find(group => group.id === this.selectedGroupId)?.ownerId ?? ''; }
   onToggle(expenseId: string, event: Event): void {

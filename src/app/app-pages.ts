@@ -1,3 +1,10 @@
+import { FieldComponent } from './shared/components/field/field.component';
+import { DropdownComponent } from './shared/components/dropdown/dropdown.component';
+import { currencyDropdownOptions } from './shared/components/dropdown/dropdown-options';
+import { UiGroupCard } from './shared/components/ui-group-card/ui-group-card';
+import { UiControlDirective } from './shared/components/ui-field/ui-control.directive';
+import { UiButton } from './shared/components/ui-button/ui-button';
+import { UiAlert } from './shared/components/ui-alert/ui-alert';
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -25,7 +32,7 @@ import { RestorePanel } from './features/import-export/restore-panel';
 import { ProfilePanel } from './features/profile/profile-panel';
 
 @Component({
-  imports: [FormsModule, RouterLink, GroupOverview],
+  imports: [UiGroupCard, UiControlDirective, UiButton, UiAlert, FormsModule, RouterLink, GroupOverview],
   template: `
     <div class="mx-auto max-w-5xl">
       @if (app.selectedGroup()) { <div class="hidden items-start justify-between gap-3 sm:flex">
@@ -33,15 +40,15 @@ import { ProfilePanel } from './features/profile/profile-panel';
         @if (app.selectedGroup()) { <a class="hidden min-h-11 items-center rounded-xl bg-pop-coral px-4 text-sm font-extrabold text-pop-text sm:inline-flex" routerLink="/expenses">+ {{ t('navAdd') }}</a> }
       </div> }
       @if (app.groupsBusy()) {
-        <p class="mt-6 rounded-2xl border border-pop-border bg-white p-6" role="status">{{ t('loadingGroupList') }}</p>
+        <app-ui-alert variant="info" class="mt-6">{{ t('loadingGroupList') }}</app-ui-alert>
       } @else if (app.groupsError()) {
-        <p class="mt-6 rounded-2xl border border-pop-border bg-white p-6" role="alert">{{ t('groupsUnavailable') }}</p>
+        <app-ui-alert variant="error" class="mt-6">{{ t('groupsUnavailable') }}</app-ui-alert>
       } @else if (app.selectedGroup(); as group) {
         <form class="mt-3 flex min-h-11 items-center gap-2 rounded-2xl border border-pop-border bg-white px-3 shadow-sm focus-within:outline-2 focus-within:outline-pop-primary sm:mt-5" (ngSubmit)="searchExpenses()" role="search">
           <svg class="size-5 shrink-0 text-pop-primary-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7"/><path d="m16 16 5 5"/></svg>
           <label class="sr-only" for="dashboard-expense-search">{{ t('searchExpenses') }}</label>
-          <input id="dashboard-expense-search" class="min-w-0 flex-1 py-2 text-sm outline-none" type="search" name="dashboardExpenseSearch" [(ngModel)]="search" [placeholder]="t('searchExpenses')" />
-          <button class="rounded-xl bg-pop-lavender px-3 py-1.5 text-sm font-bold text-pop-primary-dark hover:bg-pop-primary hover:text-white focus-visible:outline-2 focus-visible:outline-pop-primary" type="submit">{{ t('search') }}</button>
+          <input appUiControl [plain]="true" id="dashboard-expense-search" class="min-w-0 flex-1 py-2 text-sm outline-none" type="search" name="dashboardExpenseSearch" [(ngModel)]="search" [placeholder]="t('searchExpenses')" />
+          <app-ui-button variant="secondary"  type="submit">{{ t('search') }}</app-ui-button>
         </form>
         <section class="dashboard-cloud relative mt-3 overflow-hidden rounded-[1.8rem] bg-pop-primary text-white shadow-[0_12px_30px_#6455ec30] sm:mt-5" [attr.aria-label]="t('myBalance')">
           <div class="relative min-h-44 px-5 pb-20 pt-5 sm:hidden">
@@ -52,7 +59,7 @@ import { ProfilePanel } from './features/profile/profile-panel';
           <div class="hidden min-h-64 grid-cols-[52%_48%] sm:grid">
             <div class="relative overflow-hidden"><img class="absolute inset-0 h-full w-full object-cover object-[16%_45%]" src="/illustrations/cafe-hero-mobile.webp" alt="" /><div class="absolute inset-y-0 right-0 w-20 bg-gradient-to-r from-transparent to-pop-primary"></div></div>
             <div class="flex min-w-0 flex-col justify-center px-5 py-6 lg:px-8"><p class="text-xs font-bold uppercase tracking-wider text-white">{{ t('myGroups') }} · {{ group.currency }}</p><h1 class="mt-1 break-words text-2xl font-black lg:text-4xl">{{ group.name }}</h1><p class="mt-2 text-sm text-white/80">{{ group.memberCount ?? 1 }} {{ t('membersCount') }}</p>
-              @if (app.balanceBusy()) { <p class="mt-5" role="status">{{ t('loadingBalances') }}</p> } @else if (app.balanceError()) { <p class="mt-5" role="status">{{ t('balancesUnavailable') }}</p> } @else { <div class="mt-5 grid grid-cols-2 gap-3"><div><span class="block text-xs text-white/80">{{ t('myBalance') }}</span><strong class="text-xl lg:text-2xl">{{ app.selectedBalance() }}</strong></div><div><span class="block text-xs text-white/80">{{ t('groupTotal') }}</span><strong class="text-xl lg:text-2xl">{{ app.groupSpent() }}</strong></div><div><span class="block text-xs text-white/80">{{ t('totalRepayments') }}</span><strong class="text-xl lg:text-2xl">{{ app.settlementTotal() }}</strong></div></div> }
+              @if (app.balanceBusy()) { <app-ui-alert variant="info" class="mt-5">{{ t('loadingBalances') }}</app-ui-alert> } @else if (app.balanceError()) { <app-ui-alert variant="error" class="mt-5">{{ t('balancesUnavailable') }}</app-ui-alert> } @else { <div class="mt-5 grid grid-cols-2 gap-3"><div><span class="block text-xs text-white/80">{{ t('myBalance') }}</span><strong class="text-xl lg:text-2xl">{{ app.selectedBalance() }}</strong></div><div><span class="block text-xs text-white/80">{{ t('groupTotal') }}</span><strong class="text-xl lg:text-2xl">{{ app.groupSpent() }}</strong></div><div><span class="block text-xs text-white/80">{{ t('totalRepayments') }}</span><strong class="text-xl lg:text-2xl">{{ app.settlementTotal() }}</strong></div></div> }
             </div>
           </div>
           <div class="absolute bottom-3 right-3 z-10 flex -space-x-2 sm:bottom-4 sm:right-4" role="group" [attr.aria-label]="t('whoOwes')">
@@ -67,7 +74,7 @@ import { ProfilePanel } from './features/profile/profile-panel';
           </div>
         </section>
         <div class="mt-4 flex max-w-full min-w-0 snap-x gap-3 overflow-x-auto pb-1 sm:hidden" [attr.aria-label]="t('myGroups')">
-          @for (item of app.groups(); track item.id) { <button class="flex min-h-16 shrink-0 snap-start items-center gap-3 rounded-2xl border border-pop-border bg-white p-3 text-left" [class.w-full]="app.groups().length === 1" [class.w-[80%]]="app.groups().length > 1" type="button" [attr.aria-pressed]="app.selectedGroupId() === item.id" (click)="app.selectedGroupId.set(item.id)"><img class="h-10 w-10" [src]="$index % 2 ? '/illustrations/category-travel.svg' : '/illustrations/category-home.svg'" alt="" /><span class="min-w-0 flex-1"><strong class="block truncate">{{ item.name }}</strong><small>{{ item.memberCount ?? 1 }} {{ t('membersCount') }}</small></span><span class="rounded-full bg-pop-lavender px-2 py-1 text-xs font-bold">{{ item.currency }}</span></button> }
+          @for (item of app.groups(); track item.id) { <app-ui-group-card class="shrink-0 snap-start" [class.w-full]="app.groups().length === 1" [class.w-[80%]]="app.groups().length > 1" [name]="item.name" [detail]="(item.memberCount ?? 1) + ' ' + t('membersCount')" [amount]="item.currency" [icon]="$index % 2 ? 'plane' : 'house'" [selected]="app.selectedGroupId() === item.id" [interactive]="true" (activated)="app.selectedGroupId.set(item.id)" /> }
         </div>
         <a class="mt-2 flex min-h-11 items-center justify-center rounded-2xl bg-pop-lavender text-sm font-extrabold text-pop-primary-dark sm:hidden" routerLink="/groups">+ {{ t('createGroup') }}</a>
         <div class="flex flex-col">
@@ -79,28 +86,28 @@ import { ProfilePanel } from './features/profile/profile-panel';
         <div class="order-1 mt-5 grid gap-4 sm:order-2 lg:grid-cols-3">
           <section class="order-2 min-w-0 rounded-[1.7rem] border border-pop-border bg-white p-4 shadow-[0_9px_25px_#6455ec12] lg:order-1" [attr.aria-label]="t('whoOwes')">
             <h2 class="flex items-center gap-2 text-lg font-black"><svg class="size-5 shrink-0 text-pop-primary-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v17M5 7h14M4 7l-3 7h6L4 7Zm16 0-3 7h6l-3-7ZM7 20h10" /></svg>{{ t('whoOwes') }}</h2>
-            @if (app.balanceBusy()) { <p class="mt-4 text-sm" role="status">{{ t('loadingBalances') }}</p> }
-            @else if (app.balanceError()) { <p class="mt-4 text-sm" role="status">{{ t('balancesUnavailable') }}</p> }
+            @if (app.balanceBusy()) { <app-ui-alert variant="info" class="mt-4">{{ t('loadingBalances') }}</app-ui-alert> }
+            @else if (app.balanceError()) { <app-ui-alert variant="error" class="mt-4">{{ t('balancesUnavailable') }}</app-ui-alert> }
             @else if (!app.dashboardMemberBalances().length) { <p class="mt-4 text-sm text-pop-muted">{{ t('noBalance') }}</p> }
             @else { <ul class="mt-3 divide-y divide-pop-border">
-              @for (item of app.dashboardMemberBalances(); track item.userId; let i = $index) {
-                <li class="flex min-h-12 items-center gap-2 py-1.5 text-sm"><span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-pop-peach to-pop-lavender font-black text-pop-primary-dark" aria-hidden="true">{{ item.userId === app.auth?.user()?.uid ? app.userInitial() : i + 1 }}</span><span class="min-w-0 flex-1 truncate font-bold">{{ item.userId === app.auth?.user()?.uid ? t('me') : t('otherMember') + ' ' + (i + 1) }}</span><strong class="shrink-0 rounded-full px-2.5 py-1 text-xs" [class.bg-emerald-50]="item.balanceMinor > 0" [class.text-emerald-700]="item.balanceMinor > 0" [class.bg-rose-50]="item.balanceMinor < 0" [class.text-rose-700]="item.balanceMinor < 0" [class.bg-pop-background]="!item.balanceMinor">{{ app.formatDashboardMinor(item.balanceMinor) }}</strong></li>
+              @for (item of app.dashboardMemberBalances(); track item.userId) {
+                <li class="flex min-h-12 items-center gap-2 py-1.5 text-sm"><span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-pop-peach to-pop-lavender font-black text-pop-primary-dark" aria-hidden="true">{{ app.dashboardMemberName(item.userId).slice(0, 1).toLocaleUpperCase() }}</span><span class="min-w-0 flex-1 truncate font-bold">{{ app.dashboardMemberName(item.userId) }}</span><strong class="shrink-0 rounded-full px-2.5 py-1 text-xs" [class.bg-emerald-50]="item.balanceMinor > 0" [class.text-emerald-700]="item.balanceMinor > 0" [class.bg-rose-50]="item.balanceMinor < 0" [class.text-rose-700]="item.balanceMinor < 0" [class.bg-pop-background]="!item.balanceMinor">{{ app.formatDashboardMinor(item.balanceMinor) }}</strong></li>
               }
             </ul> }
           </section>
           <section class="order-1 min-w-0 rounded-[1.7rem] border border-pop-border bg-white p-4 shadow-[0_9px_25px_#6455ec12] lg:order-2" [attr.aria-label]="t('recentExpenses')">
             <div class="flex items-center justify-between gap-2"><h2 class="flex min-w-0 items-center gap-2 text-lg font-black"><svg class="size-5 shrink-0 text-pop-primary-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>{{ t('recentExpenses') }}</h2><a class="shrink-0 text-xs font-bold text-pop-primary-dark" routerLink="/expenses">{{ t('viewAll') }} →</a></div>
             <div class="mt-3 divide-y divide-pop-border">
-              @if (app.recentExpensesBusy()) { <p class="py-3 text-sm" role="status">{{ t('loadingExpenseHistory') }}</p> }
-              @else if (app.recentExpensesError()) { <p class="py-3 text-sm" role="status">{{ t('historyUnavailable') }}</p> }
+              @if (app.recentExpensesBusy()) { <app-ui-alert variant="info" class="py-3">{{ t('loadingExpenseHistory') }}</app-ui-alert> }
+              @else if (app.recentExpensesError()) { <app-ui-alert variant="error" class="py-3">{{ t('historyUnavailable') }}</app-ui-alert> }
               @else if (!app.recentExpenses().length) { <p class="py-3 text-sm text-pop-muted">{{ t('noRecentExpenses') }}</p> }
               @else { @for (entry of app.recentExpenses(); track entry.id) { <div class="flex min-h-12 items-center gap-2 py-1.5"><span class="flex size-9 shrink-0 items-center justify-center rounded-full text-lg" [class]="categoryColorClass(entry.categoryColor)" aria-hidden="true">{{ entry.categoryIcon }}</span><span class="min-w-0 flex-1"><strong class="block truncate text-sm">{{ entry.description }}</strong><small class="text-pop-muted">{{ entry.date }}</small></span><strong class="shrink-0 text-xs text-pop-primary-dark">{{ app.formatRecentExpense(entry) }}</strong></div> } }
             </div>
           </section>
           <section class="order-3 min-w-0 rounded-[1.7rem] border border-pop-border bg-white p-4 shadow-[0_9px_25px_#6455ec12]" [attr.aria-label]="t('byCategory')">
             <div class="flex items-center justify-between gap-2"><h2 class="flex min-w-0 items-center gap-2 text-base font-black"><svg class="size-5 shrink-0 text-pop-primary-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="12" height="12" rx="3"/><rect x="9" y="9" width="12" height="12" rx="3"/></svg>{{ t('byCategory') }}</h2><a class="shrink-0 text-xs font-bold text-pop-primary-dark" routerLink="/statistics">{{ t('viewAll') }} →</a></div>
-            @if (app.balanceBusy()) { <p class="mt-4 text-sm" role="status">{{ t('loadingStatistics') }}</p> }
-            @else if (app.balanceError()) { <p class="mt-4 text-sm" role="status">{{ t('balancesUnavailable') }}</p> }
+            @if (app.balanceBusy()) { <app-ui-alert variant="info" class="mt-4">{{ t('loadingStatistics') }}</app-ui-alert> }
+            @else if (app.balanceError()) { <app-ui-alert variant="error" class="mt-4">{{ t('balancesUnavailable') }}</app-ui-alert> }
             @else if (!app.dashboardCategories().length) { <p class="mt-4 text-sm text-pop-muted">{{ t('noRecentExpenses') }}</p> }
             @else { <div class="mt-4 flex flex-wrap items-center gap-4 sm:flex-nowrap"><div class="flex size-28 shrink-0 items-center justify-center rounded-full" [style.background]="app.dashboardDonut()" role="img" [attr.aria-label]="t('byCategory')"><div class="flex size-16 flex-col items-center justify-center rounded-full bg-white px-1 text-center"><strong class="text-[11px] font-black leading-tight">{{ app.groupSpent() }}</strong><small class="text-[9px] text-pop-muted">{{ t('totalLabel') }}</small></div></div><ul class="min-w-0 flex-1 text-xs">
               @for (item of app.dashboardCategories().slice(0, 4); track item.id; let i = $index) { <li class="flex min-h-7 items-center gap-1.5 border-b border-pop-border/60"><span aria-hidden="true">{{ categoryIcon(item.id) }}</span><span class="min-w-0 flex-1 truncate">{{ app.dashboardCategoryLabel(item) }}</span><strong>{{ categoryPercent(item.amountMinor) }} %</strong></li> }
@@ -154,7 +161,7 @@ export class DashboardPage {
 }
 
 @Component({
-  imports: [FormsModule, GroupCurrencyPanel, GroupLifecyclePanel, QrInvitationPanel, CategoryManager],
+  imports: [FieldComponent, DropdownComponent, UiGroupCard, UiControlDirective, UiButton, UiAlert, FormsModule, GroupCurrencyPanel, GroupLifecyclePanel, QrInvitationPanel, CategoryManager],
   template: `
     <div class="mx-auto max-w-5xl space-y-6">
       <header class="relative overflow-hidden rounded-[1.8rem] bg-pop-primary px-6 py-7 text-white shadow-[0_12px_30px_#6455ec30] sm:min-h-52 sm:px-9 sm:py-10">
@@ -166,40 +173,40 @@ export class DashboardPage {
       @if (app.groups().length) {
         <section [attr.aria-label]="t('myGroups')"><div class="mb-3 flex items-center justify-between gap-3"><h2 class="text-xl font-black">{{ t('myGroups') }}</h2><span class="rounded-full bg-pop-lavender px-3 py-1 text-xs font-bold text-pop-primary-dark">{{ app.groups().length }}</span></div><div class="grid gap-3 sm:grid-cols-2">
           @for (group of app.groups(); track group.id) {
-            <button class="flex min-h-24 items-center gap-3 rounded-2xl border-2 bg-white p-4 text-left shadow-sm transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-pop-primary" [class.border-pop-primary]="app.selectedGroupId() === group.id" [class.border-pop-border]="app.selectedGroupId() !== group.id" [attr.aria-pressed]="app.selectedGroupId() === group.id" type="button" (click)="app.selectedGroupId.set(group.id)">
-              <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-pop-peach"><img class="h-9 w-9" [src]="$index % 2 ? '/illustrations/category-travel.svg' : '/illustrations/category-home.svg'" alt="" /></span><span class="min-w-0 flex-1"><strong class="block break-words">{{ group.name }}</strong><small class="text-pop-muted">{{ group.memberCount ?? 1 }} {{ t('membersCount') }}</small></span><span class="rounded-full bg-pop-lavender px-2 py-1 text-xs font-bold">{{ group.currency }}</span>
-            </button>
+            <app-ui-group-card [name]="group.name" [detail]="(group.memberCount ?? 1) + ' ' + t('membersCount')" [amount]="group.currency" [icon]="$index % 2 ? 'plane' : 'house'" [selected]="app.selectedGroupId() === group.id" [interactive]="true" (activated)="app.selectedGroupId.set(group.id)" />
           }
         </div></section>
       } @else { <p class="rounded-2xl border border-pop-border bg-white p-5 text-pop-muted">{{ t('noGroups') }} {{ t('gettingStartedIntro') }}</p> }
       @if (app.groupServiceReady() && app.auth?.user()?.emailVerified) {
         <form class="max-w-2xl space-y-4 rounded-[1.7rem] border border-pop-border bg-white p-5 shadow-sm sm:p-7" (ngSubmit)="app.createGroup()">
           <div class="flex items-center gap-3"><span class="flex h-11 w-11 items-center justify-center rounded-2xl bg-pop-lavender text-2xl text-pop-primary" aria-hidden="true">＋</span><div><h2 class="text-xl font-black">{{ t('createGroup') }}</h2><p class="text-sm text-pop-muted">{{ t('groupCreateHelp') }}</p></div></div>
-          <label class="block text-sm font-bold">{{ t('groupName') }}<input class="mt-1 min-h-11 w-full rounded-xl border border-pop-border bg-pop-background px-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="groupName" [(ngModel)]="app.groupName" maxlength="80" required /></label>
-          <label class="block text-sm font-bold">{{ t('groupCurrency') }}<select class="mt-1 min-h-11 w-full rounded-xl border border-pop-border bg-pop-background px-3 focus-visible:outline-2 focus-visible:outline-pop-primary" name="groupCurrency" [(ngModel)]="app.groupCurrency">@for (currency of app.currencies(); track currency.code) { <option [value]="currency.code">{{ currency.code }} · {{ currency.name }}</option> }</select></label>
-          <button class="min-h-12 w-full rounded-xl bg-pop-coral px-5 font-extrabold text-pop-text disabled:opacity-50 sm:w-auto" type="submit" [disabled]="app.busy() || !app.online()">+ {{ t('createGroup') }}</button>
+          <label class="block text-sm font-bold">{{ t('groupName') }}<input appUiControl class="mt-1 w-full" name="groupName" [(ngModel)]="app.groupName" maxlength="80" required /></label>
+          <app-field class="block" controlId="group-currency" [label]="t('groupCurrency')">
+            <app-dropdown controlId="group-currency" name="groupCurrency" [options]="currencyDropdownOptions(app.currencies())" [searchable]="true" [searchLabel]="t('search')" [(ngModel)]="app.groupCurrency" />
+          </app-field>
+          <app-ui-button variant="coral" [block]="true" size="lg" class="w-full sm:w-auto" type="submit" [disabled]="app.busy() || !app.online()">+ {{ t('createGroup') }}</app-ui-button>
         </form>
-      } @else { <p class="rounded-xl bg-amber-50 p-4 text-sm text-amber-900" role="status">{{ t('groupServiceMissing') }}</p> }
+      } @else { <app-ui-alert variant="error">{{ t('groupServiceMissing') }}</app-ui-alert> }
       @if (app.workerUrl && app.auth?.user(); as user) {
         @if (app.firebaseApp && app.selectedGroup(); as selected) { <app-group-lifecycle-panel [group]="selected" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" (changed)="app.onInvitationJoined()" /> }
         @if (app.firebaseApp && app.groups().length) { <app-group-currency-panel [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" (changed)="app.onInvitationJoined()" /> }
         <app-qr-invitation-panel [groups]="app.groups()" [user]="user" [workerUrl]="app.workerUrl" />
         @if (app.firebaseApp && app.groups().length) { <app-category-manager [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" (changed)="app.onCategoryChanged()" /> }
       }
-      @if (app.message()) { <p role="status">{{ app.message() }}</p> }
+      @if (app.message()) { <app-ui-alert variant="error">{{ app.message() }}</app-ui-alert> }
     </div>
   `,
 })
-export class GroupsPage { readonly app = inject(App); readonly t = t; }
+export class GroupsPage { readonly app = inject(App); readonly t = t; readonly currencyDropdownOptions = currencyDropdownOptions; }
 
 @Component({
-  imports: [ExpenseForm, ExpenseHistory],
+  imports: [UiButton, ExpenseForm, ExpenseHistory],
   template: `
     <div class="mx-auto max-w-5xl pb-20 xl:pb-0">
       <header class="mb-5 flex flex-wrap items-center justify-between gap-4">
         <div><p class="text-sm font-bold text-pop-muted">{{ app.selectedGroup()?.name }} · {{ app.selectedGroup()?.currency }}</p><h1 class="text-3xl font-black">{{ t('navExpenses') }}</h1></div>
         @if (app.groups().length && app.workerUrl && app.firebaseApp && app.auth?.user()) { <a class="hidden min-h-11 rounded-xl bg-pop-coral px-5 font-extrabold text-pop-text xl:inline-flex xl:items-center" href="#expense-editor">＋ {{ t('addExpenseAction') }}</a> }
-        @if (showEditor()) { <button class="min-h-11 rounded-xl border border-pop-border bg-white px-4 font-bold text-pop-primary-dark xl:hidden" type="button" (click)="showEditor.set(false)">← {{ t('navExpenses') }}</button> }
+        @if (showEditor()) { <app-ui-button variant="secondary" class="xl:hidden" type="button" (click)="showEditor.set(false)">← {{ t('navExpenses') }}</app-ui-button> }
       </header>
       @if (app.workerUrl && app.firebaseApp && app.auth?.user(); as user) {
         @if (app.groups().length) {
@@ -207,7 +214,7 @@ export class GroupsPage { readonly app = inject(App); readonly t = t; }
             <app-expense-history class="min-w-0" [class.max-xl:hidden]="showEditor()" [groups]="app.groups()" [preferredGroupId]="app.selectedGroupId()" [firebaseApp]="app.firebaseApp" [user]="user" [workerUrl]="app.workerUrl" [revision]="app.expenseRevision()" [categoryRevision]="app.categoryRevision()" (commented)="app.onCommentAdded()" (editRequested)="app.onExpenseEdit($event); showEditor.set(true)" (deleted)="app.onExpenseSaved()" />
             <app-expense-form class="min-w-0" id="expense-editor" [class.max-xl:hidden]="!showEditor()" [groups]="app.groups()" [preferredGroupId]="app.selectedGroupId()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" [categoryRevision]="app.categoryRevision()" [editing]="app.editingExpense()" (saved)="app.onExpenseSaved(); showEditor.set(false)" (editCancelled)="app.editingExpense.set(undefined); showEditor.set(false)" />
           </div>
-          @if (!showEditor()) { <button class="fixed bottom-20 left-4 right-4 z-20 min-h-12 rounded-xl bg-pop-coral px-5 font-extrabold text-pop-text shadow-lg xl:hidden" type="button" (click)="showEditor.set(true)">＋ {{ t('addExpenseAction') }}</button> }
+          @if (!showEditor()) { <app-ui-button variant="coral" size="lg" [block]="true" class="fixed bottom-20 left-4 right-4 z-20 shadow-lg xl:hidden" type="button" (click)="showEditor.set(true)">＋ {{ t('addExpenseAction') }}</app-ui-button> }
         } @else { <p class="rounded-2xl bg-white p-5">{{ t('noGroups') }}</p> }
       }
     </div>
@@ -233,7 +240,7 @@ export class ExpensesPage { readonly app = inject(App); readonly t = t; readonly
 export class StatisticsPage { readonly app = inject(App); readonly t = t; }
 
 @Component({
-  imports: [ProfilePanel, ActivityHistory, ExportPanel, ImportPanel, RestorePanel, ReceiptCleanupPanel],
+  imports: [UiButton, ProfilePanel, ActivityHistory, ExportPanel, ImportPanel, RestorePanel, ReceiptCleanupPanel],
   template: `
     <div class="mx-auto max-w-5xl space-y-5"><h1 class="text-3xl font-black">{{ t('navAccount') }}</h1>
       @if (app.firebaseApp && app.auth?.user(); as user) {
@@ -246,7 +253,7 @@ export class StatisticsPage { readonly app = inject(App); readonly t = t; }
             <app-receipt-cleanup-panel [groups]="app.groups()" [user]="user" [workerUrl]="app.workerUrl" /> }
         }
       }
-      <button class="min-h-11 rounded-xl border border-pop-border bg-white px-4 font-bold" type="button" (click)="app.logout()">{{ t('logout') }}</button>
+      <app-ui-button variant="secondary"  type="button" (click)="app.logout()">{{ t('logout') }}</app-ui-button>
     </div>
   `,
 })

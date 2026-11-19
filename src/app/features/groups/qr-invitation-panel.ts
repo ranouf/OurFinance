@@ -1,3 +1,9 @@
+import { FieldComponent } from '../../shared/components/field/field.component';
+import { DropdownComponent } from '../../shared/components/dropdown/dropdown.component';
+import { groupDropdownOptions } from '../../shared/components/dropdown/dropdown-options';
+import { UiControlDirective } from '../../shared/components/ui-field/ui-control.directive';
+import { UiAlert } from '../../shared/components/ui-alert/ui-alert';
+import { UiButton } from '../../shared/components/ui-button/ui-button';
 import { Component, Input, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { User } from 'firebase/auth';
@@ -9,55 +15,51 @@ import { qrInvitationText } from './qr-invitation-text';
 
 @Component({
   selector: 'app-qr-invitation-panel',
-  imports: [FormsModule, InviteQrCode],
+  imports: [FieldComponent, DropdownComponent, UiControlDirective, UiAlert, UiButton, FormsModule, InviteQrCode],
   template: `
     <section class="mt-6 rounded-3xl border border-pop-border bg-white p-5 shadow-sm sm:p-7" [attr.aria-label]="text().heading">
       <h2 class="text-xl font-extrabold text-pop-text">{{ text().heading }}</h2>
       <p class="mt-2 text-sm text-pop-muted">{{ text().intro }}</p>
       @if (ownedGroups().length) {
         <form class="mt-5 grid gap-3 sm:grid-cols-2" (ngSubmit)="create()">
-          <label class="text-sm font-bold text-pop-text">{{ text().group }}
-            <select class="mt-1 min-h-11 w-full rounded-xl border border-pop-border bg-white p-3" name="qrGroup" [(ngModel)]="selectedGroupId" required (ngModelChange)="onGroupChanged()">
-              <option value="">{{ text().choose }}</option>
-              @for (group of ownedGroups(); track group.id) { <option [value]="group.id">{{ group.name }} · {{ group.currency }}</option> }
-            </select>
-          </label>
+          <app-field class="block" controlId="qrGroup" [label]="text().group"><app-dropdown controlId="qrGroup" [options]="groupDropdownOptions(ownedGroups(), text().choose, true)" name="qrGroup" [(ngModel)]="selectedGroupId" required (ngModelChange)="onGroupChanged()" /></app-field>
           <label class="text-sm font-bold text-pop-text">{{ text().target }}
-            <input class="mt-1 min-h-11 w-full rounded-xl border border-pop-border p-3" type="email" name="qrTarget" [(ngModel)]="targetEmail" autocomplete="off" />
+            <input appUiControl class="mt-1 w-full" type="email" name="qrTarget" [(ngModel)]="targetEmail" autocomplete="off" />
           </label>
           @if (!targetEmail.trim()) { <p class="text-sm text-pop-muted sm:col-span-2">{{ text().openWarning }}</p> }
-          <button class="min-h-11 rounded-xl bg-pop-primary px-4 py-2 font-extrabold text-white disabled:opacity-50 sm:w-fit" type="submit" [disabled]="busy() || !selectedGroupId">{{ text().create }}</button>
+          <app-ui-button variant="primary" class="sm:w-fit" type="submit" [disabled]="busy() || !selectedGroupId">{{ text().create }}</app-ui-button>
         </form>
         @if (created(); as invite) {
           <div class="mt-5 rounded-2xl bg-pop-lavender p-4 text-pop-text" role="status">
             <p class="text-sm font-bold">{{ text().created }}</p>
             <p class="mt-1 text-sm">{{ text().expires }} : {{ formatDate(invite.expiresAt) }}</p>
             <app-invite-qr-code class="mt-4 block" [link]="invite.link" [label]="text().qrLabel" [copyLabel]="text().copy" [shareLabel]="text().share" [copiedLabel]="text().copied" [failedLabel]="text().copyFailed" />
-            <button class="mt-3 min-h-11 rounded-xl border border-pop-primary px-4 py-2 font-bold text-pop-primary-dark" type="button" (click)="created.set(null)">{{ text().close }}</button>
+            <app-ui-button variant="outline" class="mt-3" type="button" (click)="created.set(null)">{{ text().close }}</app-ui-button>
           </div>
         }
         @if (selectedGroupId) {
           <div class="mt-6 border-t border-pop-border pt-4">
             <h3 class="font-extrabold">{{ text().current }}</h3>
-            @if (loading()) { <p class="mt-2 text-sm" role="status">{{ text().loading }}</p> }
-            @if (listError()) { <p class="mt-2 text-sm" role="alert">{{ text().failed }}</p> }
+            @if (loading()) { <app-ui-alert variant="info" class="mt-2">{{ text().loading }}</app-ui-alert> }
+            @if (listError()) { <app-ui-alert variant="error" class="mt-2">{{ text().failed }}</app-ui-alert> }
             <ul class="mt-3 space-y-2">
               @for (entry of entries(); track entry.invitationId) {
                 <li class="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-pop-background p-3 text-sm">
                   <span class="min-w-0 break-words">{{ status(entry.status) }} · {{ formatDate(entry.expiresAt) }} @if (entry.targetEmail) { · {{ entry.targetEmail }} }</span>
-                  @if (entry.status === 'active') { <button class="min-h-11 rounded-xl border border-pop-primary px-3 py-2 font-bold text-pop-primary-dark disabled:opacity-50" type="button" [disabled]="busy()" (click)="revoke(entry.invitationId)">{{ text().revoke }}</button> }
+                  @if (entry.status === 'active') { <app-ui-button variant="outline"  type="button" [disabled]="busy()" (click)="revoke(entry.invitationId)">{{ text().revoke }}</app-ui-button> }
                 </li>
               }
             </ul>
-            @if (nextPageToken()) { <button class="mt-3 min-h-11 rounded-xl border border-pop-border px-3 py-2 font-bold" type="button" [disabled]="loading()" (click)="loadMore()">{{ text().more }}</button> }
+            @if (nextPageToken()) { <app-ui-button variant="secondary" class="mt-3" type="button" [disabled]="loading()" (click)="loadMore()">{{ text().more }}</app-ui-button> }
           </div>
         }
       }
-      @if (message()) { <p class="mt-3 text-sm" role="status">{{ message() }}</p> }
+      @if (message()) { <app-ui-alert [variant]="messageKey() === 'failed' ? 'error' : 'success'" class="mt-3">{{ message() }}</app-ui-alert> }
     </section>
   `,
 })
 export class QrInvitationPanel {
+  readonly groupDropdownOptions = groupDropdownOptions;
   @Input({ required: true }) groups: Group[] = [];
   @Input({ required: true }) user?: User;
   @Input({ required: true }) workerUrl = '';

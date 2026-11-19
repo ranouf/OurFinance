@@ -1,0 +1,11 @@
+<button type="button" class="gallery-quick-action" [class.gallery-quick-action-coral]="kind === 'add'" [disabled]="disabled" (click)="activated.emit()">
+  <span class="gallery-quick-action-icon" aria-hidden="true">
+    @switch (kind) {
+      @case ('add') { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><use href="/illustrations/lucide-actions.svg#plus" /></svg> }
+      @case ('invite') { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="/illustrations/lucide-actions.svg#user-round-plus" /></svg> }
+      @case ('balance') { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="/illustrations/lucide-actions.svg#shuffle" /></svg> }
+    }
+  </span>
+  <strong>{{ label }}</strong>
+  @if (kind === 'invite') { <svg class="gallery-quick-action-qr ml-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="/illustrations/lucide-actions.svg#qr-code" /></svg> }
+</button>
