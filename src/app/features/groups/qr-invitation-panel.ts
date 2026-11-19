@@ -4,7 +4,7 @@ import { groupDropdownOptions } from '../../shared/components/dropdown/dropdown-
 import { UiControlDirective } from '../../shared/components/ui-field/ui-control.directive';
 import { UiAlert } from '../../shared/components/ui-alert/ui-alert';
 import { UiButton } from '../../shared/components/ui-button/ui-button';
-import { Component, Input, computed, signal } from '@angular/core';
+import { Component, Input, OnChanges, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { User } from 'firebase/auth';
 import type { Group } from '../../core/firebase/group-model';
@@ -58,11 +58,12 @@ import { qrInvitationText } from './qr-invitation-text';
     </section>
   `,
 })
-export class QrInvitationPanel {
+export class QrInvitationPanel implements OnChanges {
   readonly groupDropdownOptions = groupDropdownOptions;
   @Input({ required: true }) groups: Group[] = [];
   @Input({ required: true }) user?: User;
   @Input({ required: true }) workerUrl = '';
+  @Input() preferredGroupId = '';
   readonly text = computed(() => qrInvitationText[language()]);
   readonly busy = signal(false);
   readonly loading = signal(false);
@@ -74,6 +75,13 @@ export class QrInvitationPanel {
   readonly message = computed(() => this.messageKey() ? this.text()[this.messageKey()!] : '');
   selectedGroupId = '';
   targetEmail = '';
+
+  ngOnChanges(): void {
+    if (this.preferredGroupId && this.ownedGroups().some(group => group.id === this.preferredGroupId) && this.selectedGroupId !== this.preferredGroupId) {
+      this.selectedGroupId = this.preferredGroupId;
+      this.onGroupChanged();
+    }
+  }
 
   private service(): QrInvitationService { return new QrInvitationService(this.workerUrl); }
   ownedGroups(): Group[] { return this.groups.filter(group => group.ownerId === this.user?.uid && group.status === 'active'); }

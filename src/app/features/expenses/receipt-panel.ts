@@ -1,4 +1,3 @@
-import { UiControlDirective } from '../../shared/components/ui-field/ui-control.directive';
 import { UiAlert } from '../../shared/components/ui-alert/ui-alert';
 import { UiButton } from '../../shared/components/ui-button/ui-button';
 import { Component, Input, OnChanges, OnDestroy, SimpleChanges, signal } from '@angular/core';
@@ -6,17 +5,18 @@ import type { FirebaseApp } from 'firebase/app';
 import type { User } from 'firebase/auth';
 import { ReceiptService, type Receipt } from '../../core/firebase/receipt-service';
 import { expenseMessage, expenseText } from './expense-text';
+import { publishThenRefresh } from './publish-refresh';
 
 @Component({
-  selector: 'app-receipt-panel', imports: [UiControlDirective, UiButton, UiAlert],
+  selector: 'app-receipt-panel', imports: [UiButton, UiAlert],
   template: `
     <section class="rounded-2xl border border-pop-border bg-pop-lavender p-4" [attr.aria-label]="text('privateReceipts')">
       <h3 class="font-extrabold text-pop-text">{{ text('privateReceipts') }}</h3>
       <p class="mt-1 text-pop-muted">{{ text('receiptHelp') }}</p>
       <div class="mt-3 flex flex-wrap items-center gap-2">
-        <label class="flex min-h-11 cursor-pointer items-center rounded-xl border border-pop-primary px-4 py-2 font-bold text-pop-primary-dark">
+        <label class="flex min-h-11 cursor-pointer items-center rounded-xl border border-pop-primary px-4 py-2 font-bold text-pop-primary-dark focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-pop-primary">
           {{ text('addReceipt') }}
-          <input appUiControl class="sr-only" type="file" accept="image/png,image/jpeg" [disabled]="busy()" (change)="upload($event)" />
+          <input class="sr-only" type="file" accept="image/png,image/jpeg" [disabled]="busy()" (change)="upload($event)" />
         </label>
         <app-ui-button variant="secondary"  type="button" [disabled]="busy()" (click)="refresh()">{{ text('refresh') }}</app-ui-button>
       </div>
@@ -37,7 +37,7 @@ import { expenseMessage, expenseText } from './expense-text';
           <app-ui-button variant="secondary" class="mt-2" type="button" (click)="closeImage()">{{ text('closeReceipt') }}</app-ui-button>
         </div>
       }
-      @if (message()) { <app-ui-alert [variant]="message() === 'receiptAdded' || message() === 'receiptRemoved' ? 'success' : 'error'" class="mt-2">{{ displayMessage(message()) }}</app-ui-alert> }
+      @if (message()) { <app-ui-alert [variant]="message() === 'receiptAdded' || message() === 'receiptRemoved' ? 'success' : message() === 'receiptAddedRefreshFailed' ? 'info' : 'error'" class="mt-2">{{ displayMessage(message()) }}</app-ui-alert> }
     </section>
   `,
 })
@@ -77,8 +77,15 @@ export class ReceiptPanel implements OnChanges, OnDestroy {
     input.value = '';
     if (!file || !this.service || !this.user) return;
     this.busy.set(true);
-    try { await this.service.upload(this.user, this.groupId, this.expenseId, file); this.message.set('receiptAdded'); this.receipts.set(await this.service.list(this.groupId, this.expenseId)); }
-    catch (error) { this.message.set(error instanceof Error ? error.message : 'receiptAddFailed'); }
+    try {
+      const result = await publishThenRefresh(
+        () => this.service!.upload(this.user!, this.groupId, this.expenseId, file),
+        () => this.service!.list(this.groupId, this.expenseId),
+      );
+      this.message.set(result.refreshed ? 'receiptAdded' : 'receiptAddedRefreshFailed');
+      if (result.refreshed) this.receipts.set(result.value);
+    }
+    catch (error) { this.message.set(error instanceof TypeError ? 'receiptAddFailed' : error instanceof Error ? error.message : 'receiptAddFailed'); }
     finally { this.busy.set(false); }
   }
 
@@ -86,7 +93,7 @@ export class ReceiptPanel implements OnChanges, OnDestroy {
     if (!this.service || !this.user) return;
     this.busy.set(true);
     try { const image = await this.service.read(this.user, this.groupId, this.expenseId, receipt.id); this.closeImage(); this.imageUrl.set(URL.createObjectURL(image)); this.message.set(''); }
-    catch (error) { this.message.set(error instanceof Error ? error.message : 'receiptReadFailed'); }
+    catch (error) { this.message.set(error instanceof TypeError ? 'receiptReadFailed' : error instanceof Error ? error.message : 'receiptReadFailed'); }
     finally { this.busy.set(false); }
   }
 
@@ -94,7 +101,7 @@ export class ReceiptPanel implements OnChanges, OnDestroy {
     if (!this.service || !this.user) return;
     this.busy.set(true);
     try { await this.service.remove(this.user, this.groupId, this.expenseId, receipt.id); this.closeImage(); this.receipts.set(this.receipts().filter(item => item.id !== receipt.id)); this.message.set('receiptRemoved'); }
-    catch (error) { this.message.set(error instanceof Error ? error.message : 'receiptRemoveFailed'); }
+    catch (error) { this.message.set(error instanceof TypeError ? 'receiptRemoveFailed' : error instanceof Error ? error.message : 'receiptRemoveFailed'); }
     finally { this.busy.set(false); }
   }
 }

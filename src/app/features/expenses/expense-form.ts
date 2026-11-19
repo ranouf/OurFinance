@@ -1,12 +1,13 @@
 import { categoryDropdownOptions } from '../../shared/utils/category-dropdown-options';
 import { FieldComponent } from '../../shared/components/field/field.component';
+import { ControlErrorsComponent } from '../../shared/components/control-errors/control-errors.component';
 import { DropdownComponent, type DropdownOption } from '../../shared/components/dropdown/dropdown.component';
 import { groupDropdownOptions } from '../../shared/components/dropdown/dropdown-options';
 import { UiCheckboxDirective } from '../../shared/components/checkbox/ui-checkbox.directive';
 import { UiControlDirective } from '../../shared/components/ui-field/ui-control.directive';
 import { UiAlert } from '../../shared/components/ui-alert/ui-alert';
 import { UiButton } from '../../shared/components/ui-button/ui-button';
-import { ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, OnChanges, Output, QueryList, SimpleChanges, ViewChildren, signal } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, OnChanges, Output, QueryList, SimpleChanges, ViewChild, ViewChildren, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { FirebaseApp } from 'firebase/app';
 import type { User } from 'firebase/auth';
@@ -14,6 +15,7 @@ import type { Group } from '../../core/firebase/group-model';
 import { ExpenseService } from '../../core/firebase/expense-service';
 import type { ExpenseHistoryEntry } from '../../core/firebase/expense-service';
 import { CategoryService } from '../../core/firebase/category-service';
+import { loadSharedMemberProfiles } from '../../core/firebase/member-profile-service';
 import { formatMinor, minorDigits } from '../../shared/utils/currency';
 import { categories, type CustomCategory } from '../../shared/utils/categories';
 import { categoryLabel } from '../../shared/utils/category-label';
@@ -23,7 +25,7 @@ import type { SplitMode } from '../../shared/utils/split-engine';
 import { expenseMessage, expenseText } from './expense-text';
 
 @Component({
-  selector: 'app-expense-form', imports: [FieldComponent, DropdownComponent, UiCheckboxDirective, UiControlDirective, UiAlert, UiButton, FormsModule],
+  selector: 'app-expense-form', imports: [FieldComponent, ControlErrorsComponent, DropdownComponent, UiCheckboxDirective, UiControlDirective, UiAlert, UiButton, FormsModule],
   template: `
     <section class="mt-6 rounded-3xl border border-pop-border bg-pop-surface p-5 text-pop-text shadow-sm md:p-7" [attr.aria-label]="editing ? text('editExpense') : text('newExpense')">
       <div class="mb-5 h-1.5 w-14 rounded-full bg-pop-coral" aria-hidden="true"></div>
@@ -31,14 +33,16 @@ import { expenseMessage, expenseText } from './expense-text';
       @if (editing) { <p class="mt-1 text-sm text-pop-muted">{{ text('authorOnly') }}</p> }
       <p class="mt-2 text-sm leading-6 text-pop-muted">{{ text('splitHelp') }}</p>
       <form class="mt-6 grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4" (ngSubmit)="save()">
-        <app-field class="block" controlId="group" [label]="text('group')"><app-dropdown controlId="group" [options]="groupDropdownOptions(groups, text('chooseGroup'), false)" name="group" [(ngModel)]="selectedGroupId" (ngModelChange)="loadGroup()" [disabled]="!!editing" required /></app-field>
+        <app-field class="block" controlId="group" [label]="text('group')"><app-dropdown controlId="group" [options]="groupDropdownOptions(groups, text('chooseGroup'), false)" name="group" [(ngModel)]="selectedGroupId" (ngModelChange)="onGroupChange()" [disabled]="!!editing" required /></app-field>
         @if (selectedGroupId) {
           <label class="block text-sm font-bold">{{ text('description') }}
-            <input appUiControl class="mt-2 w-full" name="description" [(ngModel)]="draft.description" maxlength="160" required />
+            <input #descriptionInput appUiControl class="mt-2 w-full" name="description" [(ngModel)]="draft.description" (ngModelChange)="descriptionError.set(false)" [attr.aria-invalid]="descriptionError() ? 'true' : null" [attr.aria-describedby]="descriptionError() ? 'expense-description-error' : null" aria-required="true" maxlength="160" />
+            @if (descriptionError()) { <app-control-errors errorId="expense-description-error" [explicitMessage]="text('descriptionRequired')" /> }
           </label>
           <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
             <label class="block text-sm font-bold">{{ text('amount') }}
-              <input appUiControl class="mt-2 w-full" name="amount" [(ngModel)]="draft.amount" inputmode="decimal" placeholder="0,00" required />
+              <input #amountInput appUiControl class="mt-2 w-full" name="amount" [(ngModel)]="draft.amount" (ngModelChange)="amountError.set('')" [attr.aria-invalid]="amountError() ? 'true' : null" [attr.aria-describedby]="amountError() ? 'expense-amount-error' : null" aria-required="true" inputmode="decimal" placeholder="0,00" />
+              @if (amountError()) { <app-control-errors errorId="expense-amount-error" [explicitMessage]="displayMessage(amountError())" /> }
             </label>
             <div class="block text-sm font-bold">{{ text('fixedCurrency') }}
               <div class="mt-2 min-h-11 rounded-xl border border-pop-border bg-pop-lavender p-3 text-lg font-extrabold text-pop-primary-dark" [attr.aria-label]="text('fixedCurrency')">{{ draft.currency }}</div>
@@ -93,7 +97,7 @@ import { expenseMessage, expenseText } from './expense-text';
           } @else { <p class="text-sm text-pop-muted">{{ text('noMembers') }}</p> }
         }
       </form>
-      @if (message() && !paymentError()) { <p class="mt-4 rounded-xl bg-pop-lavender p-3 text-sm text-pop-text" [attr.role]="message() === 'saved' || message() === 'updated' ? 'status' : 'alert'">{{ displayMessage(message()) }}</p> }
+      @if (message() && !paymentError() && !amountError() && !descriptionError()) { <app-ui-alert class="mt-4" [variant]="message() === 'saved' || message() === 'updated' ? 'success' : 'error'">{{ displayMessage(message()) }}</app-ui-alert> }
     </section>
   `,
 })
@@ -101,13 +105,15 @@ export class ExpenseForm implements OnChanges {
   readonly groupDropdownOptions = groupDropdownOptions;
   expenseCategoryOptions(): DropdownOption[] { return categoryDropdownOptions(this.availableCategories(), category => categoryLabel(category.id, language(), category.label)); }
   payerOptions(): DropdownOption[] { return this.members().map(member => ({ value: member.userId, label: this.memberLabel(member.userId) })); }
-  memberLabel(userId: string): string { return userId === this.user?.uid ? this.text('me') : userId; }
   splitModeOptions(): DropdownOption[] { return (['equal', 'exact', 'percentage', 'shares', 'adjustment'] as const).map(value => ({ value, label: this.text(value) })); }
   constructor(private readonly changeDetector: ChangeDetectorRef) {}
+  @ViewChild('descriptionInput') private descriptionInput?: ElementRef<HTMLInputElement>;
+  @ViewChild('amountInput') private amountInput?: ElementRef<HTMLInputElement>;
   @ViewChildren('paymentInput') private paymentInputs?: QueryList<ElementRef<HTMLInputElement>>;
   @ViewChildren('payerCheckbox') private payerCheckboxes?: QueryList<ElementRef<HTMLInputElement>>;
   @Output() readonly saved = new EventEmitter<void>();
   @Output() readonly editCancelled = new EventEmitter<void>();
+  @Output() readonly groupChange = new EventEmitter<string>();
   @Input({ required: true }) groups: Group[] = [];
   @Input() preferredGroupId = '';
   @Input({ required: true }) user?: User;
@@ -123,12 +129,16 @@ export class ExpenseForm implements OnChanges {
   readonly text = expenseText;
   readonly displayMessage = expenseMessage;
   readonly members = signal<{ userId: string }[]>([]);
+  readonly memberNames = signal<Record<string, string>>({});
   readonly customCategories = signal<CustomCategory[]>([]);
   readonly busy = signal(false);
   readonly message = signal('');
   readonly paymentError = signal(false);
+  readonly amountError = signal('');
+  readonly descriptionError = signal(false);
   readonly previewRows = signal<{ userId: string; amountMinor: number }[]>([]);
   selectedGroupId = '';
+  private groupRequestId = 0;
   draft: ExpenseDraft = this.emptyDraft();
   private service?: ExpenseService;
   private categoryService?: CategoryService;
@@ -140,7 +150,7 @@ export class ExpenseForm implements OnChanges {
       this.service = new ExpenseService(this.firebaseApp, this.workerUrl);
       this.categoryService = new CategoryService(this.firebaseApp, this.workerUrl);
     }
-    if (!this.editing && !this.selectedGroupId && this.groups.some(group => group.id === this.preferredGroupId)) {
+    if (!this.editing && this.selectedGroupId !== this.preferredGroupId && this.groups.some(group => group.id === this.preferredGroupId)) {
       this.selectedGroupId = this.preferredGroupId;
       void this.loadGroup();
     }
@@ -167,8 +177,10 @@ export class ExpenseForm implements OnChanges {
     return `${amount < 0 ? '-' : ''}${Math.floor(absolute / scale)}${digits ? '.' + String(absolute % scale).padStart(digits, '0') : ''}`;
   }
   clearValues(): void { this.previewRows.set([]); this.draft.rows.forEach(row => row.value = ''); }
+  onGroupChange(): void { this.groupChange.emit(this.selectedGroupId); void this.loadGroup(); }
   async loadGroup(): Promise<void> {
-    this.members.set([]); this.customCategories.set([]); this.previewRows.set([]); this.message.set(''); this.draft = this.emptyDraft();
+    const requestId = ++this.groupRequestId;
+    this.members.set([]); this.memberNames.set({}); this.customCategories.set([]); this.previewRows.set([]); this.message.set(''); this.amountError.set(''); this.descriptionError.set(false); this.draft = this.emptyDraft();
     this.pendingKey = undefined; this.pendingBody = undefined;
     const groupId = this.selectedGroupId;
     const group = this.groups.find(item => item.id === groupId);
@@ -176,14 +188,19 @@ export class ExpenseForm implements OnChanges {
     this.draft.currency = group.currency;
     try {
       await this.loadCategories();
-      const members = (await this.service.members(groupId)).filter(member => member.status === 'active');
-      if (this.selectedGroupId !== groupId) return;
-      this.members.set(members);
-      this.draft.payerId = members.find(member => member.userId === this.user?.uid)?.userId ?? members[0]?.userId ?? '';
-      this.draft.rows = members.map(member => ({ userId: member.userId, selected: false, value: '' }));
-      this.draft.paymentRows = members.map(member => ({ userId: member.userId, selected: false, value: '' }));
-      const preference = this.editing?.groupId === groupId ? this.editing.entry.splitMode : await this.service.preference(this.user, groupId, new Set(members.map(member => member.userId)));
-      if (this.selectedGroupId === groupId && preference) {
+      const [members, names] = await Promise.all([
+        this.service.members(groupId),
+        this.workerUrl ? loadSharedMemberProfiles(this.workerUrl, groupId, this.user).catch(() => []) : [],
+      ]);
+      if (this.selectedGroupId !== groupId || requestId !== this.groupRequestId) return;
+      this.memberNames.set(Object.fromEntries(names.filter(item => item.displayName).map(item => [item.userId, item.displayName!])));
+      const activeMembers = members.filter(member => member.status === 'active');
+      this.members.set(activeMembers);
+      this.draft.payerId = activeMembers.find(member => member.userId === this.user?.uid)?.userId ?? activeMembers[0]?.userId ?? '';
+      this.draft.rows = activeMembers.map(member => ({ userId: member.userId, selected: false, value: '' }));
+      this.draft.paymentRows = activeMembers.map(member => ({ userId: member.userId, selected: false, value: '' }));
+      const preference = this.editing?.groupId === groupId ? this.editing.entry.splitMode : await this.service.preference(this.user, groupId, new Set(activeMembers.map(member => member.userId)));
+      if (this.selectedGroupId === groupId && requestId === this.groupRequestId && preference) {
         if (this.editing?.groupId === groupId) {
           const entry = this.editing.entry;
           this.draft.description = entry.description;
@@ -197,8 +214,9 @@ export class ExpenseForm implements OnChanges {
         this.applyPreference(preference);
         this.changeDetector.markForCheck();
       }
-    } catch { this.message.set('membersUnavailable'); }
+    } catch { if (requestId === this.groupRequestId) this.message.set('membersUnavailable'); }
   }
+  memberLabel(userId: string): string { return userId === this.user?.uid ? this.text('me') : this.memberNames()[userId] || `${this.text('otherMember')} ${userId.slice(0, 8)}`; }
   private applyPreference(mode: SplitMode): void {
     this.draft.kind = mode.kind;
     const values = new Map<string, string>();
@@ -210,19 +228,28 @@ export class ExpenseForm implements OnChanges {
     this.draft.rows.forEach(row => { row.selected = values.has(row.userId); row.value = values.get(row.userId) ?? ''; });
   }
   preview(): void {
-    this.previewRows.set([]); this.message.set(''); this.paymentError.set(false);
+    this.previewRows.set([]); this.message.set(''); this.paymentError.set(false); this.amountError.set('');
     try {
       const result = prepareExpense(this.draft, new Set(this.members().map(member => member.userId)));
       this.previewRows.set(result.allocations.map(item => ({ userId: item.userId, amountMinor: item.amountMinor })));
     } catch (error) {
       const message = error instanceof Error ? error.message : 'splitInvalid';
       this.message.set(message);
+      if (message === 'Montant invalide pour cette devise' || message === 'Montant trop élevé' || this.invalidAmount()) {
+        this.amountError.set(message === 'Montant ou payeur invalide' ? 'positiveAmount' : message);
+        queueMicrotask(() => this.amountInput?.nativeElement.focus());
+        return;
+      }
       const invalidPayment = this.draft.multiplePayers ? this.invalidPaymentIndex() : -1;
       if (this.draft.multiplePayers && (message === 'Choisissez des payeurs actifs' || message === 'La somme des paiements doit égaler le montant' || invalidPayment >= 0)) {
         this.paymentError.set(true);
         queueMicrotask(() => (this.paymentInputs?.get(Math.max(invalidPayment, 0)) ?? this.payerCheckboxes?.first)?.nativeElement.focus());
       }
     }
+  }
+  private invalidAmount(): boolean {
+    try { return parseMinor(this.draft.amount, this.draft.currency) <= 0; }
+    catch { return true; }
   }
   private invalidPaymentIndex(): number {
     return this.draft.paymentRows.filter(row => row.selected).findIndex(row => {
@@ -232,7 +259,11 @@ export class ExpenseForm implements OnChanges {
   async save(): Promise<void> {
     if (!this.service || !this.user || !this.selectedGroupId || this.busy()) return;
     this.preview(); if (!this.previewRows().length) return;
-    if (!this.draft.description.trim() || this.draft.description.length > 160) { this.message.set('descriptionRequired'); return; }
+    if (!this.draft.description.trim() || this.draft.description.length > 160) {
+      this.message.set('descriptionRequired'); this.descriptionError.set(true);
+      queueMicrotask(() => this.descriptionInput?.nativeElement.focus());
+      return;
+    }
     this.busy.set(true);
     try {
       const result = prepareExpense(this.draft, new Set(this.members().map(member => member.userId)));
@@ -249,7 +280,7 @@ export class ExpenseForm implements OnChanges {
       this.pendingKey = undefined; this.pendingBody = undefined;
       this.message.set(this.editing ? 'updated' : 'saved'); this.draft.description = ''; this.draft.amount = ''; this.previewRows.set([]); this.saved.emit();
       if (this.editing) this.editCancelled.emit();
-    } catch (error) { this.message.set(error instanceof Error ? error.message : 'saveFailed'); }
+    } catch (error) { this.message.set(error instanceof TypeError ? 'saveFailed' : error instanceof Error ? error.message : 'saveFailed'); }
     finally { this.busy.set(false); }
   }
 }
