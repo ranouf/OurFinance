@@ -53,7 +53,7 @@ import { StatisticsService, type StatisticsTotals } from './statistics-service';
         } @empty { @if (!busy() && !message()) { <p class="mt-5 rounded-2xl bg-pop-lavender p-5 text-sm text-pop-muted">{{ text('empty') }}</p> } }
         @if (incompleteCount()) { <p class="mt-3 text-sm text-amber-800">{{ incompleteCount() }} {{ text('incomplete') }}</p> }
       }
-      @if (message()) { <app-ui-alert variant="info" class="mt-4">{{ text('unavailable') }}</app-ui-alert> }
+      @if (message()) { <app-ui-alert variant="error" class="mt-4">{{ text('unavailable') }}</app-ui-alert> }
     </section>
   `,
 })

@@ -34,7 +34,7 @@ const actions: Record<string, MessageKey> = {
       @if (busy()) {
         <app-ui-alert variant="info" class="mt-4">{{ t('loadingActivity') }}</app-ui-alert>
       } @else if (error()) {
-        <app-ui-alert variant="info" class="mt-4">{{ t('activityUnavailable') }}</app-ui-alert>
+        <app-ui-alert variant="error" class="mt-4">{{ t('activityUnavailable') }}</app-ui-alert>
       } @else if (entries().length) {
         <ol class="mt-4 divide-y divide-pop-border">
           @for (entry of entries(); track entry.id) {

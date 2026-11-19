@@ -28,7 +28,7 @@ import { locale, t } from '../../shared/utils/i18n';
             <app-ui-button variant="primary"  type="submit" [disabled]="busy() || currencyCode === selectedGroup()?.currency">{{ t('saveGroupCurrency') }}</app-ui-button>
           }
         </form>
-        @if (message()) { <app-ui-alert variant="info" class="mt-3">{{ message() }}</app-ui-alert> }
+        @if (message()) { <app-ui-alert [variant]="message() === t('currencyChanged') ? 'success' : 'error'" class="mt-3">{{ message() }}</app-ui-alert> }
       </section>
     }
   `,

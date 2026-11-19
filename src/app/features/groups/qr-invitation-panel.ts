@@ -54,7 +54,7 @@ import { qrInvitationText } from './qr-invitation-text';
           </div>
         }
       }
-      @if (message()) { <app-ui-alert variant="info" class="mt-3">{{ message() }}</app-ui-alert> }
+      @if (message()) { <app-ui-alert [variant]="messageKey() === 'failed' ? 'error' : 'success'" class="mt-3">{{ message() }}</app-ui-alert> }
     </section>
   `,
 })

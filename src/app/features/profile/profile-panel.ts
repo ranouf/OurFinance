@@ -51,7 +51,7 @@ import { setLanguage, t, type MessageKey } from '../../shared/utils/i18n';
           </div>
         </div>
       }
-      @if (message(); as key) { <app-ui-alert variant="info" class="mt-4">{{ t(key) }}</app-ui-alert> }
+      @if (message(); as key) { <app-ui-alert [variant]="key === 'profileSaved' || key === 'googleLinkDone' ? 'success' : 'error'" class="mt-4">{{ t(key) }}</app-ui-alert> }
     </section>
   `,
 })

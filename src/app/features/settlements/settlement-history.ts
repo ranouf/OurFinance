@@ -35,7 +35,7 @@ import { locale, t } from '../../shared/utils/i18n';
           @if (hasMore()) { <app-ui-button variant="secondary" class="mt-3" type="button" [disabled]="busy()" (click)="loadMore()">{{ t('showMore') }}</app-ui-button> }
         } @else if (!busy() && !message()) { <p class="mt-5 rounded-2xl bg-pop-lavender p-5 text-sm text-pop-muted">{{ t('noSettlement') }}</p> }
       }
-      @if (message()) { <app-ui-alert variant="info" class="mt-4">{{ message() }}</app-ui-alert> }
+      @if (message()) { <app-ui-alert variant="error" class="mt-4">{{ message() }}</app-ui-alert> }
     </section>
   `,
 })

@@ -47,7 +47,7 @@ const labels: Record<string, MessageKey> = {
         } @else if (!busy() && !message()) { <p class="mt-4 text-sm text-slate-600">{{ t('noActivity') }}</p> }
         @if (hasMore()) { <app-ui-button variant="secondary" class="mt-3" type="button" [disabled]="busy()" (click)="loadMore()">{{ t('showMore') }}</app-ui-button> }
       }
-      @if (message()) { <app-ui-alert variant="info" class="mt-4">{{ message() }}</app-ui-alert> }
+      @if (message()) { <app-ui-alert variant="error" class="mt-4">{{ message() }}</app-ui-alert> }
     </section>
   `,
 })

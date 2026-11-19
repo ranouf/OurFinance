@@ -106,7 +106,7 @@ import { expenseMessage, expenseText } from './expense-text';
         @if (hasMore()) { <app-ui-button variant="secondary" class="mt-4" type="button" [disabled]="busy()" (click)="loadMore()">{{ hasFilter() ? text('continueSearch') : text('loadMore') }}</app-ui-button> }
         @if (!entries().length && !busy() && !message() && !(from && to && from > to)) { <p class="mt-5 rounded-2xl bg-pop-lavender p-5 text-center text-sm text-pop-muted">{{ hasMore() ? text('noPageResults') : text('noResults') }}</p> }
       }
-      @if (message()) { <app-ui-alert variant="info" class="mt-4">{{ displayMessage(message()) }}</app-ui-alert> }
+      @if (message()) { <app-ui-alert [variant]="message() === 'deleted' ? 'success' : 'error'" class="mt-4">{{ displayMessage(message()) }}</app-ui-alert> }
     </section>
   `,
 })

@@ -39,7 +39,7 @@ import { locale, t } from '../../shared/utils/i18n';
         } @empty { @if (!busy() && !message()) { <p class="mt-5 rounded-2xl bg-pop-lavender p-5 text-sm text-pop-muted">{{ t('noBalance') }}</p> } }
         @if (incompleteCount()) { <p class="mt-3 text-sm text-amber-800">{{ incompleteCount() }} {{ t('unknownShares') }}</p> }
       }
-      @if (message()) { <app-ui-alert variant="info" class="mt-4">{{ message() }}</app-ui-alert> }
+      @if (message()) { <app-ui-alert variant="error" class="mt-4">{{ message() }}</app-ui-alert> }
     </section>
   `,
 })

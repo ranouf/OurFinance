@@ -41,7 +41,7 @@ import type { Group } from '../../core/firebase/group-model';
         </label>
         <app-ui-button variant="outline"  type="submit" [disabled]="busy()">Rejoindre le groupe</app-ui-button>
       </form>
-      @if (message()) { <app-ui-alert variant="info" class="mt-3">{{ message() }}</app-ui-alert> }
+      @if (message()) { <app-ui-alert [variant]="message().includes('impossible') || message().includes('invalide') ? 'error' : 'success'" class="mt-3">{{ message() }}</app-ui-alert> }
     </section>
   `,
 })

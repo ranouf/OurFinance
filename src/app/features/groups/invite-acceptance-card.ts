@@ -25,7 +25,7 @@ import { qrInvitationText } from './qr-invitation-text';
         @if (!unusable()) { <app-ui-button variant="outline" class="mt-3" type="button" (click)="load()">{{ text().retry }}</app-ui-button> }
       }
       <app-ui-button variant="ghost" class="mt-5" type="button" (click)="changeAccount.emit()"><span class="underline">{{ text().changeAccount }}</span></app-ui-button>
-      @if (message()) { <app-ui-alert variant="info" class="mt-3">{{ message() }}</app-ui-alert> }
+      @if (message()) { <app-ui-alert [variant]="messageKey() === 'done' ? 'success' : 'info'" class="mt-3">{{ message() }}</app-ui-alert> }
     </section>
   `,
 })

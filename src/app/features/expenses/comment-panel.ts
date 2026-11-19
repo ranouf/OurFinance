@@ -33,7 +33,7 @@ import { expenseMessage, expenseText } from './expense-text';
         </ol>
       } @else if (!busy() && !message()) { <p class="mt-3 text-pop-muted">{{ text('noComments') }}</p> }
       @if (hasMore()) { <app-ui-button variant="secondary" class="mt-2" type="button" [disabled]="busy()" (click)="loadMore()">{{ text('moreComments') }}</app-ui-button> }
-      @if (message()) { <app-ui-alert variant="info" class="mt-2">{{ displayMessage(message()) }}</app-ui-alert> }
+      @if (message()) { <app-ui-alert [variant]="message() === 'commentPublished' ? 'success' : 'error'" class="mt-2">{{ displayMessage(message()) }}</app-ui-alert> }
     </section>
   `,
 })

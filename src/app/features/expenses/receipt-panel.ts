@@ -37,7 +37,7 @@ import { expenseMessage, expenseText } from './expense-text';
           <app-ui-button variant="secondary" class="mt-2" type="button" (click)="closeImage()">{{ text('closeReceipt') }}</app-ui-button>
         </div>
       }
-      @if (message()) { <app-ui-alert variant="info" class="mt-2">{{ displayMessage(message()) }}</app-ui-alert> }
+      @if (message()) { <app-ui-alert [variant]="message() === 'receiptAdded' || message() === 'receiptRemoved' ? 'success' : 'error'" class="mt-2">{{ displayMessage(message()) }}</app-ui-alert> }
     </section>
   `,
 })

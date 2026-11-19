@@ -37,7 +37,7 @@ type ExportKind = 'csv' | 'json' | 'zip' | 'zip-v2';
           [disabled]="busy() || !groupId || !user?.emailVerified || (kind === 'zip-v2' && !isOwner())" (click)="download()">
           {{ busy() ? t('exportPreparing') : t('exportDownload') }}
         </app-ui-button>
-        @if (message(); as key) { <app-ui-alert variant="info">{{ t(key) }}</app-ui-alert> }
+        @if (message(); as key) { <app-ui-alert [variant]="key === 'exportReady' ? 'success' : 'error'">{{ t(key) }}</app-ui-alert> }
       </div>
     </section>
   `,

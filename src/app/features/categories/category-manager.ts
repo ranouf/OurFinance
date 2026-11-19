@@ -46,7 +46,7 @@ import { language, t, type MessageKey } from '../../shared/utils/i18n';
         </div>
         @if (items().length) { <p class="mt-3 text-sm text-slate-600">{{ items().length }} {{ t(items().length === 1 ? 'categoryCountOne' : 'categoryCountMany') }}</p> }
       }
-      @if (message(); as key) { <app-ui-alert variant="info" class="mt-4">{{ t(key) }}</app-ui-alert> }
+      @if (message(); as key) { <app-ui-alert [variant]="key === 'categorySaved' || key === 'categoryManagerArchived' || key === 'categoryManagerReactivated' ? 'success' : 'error'" class="mt-4">{{ t(key) }}</app-ui-alert> }
     </section>
   `,
 })

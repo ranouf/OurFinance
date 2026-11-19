@@ -43,7 +43,7 @@ import { settlementMessage, settlementText } from './settlement-text';
           <app-ui-button variant="primary" [block]="true" class="w-full" type="submit" [disabled]="busy() || !recipientId">{{ text('save') }}</app-ui-button>
         }
       </form>
-      @if (message()) { <app-ui-alert variant="info" class="mt-4">{{ displayMessage(message()) }}</app-ui-alert> }
+      @if (message()) { <app-ui-alert [variant]="message() === 'Remboursement enregistré.' ? 'success' : 'error'" class="mt-4">{{ displayMessage(message()) }}</app-ui-alert> }
     </section>
   `,
 })
