@@ -28,6 +28,7 @@ import { qrInvitationText } from './qr-invitation-text';
           </label>
           @if (!targetEmail.trim()) { <p class="text-sm text-pop-muted sm:col-span-2">{{ text().openWarning }}</p> }
           <app-ui-button variant="primary" class="sm:w-fit" type="submit" [disabled]="busy() || !selectedGroupId">{{ text().create }}</app-ui-button>
+          @if (messageKey() === 'createFailed') { <app-ui-alert variant="error" class="sm:col-span-2">{{ message() }}</app-ui-alert> }
         </form>
         @if (created(); as invite) {
           <div class="mt-5 rounded-2xl bg-pop-lavender p-4 text-pop-text" role="status">
@@ -41,7 +42,7 @@ import { qrInvitationText } from './qr-invitation-text';
           <div class="mt-6 border-t border-pop-border pt-4">
             <h3 class="font-extrabold">{{ text().current }}</h3>
             @if (loading()) { <app-ui-alert variant="info" class="mt-2">{{ text().loading }}</app-ui-alert> }
-            @if (listError()) { <app-ui-alert variant="error" class="mt-2">{{ text().failed }}</app-ui-alert> }
+            @if (listError()) { <app-ui-alert variant="error" class="mt-2">{{ text().listFailed }}</app-ui-alert> }
             <ul class="mt-3 space-y-2">
               @for (entry of entries(); track entry.invitationId) {
                 <li class="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-pop-background p-3 text-sm">
@@ -54,7 +55,7 @@ import { qrInvitationText } from './qr-invitation-text';
           </div>
         }
       }
-      @if (message()) { <app-ui-alert [variant]="messageKey() === 'failed' ? 'error' : 'success'" class="mt-3">{{ message() }}</app-ui-alert> }
+      @if (message() && messageKey() !== 'createFailed') { <app-ui-alert [variant]="messageKey() === 'revokedDone' ? 'success' : 'error'" class="mt-3">{{ message() }}</app-ui-alert> }
     </section>
   `,
 })
@@ -71,7 +72,7 @@ export class QrInvitationPanel implements OnChanges {
   readonly created = signal<QrInviteCreated | null>(null);
   readonly entries = signal<QrInviteEntry[]>([]);
   readonly nextPageToken = signal<string | null>(null);
-  private readonly messageKey = signal<keyof typeof qrInvitationText.fr | null>(null);
+  protected readonly messageKey = signal<keyof typeof qrInvitationText.fr | null>(null);
   readonly message = computed(() => this.messageKey() ? this.text()[this.messageKey()!] : '');
   selectedGroupId = '';
   targetEmail = '';
@@ -87,16 +88,15 @@ export class QrInvitationPanel implements OnChanges {
   ownedGroups(): Group[] { return this.groups.filter(group => group.ownerId === this.user?.uid && group.status === 'active'); }
   formatDate(value: string): string { return new Intl.DateTimeFormat(locale(), { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)); }
   status(value: string): string { return value === 'active' ? this.text().pending : this.text()[value as 'accepted' | 'revoked' | 'expired'] ?? value; }
-  onGroupChanged(): void { this.created.set(null); this.entries.set([]); this.nextPageToken.set(null); void this.loadMore(); }
+  onGroupChanged(): void { this.messageKey.set(null); this.created.set(null); this.entries.set([]); this.nextPageToken.set(null); void this.loadMore(); }
 
   async create(): Promise<void> {
     if (!this.user || !this.selectedGroupId || this.busy()) return;
     this.busy.set(true); this.messageKey.set(null); this.created.set(null);
     try {
       this.created.set(await this.service().create(this.user, this.selectedGroupId, this.targetEmail.trim() || undefined));
-      this.messageKey.set('created');
       await this.loadMore(true);
-    } catch { this.messageKey.set('failed'); }
+    } catch { this.messageKey.set('createFailed'); }
     finally { this.busy.set(false); }
   }
 
@@ -120,7 +120,7 @@ export class QrInvitationPanel implements OnChanges {
       this.entries.update(entries => entries.map(entry => entry.invitationId === invitationId ? { ...entry, status: 'revoked' } : entry));
       if (this.created()?.invitationId === invitationId) this.created.set(null);
       this.messageKey.set('revokedDone');
-    } catch { this.messageKey.set('failed'); }
+    } catch { this.messageKey.set('revokeFailed'); }
     finally { this.busy.set(false); }
   }
 }
