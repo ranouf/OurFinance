@@ -10,7 +10,7 @@ test('un quota fournisseur garde un message distinct pour les petites et grandes
   assert.equal(await restoreFailure(failure(503, 'provider_quota_exceeded'), false), 'restoreQuota');
   assert.equal(await restoreFailure(failure(503, 'provider_quota_exceeded'), true), 'restorePreparedQuota');
   assert.equal(await restoreFailure(failure(503, 'provider_quota_exceeded'), false, true), 'restoreQuotaUncertain');
-  assert.equal(await restoreFailure(failure(503, 'provider_quota_exceeded'), true, true), 'restorePreparedQuota');
+  assert.equal(await restoreFailure(failure(503, 'provider_quota_exceeded'), true, true), 'restoreQuotaUncertain');
 });
 
 test('une reprise réellement incertaine conserve son avertissement', async () => {
@@ -22,4 +22,5 @@ test('les autres refus restent distincts du quota', async () => {
   assert.equal(await restoreFailure(failure(503, 'group_creation_disabled'), false), 'restoreUnavailable');
   assert.equal(await restoreFailure(failure(400, 'invalid_archive'), false), 'restoreInvalid');
   assert.equal(await restoreFailure(failure(503, 'group_creation_disabled'), true), 'restorePreparedUncertain');
+  assert.equal(await restoreFailure(failure(503, 'group_creation_disabled'), true, true), 'restoreUncertain');
 });

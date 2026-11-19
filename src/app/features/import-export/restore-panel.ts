@@ -58,18 +58,22 @@ interface RestoreDiffCounts { readonly create: number; readonly replace: number;
                 [(ngModel)]="confirmation" autocomplete="off" />
             </label>
             <button class="mt-3 rounded-lg bg-rose-700 px-4 py-2 text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pop-primary-dark disabled:opacity-50" type="button"
-              [disabled]="busy() || !diff() || confirmation !== selectedGroupName() || message() === 'restoreUncertain' || message() === 'restoreQuotaUncertain'"
+              [disabled]="busy() || !diff() || confirmation !== selectedGroupName() || outcomePending()"
               (click)="restore()">{{ t('restoreAction') }}</button>
           </div>
         }
         @if (message()) {
           <p [class]="message()?.includes('Quota') ? 'rounded-xl border border-pop-sun bg-pop-peach p-3 text-sm text-pop-text' : 'text-sm'"
             [attr.role]="message() === 'restoreDone' ? 'status' : 'alert'">{{ t(message()!) }}
-            @if (message() === 'restoreUncertain' || message() === 'restoreQuotaUncertain' || message() === 'restorePreparedUncertain' || message() === 'restorePreparedQuota') { <span class="break-all">{{ attemptId() }}</span> }
+            @if (outcomePending() || message() === 'restorePreparedUncertain' || message() === 'restorePreparedQuota') { <span class="break-all">{{ attemptId() }}</span> }
           </p>
           @if (message() === 'restorePreparedUncertain' || message() === 'restorePreparedQuota') {
             <button class="rounded-lg border border-teal-700 px-4 py-2 text-teal-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pop-primary-dark disabled:opacity-50" type="button"
               [disabled]="busy()" (click)="restore()">{{ t(message() === 'restorePreparedQuota' ? 'restoreQuotaRetry' : 'restorePreparedRetry') }}</button>
+          }
+          @if (outcomePending()) {
+            <button class="rounded-lg border border-teal-700 px-4 py-2 text-teal-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pop-primary-dark disabled:opacity-50" type="button"
+              [disabled]="busy()" (click)="checkOutcome()">{{ t('restoreCheckOutcome') }}</button>
           }
           @if (message() === 'restoreDone' || message() === 'restoreCleanupPending' || message() === 'restoreCleanupQuota') {
             <button class="rounded-lg border border-teal-700 px-4 py-2 text-teal-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pop-primary-dark" type="button"
@@ -94,7 +98,7 @@ export class RestorePanel {
   readonly busy = signal(false);
   readonly preview = signal<RestorePreflightV2 | null>(null);
   readonly diff = signal<RestoreDiffCounts | null>(null);
-  readonly message = signal<RestoreFailureMessage | 'restoreDone' | 'restoreCleanupPending' | 'restoreCleanupQuota' | null>(null);
+  readonly message = signal<RestoreFailureMessage | 'restoreDone' | 'restoreCleanupPending' | 'restoreCleanupQuota' | 'restoreStillLocked' | 'restoreOutcomeUnavailable' | null>(null);
   readonly attemptId = signal('');
   groupId = '';
   confirmation = '';
@@ -107,6 +111,7 @@ export class RestorePanel {
   private commitAttemptId?: string;
 
   selectedGroupName(): string { return this.groups.find(group => group.id === this.groupId)?.name ?? ''; }
+  outcomePending(): boolean { return ['restoreUncertain', 'restoreQuotaUncertain', 'restoreStillLocked', 'restoreOutcomeUnavailable'].includes(this.message() ?? ''); }
   reload(): void { window.location.reload(); }
   clearPreview(): void {
     this.preview.set(null);
@@ -167,12 +172,13 @@ export class RestorePanel {
   async restore(): Promise<void> {
     const user = this.user;
     const group = this.groups.find(item => item.id === this.groupId);
-    if (this.busy() || this.message() === 'restoreUncertain' || this.message() === 'restoreQuotaUncertain' ||
+    if (this.busy() || this.outcomePending() ||
         !user?.emailVerified || !group || user.uid !== group.ownerId || !this.archive || !this.preview() || !this.diff() ||
         !this.workerUrl || this.confirmation !== group.name || this.previewGroupId !== group.id || this.previewUid !== user.uid) return;
     const archive = this.archive;
     const retryPrepared = (this.message() === 'restorePreparedUncertain' || this.message() === 'restorePreparedQuota') &&
       this.preview()?.receiptCount && this.preview()!.receiptCount > 25;
+    let commitSubmitted = false;
     this.busy.set(true);
     this.message.set(null);
     const restoreId = retryPrepared && this.attemptId() ? this.attemptId() : crypto.randomUUID();
@@ -198,8 +204,10 @@ export class RestorePanel {
           }
           this.commitAttemptId = restoreId;
         }
+        commitSubmitted = true;
         response = await sendZip('commit');
       } else {
+        commitSubmitted = true;
         response = await sendZip('restore');
       }
       if (response.status === 200 || response.status === 202) {
@@ -210,13 +218,40 @@ export class RestorePanel {
       } else {
         const body = await response.clone().json().catch(() => null) as { error?: string } | null;
         if (body?.error === 'receipts_not_staged') this.commitAttemptId = undefined;
-        this.message.set(await restoreFailure(response, contents.receipts.length > 25, true));
+        this.message.set(body?.error === 'receipts_not_staged' ? 'restorePreparedUncertain' :
+          await restoreFailure(response, contents.receipts.length > 25, true));
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : '';
-      this.message.set(message === 'restorePreparedQuota' ? 'restorePreparedQuota' :
-        message === 'restoreUncertain' ? 'restoreUncertain' :
+      this.message.set(commitSubmitted || message === 'restoreUncertain' ? 'restoreUncertain' :
+        message === 'restorePreparedQuota' ? 'restorePreparedQuota' :
         this.preview()?.receiptCount && this.preview()!.receiptCount > 25 ? 'restorePreparedUncertain' : 'restoreUncertain');
+    }
+    finally { this.busy.set(false); }
+  }
+
+  async checkOutcome(): Promise<void> {
+    const user = this.user;
+    const restoreId = this.attemptId();
+    const groupId = this.attemptGroupId;
+    if (this.busy() || !this.outcomePending() || !user?.emailVerified || !groupId || !restoreId ||
+        this.groupId !== groupId || !this.workerUrl) return;
+    this.busy.set(true);
+    try {
+      const token = await user.getIdToken();
+      const response = await new RestoreService(this.workerUrl).outcome(token, groupId, restoreId);
+      if (this.user?.uid !== user.uid || this.groupId !== groupId || this.attemptId() !== restoreId) return;
+      if (response.ok) {
+        const result = await response.json() as { restoreId?: string; outcome?: string };
+        if (result.restoreId !== restoreId) throw new Error('restore_id_mismatch');
+        if (result.outcome === 'committed') {
+          this.clearPreview();
+          this.message.set('restoreDone');
+        } else this.message.set(result.outcome === 'locked' ? 'restoreStillLocked' : 'restoreOutcomeUnavailable');
+      } else this.message.set('restoreOutcomeUnavailable');
+    } catch {
+      if (this.user?.uid === user.uid && this.groupId === groupId && this.attemptId() === restoreId)
+        this.message.set('restoreOutcomeUnavailable');
     }
     finally { this.busy.set(false); }
   }
