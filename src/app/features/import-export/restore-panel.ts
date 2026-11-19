@@ -26,8 +26,11 @@ interface RestoreDiffCounts { readonly create: number; readonly replace: number;
     <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-5" [attr.aria-label]="t('restoreHeading')">
       <h2 class="text-lg font-semibold">{{ t('restoreHeading') }}</h2>
       <p class="mt-2 text-sm text-slate-700">{{ t('restorePartial') }}</p>
+@if (!ownedGroups().length && !outcomePending()) {
+        <p class="mt-4 text-sm">{{ t('restoreOwnerOnly') }}</p>
+      } @else {
       <div class="mt-4 space-y-3">
-        <app-field class="block" controlId="restoreGroup" [label]="t('group')"><app-dropdown controlId="restoreGroup" [options]="groupDropdownOptions(groups, t('chooseGroup'), false)" name="restoreGroup" [disabled]="outcomePending()"
+        <app-field class="block" controlId="restoreGroup" [label]="t('group')"><app-dropdown controlId="restoreGroup" [options]="groupDropdownOptions(ownedGroups(), t('chooseGroup'), false)" name="restoreGroup" [disabled]="outcomePending()"
             [(ngModel)]="groupId" (ngModelChange)="clearPreview()" /></app-field>
         <label class="block text-sm font-medium">{{ t('restoreFile') }}
           <input #restoreFileInput appUiControl class="mt-1 block w-full min-w-0 rounded-lg border border-slate-300 p-3 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pop-primary-dark" type="file" [disabled]="outcomePending()"
@@ -85,6 +88,7 @@ interface RestoreDiffCounts { readonly create: number; readonly replace: number;
           }
         }
       </div>
+      }
     </section>
   `,
 })
@@ -127,6 +131,7 @@ export class RestorePanel implements OnChanges {
     void this.checkOutcome();
   }
 
+  ownedGroups(): Group[] { return this.groups.filter(group => group.ownerId === this.user?.uid); }
   selectedGroupName(): string { return this.groups.find(group => group.id === this.groupId)?.name ?? ''; }
   outcomePending(): boolean { return ['restoreUncertain', 'restoreQuotaUncertain', 'restoreStillLocked', 'restoreOutcomeUnavailable'].includes(this.message() ?? ''); }
   feedbackVariant(): 'error' | 'warning' | 'success' {
