@@ -159,3 +159,9 @@ export function setLanguage(value: Language): void {
   if (typeof document !== 'undefined') document.documentElement.lang = value;
 }
 export function t(key: MessageKey): string { return messages[language()][key]; }
+
+export function usesSingular(count: number): boolean { return new Intl.PluralRules(language()).select(count) === 'one'; }
+
+export function groupMemberCountLabel(count: number): string {
+  return language() === 'ja' ? count + t('membersCount') : count + ' ' + t(usesSingular(count) ? 'memberCount' : 'membersCount');
+}
