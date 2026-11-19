@@ -42,7 +42,7 @@ import { t } from './shared/utils/i18n';
             <div class="mt-4 flex gap-2 text-sm"><app-ui-button variant="ghost" type="button" (click)="app.mode.set('login')"><span class="underline">{{ t('connection') }}</span></app-ui-button></div>
           }
           <form class="mt-5 space-y-4" novalidate (ngSubmit)="submit()">
-            <div><label class="block text-sm font-bold" for="login-email">{{ t('email') }}</label><span class="relative mt-1 block"><svg class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-pop-primary-dark" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 7 9-7" /></svg><input appUiControl #emailInput id="login-email" class="!pl-10" type="email" name="email" autocomplete="email" [(ngModel)]="app.email" [attr.aria-invalid]="emailInvalid()" [attr.aria-describedby]="emailInvalid() ? 'login-email-error' : app.message() ? 'login-auth-message' : null" required /></span>@if (emailInvalid()) { <p id="login-email-error" class="mt-1 text-xs font-bold text-rose-700">{{ t('emailInvalid') }}</p> }</div>
+            <div><label class="block text-sm font-bold" for="login-email">{{ t('email') }}</label><span class="relative mt-1 block"><svg class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-pop-primary-dark" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 7 9-7" /></svg><input appUiControl #emailInput id="login-email" class="!pl-10" type="email" name="email" autocomplete="email" [(ngModel)]="app.email" [attr.aria-invalid]="emailInvalid()" [attr.aria-describedby]="emailInvalid() ? 'login-email-error' : app.message() ? 'login-auth-message' : null" required /></span>@if (emailInvalid()) { <p id="login-email-error" role="alert" class="mt-1 text-xs font-bold text-rose-700">{{ t('emailInvalid') }}</p> }</div>
             @if (app.mode() !== 'reset') {
               <div><label class="block text-sm font-bold" for="login-password">{{ t('password') }}</label>
                 <span class="mt-1 flex rounded-xl border border-pop-border bg-pop-background focus-within:outline-2 focus-within:outline-pop-primary" [class.border-rose-600]="passwordInvalid()">
@@ -50,7 +50,7 @@ import { t } from './shared/utils/i18n';
                   <input appUiControl [plain]="true" #passwordInput id="login-password" class="min-w-0 flex-1 px-2 outline-none" [type]="app.showPassword() ? 'text' : 'password'" name="password" [autocomplete]="app.mode() === 'register' ? 'new-password' : 'current-password'" [(ngModel)]="app.password" [attr.aria-invalid]="passwordInvalid()" [attr.aria-describedby]="passwordInvalid() ? 'login-password-error' : app.message() ? 'login-auth-message' : null" required />
                   <button class="flex min-h-11 min-w-11 items-center justify-center px-3 text-pop-primary-dark" type="button" (click)="app.showPassword.update(value => !value)" [attr.aria-label]="app.showPassword() ? t('hidePassword') : t('showPassword')"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></svg></button>
                 </span>
-                @if (passwordInvalid()) { <p id="login-password-error" class="mt-1 text-xs font-bold text-rose-700">{{ t('passwordRequired') }}</p> }
+                @if (passwordInvalid()) { <p id="login-password-error" role="alert" class="mt-1 text-xs font-bold text-rose-700">{{ t('passwordRequired') }}</p> }
               </div>
             }
             @if (app.mode() === 'login') { <app-ui-button variant="ghost" class="flex w-full justify-end" size="sm" type="button" (click)="app.mode.set('reset')">{{ t('forgotten') }}</app-ui-button> }
@@ -62,7 +62,7 @@ import { t } from './shared/utils/i18n';
             <p class="mt-4 text-center text-sm text-pop-muted">{{ t('newHere') }} <app-ui-button variant="ghost" type="button" (click)="app.mode.set('register')"><span class="underline">{{ t('signup') }}</span></app-ui-button></p>
           }
         }
-        @if (app.message()) { <app-ui-alert variant="error" id="login-auth-message" class="mt-4">{{ app.message() }}</app-ui-alert> }
+        @if (app.message()) { <app-ui-alert [variant]="messageVariant()" id="login-auth-message" class="mt-4">{{ app.message() }}</app-ui-alert> }
       </div>
     </div>
   `,
@@ -71,6 +71,7 @@ export class LoginPage {
   readonly app = inject(App);
   readonly t = t;
   readonly submitted = signal(false);
+  messageVariant(): 'success' | 'error' { return this.app.message() === t('verifySent') || this.app.message() === t('resetSent') ? 'success' : 'error'; }
   @ViewChild('emailInput') emailInput?: ElementRef<HTMLInputElement>;
   @ViewChild('passwordInput') passwordInput?: ElementRef<HTMLInputElement>;
   emailInvalid(): boolean { return this.submitted() && !this.emailInput?.nativeElement.validity.valid; }
