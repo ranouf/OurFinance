@@ -39,9 +39,9 @@ import { language, t, type MessageKey } from '../../shared/utils/i18n';
         </div>
         <p class="mt-3 text-sm"><span class="rounded-md px-2 py-1" [class]="colorClass(draft.color)">{{ previewIcon() }} {{ draft.name || t('categoryPreview') }}</span></p>
         <div class="mt-4 flex flex-wrap gap-2">
-          <app-ui-button variant="primary"  type="button" [disabled]="busy() || !draft.name.trim()" (click)="save()">{{ selectedId ? t('saveCategory') : t('createCategory') }}</app-ui-button>
+          <app-ui-button variant="primary"  type="button" [disabled]="busy() || !selectedGroupActive() || !draft.name.trim()" (click)="save()">{{ selectedId ? t('saveCategory') : t('createCategory') }}</app-ui-button>
           @if (selectedId) {
-            <app-ui-button variant="secondary"  type="button" [disabled]="busy()" (click)="toggleArchive()">{{ selected()?.status === 'archived' ? t('reactivateCategory') : t('archiveCategory') }}</app-ui-button>
+            <app-ui-button variant="secondary"  type="button" [disabled]="busy() || !selectedGroupActive()" (click)="toggleArchive()">{{ selected()?.status === 'archived' ? t('reactivateCategory') : t('archiveCategory') }}</app-ui-button>
           }
         </div>
         @if (items().length) { <p class="mt-3 text-sm text-slate-600">{{ items().length }} {{ t(items().length === 1 ? 'categoryCountOne' : 'categoryCountMany') }}</p> }
@@ -57,6 +57,7 @@ export class CategoryManager implements OnChanges {
   readonly groupDropdownOptions = groupDropdownOptions;
   readonly t = t;
   @Input({ required: true }) groups: Group[] = [];
+  @Input() preferredGroupId = '';
   @Input({ required: true }) firebaseApp?: FirebaseApp;
   @Input({ required: true }) workerUrl?: string;
   @Input({ required: true }) user?: User;
@@ -71,9 +72,16 @@ export class CategoryManager implements OnChanges {
   draft: CategoryDraft = this.emptyDraft();
   private service?: CategoryService;
 
-  ngOnChanges(): void { if (this.firebaseApp && this.workerUrl) this.service = new CategoryService(this.firebaseApp, this.workerUrl); }
+  ngOnChanges(): void {
+    if (this.firebaseApp && this.workerUrl) this.service = new CategoryService(this.firebaseApp, this.workerUrl);
+    if (this.preferredGroupId && this.groups.some(group => group.id === this.preferredGroupId) && this.selectedGroupId !== this.preferredGroupId) {
+      this.selectedGroupId = this.preferredGroupId;
+      void this.loadGroup();
+    }
+  }
   private emptyDraft(): CategoryDraft { return { name: '', iconId: 'pin', color: 'teal', status: 'active' }; }
   selected(): CustomCategory | undefined { return this.items().find(item => item.id === this.selectedId); }
+  selectedGroupActive(): boolean { return this.groups.some(group => group.id === this.selectedGroupId && group.status === 'active'); }
   previewIcon(): string { return this.icons.find(icon => icon.id === this.draft.iconId)?.glyph ?? '📌'; }
   colorClass(color: string): string { return categoryColorClass(color); }
   iconLabel(icon: typeof categoryIcons[number]['id']): string { return categoryIconLabel(icon, language()); }
@@ -96,7 +104,7 @@ export class CategoryManager implements OnChanges {
     } catch { if (groupId === this.selectedGroupId) this.message.set('categoriesUnavailable'); }
   }
   async save(): Promise<void> {
-    if (!this.service || !this.user || !this.selectedGroupId || !this.draft.name.trim() || this.busy()) return;
+    if (!this.service || !this.user || !this.selectedGroupActive() || !this.draft.name.trim() || this.busy()) return;
     this.busy.set(true); this.message.set(null);
     try {
       if (this.selectedId) await this.service.update(this.user, this.selectedGroupId, this.selectedId, this.draft);
@@ -107,7 +115,7 @@ export class CategoryManager implements OnChanges {
   }
   async toggleArchive(): Promise<void> {
     const item = this.selected();
-    if (!item || !this.service || !this.user || !this.selectedGroupId || this.busy()) return;
+    if (!item || !this.service || !this.user || !this.selectedGroupActive() || this.busy()) return;
     this.busy.set(true); this.message.set(null);
     try {
       await this.service.update(this.user, this.selectedGroupId, item.id, { name: item.label, iconId: item.iconId, color: item.color, status: item.status === 'active' ? 'archived' : 'active' });

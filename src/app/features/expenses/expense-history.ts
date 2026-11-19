@@ -62,8 +62,8 @@ import { expenseMessage, expenseText } from './expense-text';
         @if (entries().length) {
           <ul class="mt-5 space-y-3">
             @for (entry of entries(); track entry.id) {
-              <li class="rounded-2xl border border-pop-border bg-pop-surface px-4 shadow-sm">
-                <details (toggle)="onToggle(entry.id, $event)">
+              <li [id]="'expense-' + entry.id" class="rounded-2xl border border-pop-border bg-pop-surface px-4 shadow-sm">
+                <details [open]="opened().has(entry.id)" (toggle)="onToggle(entry.id, $event)">
                   <summary class="flex min-h-16 cursor-pointer items-center gap-3 py-3 focus-visible:outline-2 focus-visible:outline-pop-primary">
                     <span class="flex size-11 shrink-0 items-center justify-center rounded-2xl text-xl" [class]="categoryColorClass(entry.categoryColor)" aria-hidden="true">{{ entry.categoryIcon }}</span>
                     <span class="min-w-0 flex-1"><span class="block break-words font-bold">{{ entry.description }}</span><span class="block text-sm text-pop-muted">{{ displayDate(entry.date) }} · {{ categoryLabel(entry.categoryId, language(), entry.categoryLabel) }}</span></span>
@@ -142,6 +142,7 @@ export class ExpenseHistory implements OnChanges {
   from = '';
   to = '';
   search = inject(ActivatedRoute).snapshot.queryParamMap.get('search') ?? '';
+  private readonly targetExpenseId = inject(ActivatedRoute).snapshot.queryParamMap.get('expense') ?? '';
   searchTerm = '';
   selectedCategoryId = '';
   selectedParticipantId = '';
@@ -255,6 +256,7 @@ export class ExpenseHistory implements OnChanges {
         if (!hasMore) break;
       }
       this.entries.update(entries => [...entries, ...matches]);
+      if (matches.some(entry => entry.id === this.targetExpenseId)) this.opened.update(opened => new Set([...opened, this.targetExpenseId]));
       this.scannedCount.update(count => count + scanned);
       this.last = cursor;
       this.hasMore.set(hasMore);
