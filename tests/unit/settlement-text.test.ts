@@ -15,6 +15,10 @@ test('repayment validation and confirmation messages follow the selected languag
       strictEqual(settlementMessage('Montant positif requis.'), expected[current][0]);
       strictEqual(settlementMessage('Remboursement enregistré.'), expected[current][1]);
       strictEqual(settlementMessage('Montant invalide pour cette devise'), settlementText('invalidAmount'));
+      strictEqual(settlementMessage('Remboursements désactivés sur cet environnement'), settlementText('serviceDisabled'));
+      strictEqual(settlementMessage('Enregistrement refusé (HTTP 403)'), `${settlementText('rejected')} (HTTP 403)`);
+      strictEqual(settlementMessage('Réponse du service invalide'), settlementText('invalidResponse'));
+      strictEqual(settlementMessage('unexpected'), settlementText('saveFailed'));
     }
   } finally { setLanguage('fr'); }
 });
