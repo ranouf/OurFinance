@@ -10,7 +10,7 @@ export class UiGroupCard {
   @Input({ required: true }) name = '';
   @Input() detail = '';
   @Input() amount = '';
-  @Input() icon: 'house' | 'plane' = 'house';
+  @Input() icon: UiIconBadge['name'] = 'house';
   @Input() iconTone: UiIconTone = 'violet';
   @Input() amountTone: 'positive' | 'negative' | 'neutral' = 'neutral';
   @Input() selected = false;
