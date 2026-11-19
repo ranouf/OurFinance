@@ -1,3 +1,4 @@
+import { UiAlert } from '../../shared/components/ui-alert/ui-alert';
 import { UiChip } from '../../shared/components/ui-chip/ui-chip';
 import { Component, Input } from '@angular/core';
 import { formatMinorExact } from '../../shared/utils/currency';
@@ -12,7 +13,7 @@ const circumference = 2 * Math.PI * 40;
 
 @Component({
   selector: 'app-statistics-charts',
-  imports: [UiChip],
+  imports: [UiChip, UiAlert],
   template: `
     @if (hasData()) {
       <div class="mt-5 grid gap-5 xl:grid-cols-2">
@@ -35,7 +36,7 @@ const circumference = 2 * Math.PI * 40;
               }
             </ul>
           </div>
-          @if (chosenCategory(); as slice) { <p class="mt-3 rounded-xl bg-pop-lavender p-3 text-sm" role="status">{{ categoryName(slice) }} : <strong>{{ amount(slice.amountMinor) }}</strong></p> }
+          @if (chosenCategory(); as slice) { <app-ui-alert variant="info" class="mt-3">{{ categoryName(slice) }} : <strong>{{ amount(slice.amountMinor) }}</strong></app-ui-alert> }
         </section>
 
         <section class="rounded-2xl border border-pop-border bg-pop-surface p-5" [attr.aria-label]="text('paidOwed')">
@@ -70,7 +71,7 @@ const circumference = 2 * Math.PI * 40;
             <app-ui-chip [selected]="selectedPeriod === point.period" (selectedChange)="selectedPeriod = point.period">{{ point.period }}</app-ui-chip>
           }
         </div>
-        @if (chosenPeriod(); as point) { <p class="mt-3 text-sm" role="status">{{ point.period }} : <strong>{{ amount(point.amountMinor) }}</strong></p> }
+        @if (chosenPeriod(); as point) { <app-ui-alert variant="info" class="mt-3">{{ point.period }} : <strong>{{ amount(point.amountMinor) }}</strong></app-ui-alert> }
       </section>
     }
   `,
