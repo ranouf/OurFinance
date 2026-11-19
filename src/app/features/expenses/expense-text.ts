@@ -26,7 +26,7 @@ const messages = {
     closeReceipt: 'Fermer le reçu', receiptsUnavailable: 'Reçus indisponibles.', receiptAdded: 'Reçu ajouté.', receiptAddedRefreshFailed: 'Reçu ajouté, mais la liste est indisponible. Actualisez-la avant de réessayer.',
     receiptAddFailed: 'Ajout impossible.', receiptReadFailed: 'Lecture impossible.', receiptRemoved: 'Reçu supprimé.', receiptRemoveFailed: 'Suppression impossible.',
     receiptCleanupHeading: 'Entretien des reçus privés', receiptCleanupHelp: 'Propriétaires : vérifiez et terminez le nettoyage des reçus en attente, même après avoir fermé la page ou supprimé une dépense.', receiptCleanupAction: 'Vérifier le nettoyage', receiptCleanupRunning: 'Vérification…', receiptCleanupDone: 'Nettoyage terminé.', receiptCleanupEmpty: 'Aucun nettoyage en attente.', receiptCleanupPending: 'Des reçus restent à nettoyer. Réessayez plus tard.', receiptCleanupQuota: 'Le fournisseur a atteint sa limite temporaire. Réessayez après la remise sous quota.', receiptCleanupDenied: 'Accès réservé au propriétaire actif du groupe.', receiptCleanupUnavailable: 'Nettoyage indisponible. Réessayez plus tard.', receiptCleanupCount: 'Nettoyés', receiptCleanupLeft: 'En attente',
-    invalidCurrencyAmount: 'Montant invalide pour cette devise', amountTooHigh: 'Montant trop élevé', invalidPayer: 'Montant ou payeur invalide',
+    invalidCurrencyAmount: 'Montant invalide pour cette devise', amountTooHigh: 'Montant trop élevé', positiveAmount: 'Entrez un montant supérieur à zéro.', invalidPayer: 'Montant ou payeur invalide',
     chooseActiveMembers: 'Choisissez des membres actifs', chooseActivePayers: 'Choisissez des payeurs actifs', paymentSum: 'La somme des paiements doit égaler le montant.', positiveInteger: 'Entrez un entier positif', valueTooHigh: 'Valeur trop élevée', invalidPercentage: 'Pourcentage invalide',
   },
   en: {
@@ -54,7 +54,7 @@ const messages = {
     closeReceipt: 'Close receipt', receiptsUnavailable: 'Receipts unavailable.', receiptAdded: 'Receipt added.', receiptAddedRefreshFailed: 'Receipt added, but the list is unavailable. Refresh it before trying again.',
     receiptAddFailed: 'Could not add receipt.', receiptReadFailed: 'Could not open receipt.', receiptRemoved: 'Receipt removed.', receiptRemoveFailed: 'Could not delete receipt.',
     receiptCleanupHeading: 'Private receipt maintenance', receiptCleanupHelp: 'Owners: check and finish pending receipt cleanup, even after closing the page or deleting an expense.', receiptCleanupAction: 'Check cleanup', receiptCleanupRunning: 'Checking…', receiptCleanupDone: 'Cleanup complete.', receiptCleanupEmpty: 'No cleanup pending.', receiptCleanupPending: 'Some receipts still need cleanup. Try again later.', receiptCleanupQuota: 'The provider has reached a temporary limit. Retry after the limit resets.', receiptCleanupDenied: 'Only an active group owner can do this.', receiptCleanupUnavailable: 'Cleanup unavailable. Try again later.', receiptCleanupCount: 'Cleaned', receiptCleanupLeft: 'Pending',
-    invalidCurrencyAmount: 'Invalid amount for this currency', amountTooHigh: 'Amount is too high', invalidPayer: 'Invalid amount or payer',
+    invalidCurrencyAmount: 'Invalid amount for this currency', amountTooHigh: 'Amount is too high', positiveAmount: 'Enter an amount greater than zero.', invalidPayer: 'Invalid amount or payer',
     chooseActiveMembers: 'Choose active members', chooseActivePayers: 'Choose active payers', paymentSum: 'The payments must add up to the total.', positiveInteger: 'Enter a positive whole number', valueTooHigh: 'Value is too high', invalidPercentage: 'Invalid percentage',
   },
   ja: {
@@ -82,7 +82,7 @@ const messages = {
     closeReceipt: '領収書を閉じる', receiptsUnavailable: '領収書を取得できません。', receiptAdded: '領収書を追加しました。', receiptAddedRefreshFailed: '領収書を追加しましたが、一覧を取得できません。再送信する前に一覧を更新してください。',
     receiptAddFailed: '領収書を追加できません。', receiptReadFailed: '領収書を開けません。', receiptRemoved: '領収書を削除しました。', receiptRemoveFailed: '領収書を削除できません。',
     receiptCleanupHeading: '非公開領収書の管理', receiptCleanupHelp: '所有者は、ページを閉じたり支出を削除した後でも、保留中の領収書の削除を確認して完了できます。', receiptCleanupAction: '削除状況を確認', receiptCleanupRunning: '確認中…', receiptCleanupDone: '削除が完了しました。', receiptCleanupEmpty: '保留中の削除はありません。', receiptCleanupPending: '削除が保留中の領収書があります。後でもう一度お試しください。', receiptCleanupQuota: 'サービスの一時的な上限に達しました。上限解除後に再試行してください。', receiptCleanupDenied: '有効なグループ所有者のみ操作できます。', receiptCleanupUnavailable: '削除機能を利用できません。後でもう一度お試しください。', receiptCleanupCount: '削除済み', receiptCleanupLeft: '保留中',
-    invalidCurrencyAmount: 'この通貨の金額が無効です', amountTooHigh: '金額が大きすぎます', invalidPayer: '金額または支払った人が無効です',
+    invalidCurrencyAmount: 'この通貨の金額が無効です', amountTooHigh: '金額が大きすぎます', positiveAmount: '0より大きい金額を入力してください。', invalidPayer: '金額または支払った人が無効です',
     chooseActiveMembers: '有効なメンバーを選んでください', chooseActivePayers: '有効な支払者を選んでください', paymentSum: '支払額の合計が総額と一致する必要があります。', positiveInteger: '正の整数を入力してください', valueTooHigh: '値が大きすぎます', invalidPercentage: '割合が無効です',
   },
 } as const;
