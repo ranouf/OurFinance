@@ -1,6 +1,8 @@
 import type { User } from 'firebase/auth';
 import type { PreparedImportBatch } from './prepare-batch';
 
+export class ImportNotConfiguredError extends Error {}
+
 /** Thin authenticated client; the Worker is the sole authority for writes. */
 export class ImportService {
   constructor(private readonly workerUrl: string, private readonly transport: typeof fetch = (...args) => fetch(...args)) {}
@@ -25,7 +27,12 @@ export class ImportService {
     const response = await this.transport(url, {
       method: 'POST', headers: await this.headers(user), body: JSON.stringify(batch.body), redirect: 'error',
     });
-    if (!response.ok) throw new Error(response.status === 503 ? 'Import désactivé sur cet environnement' : `Import refusé (HTTP ${response.status})`);
+    if (!response.ok) {
+      if (response.status === 503 && (await response.json().catch(() => null))?.error === 'Import non configuré') {
+        throw new ImportNotConfiguredError('Import non configuré');
+      }
+      throw new Error(`Import refusé (HTTP ${response.status})`);
+    }
     const result = await response.json() as { batchId?: unknown; recordCount?: unknown };
     if (result.batchId !== batch.body.batchId || result.recordCount !== batch.body.records.length) throw new Error('Réponse Worker invalide');
     return result.batchId;
