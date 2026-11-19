@@ -1,16 +1,20 @@
 import { Component, ElementRef, HostListener, Input, forwardRef, signal } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
+import { UiIconBadge, type UiIconTone } from '../ui-icon-badge/ui-icon-badge';
 
 export interface DropdownOption {
   readonly value: string;
   readonly label: string;
   readonly iconSrc?: string;
   readonly iconName?: 'house' | 'plane' | 'utensils' | 'shopping-cart' | 'tram-front';
+  readonly tone?: UiIconTone;
+  readonly flag?: string;
   readonly disabled?: boolean;
 }
 
 @Component({
   selector: 'app-dropdown',
+  imports: [UiIconBadge],
   templateUrl: './dropdown.component.html',
   providers: [{ provide: NG_VALUE_ACCESSOR, useExisting: forwardRef(() => DropdownComponent), multi: true }],
 })

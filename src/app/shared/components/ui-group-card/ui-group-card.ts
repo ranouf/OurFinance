@@ -1,5 +1,5 @@
 import { Component, Input } from '@angular/core';
-import { UiIconBadge } from '../ui-icon-badge/ui-icon-badge';
+import { UiIconBadge, type UiIconTone } from '../ui-icon-badge/ui-icon-badge';
 
 @Component({
   selector: 'app-ui-group-card',
@@ -11,6 +11,7 @@ export class UiGroupCard {
   @Input() detail = '';
   @Input() amount = '';
   @Input() icon: 'house' | 'plane' = 'house';
+  @Input() iconTone: UiIconTone = 'violet';
   @Input() amountTone: 'positive' | 'negative' | 'neutral' = 'neutral';
   @Input() selected = false;
 }
