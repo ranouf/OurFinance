@@ -7,11 +7,12 @@ import { UiButton } from './shared/components/ui-button/ui-button';
 import { UiAlert } from './shared/components/ui-alert/ui-alert';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { App } from './app';
 import { LoginPage } from './login-page';
 import { language, t } from './shared/utils/i18n';
 import { categoryById, categoryColorClass, categoryColors, categoryIcons } from './shared/utils/categories';
+import { categoryDropdownIcon } from './shared/utils/category-dropdown-options';
 import { GroupOverview } from './features/groups/group-overview';
 import { GroupCurrencyPanel } from './features/groups/group-currency-panel';
 import { GroupLifecyclePanel } from './features/groups/group-lifecycle-panel';
@@ -39,7 +40,7 @@ import { ProfilePanel } from './features/profile/profile-panel';
     <div class="mx-auto max-w-5xl">
       @if (app.selectedGroup()) { <div class="hidden items-start justify-between gap-3 sm:flex">
         <div><p class="text-xs font-bold text-pop-muted">{{ t('todayLabel') }}</p><h1 class="mt-1 text-2xl font-black sm:text-3xl">{{ t('dashboardGreeting') }} 👋</h1><p class="mt-1 text-sm text-pop-muted">{{ t('dashboardIntro') }}</p></div>
-        @if (app.selectedGroup()) { <a class="hidden min-h-11 items-center rounded-xl bg-pop-coral px-4 text-sm font-extrabold text-pop-text sm:inline-flex" routerLink="/expenses">+ {{ t('navAdd') }}</a> }
+        @if (app.selectedGroup()) { <a class="hidden min-h-11 items-center rounded-xl bg-pop-coral px-4 text-sm font-extrabold text-pop-text sm:inline-flex" routerLink="/expenses" [queryParams]="{ group: app.selectedGroupId(), action: 'add' }">+ {{ t('navAdd') }}</a> }
       </div> }
       @if (app.groupsBusy()) {
         <app-ui-alert variant="info" class="mt-6">{{ t('loadingGroupList') }}</app-ui-alert>
@@ -59,14 +60,19 @@ import { ProfilePanel } from './features/profile/profile-panel';
             <img class="pointer-events-none absolute inset-0 h-full w-full origin-left scale-[1.38] object-cover object-left opacity-90" src="/illustrations/cafe-hero-mobile.webp" alt="" />
             <div class="pointer-events-none absolute inset-0 bg-gradient-to-r from-pop-primary via-pop-primary/85 to-transparent"></div>
           </div>
+          <div class="relative z-10 grid grid-cols-3 gap-2 bg-pop-primary px-4 pb-3 pt-2 text-center sm:hidden">
+            @if (app.balanceBusy()) { <app-ui-alert variant="info" class="col-span-3">{{ t('loadingBalances') }}</app-ui-alert> }
+            @else if (app.balanceError()) { <app-ui-alert variant="error" class="col-span-3">{{ t('balancesUnavailable') }}</app-ui-alert> }
+            @else { <div><span class="block text-[11px] text-white/80">{{ t('myBalance') }}</span><strong class="text-sm">{{ app.selectedBalance() }}</strong></div><div><span class="block text-[11px] text-white/80">{{ t('groupTotal') }}</span><strong class="text-sm">{{ app.groupSpent() }}</strong></div><div><span class="block text-[11px] text-white/80">{{ t('totalRepayments') }}</span><strong class="text-sm">{{ app.settlementTotal() }}</strong></div> }
+          </div>
           <div class="hidden min-h-64 grid-cols-[52%_48%] sm:grid">
             <div class="relative overflow-hidden"><img class="absolute inset-0 h-full w-full object-cover object-[16%_45%]" src="/illustrations/cafe-hero-mobile.webp" alt="" /><div class="absolute inset-y-0 right-0 w-20 bg-gradient-to-r from-transparent to-pop-primary"></div></div>
             <div class="flex min-w-0 flex-col justify-center px-5 py-6 lg:px-8"><p class="text-xs font-bold uppercase tracking-wider text-white">{{ t('myGroups') }} · {{ group.currency }}</p><h1 class="mt-1 break-words text-2xl font-black lg:text-4xl">{{ group.name }}</h1><p class="mt-2 text-sm text-white/80">{{ group.memberCount ?? 1 }} {{ t('membersCount') }}</p>
               @if (app.balanceBusy()) { <app-ui-alert variant="info" class="mt-5">{{ t('loadingBalances') }}</app-ui-alert> } @else if (app.balanceError()) { <app-ui-alert variant="error" class="mt-5">{{ t('balancesUnavailable') }}</app-ui-alert> } @else { <div class="mt-5 grid grid-cols-2 gap-3"><div><span class="block text-xs text-white/80">{{ t('myBalance') }}</span><strong class="text-xl lg:text-2xl">{{ app.selectedBalance() }}</strong></div><div><span class="block text-xs text-white/80">{{ t('groupTotal') }}</span><strong class="text-xl lg:text-2xl">{{ app.groupSpent() }}</strong></div><div><span class="block text-xs text-white/80">{{ t('totalRepayments') }}</span><strong class="text-xl lg:text-2xl">{{ app.settlementTotal() }}</strong></div></div> }
             </div>
           </div>
-          <div class="absolute bottom-3 right-3 z-10 flex -space-x-2 sm:bottom-4 sm:right-4" role="group" [attr.aria-label]="t('whoOwes')">
-            @for (item of app.dashboardMemberBalances(); track item.userId) {
+          <div class="absolute right-3 top-36 z-10 flex -space-x-2 sm:bottom-4 sm:right-4 sm:top-auto" role="group" [attr.aria-label]="t('whoOwes')">
+            @for (item of app.dashboardActiveMembers(); track item.userId) {
               @if (app.dashboardMemberName(item.userId); as name) {
                 <span class="group relative flex size-9 items-center justify-center rounded-full border-2 border-white bg-pop-peach text-sm font-black text-pop-primary-dark shadow-md outline-none focus-visible:ring-2 focus-visible:ring-pop-sun" tabindex="0" [attr.aria-label]="name + ' · ' + memberBalanceLabel(item.balanceMinor) + ' ' + app.formatDashboardMinor(item.balanceMinor)">
                   {{ name.slice(0, 1).toLocaleUpperCase() }}
@@ -76,15 +82,15 @@ import { ProfilePanel } from './features/profile/profile-panel';
             }
           </div>
         </section>
-        <div class="mt-4 flex max-w-full min-w-0 snap-x gap-3 overflow-x-auto pb-1 sm:hidden" [attr.aria-label]="t('myGroups')">
-          @for (item of app.groups(); track item.id) { <app-ui-group-card class="shrink-0 snap-start" [class.w-full]="app.groups().length === 1" [class.w-[80%]]="app.groups().length > 1" [name]="item.name" [detail]="(item.memberCount ?? 1) + ' ' + t('membersCount')" [amount]="item.currency" [icon]="$index % 2 ? 'plane' : 'house'" [selected]="app.selectedGroupId() === item.id" [interactive]="true" (activated)="app.selectedGroupId.set(item.id)" /> }
+        <div class="mt-4 flex max-w-full min-w-0 snap-x gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:overflow-visible" [attr.aria-label]="t('myGroups')">
+          @for (item of app.groups(); track item.id) { <app-ui-group-card class="shrink-0 snap-start sm:w-full" [class.w-full]="app.groups().length === 1" [class.w-[80%]]="app.groups().length > 1" [name]="item.name" [detail]="(item.memberCount ?? 1) + ' ' + t('membersCount') + ' · ' + item.currency" [amount]="app.formatGroupBalance(item)" [amountTone]="app.groupBalanceTone(item)" [icon]="categoryDropdownIcon(item.iconId || 'home') || 'house'" [selected]="app.selectedGroupId() === item.id" [interactive]="true" (activated)="app.selectedGroupId.set(item.id)" /> }
         </div>
         <a class="mt-2 flex min-h-11 items-center justify-center rounded-2xl bg-pop-lavender text-sm font-extrabold text-pop-primary-dark sm:hidden" routerLink="/groups">+ {{ t('createGroup') }}</a>
         <div class="flex flex-col">
         <nav class="mt-5 grid gap-3 sm:grid-cols-3" [attr.aria-label]="t('quickActions')">
-          <a class="dashboard-action dashboard-action-coral" routerLink="/expenses"><span class="dashboard-action-icon dashboard-action-icon-coral" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none"><path d="M24 10v28M10 24h28" stroke="currentColor" stroke-width="5" stroke-linecap="round" /></svg></span><strong>{{ t('addExpenseAction') }}</strong></a>
-          <a class="dashboard-action dashboard-action-lavender" routerLink="/groups"><span class="dashboard-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 21a8 8 0 0 1 13.292-6"/><circle cx="10" cy="8" r="5"/><path d="M19 16v6"/><path d="M22 19h-6"/></svg></span><strong>{{ t('inviteQrAction') }}</strong><svg class="dashboard-action-qr" viewBox="0 0 36 36" fill="none" aria-hidden="true"><path d="M2 2h12v12H2zM22 2h12v12H22zM2 22h12v12H2z" stroke="currentColor" stroke-width="3"/><path d="M22 22h4v4h-4zM30 22h4v4h-4zM22 30h4v4h-4zM30 30h4v4h-4z" fill="currentColor"/></svg></a>
-          <a class="dashboard-action dashboard-action-lavender" routerLink="/statistics"><span class="dashboard-action-icon" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none"><path d="M11 16h25l-6-6m6 6-6 6M37 32H12l6-6m-6 6 6 6" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span><strong>{{ t('settleAction') }}</strong></a>
+          <a class="dashboard-action dashboard-action-coral" routerLink="/expenses" [queryParams]="{ group: app.selectedGroupId(), action: 'add' }"><span class="dashboard-action-icon dashboard-action-icon-coral" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none"><path d="M24 10v28M10 24h28" stroke="currentColor" stroke-width="5" stroke-linecap="round" /></svg></span><strong>{{ t('addExpenseAction') }}</strong></a>
+          <a class="dashboard-action dashboard-action-lavender" routerLink="/groups" fragment="qr-invitations"><span class="dashboard-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 21a8 8 0 0 1 13.292-6"/><circle cx="10" cy="8" r="5"/><path d="M19 16v6"/><path d="M22 19h-6"/></svg></span><strong>{{ t('inviteQrAction') }}</strong><svg class="dashboard-action-qr" viewBox="0 0 36 36" fill="none" aria-hidden="true"><path d="M2 2h12v12H2zM22 2h12v12H22zM2 22h12v12H2z" stroke="currentColor" stroke-width="3"/><path d="M22 22h4v4h-4zM30 22h4v4h-4zM22 30h4v4h-4zM30 30h4v4h-4z" fill="currentColor"/></svg></a>
+          <a class="dashboard-action dashboard-action-lavender" routerLink="/statistics" fragment="settlement-form"><span class="dashboard-action-icon" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none"><path d="M11 16h25l-6-6m6 6-6 6M37 32H12l6-6m-6 6 6 6" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span><strong>{{ t('settleAction') }}</strong></a>
         </nav>
         <div class="order-1 mt-5 grid gap-4 sm:order-2 lg:grid-cols-3">
           <section class="order-2 min-w-0 rounded-[1.7rem] border border-pop-border bg-white p-4 shadow-[0_9px_25px_#6455ec12] lg:order-1" [attr.aria-label]="t('whoOwes')">
@@ -104,7 +110,7 @@ import { ProfilePanel } from './features/profile/profile-panel';
               @if (app.recentExpensesBusy()) { <app-ui-alert variant="info" class="py-3">{{ t('loadingExpenseHistory') }}</app-ui-alert> }
               @else if (app.recentExpensesError()) { <app-ui-alert variant="error" class="py-3">{{ t('historyUnavailable') }}</app-ui-alert> }
               @else if (!app.recentExpenses().length) { <p class="py-3 text-sm text-pop-muted">{{ t('noRecentExpenses') }}</p> }
-              @else { @for (entry of app.recentExpenses(); track entry.id) { <div class="flex min-h-12 items-center gap-2 py-1.5"><span class="flex size-9 shrink-0 items-center justify-center rounded-full text-lg" [class]="categoryColorClass(entry.categoryColor)" aria-hidden="true">{{ entry.categoryIcon }}</span><span class="min-w-0 flex-1"><strong class="block truncate text-sm">{{ entry.description }}</strong><small class="text-pop-muted">{{ entry.date }}</small></span><strong class="shrink-0 text-xs text-pop-primary-dark">{{ app.formatRecentExpense(entry) }}</strong></div> } }
+              @else { @for (entry of app.recentExpenses(); track entry.id) { <a class="flex min-h-12 items-center gap-2 py-1.5 focus-visible:outline-2 focus-visible:outline-pop-primary" routerLink="/expenses" [queryParams]="{ group: app.selectedGroupId(), expense: entry.id }" [fragment]="'expense-' + entry.id"><span class="flex size-9 shrink-0 items-center justify-center rounded-full text-lg" [class]="categoryColorClass(entry.categoryColor)" aria-hidden="true">{{ entry.categoryIcon }}</span><span class="min-w-0 flex-1"><strong class="block truncate text-sm">{{ entry.description }}</strong><small class="text-pop-muted">{{ entry.date }}</small></span><strong class="shrink-0 text-xs text-pop-primary-dark">{{ app.formatRecentExpense(entry) }}</strong></a> } }
             </div>
           </section>
           <section class="order-3 min-w-0 rounded-[1.7rem] border border-pop-border bg-white p-4 shadow-[0_9px_25px_#6455ec12]" [attr.aria-label]="t('byCategory')">
@@ -151,9 +157,10 @@ export class DashboardPage {
   memberBalanceLabel(value: bigint): string { return value > 0n ? t('receivable') : value < 0n ? t('payable') : t('balanced'); }
   searchExpenses(): void {
     const search = this.search.trim();
-    if (search) void this.router.navigate(['/expenses'], { queryParams: { search } });
+    void this.router.navigate(['/expenses'], { queryParams: { group: this.app.selectedGroupId(), ...(search ? { search } : {}) } });
   }
   readonly categoryColorClass = categoryColorClass;
+  readonly categoryDropdownIcon = categoryDropdownIcon;
   categoryIcon(id: string): string { return categoryById(id).icon; }
   categoryPercent(amount: bigint): number {
     const total = this.app.dashboardCategories().reduce((sum, row) => sum + row.amountMinor, 0n);
@@ -206,7 +213,7 @@ export class DashboardPage {
         @if (app.firebaseApp && app.selectedGroup(); as selected) { <app-group-lifecycle-panel [group]="selected" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" (changed)="app.onInvitationJoined()" /> }
         @if (app.firebaseApp && app.selectedGroup(); as selected) { <app-group-metadata-panel [group]="selected" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" (changed)="app.onInvitationJoined()" /> }
         @if (app.firebaseApp && app.groups().length) { <app-group-currency-panel [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" (changed)="app.onInvitationJoined()" /> }
-        <app-qr-invitation-panel [groups]="app.groups()" [user]="user" [workerUrl]="app.workerUrl" />
+        <app-qr-invitation-panel id="qr-invitations" [groups]="app.groups()" [preferredGroupId]="app.selectedGroupId()" [user]="user" [workerUrl]="app.workerUrl" />
         @if (app.firebaseApp && app.groups().length) { <app-category-manager [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" (changed)="app.onCategoryChanged()" /> }
       }
       @if (app.message() && !app.groupsError()) { <app-ui-alert variant="error">{{ app.message() }}</app-ui-alert> }
@@ -249,7 +256,7 @@ export class GroupsPage {
     </div>
   `,
 })
-export class ExpensesPage { readonly app = inject(App); readonly t = t; readonly showEditor = signal(false); }
+export class ExpensesPage { readonly app = inject(App); readonly t = t; readonly showEditor = signal(inject(ActivatedRoute).snapshot.queryParamMap.get('action') === 'add'); }
 
 @Component({
   imports: [StatisticsSummary, BalanceSummary, SettlementForm, SettlementHistory],
@@ -259,7 +266,7 @@ export class ExpensesPage { readonly app = inject(App); readonly t = t; readonly
         @if (app.groups().length) {
           <app-statistics-summary [groups]="app.groups()" [preferredGroupId]="app.selectedGroupId()" [user]="user" [firebaseApp]="app.firebaseApp" [revision]="app.expenseRevision() + app.settlementRevision()" (groupChange)="app.selectedGroupId.set($event)" />
           <app-balance-summary [groups]="app.groups()" [preferredGroupId]="app.selectedGroupId()" [user]="user" [firebaseApp]="app.firebaseApp" [revision]="app.expenseRevision() + app.settlementRevision()" (groupChange)="app.selectedGroupId.set($event)" />
-          @if (app.workerUrl) { <app-settlement-form [groups]="app.groups()" [preferredGroupId]="app.selectedGroupId()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" (groupChange)="app.selectedGroupId.set($event)" (saved)="app.onSettlementSaved()" />
+          @if (app.workerUrl) { <app-settlement-form id="settlement-form" [groups]="app.groups()" [preferredGroupId]="app.selectedGroupId()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" (groupChange)="app.selectedGroupId.set($event)" (saved)="app.onSettlementSaved()" />
             <app-settlement-history [groups]="app.groups()" [preferredGroupId]="app.selectedGroupId()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" [revision]="app.settlementRevision()" (groupChange)="app.selectedGroupId.set($event)" /> }
         } @else { <p class="rounded-2xl bg-white p-5">{{ t('noGroups') }}</p> }
       }
