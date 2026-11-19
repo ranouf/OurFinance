@@ -4,7 +4,7 @@ import { groupDropdownOptions } from '../../shared/components/dropdown/dropdown-
 import { UiControlDirective } from '../../shared/components/ui-field/ui-control.directive';
 import { UiAlert } from '../../shared/components/ui-alert/ui-alert';
 import { UiButton } from '../../shared/components/ui-button/ui-button';
-import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, Output, signal } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, OnChanges, Output, signal, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { FirebaseApp } from 'firebase/app';
 import type { User } from 'firebase/auth';
@@ -31,7 +31,8 @@ import { settlementMessage, settlementText } from './settlement-text';
           </app-field>
           <div class="grid grid-cols-2 gap-3">
             <label class="block text-sm font-bold">{{ text('amount') }}
-              <input appUiControl class="mt-2 w-full" name="settlementAmount" [(ngModel)]="amount" inputmode="decimal" placeholder="0,00" required />
+              <input #amountInput appUiControl class="mt-2 w-full" name="settlementAmount" [(ngModel)]="amount" (ngModelChange)="clearAmountError()" inputmode="decimal" placeholder="0,00" [attr.aria-invalid]="amountError() ? 'true' : null" [attr.aria-describedby]="amountError() ? 'settlement-amount-error' : null" required />
+              @if (amountError()) { <span id="settlement-amount-error" role="alert" class="mt-1 block text-sm text-rose-700">{{ displayMessage(message()) }}</span> }
             </label>
             <label class="block text-sm font-bold">{{ text('currency') }}
               <input appUiControl class="mt-2 w-full bg-pop-lavender" [value]="currency" readonly />
@@ -43,11 +44,12 @@ import { settlementMessage, settlementText } from './settlement-text';
           <app-ui-button variant="primary" [block]="true" class="w-full" type="submit" [disabled]="busy() || !recipientId">{{ text('save') }}</app-ui-button>
         }
       </form>
-      @if (message()) { <app-ui-alert [variant]="messageVariant()" class="mt-4">{{ displayMessage(message()) }}</app-ui-alert> }
+      @if (message() && !amountError()) { <app-ui-alert [variant]="messageVariant()" class="mt-4">{{ displayMessage(message()) }}</app-ui-alert> }
     </section>
   `,
 })
 export class SettlementForm implements OnChanges {
+  @ViewChild('amountInput') private amountInput?: ElementRef<HTMLInputElement>;
   readonly groupDropdownOptions = groupDropdownOptions;
   recipientOptions(): DropdownOption[] { return [{ value: '', label: this.text('chooseMember') }, ...this.recipients().map(member => ({ value: member.userId, label: this.memberLabel(member.userId) }))]; }
   @Output() readonly saved = new EventEmitter<void>();
@@ -60,6 +62,7 @@ export class SettlementForm implements OnChanges {
   readonly recipients = signal<GroupMember[]>([]);
   readonly busy = signal(false);
   readonly message = signal('');
+  readonly amountError = signal(false);
   readonly messageVariant = signal<'error' | 'success'>('error');
   readonly text = settlementText;
   readonly t = t;
@@ -89,10 +92,12 @@ export class SettlementForm implements OnChanges {
   }
 
   onGroupChange(): void { this.groupChange.emit(this.selectedGroupId); void this.loadMembers(); }
+  clearAmountError(): void { if (this.amountError()) { this.amountError.set(false); this.message.set(''); } }
+  private rejectAmount(message: string): void { this.message.set(message); this.amountError.set(true); this.amountInput?.nativeElement.focus(); }
 
   async loadMembers(): Promise<void> {
     const groupId = this.selectedGroupId;
-    this.recipients.set([]); this.recipientId = ''; this.amount = ''; this.message.set('');
+    this.recipients.set([]); this.recipientId = ''; this.amount = ''; this.message.set(''); this.amountError.set(false);
     this.pendingKey = undefined; this.pendingBody = undefined;
     const group = this.groups.find(item => item.id === groupId);
     if (!group || !this.expenseService || !this.user) return;
@@ -108,11 +113,12 @@ export class SettlementForm implements OnChanges {
   async save(): Promise<void> {
     if (!this.settlementService || !this.user || !this.selectedGroupId || this.busy()) return;
     this.messageVariant.set('error');
+    this.amountError.set(false);
     if (!this.recipients().some(member => member.userId === this.recipientId)) { this.message.set('Choisissez un membre actif.'); return; }
     let amountMinor: number;
     try { amountMinor = parseMinor(this.amount, this.currency); }
-    catch (error) { this.message.set(error instanceof Error ? error.message : 'Montant invalide'); return; }
-    if (amountMinor <= 0) { this.message.set('Montant positif requis.'); return; }
+    catch (error) { this.rejectAmount(error instanceof Error ? error.message : 'Montant invalide'); return; }
+    if (amountMinor <= 0) { this.rejectAmount('Montant positif requis.'); return; }
     const content = { date: this.date, currency: this.currency, amountMinor, fromUserId: this.user.uid, toUserId: this.recipientId };
     const serialized = JSON.stringify(content);
     if (serialized !== this.pendingBody) this.pendingKey = undefined;
