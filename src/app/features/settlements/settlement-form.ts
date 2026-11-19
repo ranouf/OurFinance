@@ -2,6 +2,7 @@ import { FieldComponent } from '../../shared/components/field/field.component';
 import { DropdownComponent, type DropdownOption } from '../../shared/components/dropdown/dropdown.component';
 import { groupDropdownOptions } from '../../shared/components/dropdown/dropdown-options';
 import { UiControlDirective } from '../../shared/components/ui-field/ui-control.directive';
+import { ControlErrorsComponent } from '../../shared/components/control-errors/control-errors.component';
 import { UiAlert } from '../../shared/components/ui-alert/ui-alert';
 import { UiButton } from '../../shared/components/ui-button/ui-button';
 import { ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, OnChanges, Output, signal, ViewChild } from '@angular/core';
@@ -17,7 +18,7 @@ import { settlementMessage, settlementText } from './settlement-text';
 
 @Component({
   selector: 'app-settlement-form',
-  imports: [FieldComponent, DropdownComponent, UiControlDirective, UiAlert, UiButton, FormsModule],
+  imports: [FieldComponent, DropdownComponent, UiControlDirective, ControlErrorsComponent, UiAlert, UiButton, FormsModule],
   template: `
     <section class="mt-6 rounded-3xl border border-pop-border bg-pop-surface p-5 text-pop-text shadow-sm md:p-7" [attr.aria-label]="text('title')">
       <div class="mb-5 h-1.5 w-14 rounded-full bg-pop-sun" aria-hidden="true"></div>
@@ -32,7 +33,7 @@ import { settlementMessage, settlementText } from './settlement-text';
           <div class="grid grid-cols-2 gap-3">
             <label class="block text-sm font-bold">{{ text('amount') }}
               <input #amountInput appUiControl class="mt-2 w-full" name="settlementAmount" [(ngModel)]="amount" (ngModelChange)="clearAmountError()" inputmode="decimal" placeholder="0,00" [attr.aria-invalid]="amountError() ? 'true' : null" [attr.aria-describedby]="amountError() ? 'settlement-amount-error' : null" required />
-              @if (amountError()) { <span id="settlement-amount-error" role="alert" class="mt-1 block text-sm text-rose-700">{{ displayMessage(message()) }}</span> }
+              @if (amountError()) { <app-control-errors errorId="settlement-amount-error" [explicitMessage]="displayMessage(message())" /> }
             </label>
             <label class="block text-sm font-bold">{{ text('currency') }}
               <input appUiControl class="mt-2 w-full bg-pop-lavender" [value]="currency" readonly />
