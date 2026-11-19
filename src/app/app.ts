@@ -209,6 +209,7 @@ export class App implements OnInit, OnDestroy {
     if (!user || !this.firebaseApp) return;
     const requestId = ++this.groupLoadVersion;
     this.groupsBusy.set(true);
+    if (this.groupsError()) this.message.set('');
     this.groupsError.set(false);
     try {
       if (!this.groupService) { const { GroupService } = await import('./core/firebase/group-service'); this.groupService = new GroupService(this.firebaseApp, this.workerUrl); }
@@ -342,4 +343,5 @@ export class App implements OnInit, OnDestroy {
   onSettlementSaved(): void { this.settlementRevision.update(value => value + 1); }
   onCommentAdded(): void { this.commentRevision.update(value => value + 1); }
   onInvitationJoined(): void { void this.loadGroups(); }
+  refreshGroups(): void { void this.loadGroups(); }
 }

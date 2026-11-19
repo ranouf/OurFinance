@@ -45,6 +45,7 @@ import { ProfilePanel } from './features/profile/profile-panel';
         <app-ui-alert variant="info" class="mt-6">{{ t('loadingGroupList') }}</app-ui-alert>
       } @else if (app.groupsError()) {
         <app-ui-alert variant="error" class="mt-6">{{ t('groupsUnavailable') }}</app-ui-alert>
+        <app-ui-button variant="outline" type="button" class="mt-3" (click)="app.refreshGroups()">{{ t('refresh') }}</app-ui-button>
       } @else if (app.selectedGroup(); as group) {
         <form class="mt-3 flex min-h-11 items-center gap-2 rounded-2xl border border-pop-border bg-white px-3 shadow-sm focus-within:outline-2 focus-within:outline-pop-primary sm:mt-5" (ngSubmit)="searchExpenses()" role="search">
           <svg class="size-5 shrink-0 text-pop-primary-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7"/><path d="m16 16 5 5"/></svg>
@@ -168,18 +169,20 @@ export class DashboardPage {
     <div class="mx-auto max-w-5xl space-y-6">
       <header class="relative overflow-hidden rounded-[1.8rem] bg-pop-primary px-6 py-7 text-white shadow-[0_12px_30px_#6455ec30] sm:min-h-52 sm:px-9 sm:py-10">
         <div class="relative z-10 max-w-[62%] sm:max-w-md"><p class="text-sm font-bold text-white/75">ourfinance. · {{ t('navGroups') }}</p><h1 class="mt-2 text-3xl font-black sm:text-4xl">{{ t('myGroups') }}</h1><p class="mt-3 text-sm text-white/90 sm:text-base">{{ t('groupsPageIntro') }}</p>
-          @if (app.selectedGroup(); as selected) { <p class="mt-4 inline-flex max-w-full flex-wrap gap-1 rounded-full bg-white/15 px-3 py-2 text-sm font-bold"><span class="break-words">{{ selected.name }}</span><span>· {{ selected.currency }}</span></p> }
+          @if (!app.groupsError() && !app.groupsBusy() && app.selectedGroup(); as selected) { <p class="mt-4 inline-flex max-w-full flex-wrap gap-1 rounded-full bg-white/15 px-3 py-2 text-sm font-bold"><span class="break-words">{{ selected.name }}</span><span>· {{ selected.currency }}</span></p> }
         </div>
         <img class="pointer-events-none absolute -bottom-5 -right-8 w-44 max-w-[55%] sm:bottom-[-3.5rem] sm:right-0 sm:w-80" src="/illustrations/friends-planning-trip.webp" alt="" />
       </header>
-      @if (app.groups().length) {
+      @if (app.groupsBusy()) { <app-ui-alert variant="info">{{ t('loadingGroupList') }}</app-ui-alert> }
+      @else if (app.groupsError()) { <app-ui-alert variant="error">{{ t('groupsUnavailable') }}</app-ui-alert><app-ui-button variant="outline" type="button" class="mt-3" (click)="app.refreshGroups()">{{ t('refresh') }}</app-ui-button> }
+      @else if (app.groups().length) {
         <section [attr.aria-label]="t('myGroups')"><div class="mb-3 flex items-center justify-between gap-3"><h2 class="text-xl font-black">{{ t('myGroups') }}</h2><span class="rounded-full bg-pop-lavender px-3 py-1 text-xs font-bold text-pop-primary-dark">{{ app.groups().length }}</span></div><div class="grid gap-3 sm:grid-cols-2">
           @for (group of app.groups(); track group.id) {
             <app-ui-group-card [name]="group.name" [detail]="(group.memberCount ?? 1) + ' ' + t('membersCount')" [amount]="group.currency" [icon]="$index % 2 ? 'plane' : 'house'" [selected]="app.selectedGroupId() === group.id" [interactive]="true" (activated)="app.selectedGroupId.set(group.id)" />
           }
         </div></section>
       } @else { <p class="rounded-2xl border border-pop-border bg-white p-5 text-pop-muted">{{ t('noGroups') }} {{ t('gettingStartedIntro') }}</p> }
-      @if (app.groupServiceReady() && app.auth?.user()?.emailVerified) {
+      @if (app.groupServiceReady() && app.auth?.user()?.emailVerified && !app.groupsError()) {
         <form class="max-w-2xl space-y-4 rounded-[1.7rem] border border-pop-border bg-white p-5 shadow-sm sm:p-7" (ngSubmit)="app.createGroup()">
           <div class="flex items-center gap-3"><span class="flex h-11 w-11 items-center justify-center rounded-2xl bg-pop-lavender text-2xl text-pop-primary" aria-hidden="true">＋</span><div><h2 class="text-xl font-black">{{ t('createGroup') }}</h2><p class="text-sm text-pop-muted">{{ t('groupCreateHelp') }}</p></div></div>
           <label class="block text-sm font-bold">{{ t('groupName') }}<input appUiControl class="mt-1 w-full" name="groupName" [(ngModel)]="app.groupName" maxlength="80" required /></label>
@@ -198,15 +201,15 @@ export class DashboardPage {
           <textarea appUiControl id="group-description" class="min-h-24 w-full" name="groupDescription" [(ngModel)]="app.groupDescription" maxlength="500"></textarea>
           <app-ui-button variant="coral" [block]="true" size="lg" class="w-full sm:w-auto" type="submit" [disabled]="app.busy() || !app.online()">+ {{ t('createGroup') }}</app-ui-button>
         </form>
-      } @else { <app-ui-alert variant="error">{{ t('groupServiceMissing') }}</app-ui-alert> }
-      @if (app.workerUrl && app.auth?.user(); as user) {
+      } @else if (!app.groupsError()) { <app-ui-alert variant="error">{{ t('groupServiceMissing') }}</app-ui-alert> }
+      @if (!app.groupsError() && !app.groupsBusy() && app.workerUrl && app.auth?.user(); as user) {
         @if (app.firebaseApp && app.selectedGroup(); as selected) { <app-group-lifecycle-panel [group]="selected" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" (changed)="app.onInvitationJoined()" /> }
         @if (app.firebaseApp && app.selectedGroup(); as selected) { <app-group-metadata-panel [group]="selected" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" (changed)="app.onInvitationJoined()" /> }
         @if (app.firebaseApp && app.groups().length) { <app-group-currency-panel [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" (changed)="app.onInvitationJoined()" /> }
         <app-qr-invitation-panel [groups]="app.groups()" [user]="user" [workerUrl]="app.workerUrl" />
         @if (app.firebaseApp && app.groups().length) { <app-category-manager [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" (changed)="app.onCategoryChanged()" /> }
       }
-      @if (app.message()) { <app-ui-alert variant="error">{{ app.message() }}</app-ui-alert> }
+      @if (app.message() && !app.groupsError()) { <app-ui-alert variant="error">{{ app.message() }}</app-ui-alert> }
     </div>
   `,
 })
