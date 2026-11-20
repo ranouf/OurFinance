@@ -1,3 +1,4 @@
+import { listCollectionPageInTransaction, readDocumentInTransaction } from './firestore-transaction-read';
 import { unavailableCode } from './provider-quota';
 import { serviceAccessToken } from './service-account';
 import { listExpenseDescendants } from './firestore-descendants';
@@ -36,7 +37,7 @@ export async function collectLiveRestoreInventory(uid: string, groupId: string, 
   let count = 0;
   try {
     const read = async (path: string): Promise<Document | null> => {
-      const response = await transport(`https://firestore.googleapis.com/v1/${root}/${path}?transaction=${encodeURIComponent(transaction)}`, { headers });
+      const response = await readDocumentInTransaction(root, path, transaction, headers, transport);
       return response.status === 404 ? null : await checked(response) as Document;
     };
     const list = async (path: string): Promise<Document[]> => {
@@ -45,11 +46,7 @@ export async function collectLiveRestoreInventory(uid: string, groupId: string, 
       let pages = 0;
       do {
         if (++pages > 100) throw new RestoreInventoryError(409, 'inventory_too_large');
-        const url = new URL(`https://firestore.googleapis.com/v1/${root}/${path}`);
-        url.searchParams.set('transaction', transaction);
-        url.searchParams.set('pageSize', '100');
-        if (pageToken) url.searchParams.set('pageToken', pageToken);
-        const page = await checked(await transport(url, { headers }));
+        const page = await checked(await listCollectionPageInTransaction(root, path, 100, transaction, headers, transport, pageToken));
         if (page['documents'] !== undefined && !Array.isArray(page['documents'])) throw new RestoreInventoryError(503, 'invalid_inventory');
         const rows = (page['documents'] ?? []) as Document[];
         count += rows.length;

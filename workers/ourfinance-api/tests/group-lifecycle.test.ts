@@ -1,3 +1,4 @@
+import { withBatchGet } from './batch-get-mock';
 import { test } from 'node:test';
 import { deepStrictEqual, rejects, strictEqual } from 'node:assert';
 import { exportPKCS8, generateKeyPair } from 'jose';
@@ -33,7 +34,7 @@ async function fixture(options: { actorRole?: string; groupStatus?: string; targ
     if (url.includes('/groups/g?transaction=')) return document({ status: options.groupStatus ?? 'active' });
     throw new Error('Unexpected Firestore request');
   };
-  return { env, transport: transport as typeof fetch, get writes() { return writes; }, get commits() { return commits; }, get rollbacks() { return rollbacks; } };
+  return { env, transport: withBatchGet(transport), get writes() { return writes; }, get commits() { return commits; }, get rollbacks() { return rollbacks; } };
 }
 
 test('owner revokes member and personal reference atomically without deleting history', async () => {

@@ -1,3 +1,4 @@
+import { withBatchGet } from './batch-get-mock';
 import { test } from 'node:test';
 import { deepStrictEqual, rejects, strictEqual } from 'node:assert';
 import { generateKeyPair, exportPKCS8 } from 'jose';
@@ -48,7 +49,7 @@ async function fixture(role: 'owner' | 'member' = 'owner', unknownCollection = f
     if (path === 'users/alice/groupPreferences/g') return Response.json({}, { status: 404 });
     return Response.json({});
   };
-  return { env, transport: transport as typeof fetch, get rollbacks() { return rollbacks; }, get readOnlyBegins() { return readOnlyBegins; }, get requests() { return requests; } };
+  return { env, transport: withBatchGet(transport), get rollbacks() { return rollbacks; }, get readOnlyBegins() { return readOnlyBegins; }, get requests() { return requests; } };
 }
 
 test('owner inventories group, nested receipt and personal documents without writing', async () => {
@@ -148,14 +149,14 @@ test('inventory fails closed for missing owner and malformed pages without publi
   const scenarios: readonly [string, Response, number, string][] = [
     ['/groups/g?transaction=', Response.json({}, { status: 404 }), 403, 'owner_required'],
     ['/groups/g/members/alice?transaction=', Response.json({}, { status: 404 }), 403, 'owner_required'],
-    ['/groups/g/expenses?', Response.json({ documents: 'invalid' }), 503, 'invalid_inventory'],
+    ['/groups/g/expenses?', Response.json({ documents: 'invalid' }), 503, 'firestore_unavailable'],
     ['/groups/g/expenses?', Response.json({ documents: [{ name: 'outside/expense' }] }), 503, 'invalid_inventory'],
     ['/groups/g/expenses?', Response.json({ documents: [{ name: 'projects/ourfinance-test/databases/(default)/documents/groups/g/expenses/../escape' }] }), 503, 'invalid_inventory'],
   ];
   for (const [suffix, result, status, code] of scenarios) {
     const transport = (async (resource: string | URL | Request, init?: RequestInit) =>
       String(resource).includes(suffix) ? result.clone() : state.transport(resource, init)) as typeof fetch;
-    await rejects(collectLiveRestoreInventory('alice', 'g', state.env, transport),
+    await rejects(collectLiveRestoreInventory('alice', 'g', state.env, withBatchGet(transport)),
       (error: unknown) => error instanceof RestoreInventoryError && error.status === status && error.code === code);
   }
 });

@@ -1,3 +1,4 @@
+import { withBatchGet } from './batch-get-mock';
 import { test } from 'node:test';
 import { deepStrictEqual, rejects, strictEqual } from 'node:assert';
 import { createHash } from 'node:crypto';
@@ -60,7 +61,7 @@ async function fixture(role: 'owner' | 'member' = 'owner', expectedDigest = dige
     } });
     throw new Error('Requête inattendue');
   };
-  return { env, transport: transport as typeof fetch, get uploads() { return uploads; }, get patches() { return patches; },
+  return { env, transport: withBatchGet(transport), get uploads() { return uploads; }, get patches() { return patches; },
     get requests() { return requests; }, get staged() { return staged; }, failPatch() { failNextPatch = true; },
     setJob(ids: string[], digests: string[], formats: string[], manifest: string, indices: string[]) {
       jobIds = ids; jobDigests = digests; jobFormats = formats; jobManifest = manifest; staged = indices;
@@ -240,10 +241,10 @@ test('30 synthetic private receipts roundtrip through V2 ZIP and prepared lock',
     }
     return state.transport(resource, init);
   };
-  deepStrictEqual(await prepareRestore('alice', 'g', restoreId, decoded, state.env, transport as typeof fetch),
+  deepStrictEqual(await prepareRestore('alice', 'g', restoreId, decoded, state.env, withBatchGet(transport)),
     { restoreId, expectedReceipts: 30 });
   strictEqual(savedHashes, 30);
-  await rejects(commitPreparedRestore('alice', 'g', restoreId, decoded, state.env, transport as typeof fetch),
+  await rejects(commitPreparedRestore('alice', 'g', restoreId, decoded, state.env, withBatchGet(transport)),
     (error: unknown) => error instanceof PreparedRestoreError && error.code === 'receipts_not_staged');
   const fingerprint = await sha256Hex(new TextEncoder().encode(JSON.stringify(decoded.manifest)));
   const ids = decoded.manifest.receipts.map(row => `ourfinance-test/g/${row.expenseId}/restore_${restoreId}/${row.attachmentId}`);
@@ -254,7 +255,7 @@ test('30 synthetic private receipts roundtrip through V2 ZIP and prepared lock',
   deepStrictEqual(await prepareRestore('alice', 'g', restoreId, decoded, state.env, lostLockTransport as typeof fetch),
     { restoreId, expectedReceipts: 30 });
   let committed = 0;
-  const result = await commitPreparedRestore('alice', 'g', restoreId, decoded, state.env, transport as typeof fetch, {
+  const result = await commitPreparedRestore('alice', 'g', restoreId, decoded, state.env, withBatchGet(transport), {
     inventory: async () => ({ groupDocuments: ['groups/g'], userDocuments: [], receiptPublicIds: [] }),
     commit: async (_uid, _groupId, _restoreId, _backup, _live, staged) => { committed = staged.length; return []; },
     outcome: async () => 'locked',
@@ -263,13 +264,13 @@ test('30 synthetic private receipts roundtrip through V2 ZIP and prepared lock',
   deepStrictEqual(result, { restoreId, cleanupPending: true });
   const inventory = async () => ({ groupDocuments: ['groups/g'], userDocuments: [], receiptPublicIds: [] });
   const failedCommit = async (): Promise<readonly string[]> => { throw new Error('lost commit response'); };
-  deepStrictEqual(await commitPreparedRestore('alice', 'g', restoreId, decoded, state.env, transport as typeof fetch, {
+  deepStrictEqual(await commitPreparedRestore('alice', 'g', restoreId, decoded, state.env, withBatchGet(transport), {
     inventory, commit: failedCommit, outcome: async () => 'committed',
   }), { restoreId, cleanupPending: true });
-  await rejects(commitPreparedRestore('alice', 'g', restoreId, decoded, state.env, transport as typeof fetch, {
+  await rejects(commitPreparedRestore('alice', 'g', restoreId, decoded, state.env, withBatchGet(transport), {
     inventory, commit: failedCommit, outcome: async () => 'locked',
   }), (error: unknown) => error instanceof PreparedRestoreError && error.code === 'restore_not_committed');
-  await rejects(commitPreparedRestore('alice', 'g', restoreId, decoded, state.env, transport as typeof fetch, {
+  await rejects(commitPreparedRestore('alice', 'g', restoreId, decoded, state.env, withBatchGet(transport), {
     inventory, commit: failedCommit, outcome: async () => { throw new Error('outcome unavailable'); },
   }), (error: unknown) => error instanceof PreparedRestoreError && error.code === 'recovery_required');
   const missingJob = (async (resource: string | URL | Request, init?: RequestInit) =>

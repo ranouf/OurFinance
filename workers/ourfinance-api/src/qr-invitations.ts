@@ -1,3 +1,4 @@
+import { readDocumentInTransaction } from './firestore-transaction-read';
 import { unavailableCode } from './provider-quota';
 import { serviceAccessToken } from './service-account';
 
@@ -32,8 +33,9 @@ async function store(env: QrInvitationEnv, transport: typeof fetch) {
   const access = await serviceAccessToken(env.FIREBASE_SERVICE_ACCOUNT_JSON, env.FIREBASE_PROJECT_ID, transport);
   const headers = { Authorization: `Bearer ${access}`, 'Content-Type': 'application/json' };
   const read = async (path: string, transaction?: string): Promise<Record<string, unknown> | null> => {
-    const query = transaction ? `?transaction=${encodeURIComponent(transaction)}` : '';
-    const response = await transport(`https://firestore.googleapis.com/v1/${root}/${path}${query}`, { headers });
+    const response = transaction
+      ? await readDocumentInTransaction(root, path, transaction, headers, transport)
+      : await transport(`https://firestore.googleapis.com/v1/${root}/${path}`, { headers });
     if (response.status === 404) return null;
     if (!response.ok) throw new QrInvitationError(503, unavailableCode(response, 'firestore_unavailable'));
     return await response.json() as Record<string, unknown>;

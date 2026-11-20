@@ -1,3 +1,4 @@
+import { listCollectionPageInTransaction, readDocumentInTransaction } from './firestore-transaction-read';
 import { unavailableCode } from './provider-quota';
 import { serviceAccessToken } from './service-account';
 
@@ -30,7 +31,7 @@ export async function changeGroupCurrency(value: unknown, uid: string, groupId: 
   let committed = false;
   try {
     const read = async (path: string) => {
-      const response = await transport(`https://firestore.googleapis.com/v1/${root}/${path}?transaction=${encodeURIComponent(transaction)}`, { headers });
+      const response = await readDocumentInTransaction(root, path, transaction, headers, transport);
       return response.status === 404 ? null : await checked(response);
     };
     const group = await read(`groups/${groupId}`);
@@ -39,10 +40,7 @@ export async function changeGroupCurrency(value: unknown, uid: string, groupId: 
     if (field(group, 'currencyLockedAt')) throw new GroupCurrencyError(403, 'currency_locked');
     // Older groups may predate currencyLockedAt. Retain archived and undone history.
     for (const collection of ['expenses', 'settlements', 'importedRecords']) {
-      const listUrl = new URL(`https://firestore.googleapis.com/v1/${root}/groups/${groupId}/${collection}`);
-      listUrl.searchParams.set('pageSize', '1');
-      listUrl.searchParams.set('transaction', transaction);
-      const result = await checked(await transport(listUrl, { headers }));
+      const result = await checked(await listCollectionPageInTransaction(root, `groups/${groupId}/${collection}`, 1, transaction, headers, transport));
       if (Array.isArray(result['documents']) && result['documents'].length) throw new GroupCurrencyError(403, 'currency_locked');
     }
     if ((field(group, 'currencyCode')?.stringValue ?? field(group, 'currency')?.stringValue) === currencyCode) {

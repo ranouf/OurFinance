@@ -1,3 +1,4 @@
+import { withBatchGet } from './batch-get-mock';
 import { test } from 'node:test';
 import { deepStrictEqual, rejects, strictEqual, throws } from 'node:assert';
 import { exportPKCS8, generateKeyPair } from 'jose';
@@ -31,7 +32,7 @@ async function fixture(role = 'owner', status = 'active', groupStatus = 'active'
     if (url.endsWith(':rollback')) return Response.json({});
     throw new Error(`Unexpected request ${url}`);
   }) as typeof fetch;
-  return { env, transport, committed: () => commit };
+  return { env, transport: withBatchGet(transport), committed: () => commit };
 }
 
 test('creation persists optional fields atomically', async () => {

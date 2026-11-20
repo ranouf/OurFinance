@@ -1,3 +1,4 @@
+import { withBatchGet } from './batch-get-mock';
 import { test } from 'node:test';
 import { deepStrictEqual, rejects, strictEqual } from 'node:assert';
 import { generateKeyPair, exportPKCS8 } from 'jose';
@@ -17,7 +18,8 @@ async function fixture(options: { callerRole?: 'owner' | 'member'; callerStatus?
     if (url.endsWith(':rollback')) { rollbacks++; if (options.failure === 'rollback') throw new Error('network'); return Response.json({}); }
     if (url.includes('/groups/g/members?')) {
       listed++;
-      return Response.json({ ...(options.failure === 'page-token' ? { nextPageToken: 'next' } : {}), documents: options.failure === 'empty-members' ? [] : [
+      return Response.json({ documents: options.failure === 'empty-members' ? [] : options.failure === 'page-token' ?
+        Array.from({ length: 51 }, (_, index) => ({ name: `${root}/groups/g/members/member${index}`, fields: { status: { stringValue: 'active' } } })) : [
         { name: `${root}/groups/g/members/alice`, fields: { status: { stringValue: 'active' } } },
         { name: `${root}/groups/g/members/${options.failure === 'duplicate-member' ? 'alice' : 'bob'}`, fields: { status: { stringValue: 'revoked' } } },
       ] });
@@ -32,7 +34,7 @@ async function fixture(options: { callerRole?: 'owner' | 'member'; callerStatus?
     if (url.includes('/users/bob/groupPreferences/g?')) return Response.json({}, { status: 404 });
     throw new Error(`Requête inattendue: ${url}`);
   };
-  return { env, transport: transport as typeof fetch, get rollbacks() { return rollbacks; }, get listed() { return listed; } };
+  return { env, transport: withBatchGet(transport), get rollbacks() { return rollbacks; }, get listed() { return listed; } };
 }
 
 test('owner reads every member preference in one read-only transaction', async () => {

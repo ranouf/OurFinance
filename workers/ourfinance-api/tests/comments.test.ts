@@ -1,3 +1,4 @@
+import { withBatchGet } from './batch-get-mock';
 import { test } from 'node:test';
 import { deepStrictEqual, rejects, strictEqual, throws } from 'node:assert';
 import { exportPKCS8, generateKeyPair } from 'jose';
@@ -29,7 +30,7 @@ async function fixture(status: 'active' | 'revoked' | 'absent' = 'active', delet
     if (url.includes('/groups/group?')) return Response.json({ fields: { status: { stringValue: 'active' } } });
     throw new Error('Requête inattendue');
   };
-  return { env, transport: transport as typeof fetch, result: () => ({ commit, rollback }) };
+  return { env, transport: withBatchGet(transport), result: () => ({ commit, rollback }) };
 }
 
 test('membre actif écrit commentaire et activité dans la même transaction', async () => {

@@ -1,3 +1,4 @@
+import { withBatchGet } from './batch-get-mock';
 import { test } from 'node:test';
 import { rejects, strictEqual } from 'node:assert';
 import { generateKeyPair, exportPKCS8 } from 'jose';
@@ -66,7 +67,7 @@ async function fixture(role: 'owner' | 'member' = 'owner', expenseCount = 0, gro
     if (path === 'users/bob/groupPreferences/g' || path === 'users/alice/groupMemberships/g') return Response.json({}, { status: 404 });
     return Response.json({});
   };
-  return { env, transport: transport as typeof fetch, get rollbacks() { return rollbacks; }, get transactionReads() { return transactionReads; } };
+  return { env, transport: withBatchGet(transport), get rollbacks() { return rollbacks; }, get transactionReads() { return transactionReads; } };
 }
 
 test('owner collects a coherent V2 JSON snapshot in one Firestore transaction', async () => {
