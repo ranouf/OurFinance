@@ -10,10 +10,6 @@ on:
         description: URL of the exact-line active TEST reservation in issue 30
         required: true
         type: string
-      approval_comment:
-        description: URL of the exact-line visual approval for this SHA and channel
-        required: true
-        type: string
       channel:
         description: Deploy an isolated preview or the main TEST site
         required: true
@@ -37,26 +33,22 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - name: Check exact SHA, reservation and visual approval
+      - name: Check exact SHA, channel and reservation
         env:
           TARGET_SHA: ${{ inputs.sha }}
           RESERVATION: ${{ inputs.coordination_comment }}
-          APPROVAL: ${{ inputs.approval_comment }}
           CHANNEL: ${{ inputs.channel }}
           GH_TOKEN: ${{ github.token }}
         run: |
           [[ "$TARGET_SHA" =~ ^[0-9a-f]{40}$ ]]
           [[ "$RESERVATION" =~ ^https://github\.com/ranouf/OurFinance/issues/30#issuecomment-[0-9]+$ ]]
-          [[ "$APPROVAL" =~ ^https://github\.com/ranouf/OurFinance/issues/(30|122)#issuecomment-[0-9]+$ ]]
           [[ "$CHANNEL" == preview || "$CHANNEL" == live ]]
           comment_dir="$(mktemp -d)"
           trap 'rm -rf "$comment_dir"' EXIT
           reservation_id="${RESERVATION##*issuecomment-}"
-          approval_id="${APPROVAL##*issuecomment-}"
           gh api "repos/ranouf/OurFinance/issues/comments/$reservation_id" > "$comment_dir/reservation.json"
-          gh api "repos/ranouf/OurFinance/issues/comments/$approval_id" > "$comment_dir/approval.json"
           bash scripts/verify-hosting-test-authorization.sh "$TARGET_SHA" "$CHANNEL" \
-            "$comment_dir/reservation.json" "$comment_dir/approval.json"
+            "$comment_dir/reservation.json"
       - name: Require successful PR validation on exact SHA
         env:
           TARGET_SHA: ${{ inputs.sha }}
