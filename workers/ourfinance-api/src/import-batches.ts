@@ -1,5 +1,6 @@
 import { unavailableCode } from './provider-quota';
 import { serviceAccessToken } from './service-account';
+import { readDocumentInTransaction } from './firestore-transaction-read';
 
 export interface ImportEnv { readonly FIREBASE_PROJECT_ID: string; readonly FIREBASE_SERVICE_ACCOUNT_JSON: string; }
 export class ImportError extends Error {
@@ -116,7 +117,7 @@ async function withTransaction<T>(env: ImportEnv, transport: typeof fetch, run: 
   let committed = false;
   try {
     const read = async (path: string) => {
-      const response = await transport(`https://firestore.googleapis.com/v1/${root}/${path}?transaction=${encodeURIComponent(transaction)}`, { headers });
+      const response = await readDocumentInTransaction(root, path, transaction, headers, transport);
       if (response.status === 404) return null;
       return await checked(response);
     };

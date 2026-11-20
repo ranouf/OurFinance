@@ -1,3 +1,4 @@
+import { withBatchGet } from './batch-get-mock';
 import { test } from 'node:test';
 import { deepStrictEqual, rejects, strictEqual, throws } from 'node:assert';
 import { createHash } from 'node:crypto';
@@ -38,7 +39,7 @@ async function fixture(revoked = false) {
     const fields = docs.get(path);
     return fields ? Response.json({ fields }) : new Response(null, { status: 404 });
   };
-  return { env, docs, transport: transport as typeof fetch, commits: () => commits, rollbacks: () => rollbacks };
+  return { env, docs, transport: withBatchGet(transport), commits: () => commits, rollbacks: () => rollbacks };
 }
 
 test('server rejects invented or unbalanced historical impacts', () => {

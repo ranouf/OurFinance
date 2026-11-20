@@ -1,3 +1,4 @@
+import { withBatchGet } from './batch-get-mock';
 import { test } from 'node:test';
 import { deepStrictEqual, strictEqual, rejects, throws } from 'node:assert';
 import { exportPKCS8, generateKeyPair } from 'jose';
@@ -110,7 +111,7 @@ test('expense transactions fail closed on absent group, member, category and con
       if (url.includes('/groups/g1?')) return scenario === 'group-missing' ? Response.json({}, { status: 404 }) : Response.json({ fields: { status: { stringValue: scenario === 'group-archived' ? 'archived' : 'active' }, currencyCode: { stringValue: 'CAD' } } });
       throw new Error(`Unexpected request ${url}`);
     }) as typeof fetch;
-    await rejects(createExpense({ ...input, categoryId }, 'alice', 'g1', env, transport),
+    await rejects(createExpense({ ...input, categoryId }, 'alice', 'g1', env, withBatchGet(transport)),
       (error: unknown) => error instanceof ExpenseError && error.code === code);
     strictEqual(rollback, 1, scenario);
   }
@@ -146,7 +147,7 @@ test('expense deletion refuses malformed receipt inventories and unavailable cle
       if (url.includes('/groups/g1?')) return Response.json({ fields: { status: { stringValue: 'active' }, currencyCode: { stringValue: 'CAD' } } });
       throw new Error(`Unexpected request ${url}`);
     }) as typeof fetch;
-    await rejects(mutateExpense({ expectedRevision: 0 }, 'alice', 'g1', input.idempotencyKey, 'DELETE', env, transport),
+    await rejects(mutateExpense({ expectedRevision: 0 }, 'alice', 'g1', input.idempotencyKey, 'DELETE', env, withBatchGet(transport)),
       (error: unknown) => error instanceof ExpenseError && error.code === code);
     strictEqual(commits, 0, code);
     strictEqual(rollbacks, 1, code);
@@ -176,7 +177,7 @@ test('expense updates reject changed group, member, author, revision and categor
       if (url.includes('/groups/g1?')) return Response.json({ fields: { status: { stringValue: scenario === 'group' ? 'archived' : 'active' }, currencyCode: { stringValue: scenario === 'currency' ? 'JPY' : 'CAD' } } });
       throw new Error(`Unexpected request ${url}`);
     }) as typeof fetch;
-    await rejects(mutateExpense({ ...input, categoryId, expectedRevision: 0 }, 'alice', 'g1', input.idempotencyKey, 'PATCH', env, transport),
+    await rejects(mutateExpense({ ...input, categoryId, expectedRevision: 0 }, 'alice', 'g1', input.idempotencyKey, 'PATCH', env, withBatchGet(transport)),
       (error: unknown) => error instanceof ExpenseError && error.code === code);
     strictEqual(commits, 0, scenario);
   }
@@ -199,7 +200,7 @@ test('expense transaction reads active group/members and atomically writes expen
     if (url.endsWith(':commit')) { commit = JSON.parse(String(options?.body)); return Response.json({ writeResults: [{},{},{}] }); }
     throw new Error('Requête inattendue');
   };
-  strictEqual(await createExpense({ ...input, categoryId: 'education' }, 'alice', 'g1', { FIREBASE_PROJECT_ID: 'ourfinance-test', FIREBASE_SERVICE_ACCOUNT_JSON: service }, transport as typeof fetch), input.idempotencyKey);
+  strictEqual(await createExpense({ ...input, categoryId: 'education' }, 'alice', 'g1', { FIREBASE_PROJECT_ID: 'ourfinance-test', FIREBASE_SERVICE_ACCOUNT_JSON: service }, withBatchGet(transport)), input.idempotencyKey);
   strictEqual(readPaths.length, 3);
   strictEqual(commit.transaction, 'txn');
   strictEqual(commit.writes.length, 4);
@@ -223,7 +224,7 @@ test('revoked participant prevents a commit', async () => {
     if (url.endsWith(':commit')) committed = true;
     return Response.json({});
   };
-  await rejects(createExpense(input, 'alice', 'g1', { FIREBASE_PROJECT_ID: 'ourfinance-test', FIREBASE_SERVICE_ACCOUNT_JSON: service }, transport as typeof fetch), (error: unknown) => error instanceof ExpenseError && error.code === 'member_inactive');
+  await rejects(createExpense(input, 'alice', 'g1', { FIREBASE_PROJECT_ID: 'ourfinance-test', FIREBASE_SERVICE_ACCOUNT_JSON: service }, withBatchGet(transport)), (error: unknown) => error instanceof ExpenseError && error.code === 'member_inactive');
   strictEqual(committed, false);
 });
 
@@ -233,7 +234,7 @@ test('Firestore quota exhaustion has an explicit fixed code', async () => {
   const transport = async (resource: string | URL | Request) => String(resource).includes('oauth2.googleapis.com')
     ? Response.json({ access_token: 'service-token' })
     : Response.json({ message: 'private provider detail' }, { status: 429 });
-  await rejects(createExpense(input, 'alice', 'g1', { FIREBASE_PROJECT_ID: 'ourfinance-test', FIREBASE_SERVICE_ACCOUNT_JSON: service }, transport as typeof fetch),
+  await rejects(createExpense(input, 'alice', 'g1', { FIREBASE_PROJECT_ID: 'ourfinance-test', FIREBASE_SERVICE_ACCOUNT_JSON: service }, withBatchGet(transport)),
     (error: unknown) => error instanceof ExpenseError && error.status === 503 && error.code === 'provider_quota_exceeded');
 });
 
@@ -251,7 +252,7 @@ test('an expense in another currency is denied before commit and rolled back', a
     if (url.endsWith(':commit')) committed = true;
     return Response.json({});
   };
-  await rejects(createExpense(input, 'alice', 'g1', { FIREBASE_PROJECT_ID: 'ourfinance-test', FIREBASE_SERVICE_ACCOUNT_JSON: service }, transport as typeof fetch), (error: unknown) => error instanceof ExpenseError && error.code === 'currency_mismatch');
+  await rejects(createExpense(input, 'alice', 'g1', { FIREBASE_PROJECT_ID: 'ourfinance-test', FIREBASE_SERVICE_ACCOUNT_JSON: service }, withBatchGet(transport)), (error: unknown) => error instanceof ExpenseError && error.code === 'currency_mismatch');
   strictEqual(committed, false);
   strictEqual(rolledBack, true);
 });
@@ -274,11 +275,11 @@ test('une catégorie personnalisée active est figée sur la dépense, une archi
     return Response.json({});
   };
   const env = { FIREBASE_PROJECT_ID: 'ourfinance-test', FIREBASE_SERVICE_ACCOUNT_JSON: service };
-  await createExpense({ ...input, categoryId }, 'alice', 'g1', env, transport as typeof fetch);
+  await createExpense({ ...input, categoryId }, 'alice', 'g1', env, withBatchGet(transport));
   strictEqual(commit.writes[0].update.fields.categoryLabel.stringValue, 'Frais de chalet');
   strictEqual(commit.writes[0].update.fields.categoryIcon.stringValue, '🏠');
   status = 'archived'; commit = undefined;
-  await rejects(createExpense({ ...input, categoryId }, 'alice', 'g1', env, transport as typeof fetch), (error: unknown) => error instanceof ExpenseError && error.code === 'category_unavailable');
+  await rejects(createExpense({ ...input, categoryId }, 'alice', 'g1', env, withBatchGet(transport)), (error: unknown) => error instanceof ExpenseError && error.code === 'category_unavailable');
   strictEqual(commit, undefined);
   strictEqual(rolledBack, true);
 });
@@ -306,17 +307,17 @@ test('l’auteur modifie puis supprime logiquement sa dépense avec révision et
     throw new Error('Requête inattendue');
   };
   const update = { ...input, categoryId: 'groceries', description: 'Courses modifiées', expectedRevision: 0 };
-  await mutateExpense(update, 'alice', 'g1', input.idempotencyKey, 'PATCH', env, transport as typeof fetch);
+  await mutateExpense(update, 'alice', 'g1', input.idempotencyKey, 'PATCH', env, withBatchGet(transport));
   strictEqual(revision, 1);
   strictEqual(commits[0].writes[0].update.fields.description.stringValue, 'Courses modifiées');
   strictEqual(commits[0].writes[1].update.fields.action.stringValue, 'expense_updated');
-  await rejects(mutateExpense(update, 'alice', 'g1', input.idempotencyKey, 'PATCH', env, transport as typeof fetch), (error: unknown) => error instanceof ExpenseError && error.code === 'revision_conflict');
-  await rejects(mutateExpense({ expectedRevision: 1 }, 'bob', 'g1', input.idempotencyKey, 'DELETE', env, transport as typeof fetch), (error: unknown) => error instanceof ExpenseError && error.code === 'author_required');
+  await rejects(mutateExpense(update, 'alice', 'g1', input.idempotencyKey, 'PATCH', env, withBatchGet(transport)), (error: unknown) => error instanceof ExpenseError && error.code === 'revision_conflict');
+  await rejects(mutateExpense({ expectedRevision: 1 }, 'bob', 'g1', input.idempotencyKey, 'DELETE', env, withBatchGet(transport)), (error: unknown) => error instanceof ExpenseError && error.code === 'author_required');
   strictEqual(commits.length, 1);
-  await mutateExpense({ expectedRevision: 1 }, 'alice', 'g1', input.idempotencyKey, 'DELETE', env, transport as typeof fetch);
+  await mutateExpense({ expectedRevision: 1 }, 'alice', 'g1', input.idempotencyKey, 'DELETE', env, withBatchGet(transport));
   strictEqual(deleted, true);
   strictEqual(commits[1].writes[1].update.fields.action.stringValue, 'expense_deleted');
-  await rejects(mutateExpense({ expectedRevision: 2 }, 'alice', 'g1', input.idempotencyKey, 'DELETE', env, transport as typeof fetch), (error: unknown) => error instanceof ExpenseError && error.code === 'expense_deleted');
+  await rejects(mutateExpense({ expectedRevision: 2 }, 'alice', 'g1', input.idempotencyKey, 'DELETE', env, withBatchGet(transport)), (error: unknown) => error instanceof ExpenseError && error.code === 'expense_deleted');
   strictEqual(commits.length, 2);
 });
 
@@ -341,7 +342,7 @@ for (const restored of [false, true]) test(`suppression de dépense archive et d
     if (url.endsWith(':rollback')) return Response.json({});
     throw new Error(`Requête inattendue: ${url}`);
   };
-  await mutateExpense({ expectedRevision: 0 }, 'alice', 'g1', input.idempotencyKey, 'DELETE', env, transport as typeof fetch);
+  await mutateExpense({ expectedRevision: 0 }, 'alice', 'g1', input.idempotencyKey, 'DELETE', env, withBatchGet(transport));
   strictEqual(commit.writes.length, 3);
   strictEqual(commit.writes[0].update.fields.deleted.booleanValue, true);
   strictEqual(commit.writes[2].update.fields.status.stringValue, 'deleted');
@@ -376,11 +377,11 @@ test('un échec ou quota Cloudinary après commit peut être repris sans recrée
     if (url.endsWith(':rollback')) return Response.json({});
     throw new Error(`Requête inattendue: ${url}`);
   };
-  await rejects(mutateExpense({ expectedRevision: 0 }, 'alice', 'g1', input.idempotencyKey, 'DELETE', env, transport as typeof fetch),
+  await rejects(mutateExpense({ expectedRevision: 0 }, 'alice', 'g1', input.idempotencyKey, 'DELETE', env, withBatchGet(transport)),
     (error: unknown) => error instanceof ExpenseError && error.code === (upstreamStatus === 429 ? 'provider_quota_exceeded' : 'media_cleanup_failed'));
   strictEqual(deleted, true);
   strictEqual(pending, true);
-  await mutateExpense({ expectedRevision: 0 }, 'alice', 'g1', input.idempotencyKey, 'DELETE', env, transport as typeof fetch);
+  await mutateExpense({ expectedRevision: 0 }, 'alice', 'g1', input.idempotencyKey, 'DELETE', env, withBatchGet(transport));
   strictEqual(commits, 1);
   strictEqual(pending, false);
   }

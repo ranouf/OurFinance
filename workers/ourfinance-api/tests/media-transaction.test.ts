@@ -1,3 +1,4 @@
+import { withBatchGet } from './batch-get-mock';
 import { test } from 'node:test';
 import { deepStrictEqual, rejects, strictEqual } from 'node:assert';
 import { persistUploadedReceipt } from '../src/media';
@@ -28,7 +29,7 @@ function fixture(options: { deleted?: boolean; revoked?: boolean; conflict?: boo
     if (url.includes('/groups/g?transaction=')) return Response.json({ fields: { status: { stringValue: 'active' } } });
     throw new Error('Requête inattendue');
   };
-  return { transport: transport as typeof fetch, get commits() { return commits; }, get rollbacks() { return rollbacks; } };
+  return { transport: withBatchGet(transport), get commits() { return commits; }, get rollbacks() { return rollbacks; } };
 }
 
 test('une transaction valide l’appartenance et la dépense avant de persister le reçu', async () => {
@@ -93,7 +94,7 @@ test('un conflit avec la suppression compense le PNG sans publier de reçu', asy
     }
     throw new Error('Requête inattendue');
   };
-  const fetcher = transport as typeof fetch;
+  const fetcher = withBatchGet(transport);
   await rejects(persistUploadedReceipt(...args, fetcher, 'groups/g/receiptUploadJobs/a'));
   const recovered = await recoverFailedUpload('g', 'e', 'a', args[4], args[6], {
     FIREBASE_PROJECT_ID: args[7], CLOUDINARY_CLOUD_NAME: 'synthetic',
