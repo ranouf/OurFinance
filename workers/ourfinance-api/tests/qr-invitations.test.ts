@@ -1,3 +1,4 @@
+import { withBatchGet } from './batch-get-mock';
 import { test } from 'node:test';
 import { deepStrictEqual, rejects, strictEqual } from 'node:assert';
 import { exportPKCS8, generateKeyPair } from 'jose';
@@ -36,7 +37,7 @@ async function fixture() {
     const fields = docs.get(path);
     return fields ? Response.json({ fields }) : new Response(null, { status: 404 });
   };
-  return { env, docs, commits, rollbacks, transport: transport as typeof fetch, conflict: () => { conflictNextCommit = true; } };
+  return { env, docs, commits, rollbacks, transport: withBatchGet(transport), conflict: () => { conflictNextCommit = true; } };
 }
 
 test('QR invitation stores only a hash and a server-only lookup, expires after 24 h', async () => {

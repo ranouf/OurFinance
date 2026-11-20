@@ -1,3 +1,4 @@
+import { readDocumentInTransaction } from './firestore-transaction-read';
 import { validateGroupMetadata } from '../../../src/app/core/firebase/group-metadata';
 import { unavailableCode } from './provider-quota';
 import { serviceAccessToken } from './service-account';
@@ -29,7 +30,7 @@ export async function updateGroupMetadata(value: unknown, uid: string, groupId: 
   let committed = false;
   try {
     const read = async (path: string) => {
-      const response = await transport(`https://firestore.googleapis.com/v1/${root}/${path}?transaction=${encodeURIComponent(transaction)}`, { headers });
+      const response = await readDocumentInTransaction(root, path, transaction, headers, transport);
       return response.status === 404 ? null : await checked(response);
     };
     const group = await read(`groups/${groupId}`);

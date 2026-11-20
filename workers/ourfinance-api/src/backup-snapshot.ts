@@ -1,3 +1,4 @@
+import { readDocumentInTransaction } from './firestore-transaction-read';
 import { unavailableCode } from './provider-quota';
 import { collectGroupExportV2FromReader } from '../../../src/app/features/import-export/export-collector-v2';
 import type { ExportDocument, ExportReader } from '../../../src/app/features/import-export/export-collector';
@@ -57,7 +58,7 @@ export async function collectBackupSnapshotV2(uid: string, groupId: string, env:
     };
     const reader: ExportReader = {
       read: async path => {
-        const response = await transport(`https://firestore.googleapis.com/v1/${root}/${path}?transaction=${encodeURIComponent(transaction)}`, { headers });
+        const response = await readDocumentInTransaction(root, path, transaction, headers, transport);
         if (response.status === 404) return null;
         const document = await checked(response);
         const decoded = decodeDocument(document, path.slice(0, path.lastIndexOf('/')));

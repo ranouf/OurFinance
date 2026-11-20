@@ -1,3 +1,4 @@
+import { readDocumentInTransaction } from './firestore-transaction-read';
 import { unavailableCode } from './provider-quota';
 import { serviceAccessToken } from './service-account';
 
@@ -43,7 +44,7 @@ async function transaction(env: InvitationEnv, transport: typeof fetch) {
   if (typeof begin['transaction'] !== 'string') throw new InvitationError(503, 'transaction_unavailable');
   const transactionId = begin['transaction'];
   const read = async (path: string): Promise<Record<string, unknown> | null> => {
-    const response = await transport(`https://firestore.googleapis.com/v1/${root}/${path}?transaction=${encodeURIComponent(transactionId)}`, { headers });
+    const response = await readDocumentInTransaction(root, path, transactionId, headers, transport);
     if (response.status === 404) return null;
     return await checked(response);
   };

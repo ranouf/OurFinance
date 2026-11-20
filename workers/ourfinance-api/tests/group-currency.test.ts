@@ -1,3 +1,4 @@
+import { withBatchGet } from './batch-get-mock';
 import { test } from 'node:test';
 import { rejects, strictEqual } from 'node:assert';
 import { exportPKCS8, generateKeyPair } from 'jose';
@@ -22,7 +23,7 @@ async function fixture(options: { owner?: boolean; locked?: boolean; archivedExp
     if (url.includes('/importedRecords?')) return Response.json(options.importedHistory ? { documents: [{ name: 'imported' }] } : {});
     throw new Error(`Unexpected request: ${url}`);
   };
-  return { env, transport: transport as typeof fetch, commit: () => commit, rollbacks: () => rollbacks };
+  return { env, transport: withBatchGet(transport), commit: () => commit, rollbacks: () => rollbacks };
 }
 
 test('owner changes currency before the first operation, in one transaction', async () => {

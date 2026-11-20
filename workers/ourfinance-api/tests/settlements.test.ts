@@ -1,3 +1,4 @@
+import { withBatchGet } from './batch-get-mock';
 import { test } from 'node:test';
 import { deepStrictEqual, rejects, strictEqual, throws } from 'node:assert';
 import { exportPKCS8, generateKeyPair } from 'jose';
@@ -44,7 +45,7 @@ async function fixture(revoked = false, conflict = false, groupCurrency = 'CAD',
     if (url.endsWith(':commit')) { commit = JSON.parse(String(init?.body)); return conflict ? Response.json({ error: 'conflict' }, { status: 409 }) : Response.json({ writeResults: [{}, {}] }); }
     throw new Error('Requête inattendue');
   };
-  return { env, reads, transport: transport as typeof fetch, committed: () => commit, rollbacks: () => rollbacks };
+  return { env, reads, transport: withBatchGet(transport), committed: () => commit, rollbacks: () => rollbacks };
 }
 
 test('transaction checks both active members and atomically records transfer plus activity', async () => {

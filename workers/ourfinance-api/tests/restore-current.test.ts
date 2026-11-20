@@ -1,3 +1,4 @@
+import { withBatchGet } from './batch-get-mock';
 import { test } from 'node:test';
 import { deepStrictEqual, rejects, strictEqual } from 'node:assert';
 import { exportPKCS8, generateKeyPair } from 'jose';
@@ -43,7 +44,7 @@ async function fixture(options: { groupStatus?: string; memberStatus?: string; r
     } });
     throw new Error(`Unexpected request: ${url}`);
   };
-  return { env, transport: transport as typeof fetch, get rollbacks() { return rollbacks; }, get jobReads() { return jobReads; } };
+  return { env, transport: withBatchGet(transport), get rollbacks() { return rollbacks; }, get jobReads() { return jobReads; } };
 }
 
 test('owner can recover only a staging restore ID, without archive or media details', async () => {
@@ -59,7 +60,7 @@ test('restore state reports a Firestore quota refusal without exposing its body'
   const transport = async (input: string | URL | Request, init?: RequestInit) => String(input).endsWith(':beginTransaction')
     ? Response.json({ message: 'private provider detail' }, { status: 429 })
     : state.transport(input, init);
-  await rejects(readCurrentRestore('alice', 'group-a', state.env, transport as typeof fetch),
+  await rejects(readCurrentRestore('alice', 'group-a', state.env, withBatchGet(transport)),
     (error: unknown) => error instanceof RestoreCurrentError && error.status === 503 && error.code === 'provider_quota_exceeded');
 });
 

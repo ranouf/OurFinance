@@ -4,6 +4,7 @@ export function withBatchGet(transport: (resource: string | URL | Request, init?
     const url = String(resource);
     if (url.endsWith(':runQuery')) {
       const body = JSON.parse(String(init?.body)) as { structuredQuery: { from: Array<{ collectionId: string }> }; transaction: string };
+      if ((body.structuredQuery as { limit?: number }).limit !== 51) return transport(resource, init);
       const collection = body.structuredQuery.from[0]?.collectionId;
       const legacy = await transport(`${url.slice(0, -':runQuery'.length)}/${collection}?transaction=${encodeURIComponent(body.transaction)}&pageSize=51`, { headers: init?.headers });
       if (!legacy.ok) return legacy;

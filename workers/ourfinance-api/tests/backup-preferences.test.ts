@@ -1,3 +1,4 @@
+import { withBatchGet } from './batch-get-mock';
 import { test } from 'node:test';
 import { deepStrictEqual, rejects, strictEqual } from 'node:assert';
 import { generateKeyPair, exportPKCS8 } from 'jose';
@@ -32,7 +33,7 @@ async function fixture(options: { callerRole?: 'owner' | 'member'; callerStatus?
     if (url.includes('/users/bob/groupPreferences/g?')) return Response.json({}, { status: 404 });
     throw new Error(`Requête inattendue: ${url}`);
   };
-  return { env, transport: transport as typeof fetch, get rollbacks() { return rollbacks; }, get listed() { return listed; } };
+  return { env, transport: withBatchGet(transport), get rollbacks() { return rollbacks; }, get listed() { return listed; } };
 }
 
 test('owner reads every member preference in one read-only transaction', async () => {

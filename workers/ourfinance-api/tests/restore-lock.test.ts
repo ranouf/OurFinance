@@ -1,3 +1,4 @@
+import { withBatchGet } from './batch-get-mock';
 import { test } from 'node:test';
 import { rejects, strictEqual } from 'node:assert';
 import { generateKeyPair, exportPKCS8 } from 'jose';
@@ -37,7 +38,7 @@ async function fixture(role: 'owner' | 'member' = 'owner') {
     }
     throw new Error('Requête inattendue');
   };
-  return { env, transport: transport as typeof fetch, get status() { return status; }, get pendingCleanupRestoreId() { return pendingCleanupRestoreId; },
+  return { env, transport: withBatchGet(transport), get status() { return status; }, get pendingCleanupRestoreId() { return pendingCleanupRestoreId; },
     get commits() { return commits; }, get rollbacks() { return rollbacks; }, get jobFields() { return jobFields; } };
 }
 

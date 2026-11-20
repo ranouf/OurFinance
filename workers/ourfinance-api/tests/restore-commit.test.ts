@@ -1,3 +1,4 @@
+import { withBatchGet } from './batch-get-mock';
 import { test } from 'node:test';
 import { rejects, strictEqual } from 'node:assert';
 import { generateKeyPair, exportPKCS8 } from 'jose';
@@ -42,7 +43,7 @@ async function fixture(memberStatus = 'active', committed = false) {
     }
     throw new Error('Requête inattendue');
   };
-  return { env, transport: transport as typeof fetch, get commits() { return commits; }, get rollbacks() { return rollbacks; } };
+  return { env, transport: withBatchGet(transport), get commits() { return commits; }, get rollbacks() { return rollbacks; } };
 }
 
 test('locked owner commits the replacement and releases the group atomically', async () => {
@@ -117,7 +118,7 @@ test('commit refuses changed lock, job and staged asset before replacing the gro
       } });
       return state.transport(resource, init);
     }) as typeof fetch;
-    await rejects(commitGroupRestoreV2('alice', 'g', restoreId, backup, live, [], state.env, transport), RestoreCommitError);
+    await rejects(commitGroupRestoreV2('alice', 'g', restoreId, backup, live, [], state.env, withBatchGet(transport)), RestoreCommitError);
     strictEqual(state.commits, 0);
     strictEqual(state.rollbacks, failure === 'begin' ? 0 : 1);
   }

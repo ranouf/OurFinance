@@ -1,3 +1,4 @@
+import { withBatchGet } from './batch-get-mock';
 import { test } from 'node:test';
 import { strictEqual, rejects } from 'node:assert';
 import { exportPKCS8, generateKeyPair } from 'jose';
@@ -23,11 +24,11 @@ test('un membre actif crée et archive une catégorie dans une transaction', asy
     if (url.endsWith(':commit')) { commit = JSON.parse(String(options?.body)); return Response.json({ writeResults: [{}, {}] }); }
     throw new Error('Requête inattendue');
   };
-  strictEqual(await writeCategory(draft, 'member', 'g1', categoryId, 'create', env, transport as typeof fetch), categoryId);
+  strictEqual(await writeCategory(draft, 'member', 'g1', categoryId, 'create', env, withBatchGet(transport)), categoryId);
   strictEqual(commit.writes[0].update.fields.name.stringValue, 'Frais de chalet');
   strictEqual(commit.writes[0].update.fields.status.stringValue, 'active');
   strictEqual(commit.writes[1].update.fields.action.stringValue, 'category_created');
-  await writeCategory({ ...draft, status: 'archived' }, 'member', 'g1', categoryId, 'update', env, transport as typeof fetch);
+  await writeCategory({ ...draft, status: 'archived' }, 'member', 'g1', categoryId, 'update', env, withBatchGet(transport));
   strictEqual(commit.writes[0].update.fields.status.stringValue, 'archived');
   strictEqual(commit.writes[1].update.fields.action.stringValue, 'category_archived');
 });
@@ -44,8 +45,8 @@ test('un membre révoqué et une catégorie système ne peuvent pas être modifi
     if (url.endsWith(':commit')) committed = true;
     return Response.json({});
   };
-  await rejects(writeCategory(draft, 'member', 'g1', categoryId, 'create', env, transport as typeof fetch), (error: unknown) => error instanceof CategoryError && error.status === 403);
-  await rejects(writeCategory(draft, 'member', 'g1', 'groceries', 'update', env, transport as typeof fetch), (error: unknown) => error instanceof CategoryError && error.status === 400);
+  await rejects(writeCategory(draft, 'member', 'g1', categoryId, 'create', env, withBatchGet(transport)), (error: unknown) => error instanceof CategoryError && error.status === 403);
+  await rejects(writeCategory(draft, 'member', 'g1', 'groceries', 'update', env, withBatchGet(transport)), (error: unknown) => error instanceof CategoryError && error.status === 400);
   strictEqual(committed, false);
 });
 
@@ -80,16 +81,16 @@ test('catégorie absente, activation et conflit ont des résultats transactionne
     }
     throw new Error(`Unexpected ${url}`);
   }) as typeof fetch;
-  await rejects(writeCategory(draft, 'member', 'g1', categoryId, 'update', env, transport),
+  await rejects(writeCategory(draft, 'member', 'g1', categoryId, 'update', env, withBatchGet(transport)),
     (error: unknown) => error instanceof CategoryError && error.code === 'category_missing');
   previous = 'archived';
-  await writeCategory(draft, 'member', 'g1', categoryId, 'update', env, transport);
+  await writeCategory(draft, 'member', 'g1', categoryId, 'update', env, withBatchGet(transport));
   strictEqual(action, 'category_reactivated');
   previous = 'active';
-  await writeCategory(draft, 'member', 'g1', categoryId, 'update', env, transport);
+  await writeCategory(draft, 'member', 'g1', categoryId, 'update', env, withBatchGet(transport));
   strictEqual(action, 'category_updated');
   conflict = true;
-  await rejects(writeCategory(draft, 'member', 'g1', categoryId, 'update', env, transport),
+  await rejects(writeCategory(draft, 'member', 'g1', categoryId, 'update', env, withBatchGet(transport)),
     (error: unknown) => error instanceof CategoryError && error.status === 409);
   strictEqual(rollbacks, 2);
 });

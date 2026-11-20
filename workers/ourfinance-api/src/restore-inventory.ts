@@ -1,3 +1,4 @@
+import { readDocumentInTransaction } from './firestore-transaction-read';
 import { unavailableCode } from './provider-quota';
 import { serviceAccessToken } from './service-account';
 import { listExpenseDescendants } from './firestore-descendants';
@@ -36,7 +37,7 @@ export async function collectLiveRestoreInventory(uid: string, groupId: string, 
   let count = 0;
   try {
     const read = async (path: string): Promise<Document | null> => {
-      const response = await transport(`https://firestore.googleapis.com/v1/${root}/${path}?transaction=${encodeURIComponent(transaction)}`, { headers });
+      const response = await readDocumentInTransaction(root, path, transaction, headers, transport);
       return response.status === 404 ? null : await checked(response) as Document;
     };
     const list = async (path: string): Promise<Document[]> => {

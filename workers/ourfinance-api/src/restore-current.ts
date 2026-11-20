@@ -1,3 +1,4 @@
+import { readDocumentInTransaction } from './firestore-transaction-read';
 import { unavailableCode } from './provider-quota';
 import { serviceAccessToken } from './service-account';
 
@@ -36,7 +37,7 @@ export async function readCurrentRestore(uid: string, groupId: string, env: Rest
   if (typeof transaction !== 'string' || !transaction) throw new RestoreCurrentError(503, 'transaction_unavailable');
   try {
     const read = async (path: string): Promise<Document | null> => {
-      const response = await transport(`https://firestore.googleapis.com/v1/${root}/${path}?transaction=${encodeURIComponent(transaction)}`, { headers });
+      const response = await readDocumentInTransaction(root, path, transaction, headers, transport);
       if (response.status === 404) return null;
       if (!response.ok) throw new RestoreCurrentError(503, unavailableCode(response, 'firestore_unavailable'));
       return await response.json() as Document;
