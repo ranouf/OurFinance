@@ -22,3 +22,24 @@ test('malformed query rows fail closed before any receipt mutation', async () =>
   const response = await listDocumentsInTransaction('projects/p/databases/(default)/documents', 'groups/g/expenses/e', 'attachments', 'txn', {}, transport);
   strictEqual(response.status, 503);
 });
+
+test('empty transactional receipt query returns no documents', async () => {
+  const transport = (async () => Response.json([{ readTime: '2026-11-20T00:00:00Z' }])) as typeof fetch;
+  const response = await listDocumentsInTransaction('projects/p/databases/(default)/documents', 'groups/g/expenses/e', 'attachments', 'txn', {}, transport);
+  strictEqual(response.status, 200);
+  deepStrictEqual(await response.json(), { documents: [] });
+});
+
+test('transactional receipt query propagates Firestore refusal', async () => {
+  const transport = (async () => Response.json({ error: 'denied' }, { status: 403 })) as typeof fetch;
+  const response = await listDocumentsInTransaction('projects/p/databases/(default)/documents', 'groups/g/expenses/e', 'attachments', 'txn', {}, transport);
+  strictEqual(response.status, 403);
+});
+
+test('transactional receipt query rejects malformed envelopes and missing documents', async () => {
+  for (const body of [{ documents: [] }, [null], [{}], [{ document: null }]]) {
+    const transport = (async () => Response.json(body)) as typeof fetch;
+    const response = await listDocumentsInTransaction('projects/p/databases/(default)/documents', 'groups/g/expenses/e', 'attachments', 'txn', {}, transport);
+    strictEqual(response.status, 503);
+  }
+});
