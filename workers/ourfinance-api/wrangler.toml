@@ -4,6 +4,7 @@ compatibility_date = "2026-11-15"
 workers_dev = false
 
 [vars]
+ENABLE_TEST_EXPENSES = "true"
 FIREBASE_PROJECT_ID = "ourfinance-test"
 ALLOWED_ORIGIN = "https://ourfinance-test.web.app"
 ALLOWED_SECONDARY_ORIGIN = "https://ourfinance-test.firebaseapp.com"
