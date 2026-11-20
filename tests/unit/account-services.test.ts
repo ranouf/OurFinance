@@ -47,7 +47,7 @@ test('ProfileService loads persisted preferences and falls back for missing valu
   const fallback = await new ProfileService(app, missing.repository, missing.language).load(missing.user);
   strictEqual(fallback.displayName, 'Fallback');
   strictEqual(fallback.preferredLanguage, 'en');
-  strictEqual(Intl.supportedValuesOf('timeZone').includes(fallback.timeZone), true);
+  strictEqual(fallback.timeZone === 'UTC' || Intl.supportedValuesOf('timeZone').includes(fallback.timeZone), true);
   deepStrictEqual(missing.calls, ['read:account-user', 'detect']);
 });
 
@@ -56,6 +56,19 @@ test('ProfileService validates, writes the account and applies its saved languag
   const service = new ProfileService(app, f.repository, f.language);
   await service.save(f.user, { ...profile, displayName: '  Aline  ' });
   deepStrictEqual(f.calls, ['name:Aline', 'write:account-user:ja', 'language:ja']);
+});
+
+test('ProfileService saves and reloads UTC, which the profile time-zone menu offers', async () => {
+  let saved: ProfilePreferences | undefined;
+  const f = fixture();
+  const repository: ProfileRepository = {
+    ...f.repository,
+    read: async () => saved ?? {},
+    write: async (_app, _uid, value) => { saved = value; },
+  };
+  const service = new ProfileService(app, repository, f.language);
+  await service.save(f.user, { ...profile, timeZone: 'UTC' });
+  strictEqual((await service.load(f.user)).timeZone, 'UTC');
 });
 
 test('ProfileService rejects unverified or invalid input before a write and leaves language unchanged on failure', async () => {
