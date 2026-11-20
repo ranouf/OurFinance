@@ -36,10 +36,10 @@ import { setLanguage, t, type MessageKey } from '../../shared/utils/i18n';
             <app-field class="block" controlId="profile-language" [label]="t('language')">
               <app-dropdown controlId="profile-language" name="profileLanguage" [options]="languageOptions" [(ngModel)]="preferredLanguage" (ngModelChange)="applyLanguage()" />
             </app-field>
-            <label class="block text-sm font-bold">{{ t('timeZone') }}
-              <input appUiControl class="mt-2 w-full" name="profileZone" [(ngModel)]="timeZone" list="profile-zones" required />
-              <datalist id="profile-zones">@for (zone of zones; track zone) { <option [value]="zone"></option> }</datalist>
-            </label>
+            <app-field class="block" controlId="profile-zone" [label]="t('timeZone')">
+              <app-dropdown controlId="profile-zone" name="profileZone" [options]="zoneOptions" [searchable]="true"
+                [searchLabel]="t('search')" [(ngModel)]="timeZone" required />
+            </app-field>
             <app-ui-button variant="coral" [block]="true" size="lg" class="w-full" type="submit" [disabled]="busy() || !user?.emailVerified">{{ t('saveProfile') }}</app-ui-button>
           </form>
           <div class="rounded-[1.5rem] border border-pop-border bg-white p-5 shadow-sm sm:p-7">
@@ -61,7 +61,7 @@ export class ProfilePanel implements OnChanges {
   readonly languageOptions: DropdownOption[] = [{ value: 'fr', label: 'Français' }, { value: 'en', label: 'English' }, { value: 'ja', label: '日本語' }];
   @Input({ required: true }) user?: User;
   @Input({ required: true }) firebaseApp?: FirebaseApp;
-  readonly zones = Intl.supportedValuesOf('timeZone');
+  zoneOptions: DropdownOption[] = [...new Set(['UTC', ...Intl.supportedValuesOf('timeZone')])].map(zone => ({ value: zone, label: zone }));
   readonly loading = signal(true);
   readonly t = t;
   readonly busy = signal(false);
@@ -85,6 +85,9 @@ export class ProfilePanel implements OnChanges {
       const value = await this.service!.load(user);
       if (requestId !== this.requestId || this.user?.uid !== user.uid) return;
       this.displayName = value.displayName; this.preferredLanguage = value.preferredLanguage; this.timeZone = value.timeZone;
+      if (!this.zoneOptions.some(option => option.value === value.timeZone)) {
+        this.zoneOptions = [{ value: value.timeZone, label: value.timeZone }, ...this.zoneOptions];
+      }
       this.applyLanguage();
     } catch { if (requestId === this.requestId) this.message.set('profileUnavailable'); }
     finally { if (requestId === this.requestId) { this.loading.set(false); this.changeDetector.markForCheck(); } }
