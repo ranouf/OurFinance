@@ -149,7 +149,7 @@ test('inventory fails closed for missing owner and malformed pages without publi
   const scenarios: readonly [string, Response, number, string][] = [
     ['/groups/g?transaction=', Response.json({}, { status: 404 }), 403, 'owner_required'],
     ['/groups/g/members/alice?transaction=', Response.json({}, { status: 404 }), 403, 'owner_required'],
-    ['/groups/g/expenses?', Response.json({ documents: 'invalid' }), 503, 'invalid_inventory'],
+    ['/groups/g/expenses?', Response.json({ documents: 'invalid' }), 503, 'firestore_unavailable'],
     ['/groups/g/expenses?', Response.json({ documents: [{ name: 'outside/expense' }] }), 503, 'invalid_inventory'],
     ['/groups/g/expenses?', Response.json({ documents: [{ name: 'projects/ourfinance-test/databases/(default)/documents/groups/g/expenses/../escape' }] }), 503, 'invalid_inventory'],
   ];

@@ -1,4 +1,4 @@
-import { readDocumentInTransaction } from './firestore-transaction-read';
+import { listCollectionPageInTransaction, readDocumentInTransaction } from './firestore-transaction-read';
 import { unavailableCode } from './provider-quota';
 import { serviceAccessToken } from './service-account';
 
@@ -51,10 +51,7 @@ export async function collectBackupPreferences(uid: string, groupId: string, env
     const group = await read(`groups/${groupId}`);
     const caller = await read(`groups/${groupId}/members/${uid}`);
     if (!['active', 'archived'].includes(group?.fields?.['status']?.stringValue ?? '') || caller?.fields?.['status']?.stringValue !== 'active' || caller.fields['role']?.stringValue !== 'owner') throw new BackupPreferencesError(403, 'owner_required');
-    const listUrl = new URL(`https://firestore.googleapis.com/v1/${root}/groups/${groupId}/members`);
-    listUrl.searchParams.set('transaction', transaction);
-    listUrl.searchParams.set('pageSize', '51');
-    const listed = await checked(await transport(listUrl, { headers }));
+    const listed = await checked(await listCollectionPageInTransaction(root, `groups/${groupId}/members`, 51, transaction, headers, transport));
     if (listed['nextPageToken']) throw new BackupPreferencesError(409, 'too_many_members');
     const documents = listed['documents'];
     if (!Array.isArray(documents) || !documents.length || documents.length > 50) throw new BackupPreferencesError(409, 'invalid_members');
