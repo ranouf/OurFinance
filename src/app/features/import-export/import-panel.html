@@ -2,7 +2,7 @@
       <div class="mb-5 h-1.5 w-14 rounded-full bg-pop-sun" aria-hidden="true"></div>
       <h2 class="text-2xl font-extrabold tracking-tight">{{ text('title') }}</h2>
       <p class="mt-1 text-sm text-pop-muted">{{ text('intro') }}</p>
-      <div class="mt-5 grid gap-4 md:grid-cols-2">
+      <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
         <app-field class="block" controlId="importGroup" [label]="text('target')"><app-dropdown controlId="importGroup" [options]="groupDropdownOptions(ownedGroups(), t('chooseGroup'), true)" name="importGroup" [(ngModel)]="groupId" (ngModelChange)="loadGroup()" /></app-field>
         <label class="block text-sm font-bold">{{ text('file') }}
           <input appUiControl class="mt-2 block min-h-11 w-full rounded-xl border border-pop-border bg-pop-surface p-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pop-primary-dark file:mr-3 file:rounded-lg file:border-0 file:bg-pop-lavender file:px-3 file:py-2 file:font-bold file:text-pop-primary-dark" type="file" accept=".csv,text/csv" (change)="loadFile($event)" [attr.aria-invalid]="message() === 'invalidFile' || message() === 'fileTooLarge' || message() === 'fileMissing' ? 'true' : null" [attr.aria-describedby]="message() === 'invalidFile' || message() === 'fileTooLarge' || message() === 'fileMissing' ? 'importFeedback' : null" />
