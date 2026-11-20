@@ -30,7 +30,7 @@ import { language, t, type MessageKey } from '../../shared/utils/i18n';
         <label class="mt-3 block text-sm font-medium">{{ t('categoryName') }}
           <input appUiControl class="mt-1 w-full" name="categoryName" [(ngModel)]="draft.name" maxlength="40" />
         </label>
-        <div class="mt-3 grid grid-cols-2 gap-3">
+        <div class="mt-3 grid grid-cols-2 gap-3 max-[240px]:grid-cols-1">
           <app-field class="block" controlId="category-icon" [label]="t('categoryIcon')">
             <app-dropdown controlId="category-icon" name="categoryIcon" [options]="iconOptions()" [(ngModel)]="draft.iconId" />
           </app-field>

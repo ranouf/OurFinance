@@ -16,11 +16,11 @@ const circumference = 2 * Math.PI * 40;
   imports: [UiChip, UiAlert],
   template: `
     @if (hasData()) {
-      <div class="mt-5 grid gap-5 xl:grid-cols-2">
+      <div class="mt-5 grid grid-cols-1 gap-5 xl:grid-cols-2">
         <section class="rounded-2xl border border-pop-border bg-pop-surface p-5" [attr.aria-label]="text('byCategory')">
           <h4 class="text-lg font-extrabold">{{ text('byCategory') }}</h4>
           <div class="mt-4 flex flex-col items-center gap-4 min-[360px]:flex-row">
-            <svg class="h-36 w-36 shrink-0 min-[360px]:h-28 min-[360px]:w-28 sm:h-36 sm:w-36" viewBox="0 0 100 100" role="img" [attr.aria-label]="text('distribution') + ' ' + amount(data.totalMinor)">
+            <svg class="h-36 w-36 max-w-full shrink-0 min-[360px]:h-28 min-[360px]:w-28 sm:h-36 sm:w-36" viewBox="0 0 100 100" role="img" [attr.aria-label]="text('distribution') + ' ' + amount(data.totalMinor)">
               <circle cx="50" cy="50" r="40" fill="none" stroke="var(--color-pop-lavender)" stroke-width="16" />
               @for (slice of data.categories; track slice.id; let index = $index) {
                 <circle cx="50" cy="50" r="40" fill="none" [attr.stroke]="color(index)" stroke-width="16" [attr.stroke-dasharray]="dash(slice)" [attr.stroke-dashoffset]="offset(index)" transform="rotate(-90 50 50)" />
@@ -46,7 +46,7 @@ const circumference = 2 * Math.PI * 40;
             @for (member of data.members; track member.userId) {
               <div>
                 <p class="mb-1 break-all text-sm font-medium">{{ memberLabel(member) }}</p>
-                <div class="grid grid-cols-[3.5rem_1fr_auto] items-center gap-2 text-xs">
+                <div class="grid grid-cols-[3.5rem_1fr_auto] max-[240px]:grid-cols-1 items-center gap-2 text-xs">
                   <span>{{ text('paidShort') }}</span><div class="h-3 rounded-full bg-pop-lavender"><div class="h-3 rounded-full bg-pop-primary" [style.width.%]="bar(member.paidMinor)"></div></div><span>{{ amount(member.paidMinor) }}</span>
                   <span>{{ text('owedShort') }}</span><div class="h-3 rounded-full bg-pop-lavender"><div class="h-3 rounded-full bg-pop-coral" [style.width.%]="bar(member.owedMinor)"></div></div><span>{{ amount(member.owedMinor) }}</span>
                 </div>
