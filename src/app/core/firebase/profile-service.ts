@@ -10,6 +10,7 @@ export interface ProfilePreferences {
   readonly timeZone: string;
 }
 const languages: readonly Language[] = ['fr', 'en', 'ja'];
+const supportedTimeZone = (zone: string): boolean => zone === 'UTC' || Intl.supportedValuesOf('timeZone').includes(zone);
 
 export interface ProfileRepository {
   read(app: FirebaseApp, uid: string): Promise<Record<string, unknown>>;
@@ -25,7 +26,7 @@ const firebaseProfileRepository: ProfileRepository = {
 export function validateProfilePreferences(input: ProfilePreferences): ProfilePreferences {
   const displayName = input.displayName.trim();
   if (!displayName || displayName.length > 80 || !languages.includes(input.preferredLanguage) ||
-      !Intl.supportedValuesOf('timeZone').includes(input.timeZone)) throw new Error('Préférences de profil invalides');
+      !supportedTimeZone(input.timeZone)) throw new Error('Préférences de profil invalides');
   return { displayName, preferredLanguage: input.preferredLanguage, timeZone: input.timeZone };
 }
 
@@ -43,8 +44,8 @@ export class ProfileService {
       displayName: typeof data['displayName'] === 'string' ? data['displayName'] : user.displayName ?? '',
       preferredLanguage: languages.includes(data['preferredLanguage'] as Language) ? data['preferredLanguage'] as Language :
         this.languages.detect(typeof navigator === 'undefined' ? [] : navigator.languages),
-      timeZone: typeof data['timeZone'] === 'string' && Intl.supportedValuesOf('timeZone').includes(data['timeZone']) ? data['timeZone'] :
-        Intl.supportedValuesOf('timeZone').includes(zone) ? zone : 'America/Toronto',
+      timeZone: typeof data['timeZone'] === 'string' && supportedTimeZone(data['timeZone']) ? data['timeZone'] :
+        supportedTimeZone(zone) ? zone : 'America/Toronto',
     };
   }
 
