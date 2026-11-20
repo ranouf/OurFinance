@@ -6,7 +6,8 @@
       </button>
     </div>
     @if (open) {
-      <div #dialog class="fixed z-50 w-[min(760px,calc(100vw-16px))] overflow-y-auto rounded-3xl border border-pop-border bg-pop-surface p-4 text-pop-text shadow-xl sm:p-6" [style.left.px]="panelLeft" [style.top.px]="panelTop" [style.max-height.px]="panelMaxHeight" role="dialog" [attr.aria-label]="(translationPrefix + '.choosePeriod' | translate)">
+      <div #dialog class="fixed z-50 w-[min(760px,calc(100vw-16px))] overflow-auto rounded-3xl border border-pop-border bg-pop-surface p-4 text-pop-text shadow-xl sm:p-6" [style.left.px]="panelLeft" [style.top.px]="panelTop" [style.max-height.px]="panelMaxHeight" role="dialog" [attr.aria-label]="(translationPrefix + '.choosePeriod' | translate)">
+        <div class="max-[320px]:min-w-72">
           <div class="flex items-start justify-between gap-3">
             <div><h3 class="text-lg font-extrabold">{{ (translationPrefix + '.choosePeriod' | translate) }}</h3><p class="mt-1 text-sm text-pop-muted">{{ (translationPrefix + '.periodIntro' | translate) }}</p></div>
             <button class="min-h-11 rounded-xl border border-pop-border px-3 py-2 focus-visible:outline-2 focus-visible:outline-pop-primary" type="button" [attr.aria-label]="(translationPrefix + '.close' | translate)" (click)="cancel()">✕</button>
@@ -66,5 +67,6 @@
             <button class="min-h-11 rounded-xl border border-pop-border px-4 py-2" type="button" (click)="cancel()">{{ (translationPrefix + '.cancel' | translate) }}</button>
             <button class="min-h-11 rounded-xl bg-pop-primary px-4 py-2 font-bold text-white disabled:opacity-50" type="button" [disabled]="!draftRange()" (click)="apply()">{{ (translationPrefix + '.apply' | translate) }}</button>
           </div>
+        </div>
       </div>
     }
