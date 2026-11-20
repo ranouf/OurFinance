@@ -57,14 +57,7 @@ Les workflows manuels Hosting, Firestore et Worker acceptent uniquement une rés
 Réservation TEST active pour <SHA>
 ```
 
-L'accord visuel dans #30 ou #122 doit avoir exactement le corps correspondant au canal demandé :
-
-```text
-Validation visuelle approuvée pour preview <SHA>
-Validation visuelle approuvée pour live <SHA>
-```
-
-Écrire **une seule** des deux lignes d'accord dans le commentaire Hosting. Publier le protocole et les résultats de l'essai dans d'autres commentaires #30. Pour annuler avant l'exécution, modifier ou supprimer le commentaire de réservation ou d'accord indiqué au workflow. Une réservation annulée, un accord refusé ou une phrase qualifiée ne satisfont pas ces gardes ; le SHA, le canal Hosting, la CI et la cible TEST restent contrôlés séparément. Le garde ne remplace pas la validation visuelle réelle du propriétaire.
+Les canaux `preview` et `live` du site TEST utilisent cette réservation et la CI verte du SHA exact. Le workflow peut être lancé sans accord visuel individuel. Publier le protocole et les résultats dans #30. Pour annuler avant exécution, modifier ou supprimer le commentaire de réservation fourni au workflow.
 
 ## Rotation des autres accès TEST — suivi #154
 
@@ -72,7 +65,7 @@ Effectuer les rotations une identité à la fois, dans un créneau TEST réserv�
 
 Avant de déplacer `TEST_FIREBASE_DEPLOY_SA_JSON` du niveau dépôt vers l'environnement `test`, inventorier tous ses consommateurs, ajouter le garde d'environnement au workflow Hosting, vérifier une publication TEST contrôlée puis supprimer le secret de dépôt. Un simple secret homonyme dans l'environnement ne réduit pas la portée de l'ancien secret de dépôt.
 
-Le workflow manuel `test-hosting-identity-check.yml` permet un prévol **en lecture seule** : SHA `main` et CI exacts, réservation active #30, identité dédiée au seul projet `ourfinance-test`, puis HTTP 200 sur la liste des sites Hosting TEST. Il ne construit ni ne déploie le site et ne remplace pas l'accord visuel requis par `test-hosting-deploy.yml`. Son [premier essai réussi](https://github.com/ranouf/OurFinance/issues/154#issuecomment-6972080844) au SHA `fafd7bc5` a gardé le secret et la clé inchangés : GET des sites HTTP 200. Un HTTP 200 ne prouve ni la publication Hosting ni une rotation ; conserver le secret de dépôt et l'ancienne clé jusqu'à la publication contrôlée et à sa vérification visuelle. Préparer séparément le déplacement du secret vers l'environnement `test`, le retour arrière depuis le coffre et la suppression de l'ancien secret seulement après ce contrôle. Ne jamais exposer la clé dans les journaux.
+Le workflow manuel `test-hosting-identity-check.yml` permet un prévol **en lecture seule** : SHA `main` et CI exacts, réservation active #30, identité dédiée au seul projet `ourfinance-test`, puis HTTP 200 sur la liste des sites Hosting TEST. Il ne construit ni ne déploie le site. Son [premier essai réussi](https://github.com/ranouf/OurFinance/issues/154#issuecomment-6972080844) au SHA `fafd7bc5` a gardé le secret et la clé inchangés : GET des sites HTTP 200. Un HTTP 200 ne prouve ni la publication Hosting ni une rotation ; conserver le secret de dépôt et l'ancienne clé jusqu'à la publication contrôlée et à sa vérification visuelle. Préparer séparément le déplacement du secret vers l'environnement `test`, le retour arrière depuis le coffre et la suppression de l'ancien secret seulement après ce contrôle. Ne jamais exposer la clé dans les journaux.
 
 Le workflow `test-token-expiry-reminder.yml` vérifie chaque lundi, sans lire le secret, la date d'expiration auditée du jeton Cloudflare TEST (17 novembre 2027). À partir de 90 jours avant cette date, il publie une seule fois un rappel dans [#154](https://github.com/ranouf/OurFinance/issues/154) ; un marqueur propre à chaque date évite les doublons. Après toute rotation, mettre à jour `TOKEN_EXPIRY_DATE` dans le workflow et vérifier le nouveau calendrier : le rappel repose sur cette date déclarée, pas sur l'état réel du jeton chez Cloudflare. Il ne remplace ni la vérification du détenteur ni un contrôle du fournisseur.
 
