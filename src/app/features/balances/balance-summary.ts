@@ -27,11 +27,11 @@ import { locale, t } from '../../shared/utils/i18n';
         @for (currency of currencies(); track currency) {
           <div class="mt-5">
             <h3 class="font-extrabold text-pop-primary-dark">{{ currency }}</h3>
-            <ul class="mt-3 grid gap-3 sm:grid-cols-2">
+            <ul class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
               @for (row of rowsFor(currency); track row.userId) {
-                <li class="flex justify-between gap-3 rounded-2xl border border-pop-border bg-pop-lavender p-4 text-sm">
+                <li class="flex max-[240px]:flex-col justify-between gap-3 rounded-2xl border border-pop-border bg-pop-lavender p-4 text-sm">
                   <span class="min-w-0 break-all font-bold">{{ memberLabel(row.userId) }}</span>
-                  <span class="shrink-0 text-right"><strong class="text-lg text-pop-primary-dark">{{ amount(row) }}</strong><span class="block text-pop-muted">{{ label(row) }}</span></span>
+                  <span class="shrink-0 text-right max-[240px]:text-left max-[240px]:break-all"><strong class="text-lg text-pop-primary-dark">{{ amount(row) }}</strong><span class="block text-pop-muted">{{ label(row) }}</span></span>
                 </li>
               }
             </ul>

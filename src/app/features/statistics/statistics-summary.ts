@@ -28,7 +28,7 @@ import { StatisticsService, type StatisticsTotals } from './statistics-service';
       <div class="mb-5 hidden h-1.5 w-14 rounded-full bg-pop-sun sm:block" aria-hidden="true"></div>
       <h2 class="sr-only text-2xl font-extrabold tracking-tight sm:not-sr-only">{{ text('title') }}</h2>
       <p class="sr-only mt-1 text-sm text-pop-muted sm:not-sr-only">{{ text('intro') }}</p>
-      <div class="grid gap-3 sm:grid-cols-2 sm:items-end">
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:items-end">
         @if (groups.length > 1) { <app-field class="mt-5" controlId="statisticsGroup" [label]="text('group')"><app-dropdown controlId="statisticsGroup" [options]="groupDropdownOptions(groups, text('chooseGroup'), false)" name="statisticsGroup" [(ngModel)]="selectedGroupId" (ngModelChange)="onGroupChange()" /></app-field> }
         @if (selectedGroupId) { <app-ui-period-range [range]="range" (rangeChange)="setRange($event)" /> }
       </div>
@@ -44,7 +44,7 @@ import { StatisticsService, type StatisticsTotals } from './statistics-service';
             </dl>
             @if (charts()[row.currency]; as chart) { <app-statistics-charts [data]="chart" [currency]="row.currency" [userId]="user?.uid ?? ''" /> }
             <details class="mt-3 rounded-xl border border-pop-border px-4 py-3"><summary class="cursor-pointer font-bold text-pop-primary-dark">{{ text('moreMeasures') }}</summary>
-              <dl class="mt-3 grid gap-3 sm:grid-cols-2">
+              <dl class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div><dt class="text-pop-muted">{{ text('settled') }}</dt><dd class="font-extrabold">{{ amount(row.settledMinor, row.currency) }}</dd></div>
                 <div><dt class="text-pop-muted">{{ text('owed') }}</dt><dd class="font-extrabold">{{ amount(row.myOwedMinor, row.currency) }}</dd></div>
               </dl>
