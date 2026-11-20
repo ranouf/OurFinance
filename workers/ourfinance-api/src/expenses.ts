@@ -2,7 +2,7 @@ import { ProviderQuotaError, unavailableCode } from './provider-quota';
 import { splitAmount, validateExpense, type Allocation, type SplitMode } from '../../../src/app/shared/utils/split-engine';
 import { categories, categoryById, categoryIcons, isCustomCategoryId, type CategoryColor, type CategoryDefinition } from '../../../src/app/shared/utils/categories';
 import { serviceAccessToken } from './service-account';
-import { readDocumentInTransaction } from './firestore-transaction-read';
+import { listDocumentsInTransaction, readDocumentInTransaction } from './firestore-transaction-read';
 import { destroyAuthenticated, type CloudinaryEnv } from './cloudinary';
 import { authorizedReceiptPublicId } from './media';
 
@@ -193,10 +193,7 @@ export async function mutateExpense(value: unknown, uid: string, groupId: string
       { update: { name: `${root}/groups/${groupId}/activity/${expenseId}_${method === 'PATCH' ? 'edit' : 'delete'}_${nextRevision}`, fields: { actorId: string(uid), action: string(action), expenseId: string(expenseId), at: { timestampValue: now } } }, currentDocument: { exists: false } },
     ];
     if (method === 'DELETE') {
-      const listUrl = new URL(`https://firestore.googleapis.com/v1/${root}/groups/${groupId}/expenses/${expenseId}/attachments`);
-      listUrl.searchParams.set('transaction', transaction);
-      listUrl.searchParams.set('pageSize', '51');
-      const listed = await json(await transport(listUrl, { headers }));
+      const listed = await json(await listDocumentsInTransaction(root, `groups/${groupId}/expenses/${expenseId}`, 'attachments', transaction, headers, transport));
       const documents = listed['documents'];
       if (listed['nextPageToken'] || (Array.isArray(documents) && documents.length > 50)) throw new ExpenseError(409, 'too_many_receipts');
       if (documents !== undefined && !Array.isArray(documents)) throw new ExpenseError(503, 'invalid_receipts');

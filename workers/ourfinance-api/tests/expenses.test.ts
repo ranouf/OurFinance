@@ -122,7 +122,7 @@ test('expense deletion refuses malformed receipt inventories and unavailable cle
   const env = { FIREBASE_PROJECT_ID: 'ourfinance-test', FIREBASE_SERVICE_ACCOUNT_JSON: JSON.stringify({ project_id: 'ourfinance-test', client_email: 'test@ourfinance-test.iam.gserviceaccount.com', private_key: await exportPKCS8(privateKey) }) };
   const root = `projects/ourfinance-test/databases/(default)/documents/groups/g1/expenses/${input.idempotencyKey}/attachments`;
   const scenarios: readonly [unknown, string][] = [
-    [{ documents: 'invalid' }, 'invalid_receipts'],
+    [{ documents: 'invalid' }, 'firestore_unavailable'],
     [{ nextPageToken: 'more' }, 'too_many_receipts'],
     [{ documents: Array.from({ length: 51 }, (_, i) => ({ name: `${root}/item_${i}` })) }, 'too_many_receipts'],
     [{ documents: [{ name: 'outside/receipt', fields: {} }] }, 'invalid_receipts'],
