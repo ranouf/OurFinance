@@ -20,7 +20,7 @@ import { accessibleGroupId, groupSelectionStorageKey } from './features/dashboar
 import { loadSharedMemberProfiles } from './core/firebase/member-profile-service';
 import { categoryLabel } from './shared/utils/category-label';
 import { qrInvitationText } from './features/groups/qr-invitation-text';
-import { language, locale, setLanguage, t } from './shared/utils/i18n';
+import { detectLanguage, language, locale, setLanguage, t } from './shared/utils/i18n';
 
 @Component({
   selector: 'app-root',
@@ -161,6 +161,16 @@ export class App implements OnInit, OnDestroy {
         if (userId !== this.activeUserId) {
           this.clearSessionData();
           this.activeUserId = userId;
+          setLanguage(detectLanguage(navigator.languages));
+          if (user && this.firebaseApp) {
+            const app = this.firebaseApp;
+            void import('./core/firebase/profile-service')
+              .then(({ ProfileService }) => new ProfileService(app).load(user))
+              .then(profile => {
+                if (this.auth?.user()?.uid === user.uid) setLanguage(profile.preferredLanguage);
+              })
+              .catch(() => { /* La langue du navigateur reste disponible hors ligne. */ });
+          }
         }
         if (user?.emailVerified) void this.loadGroups();
       }
