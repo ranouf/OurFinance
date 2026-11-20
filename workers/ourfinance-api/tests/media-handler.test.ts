@@ -1,4 +1,5 @@
 import { test } from 'node:test';
+import { withBatchGet } from './batch-get-mock';
 import { rejects, strictEqual } from 'node:assert';
 import { exportPKCS8, generateKeyPair } from 'jose';
 import { handleMedia, handleMediaCleanup, type MediaEnv } from '../src/media';
@@ -163,7 +164,7 @@ test('valid PNG upload journals before Cloudinary and activates receipt atomical
   const upload = new Request('https://worker.example/groups/g/expenses/e/attachments', {
     method: 'POST', headers: { Authorization: 'Bearer fixture-token', 'Content-Type': 'image/png' }, body: png,
   });
-  const response = await handleMedia(upload, { groupId: 'g', expenseId: 'e' }, env, headers(), transport, auth);
+  const response = await handleMedia(upload, { groupId: 'g', expenseId: 'e' }, env, headers(), withBatchGet(transport), auth);
   strictEqual(response.status, 201);
   strictEqual(publicId.endsWith(`/${(await response.json() as { attachmentId: string }).attachmentId}`), true);
   strictEqual(operations.join(','), 'journal,cloudinary,begin,activate');

@@ -2,6 +2,7 @@ import { ProviderQuotaError, unavailableCode } from './provider-quota';
 import { splitAmount, validateExpense, type Allocation, type SplitMode } from '../../../src/app/shared/utils/split-engine';
 import { categories, categoryById, categoryIcons, isCustomCategoryId, type CategoryColor, type CategoryDefinition } from '../../../src/app/shared/utils/categories';
 import { serviceAccessToken } from './service-account';
+import { readDocumentInTransaction } from './firestore-transaction-read';
 import { destroyAuthenticated, type CloudinaryEnv } from './cloudinary';
 import { authorizedReceiptPublicId } from './media';
 
@@ -83,7 +84,7 @@ export async function createExpense(value: unknown, uid: string, groupId: string
   let committed = false;
   try {
   const read = async (path: string) => {
-    const response = await transport(`https://firestore.googleapis.com/v1/${root}/${path}?transaction=${encodeURIComponent(transaction)}`, { headers });
+    const response = await readDocumentInTransaction(root, path, transaction, headers, transport);
     if (response.status === 404) return null;
     return await json(response);
   };
@@ -149,7 +150,7 @@ export async function mutateExpense(value: unknown, uid: string, groupId: string
   const pendingReceipts: { name: string; publicId: string }[] = [];
   try {
     const read = async (path: string) => {
-      const response = await transport(`https://firestore.googleapis.com/v1/${root}/${path}?transaction=${encodeURIComponent(transaction)}`, { headers });
+      const response = await readDocumentInTransaction(root, path, transaction, headers, transport);
       return response.status === 404 ? null : await json(response);
     };
     const group = await read(`groups/${groupId}`);

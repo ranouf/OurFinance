@@ -1,5 +1,6 @@
 import { bearerToken, verifyFirebaseIdToken } from './auth';
 import { readMember } from './firestore';
+import { readDocumentInTransaction } from './firestore-transaction-read';
 import { serviceAccessToken } from './service-account';
 import { fetchCloudinaryPrivate, MediaDiagnosticError } from './media-diagnostic';
 import { authenticatedDownloadUrl, destroyAuthenticated, imageFormat, uploadAuthenticated, type CloudinaryEnv } from './cloudinary';
@@ -56,7 +57,7 @@ export async function persistUploadedReceipt(groupId: string, expenseId: string,
   let committed = false;
   try {
     const read = async (path: string): Promise<Record<string, { stringValue?: string; booleanValue?: boolean }> | null> => {
-      const response = await transport(`https://firestore.googleapis.com/v1/${root}/${path}?transaction=${encodeURIComponent(transaction)}`, { headers });
+      const response = await readDocumentInTransaction(root, path, transaction, headers, transport);
       if (response.status === 404) return null;
       if (isProviderQuotaStatus(response.status)) throw new ProviderQuotaError();
       if (!response.ok) throw new Error('Lecture transactionnelle refusée');
