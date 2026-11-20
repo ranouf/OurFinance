@@ -37,4 +37,3 @@ export class StatisticsControlsComponent {
     trigger.focus();
   }
 }
-

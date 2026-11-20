@@ -77,13 +77,13 @@ body[data-route=groups] .group-list-item.selected .list-picture,body[data-route=
   body[data-route=expenses] .main { padding-top: 33px; }
   body[data-route=expenses] .expenses-layout { margin-left: -2px; margin-right: -6px; }
 
-  
-  
-  
-  
-  
-  
-  
+
+
+
+
+
+
+
 
   .join-page .join-city, .join-page .join-people img { display: none; }
   .join-page .join-people { bottom: auto; opacity: 1; }
