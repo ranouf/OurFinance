@@ -21,7 +21,7 @@ import { qrInvitationText } from './qr-invitation-text';
       <h2 class="text-xl font-extrabold text-pop-text">{{ text().heading }}</h2>
       <p class="mt-2 text-sm text-pop-muted">{{ text().intro }}</p>
       @if (ownedGroups().length) {
-        <form class="mt-5 grid gap-3 sm:grid-cols-2" (ngSubmit)="create()">
+        <form class="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2" (ngSubmit)="create()">
           <app-field class="block" controlId="qrGroup" [label]="text().group"><app-dropdown controlId="qrGroup" [options]="groupDropdownOptions(ownedGroups(), text().choose, true)" name="qrGroup" [(ngModel)]="selectedGroupId" required (ngModelChange)="onGroupChanged()" /></app-field>
           <label class="text-sm font-bold text-pop-text">{{ text().target }}
             <input appUiControl class="mt-1 w-full" type="email" name="qrTarget" [(ngModel)]="targetEmail" autocomplete="off" />

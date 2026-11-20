@@ -25,10 +25,10 @@ import { setLanguage, t, type MessageKey } from '../../shared/utils/i18n';
       </div>
       @if (loading()) { <app-ui-alert variant="info" class="mt-5">{{ t('loadingProfile') }}</app-ui-alert> }
       @else {
-        <div class="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,0.8fr)] lg:items-start">
+        <div class="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,0.8fr)] lg:items-start">
           <form class="space-y-5 rounded-[1.5rem] border border-pop-border bg-white p-5 shadow-sm sm:p-7" (ngSubmit)="save()">
             <h3 class="text-lg font-black">{{ t('myProfile') }}</h3>
-            <p class="text-sm text-pop-muted">{{ t('email') }} : {{ user?.email }}</p>
+            <p class="break-all text-sm text-pop-muted">{{ t('email') }} : {{ user?.email }}</p>
             @if (!user?.emailVerified) { <p class="text-sm font-semibold text-rose-700" role="alert">{{ t('verifyEmail') }}</p> }
             <label class="block text-sm font-bold">{{ t('displayName') }}
               <input appUiControl class="mt-2 w-full" name="profileName" [(ngModel)]="displayName" maxlength="80" required />

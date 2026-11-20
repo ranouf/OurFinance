@@ -184,7 +184,7 @@ export class DashboardPage {
       @if (app.groupsBusy()) { <app-ui-alert variant="info">{{ t('loadingGroupList') }}</app-ui-alert> }
       @else if (app.groupsError()) { <app-ui-alert variant="error">{{ t('groupsUnavailable') }}</app-ui-alert><app-ui-button variant="outline" type="button" class="mt-3" (click)="app.refreshGroups()">{{ t('refresh') }}</app-ui-button> }
       @else if (app.groups().length) {
-        <section [attr.aria-label]="t('myGroups')"><div class="mb-3 flex items-center justify-between gap-3"><h2 class="text-xl font-black">{{ t('myGroups') }}</h2><span class="rounded-full bg-pop-lavender px-3 py-1 text-xs font-bold text-pop-primary-dark">{{ app.groups().length }}</span></div><div class="grid gap-3 sm:grid-cols-2">
+        <section [attr.aria-label]="t('myGroups')"><div class="mb-3 flex items-center justify-between gap-3"><h2 class="text-xl font-black">{{ t('myGroups') }}</h2><span class="rounded-full bg-pop-lavender px-3 py-1 text-xs font-bold text-pop-primary-dark">{{ app.groups().length }}</span></div><div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
           @for (group of app.groups(); track group.id) {
             <app-ui-group-card [name]="group.name" [detail]="groupMemberCountLabel(group.memberCount ?? 1) + ' · ' + group.currency" [amount]="app.formatGroupBalance(group)" [amountTone]="app.groupBalanceTone(group)" [icon]="categoryDropdownIcon(group.iconId || 'home') || 'house'" [selected]="app.selectedGroupId() === group.id" [interactive]="true" (activated)="app.selectedGroupId.set(group.id)" />
           }

@@ -5,7 +5,7 @@
     <h2 class="text-2xl font-extrabold tracking-tight">{{ text('receiptCleanupHeading') }}</h2>
     <p class="mt-1 text-sm text-pop-muted">{{ text('receiptCleanupHelp') }}</p>
     <div class="mt-5 flex flex-wrap items-end gap-3">
-      <app-field class="min-w-48 flex-1" controlId="receiptCleanupGroup" [label]="text('group')"><app-dropdown controlId="receiptCleanupGroup" [options]="groupDropdownOptions(ownerGroups(), undefined, false)" name="receiptCleanupGroup" [(ngModel)]="groupId" (ngModelChange)="message.set(null)" /></app-field>
+      <app-field class="min-w-0 basis-full sm:min-w-48 sm:flex-1" controlId="receiptCleanupGroup" [label]="text('group')"><app-dropdown controlId="receiptCleanupGroup" [options]="groupDropdownOptions(ownerGroups(), undefined, false)" name="receiptCleanupGroup" [(ngModel)]="groupId" (ngModelChange)="message.set(null)" /></app-field>
       <app-ui-button variant="primary"
         type="button" [disabled]="busy() || !user?.emailVerified" (click)="run()">
         {{ busy() ? text('receiptCleanupRunning') : text('receiptCleanupAction') }}
