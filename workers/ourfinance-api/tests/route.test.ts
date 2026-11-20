@@ -191,3 +191,18 @@ test('custom categories stay disabled without an explicit test group', async () 
   const preflight = await handleRequest(new Request('https://worker.example/groups/g1/categories', { method: 'OPTIONS', headers: { Origin: env.ALLOWED_ORIGIN } }), configured);
   strictEqual(preflight.headers.get('Access-Control-Allow-Methods')?.includes('PATCH'), true);
 });
+
+test('dedicated TEST expense writes require the limiter and authentication', async () => {
+  const configured = { ...env, ENABLE_TEST_EXPENSES: 'true', FIREBASE_SERVICE_ACCOUNT_JSON: 'configured' };
+  for (const [method, path] of [['POST', 'expenses'], ['PATCH', 'expenses/e'], ['DELETE', 'expenses/e']]) {
+    const request = new Request('https://worker.example/groups/g/' + path, {
+      method, headers: { 'CF-Connecting-IP': '192.0.2.1' },
+    });
+    strictEqual((await handleRequest(request, configured)).status, 503);
+    const allowed = { ...configured, API_RATE_LIMITER: { limit: async () => ({ success: true }) } };
+    strictEqual((await handleRequest(request, allowed)).status, 401);
+    strictEqual((await handleRequest(request, { ...allowed, FIREBASE_PROJECT_ID: 'another-project' })).status, 503);
+  }
+  const settlement = new Request('https://worker.example/groups/g/settlements', { method: 'POST' });
+  strictEqual((await handleRequest(settlement, configured)).status, 503);
+});
