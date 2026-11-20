@@ -57,7 +57,7 @@ class NavIcon { @Input({ required: true }) name = ''; }
             </div>
           </header>
         }
-        <main class="mx-auto max-w-6xl px-4 max-[180px]:px-1 py-5 sm:px-7 sm:py-8" [class.pb-28]="signedIn" [class.lg:px-8]="signedIn"><ng-content /></main>
+        <main class="mx-auto max-w-6xl px-4 max-[180px]:px-1 max-[180px]:[overflow-wrap:anywhere] py-5 sm:px-7 sm:py-8" [class.pb-28]="signedIn" [class.lg:px-8]="signedIn"><ng-content /></main>
       </div>
       @if (signedIn) {
         <nav class="fixed max-[240px]:static inset-x-0 bottom-0 z-30 border-t border-pop-border bg-white px-2 pt-1.5 pb-[calc(.4rem+env(safe-area-inset-bottom))] shadow-[0_-8px_30px_#30275212] lg:hidden" [attr.aria-label]="t('navLabel')">
