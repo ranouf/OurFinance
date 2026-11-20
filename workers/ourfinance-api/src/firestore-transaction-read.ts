@@ -8,7 +8,7 @@ export async function readDocumentInTransaction(
 ): Promise<Response> {
   const name = `${root}/${path}`;
   const response = await transport(`https://firestore.googleapis.com/v1/${root}:batchGet`, {
-    method: 'POST', headers, body: JSON.stringify({ documents: [name], transaction }),
+    method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify({ documents: [name], transaction }),
   });
   if (!response.ok) return response;
   try {
@@ -35,7 +35,7 @@ export async function listDocumentsInTransaction(
   transport: typeof fetch,
 ): Promise<Response> {
   const response = await transport(`https://firestore.googleapis.com/v1/${root}/${parent}:runQuery`, {
-    method: 'POST', headers,
+    method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' },
     body: JSON.stringify({ structuredQuery: { from: [{ collectionId }], limit: 51 }, transaction }),
   });
   if (!response.ok) return response;
@@ -77,7 +77,7 @@ export async function listCollectionPageInTransaction(
   };
   if (cursor) structuredQuery['startAt'] = { values: [{ referenceValue: cursor }], before: false };
   const response = await transport(`https://firestore.googleapis.com/v1/${root}/${parent}:runQuery`, {
-    method: 'POST', headers, body: JSON.stringify({ structuredQuery, transaction }),
+    method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify({ structuredQuery, transaction }),
   });
   if (!response.ok) return response;
   try {

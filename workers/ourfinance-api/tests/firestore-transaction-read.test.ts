@@ -51,6 +51,7 @@ test('transactional collection pagination uses a document cursor', async () => {
   const bodies: Record<string, unknown>[] = [];
   const transport = (async (resource: string | URL | Request, init?: RequestInit) => {
     strictEqual(String(resource), `https://firestore.googleapis.com/v1/${root}/groups/g:runQuery`);
+    strictEqual(new Headers(init?.headers).get('Content-Type'), 'application/json');
     bodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
     return Response.json(bodies.length === 1 ? [{ document: { name: first } }] : [{ document: { name: second } }]);
   }) as typeof fetch;
