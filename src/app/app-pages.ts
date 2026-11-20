@@ -199,7 +199,7 @@ export class DashboardPage {
       }
       @if (app.groupServiceReady() && app.auth?.user()?.emailVerified && !app.groupsError()) {
         <form class="max-w-2xl space-y-4 rounded-[1.7rem] border border-pop-border bg-white p-5 shadow-sm sm:p-7" (ngSubmit)="app.createGroup()">
-          <div class="flex items-center gap-3"><span class="flex h-11 w-11 items-center justify-center rounded-2xl bg-pop-lavender text-2xl text-pop-primary" aria-hidden="true">＋</span><div><h2 class="text-xl font-black">{{ t('createGroup') }}</h2><p class="text-sm text-pop-muted">{{ t('groupCreateHelp') }}</p></div></div>
+          <div class="flex items-center gap-3"><span class="flex h-11 w-11 items-center justify-center rounded-2xl bg-pop-lavender text-2xl text-pop-primary" aria-hidden="true"><svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg></span><div><h2 class="text-xl font-black">{{ t('createGroup') }}</h2><p class="text-sm text-pop-muted">{{ t('groupCreateHelp') }}</p></div></div>
           <label class="block text-sm font-bold">{{ t('groupName') }}<input appUiControl class="mt-1 w-full" name="groupName" [(ngModel)]="app.groupName" maxlength="80" required /></label>
           <app-field class="block" controlId="group-currency" [label]="t('groupCurrency')">
             <app-dropdown controlId="group-currency" name="groupCurrency" [options]="currencyDropdownOptions(app.currencies())" [searchable]="true" [searchLabel]="t('search')" [(ngModel)]="app.groupCurrency" />
@@ -238,11 +238,11 @@ export class GroupsPage {
   readonly metadataText = computed(() => groupMetadataText[language()]);
   readonly iconOptions = computed<DropdownOption[]>(() => [
     { value: '', label: this.metadataText().none },
-    ...categoryIcons.map((icon, index) => ({ value: icon.id, label: this.metadataText().icons[index] })),
+    ...categoryIcons.map((icon, index) => ({ value: icon.id, iconName: categoryDropdownIcon(icon.id), label: this.metadataText().icons[index] })),
   ]);
   readonly colorOptions = computed<DropdownOption[]>(() => [
     { value: '', label: this.metadataText().none },
-    ...categoryColors.map((color, index) => ({ value: color.id, label: this.metadataText().colors[index] })),
+    ...categoryColors.map((color, index) => ({ value: color.id, swatch: color.swatch, label: this.metadataText().colors[index] })),
   ]);
 }
 

@@ -1,3 +1,4 @@
+import { categoryDropdownIcon } from '../../shared/utils/category-dropdown-options';
 import { Component, EventEmitter, Input, OnChanges, Output, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { FirebaseApp } from 'firebase/app';
@@ -29,11 +30,11 @@ export class GroupMetadataPanel implements OnChanges {
   readonly colors = categoryColors;
   readonly iconOptions = computed<DropdownOption[]>(() => [
     { value: '', label: this.text().none },
-    ...this.icons.map((icon, index) => ({ value: icon.id, label: this.text().icons[index] })),
+    ...this.icons.map((icon, index) => ({ value: icon.id, iconName: categoryDropdownIcon(icon.id), label: this.text().icons[index] })),
   ]);
   readonly colorOptions = computed<DropdownOption[]>(() => [
     { value: '', label: this.text().none },
-    ...this.colors.map((color, index) => ({ value: color.id, label: this.text().colors[index] })),
+    ...this.colors.map((color, index) => ({ value: color.id, swatch: color.swatch, label: this.text().colors[index] })),
   ]);
   editableIconOptions(): DropdownOption[] { return this.group.iconId ? this.iconOptions().slice(1) : this.iconOptions(); }
   editableColorOptions(): DropdownOption[] { return this.group.color ? this.colorOptions().slice(1) : this.colorOptions(); }

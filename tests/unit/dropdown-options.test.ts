@@ -17,8 +17,8 @@ test('currency choices use a known flag and never invent one for an unknown code
     { code: 'CAD', name: 'Dollar canadien', symbol: '$', minorDigits: 2 },
     { code: 'XTS', name: 'Code de test', symbol: 'XTS', minorDigits: 2 },
   ]);
-  assert.equal(choices[0].flag, '🇨🇦');
-  assert.equal(choices[1].flag, undefined);
+  assert.equal(choices[0].iconSrc, '/flags/ca.svg');
+  assert.equal(choices[1].iconSrc, undefined);
 });
 
 test('category choices keep a recognizable icon or the original glyph', () => {

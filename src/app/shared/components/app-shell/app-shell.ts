@@ -47,7 +47,7 @@ class NavIcon { @Input({ required: true }) name = ''; }
               <details #profileMenu class="relative group">
                 <summary class="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-2xl px-1 focus-visible:outline-2 focus-visible:outline-pop-primary [&::-webkit-details-marker]:hidden">
                   <span class="sr-only">{{ t('navAccount') }}</span>
-                  <span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-pop-coral font-black text-white" aria-hidden="true">{{ userInitial }}</span><span class="hidden max-w-40 truncate text-sm font-bold sm:inline">{{ userName }}</span><span class="hidden text-pop-primary-dark sm:inline" aria-hidden="true">⌄</span>
+                  <span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-pop-coral font-black text-white" aria-hidden="true">{{ userInitial }}</span><span class="hidden max-w-40 truncate text-sm font-bold sm:inline">{{ userName }}</span><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="hidden size-4 shrink-0 self-center text-pop-primary-dark sm:block"><path d="m6 9 6 6 6-6" /></svg>
                 </summary>
                 <div class="absolute right-0 top-full z-50 mt-2 min-w-44 rounded-2xl border border-pop-border bg-white p-2 shadow-xl">
                   <a class="block rounded-xl px-3 py-2 text-sm font-bold hover:bg-pop-lavender focus-visible:outline-2 focus-visible:outline-pop-primary" routerLink="/account">{{ t('preferences') }}</a>
