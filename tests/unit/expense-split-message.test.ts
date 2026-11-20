@@ -25,3 +25,22 @@ test('an invalid percentage split reports the error in the active language', () 
     setLanguage(previous);
   }
 });
+
+test('changing the page language updates both the document and allocation feedback', () => {
+  const previous = language();
+  const page = { documentElement: { lang: 'fr' } };
+  const original = Object.getOwnPropertyDescriptor(globalThis, 'document');
+  Object.defineProperty(globalThis, 'document', { configurable: true, value: page });
+  try {
+    setLanguage('ja');
+    strictEqual(page.documentElement.lang, 'ja');
+    throws(() => splitAmount(100, { kind: 'equal', users: [''] }), (error: Error) => {
+      strictEqual(expenseMessage(error.message), '参加者が無効または重複しています。');
+      return true;
+    });
+  } finally {
+    if (original) Object.defineProperty(globalThis, 'document', original);
+    else Reflect.deleteProperty(globalThis, 'document');
+    setLanguage(previous);
+  }
+});
