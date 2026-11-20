@@ -12,12 +12,12 @@ export const categoryIcons = [
 ] as const;
 
 export const categoryColors = [
-  { id: 'teal', label: 'Sarcelle', classes: 'bg-teal-50 text-teal-900' },
-  { id: 'sky', label: 'Bleu', classes: 'bg-sky-50 text-sky-900' },
-  { id: 'amber', label: 'Ambre', classes: 'bg-amber-50 text-amber-900' },
-  { id: 'rose', label: 'Rose', classes: 'bg-rose-50 text-rose-900' },
-  { id: 'violet', label: 'Violet', classes: 'bg-violet-50 text-violet-900' },
-  { id: 'slate', label: 'Ardoise', classes: 'bg-slate-100 text-slate-900' },
+  { id: 'teal', swatch: 'bg-teal-500', label: 'Sarcelle', classes: 'bg-teal-50 text-teal-900' },
+  { id: 'sky', swatch: 'bg-sky-500', label: 'Bleu', classes: 'bg-sky-50 text-sky-900' },
+  { id: 'amber', swatch: 'bg-amber-500', label: 'Ambre', classes: 'bg-amber-50 text-amber-900' },
+  { id: 'rose', swatch: 'bg-rose-500', label: 'Rose', classes: 'bg-rose-50 text-rose-900' },
+  { id: 'violet', swatch: 'bg-violet-500', label: 'Violet', classes: 'bg-violet-50 text-violet-900' },
+  { id: 'slate', swatch: 'bg-slate-500', label: 'Ardoise', classes: 'bg-slate-100 text-slate-900' },
 ] as const;
 
 export type CategoryIcon = typeof categoryIcons[number]['id'];

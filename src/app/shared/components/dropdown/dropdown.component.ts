@@ -5,6 +5,7 @@ import { UiIconBadge, type UiIconTone } from '../ui-icon-badge/ui-icon-badge';
 export interface DropdownOption {
   readonly value: string;
   readonly label: string;
+  readonly swatch?: string;
   readonly iconSrc?: string;
   readonly iconName?: 'house' | 'plane' | 'utensils' | 'shopping-cart' | 'tram-front' | 'graduation-cap' | 'heart-pulse' | 'ticket' | 'gift' | 'wrench' | 'map-pin';
   readonly tone?: UiIconTone;

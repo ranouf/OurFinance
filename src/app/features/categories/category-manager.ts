@@ -1,3 +1,4 @@
+import { categoryDropdownIcon } from '../../shared/utils/category-dropdown-options';
 import { FieldComponent } from '../../shared/components/field/field.component';
 import { DropdownComponent, type DropdownOption } from '../../shared/components/dropdown/dropdown.component';
 import { groupDropdownOptions } from '../../shared/components/dropdown/dropdown-options';
@@ -52,8 +53,8 @@ import { language, t, type MessageKey } from '../../shared/utils/i18n';
 })
 export class CategoryManager implements OnChanges {
   managedCategoryOptions(): DropdownOption[] { return [{ value: '', label: this.t('newCategory') }, ...this.items().map(category => ({ value: category.id, label: `${category.icon} ${category.label}${category.status === 'archived' ? this.t('archivedSuffix') : ''}` }))]; }
-  iconOptions(): DropdownOption[] { return this.icons.map(icon => ({ value: icon.id, label: `${icon.glyph} ${this.iconLabel(icon.id)}` })); }
-  colorOptions(): DropdownOption[] { return this.colors.map(color => ({ value: color.id, label: this.colorLabel(color.id) })); }
+  iconOptions(): DropdownOption[] { return this.icons.map(icon => ({ value: icon.id, iconName: categoryDropdownIcon(icon.id), label: this.iconLabel(icon.id) })); }
+  colorOptions(): DropdownOption[] { return this.colors.map(color => ({ value: color.id, swatch: color.swatch, label: this.colorLabel(color.id) })); }
   readonly groupDropdownOptions = groupDropdownOptions;
   readonly t = t;
   @Input({ required: true }) groups: Group[] = [];
