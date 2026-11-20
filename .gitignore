@@ -54,3 +54,11 @@ firestore-debug.log
 ui-debug.log
 /.vs/
 /public/app-config.json
+/Beta Design/
+/Design/
+/NewDesign/
+/ProductDesign/
+/Data/design/
+/DesignBase/node_modules/
+/DesignBase/dist/
+/DesignBase/.angular/
