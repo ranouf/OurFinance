@@ -38,6 +38,7 @@ jobs:
           workers_dev = true
 
           [vars]
+          ENABLE_TEST_EXPENSES = "true"
           FIREBASE_PROJECT_ID = "ourfinance-test"
           ALLOWED_ORIGIN = "https://ourfinance-test.web.app"
           ALLOWED_SECONDARY_ORIGIN = "https://ourfinance-test.firebaseapp.com"
@@ -114,6 +115,7 @@ jobs:
           workers_dev = true
 
           [vars]
+          ENABLE_TEST_EXPENSES = "true"
           FIREBASE_PROJECT_ID = "ourfinance-test"
           ALLOWED_ORIGIN = "https://ourfinance-test.web.app"
           ALLOWED_SECONDARY_ORIGIN = "https://ourfinance-test.firebaseapp.com"
@@ -135,11 +137,10 @@ jobs:
           test -n "$CLOUDFLARE_API_TOKEN"
           test "$CLOUDFLARE_ACCOUNT_ID" = 'ee6efc358047574c12f44e1411e0bf71'
           npx --yes wrangler@4.164.0 deploy --config workers/ourfinance-api/wrangler.ci.toml
-      - name: Verify health and privileged routes disabled by default
+      - name: Verify health, expense authentication and disabled privileged routes
         run: |
           base='https://ourfinance-api-dev.ur-inance.workers.dev'
           routes=(
-            'POST /groups/ci-disabled/expenses'
             'POST /groups/ci-disabled/settlements'
             'POST /groups/ci-disabled/imports'
             'POST /groups/ci-disabled/categories'
@@ -154,6 +155,7 @@ jobs:
           )
           for attempt in 1 2 3 4 5 6; do
             health="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' "$base/health")"
+            expense_status="$(curl --silent --show-error --request POST --output /dev/null --write-out '%{http_code}' "$base/groups/ci-disabled/expenses")"
             failed=''
             for route in "${routes[@]}"; do
               read -r method path <<< "$route"
@@ -166,8 +168,8 @@ jobs:
               if ! printf '%s\n' "$response_headers" | grep -Fxiq "access-control-allow-origin: $origin"; then cors_failed="$origin"; break; fi
             done
             rejected="$(curl --silent --show-error --header 'Origin: https://untrusted.example' --output /dev/null --write-out '%{http_code}' "$base/health")"
-            if [[ "$health" == 200 && -z "$failed" && -z "$cors_failed" && "$rejected" == 403 ]]; then exit 0; fi
+            if [[ "$health" == 200 && "$expense_status" == 401 && -z "$failed" && -z "$cors_failed" && "$rejected" == 403 ]]; then exit 0; fi
             sleep 5
           done
-          echo "TEST Worker smoke failed: health=$health, route=$failed, cors=$cors_failed, rejected=$rejected" >&2
+          echo "TEST Worker smoke failed: health=$health, expenses=$expense_status, route=$failed, cors=$cors_failed, rejected=$rejected" >&2
           exit 1
