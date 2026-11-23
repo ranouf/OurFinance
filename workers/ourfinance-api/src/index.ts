@@ -38,6 +38,7 @@ export interface Env extends Partial<CloudinaryEnv> {
   FIREBASE_SERVICE_ACCOUNT_JSON?: string;
   ENABLE_API_V1?: string;
   ENABLE_TEST_EXPENSES?: string;
+  ENABLE_TEST_COMMENTS?: string;
   ENABLE_TEST_IMPORTS?: string;
   ENABLE_TEST_RECEIPTS?: string;
   ENABLE_TEST_SETTLEMENTS?: string;
@@ -120,11 +121,14 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
   const importUndo = /^\/groups\/([A-Za-z0-9_-]{1,128})\/imports\/([A-Za-z0-9_-]{1,128})$/.exec(url.pathname);
   const testImports = env.FIREBASE_PROJECT_ID === 'ourfinance-test' && env.ENABLE_TEST_IMPORTS === 'true' &&
     Boolean(importCreate || importUndo);
+  const commentMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/expenses\/([A-Za-z0-9_-]{1,128})\/comments$/.exec(url.pathname);
+  const testComments = env.FIREBASE_PROJECT_ID === 'ourfinance-test' && env.ENABLE_TEST_COMMENTS === 'true' &&
+    Boolean(commentMatch);
   const testRestorePreview = env.FIREBASE_PROJECT_ID === 'ourfinance-test' && env.ENABLE_TEST_RESTORE_PREVIEW === 'true' &&
     request.method === 'POST' && Boolean(restorePreviewMatch);
   const testExpenseWrite = env.FIREBASE_PROJECT_ID === 'ourfinance-test' && env.ENABLE_TEST_EXPENSES === 'true' &&
     ((expenseMatch && request.method === 'POST') || (expenseItemMatch && (request.method === 'PATCH' || request.method === 'DELETE')));
-  if (env.ENABLE_API_V1 === 'true' || testExpenseWrite || testInvitations || testCategories || testSettlements || testReceipts || testImports || testRestorePreview) {
+  if (env.ENABLE_API_V1 === 'true' || testExpenseWrite || testInvitations || testCategories || testSettlements || testReceipts || testImports || testComments || testRestorePreview) {
     const clientIp = request.headers.get('CF-Connecting-IP');
     if (!env.API_RATE_LIMITER || !clientIp || !/^[0-9a-fA-F:.]{2,45}$/.test(clientIp))
       return new Response(JSON.stringify({ error: 'rate_limit_unavailable' }), { status: 503, headers });
@@ -350,9 +354,8 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       return new Response(JSON.stringify({ error: code }), { status, headers });
     }
   }
-  const commentMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/expenses\/([A-Za-z0-9_-]{1,128})\/comments$/.exec(url.pathname);
   if (commentMatch && request.method === 'POST') {
-    if (!routeEnabled(env, env.ENABLE_COMMENT_POC, env.COMMENT_POC_GROUP_ID, commentMatch[1]) || !env.FIREBASE_SERVICE_ACCOUNT_JSON) return new Response(JSON.stringify({ error: 'Commentaires non configurés' }), { status: 503, headers });
+    if ((!testComments && !routeEnabled(env, env.ENABLE_COMMENT_POC, env.COMMENT_POC_GROUP_ID, commentMatch[1])) || !env.FIREBASE_SERVICE_ACCOUNT_JSON) return new Response(JSON.stringify({ error: 'Commentaires non configurés' }), { status: 503, headers });
     let uid: string;
     try { uid = await verifyFirebaseVerifiedEmail(bearerToken(request), env.FIREBASE_PROJECT_ID); }
     catch { return new Response(JSON.stringify({ error: 'Non authentifié' }), { status: 401, headers }); }
