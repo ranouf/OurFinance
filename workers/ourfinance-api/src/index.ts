@@ -38,6 +38,7 @@ export interface Env extends Partial<CloudinaryEnv> {
   FIREBASE_SERVICE_ACCOUNT_JSON?: string;
   ENABLE_API_V1?: string;
   ENABLE_TEST_EXPENSES?: string;
+  ENABLE_TEST_RECEIPTS?: string;
   ENABLE_TEST_SETTLEMENTS?: string;
   ENABLE_TEST_CATEGORIES?: string;
   ENABLE_TEST_INVITATIONS?: string;
@@ -110,11 +111,15 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
   const settlementMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/settlements$/.exec(url.pathname);
   const testSettlements = env.FIREBASE_PROJECT_ID === 'ourfinance-test' && env.ENABLE_TEST_SETTLEMENTS === 'true' &&
     Boolean(settlementMatch);
+  const mediaMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/expenses\/([A-Za-z0-9_-]{1,128})\/attachments(?:\/([A-Za-z0-9_-]{1,128}))?$/.exec(url.pathname);
+  const mediaCleanupMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/receipt-upload-jobs\/cleanup$/.exec(url.pathname);
+  const testReceipts = env.FIREBASE_PROJECT_ID === 'ourfinance-test' && env.ENABLE_TEST_RECEIPTS === 'true' &&
+    Boolean(mediaMatch || mediaCleanupMatch);
   const testRestorePreview = env.FIREBASE_PROJECT_ID === 'ourfinance-test' && env.ENABLE_TEST_RESTORE_PREVIEW === 'true' &&
     request.method === 'POST' && Boolean(restorePreviewMatch);
   const testExpenseWrite = env.FIREBASE_PROJECT_ID === 'ourfinance-test' && env.ENABLE_TEST_EXPENSES === 'true' &&
     ((expenseMatch && request.method === 'POST') || (expenseItemMatch && (request.method === 'PATCH' || request.method === 'DELETE')));
-  if (env.ENABLE_API_V1 === 'true' || testExpenseWrite || testInvitations || testCategories || testSettlements || testRestorePreview) {
+  if (env.ENABLE_API_V1 === 'true' || testExpenseWrite || testInvitations || testCategories || testSettlements || testReceipts || testRestorePreview) {
     const clientIp = request.headers.get('CF-Connecting-IP');
     if (!env.API_RATE_LIMITER || !clientIp || !/^[0-9a-fA-F:.]{2,45}$/.test(clientIp))
       return new Response(JSON.stringify({ error: 'rate_limit_unavailable' }), { status: 503, headers });
@@ -487,18 +492,16 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       return new Response(JSON.stringify({ error: code }), { status, headers });
     }
   }
-  const mediaCleanupMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/receipt-upload-jobs\/cleanup$/.exec(url.pathname);
   if (mediaCleanupMatch && request.method === 'POST') {
-    if (!routeEnabled(env, env.ENABLE_MEDIA_POC, env.MEDIA_POC_GROUP_ID, mediaCleanupMatch[1]) || !env.FIREBASE_SERVICE_ACCOUNT_JSON || !env.CLOUDINARY_CLOUD_NAME || !env.CLOUDINARY_API_KEY || !env.CLOUDINARY_API_SECRET) return new Response(JSON.stringify({ error: 'Médias non configurés' }), { status: 503, headers });
+    if ((!testReceipts && !routeEnabled(env, env.ENABLE_MEDIA_POC, env.MEDIA_POC_GROUP_ID, mediaCleanupMatch[1])) || !env.FIREBASE_SERVICE_ACCOUNT_JSON || !env.CLOUDINARY_CLOUD_NAME || !env.CLOUDINARY_API_KEY || !env.CLOUDINARY_API_SECRET) return new Response(JSON.stringify({ error: 'Médias non configurés' }), { status: 503, headers });
     try { return await handleMediaCleanup(request, mediaCleanupMatch[1], env as Required<Env>, headers); }
     catch (error) {
       if (error instanceof ProviderQuotaError) return new Response(JSON.stringify({ error: error.message }), { status: 503, headers });
       return new Response(JSON.stringify({ error: 'Média indisponible' }), { status: 502, headers });
     }
   }
-  const mediaMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/expenses\/([A-Za-z0-9_-]{1,128})\/attachments(?:\/([A-Za-z0-9_-]{1,128}))?$/.exec(url.pathname);
   if (mediaMatch && ((request.method === 'POST' && !mediaMatch[3]) || ((request.method === 'GET' || request.method === 'DELETE') && !!mediaMatch[3]))) {
-    if (!routeEnabled(env, env.ENABLE_MEDIA_POC, env.MEDIA_POC_GROUP_ID, mediaMatch[1]) || !env.FIREBASE_SERVICE_ACCOUNT_JSON || !env.CLOUDINARY_CLOUD_NAME || !env.CLOUDINARY_API_KEY || !env.CLOUDINARY_API_SECRET) return new Response(JSON.stringify({ error: 'Médias non configurés' }), { status: 503, headers });
+    if ((!testReceipts && !routeEnabled(env, env.ENABLE_MEDIA_POC, env.MEDIA_POC_GROUP_ID, mediaMatch[1])) || !env.FIREBASE_SERVICE_ACCOUNT_JSON || !env.CLOUDINARY_CLOUD_NAME || !env.CLOUDINARY_API_KEY || !env.CLOUDINARY_API_SECRET) return new Response(JSON.stringify({ error: 'Médias non configurés' }), { status: 503, headers });
     try { return await handleMedia(request, { groupId: mediaMatch[1], expenseId: mediaMatch[2], attachmentId: mediaMatch[3] }, env as Required<Env>, headers); }
     catch (error) {
       if (error instanceof ProviderQuotaError) return new Response(JSON.stringify({ error: error.message }), { status: 503, headers });
