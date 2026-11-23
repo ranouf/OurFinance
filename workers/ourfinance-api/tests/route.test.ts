@@ -218,3 +218,15 @@ test('TEST restore preview is authenticated, rate limited and scoped to one read
   strictEqual((await handleRequest(post('preview'), { ...allowed, FIREBASE_PROJECT_ID: 'another-project' })).status, 503);
   strictEqual((await handleRequest(post('restores/123e4567-e89b-42d3-a456-426614174000/commit'), allowed)).status, 503);
 });
+
+test('dedicated TEST Invitations routes require authentication and the rate limiter', async () => {
+  const configured = { ...env, ENABLE_TEST_INVITATIONS: 'true', FIREBASE_SERVICE_ACCOUNT_JSON: 'configured',
+    CLOUDINARY_CLOUD_NAME: 'test', CLOUDINARY_API_KEY: 'test', CLOUDINARY_API_SECRET: 'test' };
+  const allowed = { ...configured, API_RATE_LIMITER: { limit: async () => ({ success: true }) } };
+  for (const path of ['/groups/ci-disabled/qr-invitations', '/qr-invitations/preview']) {
+    const request = new Request('https://worker.example' + path, { method: 'POST', headers: { 'CF-Connecting-IP': '192.0.2.1' } });
+    strictEqual((await handleRequest(request, configured)).status, 503);
+    strictEqual((await handleRequest(request, allowed)).status, 401);
+    strictEqual((await handleRequest(request, { ...allowed, FIREBASE_PROJECT_ID: 'other' })).status, 503);
+  }
+});
