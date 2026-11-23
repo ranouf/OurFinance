@@ -38,6 +38,7 @@ export interface Env extends Partial<CloudinaryEnv> {
   FIREBASE_SERVICE_ACCOUNT_JSON?: string;
   ENABLE_API_V1?: string;
   ENABLE_TEST_EXPENSES?: string;
+  ENABLE_TEST_RESTORES?: string;
   ENABLE_TEST_BACKUPS?: string;
   ENABLE_TEST_COMMENTS?: string;
   ENABLE_TEST_IMPORTS?: string;
@@ -129,11 +130,17 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
   const backupPreferencesMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/backup\/preferences$/.exec(url.pathname);
   const testBackups = env.FIREBASE_PROJECT_ID === 'ourfinance-test' && env.ENABLE_TEST_BACKUPS === 'true' &&
     Boolean(backupSnapshotMatch || backupPreferencesMatch);
+  const currentRestoreMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/backup\/restores\/current$/.exec(url.pathname);
+  const restoreOutcomeMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/backup\/restores\/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})\/outcome$/.exec(url.pathname);
+  const preparedMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/backup\/restores\/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})\/(prepare|commit|receipts\/([0-9]{1,3}))$/.exec(url.pathname);
+  const restoreMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/backup\/restores\/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})(?:\/(cleanup))?$/.exec(url.pathname);
+  const testRestores = env.FIREBASE_PROJECT_ID === 'ourfinance-test' && env.ENABLE_TEST_RESTORES === 'true' &&
+    Boolean(currentRestoreMatch || restoreOutcomeMatch || preparedMatch || restoreMatch);
   const testRestorePreview = env.FIREBASE_PROJECT_ID === 'ourfinance-test' && env.ENABLE_TEST_RESTORE_PREVIEW === 'true' &&
     request.method === 'POST' && Boolean(restorePreviewMatch);
   const testExpenseWrite = env.FIREBASE_PROJECT_ID === 'ourfinance-test' && env.ENABLE_TEST_EXPENSES === 'true' &&
     ((expenseMatch && request.method === 'POST') || (expenseItemMatch && (request.method === 'PATCH' || request.method === 'DELETE')));
-  if (env.ENABLE_API_V1 === 'true' || testExpenseWrite || testInvitations || testCategories || testSettlements || testReceipts || testImports || testComments || testBackups || testRestorePreview) {
+  if (env.ENABLE_API_V1 === 'true' || testExpenseWrite || testInvitations || testCategories || testSettlements || testReceipts || testImports || testComments || testBackups || testRestores || testRestorePreview) {
     const clientIp = request.headers.get('CF-Connecting-IP');
     if (!env.API_RATE_LIMITER || !clientIp || !/^[0-9a-fA-F:.]{2,45}$/.test(clientIp))
       return new Response(JSON.stringify({ error: 'rate_limit_unavailable' }), { status: 503, headers });
@@ -166,10 +173,9 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       return new Response(JSON.stringify({ error: error instanceof MemberProfileError ? error.code : 'profiles_unavailable' }), { status: error instanceof MemberProfileError ? error.status : 503, headers });
     }
   }
-  const currentRestoreMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/backup\/restores\/current$/.exec(url.pathname);
   if (currentRestoreMatch && request.method === 'GET') {
     const groupId = currentRestoreMatch[1];
-    if (!routeEnabled(env, env.ENABLE_RESTORE_POC, env.RESTORE_POC_GROUP_ID, groupId) || !env.FIREBASE_SERVICE_ACCOUNT_JSON)
+    if ((!testRestores && !routeEnabled(env, env.ENABLE_RESTORE_POC, env.RESTORE_POC_GROUP_ID, groupId)) || !env.FIREBASE_SERVICE_ACCOUNT_JSON)
       return new Response(JSON.stringify({ error: 'Restauration non configurée' }), { status: 503, headers });
     let uid: string;
     try { uid = await verifyFirebaseVerifiedEmail(bearerToken(request), env.FIREBASE_PROJECT_ID); }
@@ -184,10 +190,9 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         { status: error instanceof RestoreCurrentError ? error.status : 503, headers });
     }
   }
-  const restoreOutcomeMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/backup\/restores\/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})\/outcome$/.exec(url.pathname);
   if (restoreOutcomeMatch && request.method === 'GET') {
     const [, groupId, restoreId] = restoreOutcomeMatch;
-    if (!routeEnabled(env, env.ENABLE_RESTORE_POC, env.RESTORE_POC_GROUP_ID, groupId) || !env.FIREBASE_SERVICE_ACCOUNT_JSON)
+    if ((!testRestores && !routeEnabled(env, env.ENABLE_RESTORE_POC, env.RESTORE_POC_GROUP_ID, groupId)) || !env.FIREBASE_SERVICE_ACCOUNT_JSON)
       return new Response(JSON.stringify({ error: 'Restauration non configurée' }), { status: 503, headers });
     let uid: string;
     try { uid = await verifyFirebaseVerifiedEmail(bearerToken(request), env.FIREBASE_PROJECT_ID); }
@@ -205,7 +210,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
   }
   if (restorePreviewMatch && request.method === 'POST') {
     const groupId = restorePreviewMatch[1];
-    if ((!testRestorePreview && !routeEnabled(env, env.ENABLE_RESTORE_POC, env.RESTORE_POC_GROUP_ID, groupId)) || !env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+    if ((!testRestorePreview && (!testRestores && !routeEnabled(env, env.ENABLE_RESTORE_POC, env.RESTORE_POC_GROUP_ID, groupId))) || !env.FIREBASE_SERVICE_ACCOUNT_JSON) {
       return new Response(JSON.stringify({ error: 'Restauration non configurée' }), { status: 503, headers });
     }
     let uid: string;
@@ -232,10 +237,9 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       return new Response(JSON.stringify({ error: error instanceof RestoreInventoryError ? error.code : 'invalid_backup' }), { status, headers });
     }
   }
-  const preparedMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/backup\/restores\/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})\/(prepare|commit|receipts\/([0-9]{1,3}))$/.exec(url.pathname);
   if (preparedMatch && request.method === 'POST') {
     const [, groupId, restoreId, action, receiptIndex] = preparedMatch;
-    if (!routeEnabled(env, env.ENABLE_RESTORE_POC, env.RESTORE_POC_GROUP_ID, groupId) || !env.FIREBASE_SERVICE_ACCOUNT_JSON ||
+    if ((!testRestores && !routeEnabled(env, env.ENABLE_RESTORE_POC, env.RESTORE_POC_GROUP_ID, groupId)) || !env.FIREBASE_SERVICE_ACCOUNT_JSON ||
         !env.CLOUDINARY_CLOUD_NAME || !env.CLOUDINARY_API_KEY || !env.CLOUDINARY_API_SECRET) {
       return new Response(JSON.stringify({ error: 'Restauration non configurée' }), { status: 503, headers });
     }
@@ -280,10 +284,9 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       return new Response(JSON.stringify({ error: code }), { status, headers });
     }
   }
-  const restoreMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/backup\/restores\/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})(?:\/(cleanup))?$/.exec(url.pathname);
   if (restoreMatch && (request.method === 'POST' || request.method === 'DELETE')) {
     const [groupId, restoreId, suffix] = restoreMatch.slice(1);
-    if (!routeEnabled(env, env.ENABLE_RESTORE_POC, env.RESTORE_POC_GROUP_ID, groupId) || !env.FIREBASE_SERVICE_ACCOUNT_JSON ||
+    if ((!testRestores && !routeEnabled(env, env.ENABLE_RESTORE_POC, env.RESTORE_POC_GROUP_ID, groupId)) || !env.FIREBASE_SERVICE_ACCOUNT_JSON ||
         !env.CLOUDINARY_CLOUD_NAME || !env.CLOUDINARY_API_KEY || !env.CLOUDINARY_API_SECRET) {
       return new Response(JSON.stringify({ error: 'Restauration non configurée' }), { status: 503, headers });
     }
