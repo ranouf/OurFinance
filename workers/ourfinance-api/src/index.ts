@@ -37,6 +37,7 @@ export interface Env extends Partial<CloudinaryEnv> {
   ALLOWED_PREVIEW_ORIGIN?: string;
   FIREBASE_SERVICE_ACCOUNT_JSON?: string;
   ENABLE_API_V1?: string;
+  ENABLE_TEST_EXPENSES?: string;
   API_RATE_LIMITER?: { limit(input: { key: string }): Promise<{ success: boolean }> };
   ENABLE_GROUP_CREATION?: string;
   ENABLE_GROUP_CURRENCY_POC?: string;
@@ -91,7 +92,11 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
   }
   const url = new URL(request.url);
   if (url.pathname === '/health' && request.method === 'GET') return new Response(JSON.stringify({ status: 'ok' }), { headers });
-  if (env.ENABLE_API_V1 === 'true') {
+  const expenseMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/expenses$/.exec(url.pathname);
+  const expenseItemMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/expenses\/([A-Za-z0-9_-]{1,128})$/.exec(url.pathname);
+  const testExpenseWrite = env.FIREBASE_PROJECT_ID === 'ourfinance-test' && env.ENABLE_TEST_EXPENSES === 'true' &&
+    ((expenseMatch && request.method === 'POST') || (expenseItemMatch && (request.method === 'PATCH' || request.method === 'DELETE')));
+  if (env.ENABLE_API_V1 === 'true' || testExpenseWrite) {
     const clientIp = request.headers.get('CF-Connecting-IP');
     if (!env.API_RATE_LIMITER || !clientIp || !/^[0-9a-fA-F:.]{2,45}$/.test(clientIp))
       return new Response(JSON.stringify({ error: 'rate_limit_unavailable' }), { status: 503, headers });
@@ -488,10 +493,8 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       return new Response(JSON.stringify({ error: 'Média indisponible', code: error instanceof MediaDiagnosticError ? error.code : 'internal' }), { status: 502, headers });
     }
   }
-  const expenseMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/expenses$/.exec(url.pathname);
-  const expenseItemMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/expenses\/([A-Za-z0-9_-]{1,128})$/.exec(url.pathname);
   if (expenseItemMatch && (request.method === 'PATCH' || request.method === 'DELETE')) {
-    if (!routeEnabled(env, env.ENABLE_EXPENSE_POC, env.EXPENSE_POC_GROUP_ID, expenseItemMatch[1]) || !env.FIREBASE_SERVICE_ACCOUNT_JSON) return new Response(JSON.stringify({ error: 'Dépenses non configurées' }), { status: 503, headers });
+    if ((!testExpenseWrite && !routeEnabled(env, env.ENABLE_EXPENSE_POC, env.EXPENSE_POC_GROUP_ID, expenseItemMatch[1])) || !env.FIREBASE_SERVICE_ACCOUNT_JSON) return new Response(JSON.stringify({ error: 'Dépenses non configurées' }), { status: 503, headers });
     let uid: string;
     try { uid = await verifyFirebaseVerifiedEmail(bearerToken(request), env.FIREBASE_PROJECT_ID); }
     catch { return new Response(JSON.stringify({ error: 'Non authentifié' }), { status: 401, headers }); }
@@ -507,7 +510,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     }
   }
   if (expenseMatch && request.method === 'POST') {
-    if (!routeEnabled(env, env.ENABLE_EXPENSE_POC, env.EXPENSE_POC_GROUP_ID, expenseMatch[1]) || !env.FIREBASE_SERVICE_ACCOUNT_JSON) return new Response(JSON.stringify({ error: 'Dépenses non configurées' }), { status: 503, headers });
+    if ((!testExpenseWrite && !routeEnabled(env, env.ENABLE_EXPENSE_POC, env.EXPENSE_POC_GROUP_ID, expenseMatch[1])) || !env.FIREBASE_SERVICE_ACCOUNT_JSON) return new Response(JSON.stringify({ error: 'Dépenses non configurées' }), { status: 503, headers });
     let uid: string;
     try { uid = await verifyFirebaseVerifiedEmail(bearerToken(request), env.FIREBASE_PROJECT_ID); }
     catch { return new Response(JSON.stringify({ error: 'Non authentifié' }), { status: 401, headers }); }
