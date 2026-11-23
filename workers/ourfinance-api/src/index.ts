@@ -38,6 +38,7 @@ export interface Env extends Partial<CloudinaryEnv> {
   FIREBASE_SERVICE_ACCOUNT_JSON?: string;
   ENABLE_API_V1?: string;
   ENABLE_TEST_EXPENSES?: string;
+  ENABLE_TEST_GROUP_SETTINGS?: string;
   ENABLE_TEST_RESTORES?: string;
   ENABLE_TEST_BACKUPS?: string;
   ENABLE_TEST_COMMENTS?: string;
@@ -136,11 +137,18 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
   const restoreMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/backup\/restores\/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})(?:\/(cleanup))?$/.exec(url.pathname);
   const testRestores = env.FIREBASE_PROJECT_ID === 'ourfinance-test' && env.ENABLE_TEST_RESTORES === 'true' &&
     Boolean(currentRestoreMatch || restoreOutcomeMatch || preparedMatch || restoreMatch);
+  const metadataMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/metadata$/.exec(url.pathname);
+  const currencyMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/currency$/.exec(url.pathname);
+  const memberProfilesMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/member-profiles$/.exec(url.pathname);
+  const revokeMemberMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/members\/([A-Za-z0-9_-]{1,128})\/revoke$/.exec(url.pathname);
+  const archiveMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/archive$/.exec(url.pathname);
+  const testGroupSettings = env.FIREBASE_PROJECT_ID === 'ourfinance-test' && env.ENABLE_TEST_GROUP_SETTINGS === 'true' &&
+    Boolean(metadataMatch || currencyMatch || memberProfilesMatch || revokeMemberMatch || archiveMatch);
   const testRestorePreview = env.FIREBASE_PROJECT_ID === 'ourfinance-test' && env.ENABLE_TEST_RESTORE_PREVIEW === 'true' &&
     request.method === 'POST' && Boolean(restorePreviewMatch);
   const testExpenseWrite = env.FIREBASE_PROJECT_ID === 'ourfinance-test' && env.ENABLE_TEST_EXPENSES === 'true' &&
     ((expenseMatch && request.method === 'POST') || (expenseItemMatch && (request.method === 'PATCH' || request.method === 'DELETE')));
-  if (env.ENABLE_API_V1 === 'true' || testExpenseWrite || testInvitations || testCategories || testSettlements || testReceipts || testImports || testComments || testBackups || testRestores || testRestorePreview) {
+  if (env.ENABLE_API_V1 === 'true' || testExpenseWrite || testInvitations || testCategories || testSettlements || testReceipts || testImports || testComments || testBackups || testRestores || testGroupSettings || testRestorePreview) {
     const clientIp = request.headers.get('CF-Connecting-IP');
     if (!env.API_RATE_LIMITER || !clientIp || !/^[0-9a-fA-F:.]{2,45}$/.test(clientIp))
       return new Response(JSON.stringify({ error: 'rate_limit_unavailable' }), { status: 503, headers });
@@ -156,10 +164,9 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       return new Response(JSON.stringify({ error: 'rate_limit_unavailable' }), { status: 503, headers });
     }
   }
-  const memberProfilesMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/member-profiles$/.exec(url.pathname);
   if (memberProfilesMatch && request.method === 'GET') {
     const groupId = memberProfilesMatch[1];
-    if (!routeEnabled(env, env.ENABLE_MEMBER_PROFILES_POC, env.MEMBER_PROFILES_POC_GROUP_ID, groupId) || !env.FIREBASE_SERVICE_ACCOUNT_JSON)
+    if ((!testGroupSettings && !routeEnabled(env, env.ENABLE_MEMBER_PROFILES_POC, env.MEMBER_PROFILES_POC_GROUP_ID, groupId)) || !env.FIREBASE_SERVICE_ACCOUNT_JSON)
       return new Response(JSON.stringify({ error: 'Route désactivée' }), { status: 503, headers });
     let token: string;
     let uid: string;
@@ -566,11 +573,9 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       return new Response(JSON.stringify({ error: 'Création impossible' }), { status: 400, headers });
     }
   }
-  const archiveMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/archive$/.exec(url.pathname);
-  const revokeMemberMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/members\/([A-Za-z0-9_-]{1,128})\/revoke$/.exec(url.pathname);
   if ((archiveMatch || revokeMemberMatch) && request.method === 'POST') {
     const groupId = (archiveMatch ?? revokeMemberMatch)![1];
-    if (!routeEnabled(env, env.ENABLE_GROUP_LIFECYCLE_POC, env.GROUP_LIFECYCLE_POC_GROUP_ID, groupId) || !env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+    if ((!testGroupSettings && !routeEnabled(env, env.ENABLE_GROUP_LIFECYCLE_POC, env.GROUP_LIFECYCLE_POC_GROUP_ID, groupId)) || !env.FIREBASE_SERVICE_ACCOUNT_JSON) {
       return new Response(JSON.stringify({ error: 'Cycle de vie non configuré' }), { status: 503, headers });
     }
     let uid: string;
@@ -587,10 +592,8 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       return new Response(JSON.stringify({ error: code }), { status, headers });
     }
   }
-  const currencyMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/currency$/.exec(url.pathname);
-  const metadataMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/metadata$/.exec(url.pathname);
   if (metadataMatch && request.method === 'PATCH') {
-    if (!routeEnabled(env, env.ENABLE_GROUP_METADATA_POC, env.GROUP_METADATA_POC_GROUP_ID, metadataMatch[1]) || !env.FIREBASE_SERVICE_ACCOUNT_JSON) return new Response(JSON.stringify({ error: 'Modification non configurée' }), { status: 503, headers });
+    if ((!testGroupSettings && !routeEnabled(env, env.ENABLE_GROUP_METADATA_POC, env.GROUP_METADATA_POC_GROUP_ID, metadataMatch[1])) || !env.FIREBASE_SERVICE_ACCOUNT_JSON) return new Response(JSON.stringify({ error: 'Modification non configurée' }), { status: 503, headers });
     let uid: string;
     try { uid = await verifyFirebaseVerifiedEmail(bearerToken(request), env.FIREBASE_PROJECT_ID); }
     catch { return new Response(JSON.stringify({ error: 'Non authentifié' }), { status: 401, headers }); }
@@ -606,7 +609,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     }
   }
   if (currencyMatch && request.method === 'PATCH') {
-    if (!routeEnabled(env, env.ENABLE_GROUP_CURRENCY_POC, env.GROUP_CURRENCY_POC_GROUP_ID, currencyMatch[1]) || !env.FIREBASE_SERVICE_ACCOUNT_JSON) return new Response(JSON.stringify({ error: 'Modification non configurée' }), { status: 503, headers });
+    if ((!testGroupSettings && !routeEnabled(env, env.ENABLE_GROUP_CURRENCY_POC, env.GROUP_CURRENCY_POC_GROUP_ID, currencyMatch[1])) || !env.FIREBASE_SERVICE_ACCOUNT_JSON) return new Response(JSON.stringify({ error: 'Modification non configurée' }), { status: 503, headers });
     let uid: string;
     try { uid = await verifyFirebaseVerifiedEmail(bearerToken(request), env.FIREBASE_PROJECT_ID); }
     catch { return new Response(JSON.stringify({ error: 'Non authentifié' }), { status: 401, headers }); }
