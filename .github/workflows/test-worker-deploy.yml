@@ -39,6 +39,7 @@ jobs:
 
           [vars]
           ENABLE_TEST_EXPENSES = "true"
+          ENABLE_TEST_RESTORES = "true"
           ENABLE_TEST_BACKUPS = "true"
           ENABLE_TEST_COMMENTS = "true"
           ENABLE_TEST_IMPORTS = "true"
@@ -124,6 +125,7 @@ jobs:
 
           [vars]
           ENABLE_TEST_EXPENSES = "true"
+          ENABLE_TEST_RESTORES = "true"
           ENABLE_TEST_BACKUPS = "true"
           ENABLE_TEST_COMMENTS = "true"
           ENABLE_TEST_IMPORTS = "true"
@@ -157,6 +159,11 @@ jobs:
         run: |
           base='https://ourfinance-api-dev.ur-inance.workers.dev'
           authenticated_routes=(
+            'DELETE /groups/ci-disabled/backup/restores/123e4567-e89b-42d3-a456-426614174000'
+            'POST /groups/ci-disabled/backup/restores/123e4567-e89b-42d3-a456-426614174000/commit'
+            'POST /groups/ci-disabled/backup/restores/123e4567-e89b-42d3-a456-426614174000/prepare'
+            'GET /groups/ci-disabled/backup/restores/123e4567-e89b-42d3-a456-426614174000/outcome'
+            'GET /groups/ci-disabled/backup/restores/current'
             'GET /groups/ci-disabled/backup/preferences'
             'GET /groups/ci-disabled/backup/snapshot'
             'POST /groups/ci-disabled/expenses/e/comments'
@@ -170,8 +177,6 @@ jobs:
           )
           routes=(
             'GET /groups/ci-disabled/member-profiles'
-            'GET /groups/ci-disabled/backup/restores/current'
-            'GET /groups/ci-disabled/backup/restores/123e4567-e89b-42d3-a456-426614174000/outcome'
           )
           for attempt in 1 2 3 4 5 6; do
             health="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' "$base/health")"

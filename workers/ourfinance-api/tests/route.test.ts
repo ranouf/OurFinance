@@ -304,3 +304,16 @@ test('dedicated TEST Backups routes require authentication and the rate limiter'
     strictEqual((await handleRequest(request, { ...allowed, FIREBASE_PROJECT_ID: 'other' })).status, 503);
   }
 });
+
+test('dedicated TEST Restores routes require authentication and the rate limiter', async () => {
+  const configured = { ...env, ENABLE_TEST_RESTORES: 'true', FIREBASE_SERVICE_ACCOUNT_JSON: 'configured',
+    CLOUDINARY_CLOUD_NAME: 'test', CLOUDINARY_API_KEY: 'test', CLOUDINARY_API_SECRET: 'test' };
+  const allowed = { ...configured, API_RATE_LIMITER: { limit: async () => ({ success: true }) } };
+  for (const route of ['GET /groups/ci-disabled/backup/restores/current', 'GET /groups/ci-disabled/backup/restores/123e4567-e89b-42d3-a456-426614174000/outcome', 'POST /groups/ci-disabled/backup/restores/123e4567-e89b-42d3-a456-426614174000/prepare', 'POST /groups/ci-disabled/backup/restores/123e4567-e89b-42d3-a456-426614174000/commit', 'DELETE /groups/ci-disabled/backup/restores/123e4567-e89b-42d3-a456-426614174000']) {
+    const [method, path] = route.split(' ');
+    const request = new Request('https://worker.example' + path, { method, headers: { 'CF-Connecting-IP': '192.0.2.1' } });
+    strictEqual((await handleRequest(request, configured)).status, 503);
+    strictEqual((await handleRequest(request, allowed)).status, 401);
+    strictEqual((await handleRequest(request, { ...allowed, FIREBASE_PROJECT_ID: 'other' })).status, 503);
+  }
+});
