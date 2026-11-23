@@ -5,7 +5,7 @@ export default defineConfig({
   globalSetup: './tests/ui/seed.mjs',
   workers: 2,
   retries: 0,
-  use: { baseURL: 'http://127.0.0.1:4207', serviceWorkers: 'block', locale: 'fr-CA' },
+  use: { actionTimeout: 10000, navigationTimeout: 15000, baseURL: 'http://127.0.0.1:4207', serviceWorkers: 'block', locale: 'fr-CA' },
   projects: [
     { name: 'petit-mobile', use: { viewport: { width: 320, height: 740 }, hasTouch: true } },
     { name: 'tablette', use: { viewport: { width: 768, height: 1024 }, hasTouch: true } },
