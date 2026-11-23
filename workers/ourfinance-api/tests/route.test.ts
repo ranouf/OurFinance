@@ -317,3 +317,16 @@ test('dedicated TEST Restores routes require authentication and the rate limiter
     strictEqual((await handleRequest(request, { ...allowed, FIREBASE_PROJECT_ID: 'other' })).status, 503);
   }
 });
+
+test('dedicated TEST GroupSettings routes require authentication and the rate limiter', async () => {
+  const configured = { ...env, ENABLE_TEST_GROUP_SETTINGS: 'true', FIREBASE_SERVICE_ACCOUNT_JSON: 'configured',
+    CLOUDINARY_CLOUD_NAME: 'test', CLOUDINARY_API_KEY: 'test', CLOUDINARY_API_SECRET: 'test' };
+  const allowed = { ...configured, API_RATE_LIMITER: { limit: async () => ({ success: true }) } };
+  for (const route of ['GET /groups/ci-disabled/member-profiles', 'PATCH /groups/ci-disabled/metadata', 'PATCH /groups/ci-disabled/currency', 'POST /groups/ci-disabled/members/m/revoke', 'POST /groups/ci-disabled/archive']) {
+    const [method, path] = route.split(' ');
+    const request = new Request('https://worker.example' + path, { method, headers: { 'CF-Connecting-IP': '192.0.2.1' } });
+    strictEqual((await handleRequest(request, configured)).status, 503);
+    strictEqual((await handleRequest(request, allowed)).status, 401);
+    strictEqual((await handleRequest(request, { ...allowed, FIREBASE_PROJECT_ID: 'other' })).status, 503);
+  }
+});

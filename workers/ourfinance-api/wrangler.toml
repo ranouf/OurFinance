@@ -5,6 +5,7 @@ workers_dev = false
 
 [vars]
 ENABLE_TEST_EXPENSES = "true"
+ENABLE_TEST_GROUP_SETTINGS = "true"
 ENABLE_TEST_RESTORES = "true"
 ENABLE_TEST_BACKUPS = "true"
 ENABLE_TEST_COMMENTS = "true"
