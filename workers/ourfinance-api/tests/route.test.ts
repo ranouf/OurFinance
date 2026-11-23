@@ -266,3 +266,15 @@ test('dedicated TEST Receipts routes require authentication and the rate limiter
     strictEqual((await handleRequest(request, { ...allowed, FIREBASE_PROJECT_ID: 'other' })).status, 503);
   }
 });
+
+test('dedicated TEST Imports routes require authentication and the rate limiter', async () => {
+  const configured = { ...env, ENABLE_TEST_IMPORTS: 'true', FIREBASE_SERVICE_ACCOUNT_JSON: 'configured',
+    CLOUDINARY_CLOUD_NAME: 'test', CLOUDINARY_API_KEY: 'test', CLOUDINARY_API_SECRET: 'test' };
+  const allowed = { ...configured, API_RATE_LIMITER: { limit: async () => ({ success: true }) } };
+  for (const path of ['/groups/ci-disabled/imports']) {
+    const request = new Request('https://worker.example' + path, { method: 'POST', headers: { 'CF-Connecting-IP': '192.0.2.1' } });
+    strictEqual((await handleRequest(request, configured)).status, 503);
+    strictEqual((await handleRequest(request, allowed)).status, 401);
+    strictEqual((await handleRequest(request, { ...allowed, FIREBASE_PROJECT_ID: 'other' })).status, 503);
+  }
+});
