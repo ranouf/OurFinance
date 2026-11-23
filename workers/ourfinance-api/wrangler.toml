@@ -5,6 +5,7 @@ workers_dev = false
 
 [vars]
 ENABLE_TEST_EXPENSES = "true"
+ENABLE_TEST_CATEGORIES = "true"
 ENABLE_TEST_INVITATIONS = "true"
 ENABLE_TEST_RESTORE_PREVIEW = "true"
 FIREBASE_PROJECT_ID = "ourfinance-test"

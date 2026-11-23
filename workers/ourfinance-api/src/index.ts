@@ -38,6 +38,7 @@ export interface Env extends Partial<CloudinaryEnv> {
   FIREBASE_SERVICE_ACCOUNT_JSON?: string;
   ENABLE_API_V1?: string;
   ENABLE_TEST_EXPENSES?: string;
+  ENABLE_TEST_CATEGORIES?: string;
   ENABLE_TEST_INVITATIONS?: string;
   ENABLE_TEST_RESTORE_PREVIEW?: string;
   API_RATE_LIMITER?: { limit(input: { key: string }): Promise<{ success: boolean }> };
@@ -101,11 +102,15 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
   const qrRevoke = /^\/groups\/([A-Za-z0-9_-]{1,128})\/qr-invitations\/([A-Za-z0-9_-]{1,128})\/revoke$/.exec(url.pathname);
   const testInvitations = env.FIREBASE_PROJECT_ID === 'ourfinance-test' && env.ENABLE_TEST_INVITATIONS === 'true' &&
     Boolean(qrCreate || qrRevoke || url.pathname === '/qr-invitations/preview' || url.pathname === '/qr-invitations/accept');
+  const categoryCreate = /^\/groups\/([A-Za-z0-9_-]{1,128})\/categories$/.exec(url.pathname);
+  const categoryUpdate = /^\/groups\/([A-Za-z0-9_-]{1,128})\/categories\/(custom_[0-9a-f-]{36})$/.exec(url.pathname);
+  const testCategories = env.FIREBASE_PROJECT_ID === 'ourfinance-test' && env.ENABLE_TEST_CATEGORIES === 'true' &&
+    Boolean(categoryCreate || categoryUpdate);
   const testRestorePreview = env.FIREBASE_PROJECT_ID === 'ourfinance-test' && env.ENABLE_TEST_RESTORE_PREVIEW === 'true' &&
     request.method === 'POST' && Boolean(restorePreviewMatch);
   const testExpenseWrite = env.FIREBASE_PROJECT_ID === 'ourfinance-test' && env.ENABLE_TEST_EXPENSES === 'true' &&
     ((expenseMatch && request.method === 'POST') || (expenseItemMatch && (request.method === 'PATCH' || request.method === 'DELETE')));
-  if (env.ENABLE_API_V1 === 'true' || testExpenseWrite || testInvitations || testRestorePreview) {
+  if (env.ENABLE_API_V1 === 'true' || testExpenseWrite || testInvitations || testCategories || testRestorePreview) {
     const clientIp = request.headers.get('CF-Connecting-IP');
     if (!env.API_RATE_LIMITER || !clientIp || !/^[0-9a-fA-F:.]{2,45}$/.test(clientIp))
       return new Response(JSON.stringify({ error: 'rate_limit_unavailable' }), { status: 503, headers });
@@ -348,11 +353,9 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       return new Response(JSON.stringify({ error: code }), { status, headers });
     }
   }
-  const categoryCreate = /^\/groups\/([A-Za-z0-9_-]{1,128})\/categories$/.exec(url.pathname);
-  const categoryUpdate = /^\/groups\/([A-Za-z0-9_-]{1,128})\/categories\/(custom_[0-9a-f-]{36})$/.exec(url.pathname);
   if ((categoryCreate && request.method === 'POST') || (categoryUpdate && request.method === 'PATCH')) {
     const groupId = (categoryCreate ?? categoryUpdate)![1];
-    if (!routeEnabled(env, env.ENABLE_CATEGORY_POC, env.CATEGORY_POC_GROUP_ID, groupId) || !env.FIREBASE_SERVICE_ACCOUNT_JSON) return new Response(JSON.stringify({ error: 'Catégories non configurées' }), { status: 503, headers });
+    if ((!testCategories && !routeEnabled(env, env.ENABLE_CATEGORY_POC, env.CATEGORY_POC_GROUP_ID, groupId)) || !env.FIREBASE_SERVICE_ACCOUNT_JSON) return new Response(JSON.stringify({ error: 'Catégories non configurées' }), { status: 503, headers });
     let uid: string;
     try { uid = await verifyFirebaseVerifiedEmail(bearerToken(request), env.FIREBASE_PROJECT_ID); }
     catch { return new Response(JSON.stringify({ error: 'Non authentifié' }), { status: 401, headers }); }

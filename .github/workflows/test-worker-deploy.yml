@@ -39,6 +39,7 @@ jobs:
 
           [vars]
           ENABLE_TEST_EXPENSES = "true"
+          ENABLE_TEST_CATEGORIES = "true"
           ENABLE_TEST_INVITATIONS = "true"
           ENABLE_TEST_RESTORE_PREVIEW = "true"
           FIREBASE_PROJECT_ID = "ourfinance-test"
@@ -118,6 +119,7 @@ jobs:
 
           [vars]
           ENABLE_TEST_EXPENSES = "true"
+          ENABLE_TEST_CATEGORIES = "true"
           ENABLE_TEST_INVITATIONS = "true"
           ENABLE_TEST_RESTORE_PREVIEW = "true"
           FIREBASE_PROJECT_ID = "ourfinance-test"
@@ -145,13 +147,13 @@ jobs:
         run: |
           base='https://ourfinance-api-dev.ur-inance.workers.dev'
           authenticated_routes=(
+            'POST /groups/ci-disabled/categories'
             'POST /qr-invitations/preview'
             'POST /groups/ci-disabled/qr-invitations'
           )
           routes=(
             'POST /groups/ci-disabled/settlements'
             'POST /groups/ci-disabled/imports'
-            'POST /groups/ci-disabled/categories'
             'POST /groups/ci-disabled/expenses/e/attachments'
             'POST /groups/ci-disabled/receipt-upload-jobs/cleanup'
             'GET /groups/ci-disabled/member-profiles'
