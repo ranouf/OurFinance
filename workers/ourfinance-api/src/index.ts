@@ -38,6 +38,7 @@ export interface Env extends Partial<CloudinaryEnv> {
   FIREBASE_SERVICE_ACCOUNT_JSON?: string;
   ENABLE_API_V1?: string;
   ENABLE_TEST_EXPENSES?: string;
+  ENABLE_TEST_INVITATIONS?: string;
   ENABLE_TEST_RESTORE_PREVIEW?: string;
   API_RATE_LIMITER?: { limit(input: { key: string }): Promise<{ success: boolean }> };
   ENABLE_GROUP_CREATION?: string;
@@ -96,11 +97,15 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
   const expenseMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/expenses$/.exec(url.pathname);
   const expenseItemMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/expenses\/([A-Za-z0-9_-]{1,128})$/.exec(url.pathname);
   const restorePreviewMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/backup\/preview$/.exec(url.pathname);
+  const qrCreate = /^\/groups\/([A-Za-z0-9_-]{1,128})\/qr-invitations$/.exec(url.pathname);
+  const qrRevoke = /^\/groups\/([A-Za-z0-9_-]{1,128})\/qr-invitations\/([A-Za-z0-9_-]{1,128})\/revoke$/.exec(url.pathname);
+  const testInvitations = env.FIREBASE_PROJECT_ID === 'ourfinance-test' && env.ENABLE_TEST_INVITATIONS === 'true' &&
+    Boolean(qrCreate || qrRevoke || url.pathname === '/qr-invitations/preview' || url.pathname === '/qr-invitations/accept');
   const testRestorePreview = env.FIREBASE_PROJECT_ID === 'ourfinance-test' && env.ENABLE_TEST_RESTORE_PREVIEW === 'true' &&
     request.method === 'POST' && Boolean(restorePreviewMatch);
   const testExpenseWrite = env.FIREBASE_PROJECT_ID === 'ourfinance-test' && env.ENABLE_TEST_EXPENSES === 'true' &&
     ((expenseMatch && request.method === 'POST') || (expenseItemMatch && (request.method === 'PATCH' || request.method === 'DELETE')));
-  if (env.ENABLE_API_V1 === 'true' || testExpenseWrite || testRestorePreview) {
+  if (env.ENABLE_API_V1 === 'true' || testExpenseWrite || testInvitations || testRestorePreview) {
     const clientIp = request.headers.get('CF-Connecting-IP');
     if (!env.API_RATE_LIMITER || !clientIp || !/^[0-9a-fA-F:.]{2,45}$/.test(clientIp))
       return new Response(JSON.stringify({ error: 'rate_limit_unavailable' }), { status: 503, headers });
@@ -404,15 +409,13 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       return new Response(JSON.stringify({ error: code }), { status, headers });
     }
   }
-  const qrCreate = /^\/groups\/([A-Za-z0-9_-]{1,128})\/qr-invitations$/.exec(url.pathname);
-  const qrRevoke = /^\/groups\/([A-Za-z0-9_-]{1,128})\/qr-invitations\/([A-Za-z0-9_-]{1,128})\/revoke$/.exec(url.pathname);
   if (request.method === 'GET' && qrCreate) {
-    if (!routeEnabled(env, env.ENABLE_QR_INVITATION_POC, env.QR_INVITATION_POC_GROUP_ID, qrCreate[1]) || !env.FIREBASE_SERVICE_ACCOUNT_JSON) return new Response(JSON.stringify({ error: 'Invitations QR non configurées' }), { status: 503, headers });
+    if ((!testInvitations && !routeEnabled(env, env.ENABLE_QR_INVITATION_POC, env.QR_INVITATION_POC_GROUP_ID, qrCreate[1])) || !env.FIREBASE_SERVICE_ACCOUNT_JSON) return new Response(JSON.stringify({ error: 'Invitations QR non configurées' }), { status: 503, headers });
     let identity: { uid: string; email: string };
     try { identity = await verifyFirebaseVerifiedIdentity(bearerToken(request), env.FIREBASE_PROJECT_ID); }
     catch { return new Response(JSON.stringify({ error: 'Non authentifié' }), { status: 401, headers }); }
     try {
-      const result = await listQrInvitations(qrCreate[1], identity.uid, { FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT_JSON: env.FIREBASE_SERVICE_ACCOUNT_JSON, QR_INVITATION_POC_GROUP_ID: qrScopeGroupId(env) }, url.searchParams.get('pageToken') ?? '');
+      const result = await listQrInvitations(qrCreate[1], identity.uid, { FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT_JSON: env.FIREBASE_SERVICE_ACCOUNT_JSON, QR_INVITATION_POC_GROUP_ID: testInvitations ? undefined : qrScopeGroupId(env) }, url.searchParams.get('pageToken') ?? '');
       return new Response(JSON.stringify(result), { status: 200, headers });
     } catch (error) {
       if (error instanceof ProviderQuotaError) return new Response(JSON.stringify({ error: error.message }), { status: 503, headers });
@@ -421,11 +424,11 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     }
   }
   if (request.method === 'POST' && (qrCreate || qrRevoke || url.pathname === '/qr-invitations/preview' || url.pathname === '/qr-invitations/accept')) {
-    if ((env.ENABLE_API_V1 !== 'true' && (env.ENABLE_QR_INVITATION_POC !== 'true' || !env.QR_INVITATION_POC_GROUP_ID)) || !env.FIREBASE_SERVICE_ACCOUNT_JSON) return new Response(JSON.stringify({ error: 'Invitations QR non configurées' }), { status: 503, headers });
+    if ((!testInvitations && env.ENABLE_API_V1 !== 'true' && (env.ENABLE_QR_INVITATION_POC !== 'true' || !env.QR_INVITATION_POC_GROUP_ID)) || !env.FIREBASE_SERVICE_ACCOUNT_JSON) return new Response(JSON.stringify({ error: 'Invitations QR non configurées' }), { status: 503, headers });
     let identity: { uid: string; email: string };
     try { identity = await verifyFirebaseVerifiedIdentity(bearerToken(request), env.FIREBASE_PROJECT_ID); }
     catch { return new Response(JSON.stringify({ error: 'Non authentifié' }), { status: 401, headers }); }
-    const qrEnv = { FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT_JSON: env.FIREBASE_SERVICE_ACCOUNT_JSON, QR_INVITATION_POC_GROUP_ID: qrScopeGroupId(env) };
+    const qrEnv = { FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT_JSON: env.FIREBASE_SERVICE_ACCOUNT_JSON, QR_INVITATION_POC_GROUP_ID: testInvitations ? undefined : qrScopeGroupId(env) };
     try {
       if (qrRevoke) {
         await revokeQrInvitation(qrRevoke[2], identity.uid, qrRevoke[1], qrEnv);
