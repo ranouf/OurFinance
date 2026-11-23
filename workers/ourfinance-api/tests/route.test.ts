@@ -206,3 +206,15 @@ test('dedicated TEST expense writes require the limiter and authentication', asy
   const settlement = new Request('https://worker.example/groups/g/settlements', { method: 'POST' });
   strictEqual((await handleRequest(settlement, configured)).status, 503);
 });
+
+test('TEST restore preview is authenticated, rate limited and scoped to one read-only operation', async () => {
+  const configured = { ...env, ENABLE_TEST_RESTORE_PREVIEW: 'true', FIREBASE_SERVICE_ACCOUNT_JSON: 'configured' };
+  const post = (path: string) => new Request('https://worker.example/groups/g/backup/' + path, {
+    method: 'POST', headers: { 'CF-Connecting-IP': '192.0.2.1' },
+  });
+  const allowed = { ...configured, API_RATE_LIMITER: { limit: async () => ({ success: true }) } };
+  strictEqual((await handleRequest(post('preview'), configured)).status, 503);
+  strictEqual((await handleRequest(post('preview'), allowed)).status, 401);
+  strictEqual((await handleRequest(post('preview'), { ...allowed, FIREBASE_PROJECT_ID: 'another-project' })).status, 503);
+  strictEqual((await handleRequest(post('restores/123e4567-e89b-42d3-a456-426614174000/commit'), allowed)).status, 503);
+});
