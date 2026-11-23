@@ -38,6 +38,7 @@ export interface Env extends Partial<CloudinaryEnv> {
   FIREBASE_SERVICE_ACCOUNT_JSON?: string;
   ENABLE_API_V1?: string;
   ENABLE_TEST_EXPENSES?: string;
+  ENABLE_TEST_RESTORE_PREVIEW?: string;
   API_RATE_LIMITER?: { limit(input: { key: string }): Promise<{ success: boolean }> };
   ENABLE_GROUP_CREATION?: string;
   ENABLE_GROUP_CURRENCY_POC?: string;
@@ -94,9 +95,12 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
   if (url.pathname === '/health' && request.method === 'GET') return new Response(JSON.stringify({ status: 'ok' }), { headers });
   const expenseMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/expenses$/.exec(url.pathname);
   const expenseItemMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/expenses\/([A-Za-z0-9_-]{1,128})$/.exec(url.pathname);
+  const restorePreviewMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/backup\/preview$/.exec(url.pathname);
+  const testRestorePreview = env.FIREBASE_PROJECT_ID === 'ourfinance-test' && env.ENABLE_TEST_RESTORE_PREVIEW === 'true' &&
+    request.method === 'POST' && Boolean(restorePreviewMatch);
   const testExpenseWrite = env.FIREBASE_PROJECT_ID === 'ourfinance-test' && env.ENABLE_TEST_EXPENSES === 'true' &&
     ((expenseMatch && request.method === 'POST') || (expenseItemMatch && (request.method === 'PATCH' || request.method === 'DELETE')));
-  if (env.ENABLE_API_V1 === 'true' || testExpenseWrite) {
+  if (env.ENABLE_API_V1 === 'true' || testExpenseWrite || testRestorePreview) {
     const clientIp = request.headers.get('CF-Connecting-IP');
     if (!env.API_RATE_LIMITER || !clientIp || !/^[0-9a-fA-F:.]{2,45}$/.test(clientIp))
       return new Response(JSON.stringify({ error: 'rate_limit_unavailable' }), { status: 503, headers });
@@ -166,10 +170,9 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       return new Response(JSON.stringify({ error: code }), { status, headers });
     }
   }
-  const restorePreviewMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/backup\/preview$/.exec(url.pathname);
   if (restorePreviewMatch && request.method === 'POST') {
     const groupId = restorePreviewMatch[1];
-    if (!routeEnabled(env, env.ENABLE_RESTORE_POC, env.RESTORE_POC_GROUP_ID, groupId) || !env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+    if ((!testRestorePreview && !routeEnabled(env, env.ENABLE_RESTORE_POC, env.RESTORE_POC_GROUP_ID, groupId)) || !env.FIREBASE_SERVICE_ACCOUNT_JSON) {
       return new Response(JSON.stringify({ error: 'Restauration non configurée' }), { status: 503, headers });
     }
     let uid: string;
