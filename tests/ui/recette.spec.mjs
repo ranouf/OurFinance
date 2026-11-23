@@ -182,7 +182,9 @@ test('R1/D3 · détail du repas, reçu invalide et annulation de suppression', a
   await history.getByRole('option', { name: /Famille recette/ }).click();
   await history.getByText('Repas de recette', { exact: true }).click();
   const receipt = history.locator('app-receipt-panel');
-  await receipt.locator('input[type=file]').setInputFiles({
+  const receiptFile = receipt.locator('input[type=file]');
+  await expect(receiptFile).toBeEnabled();
+  await receiptFile.setInputFiles({
     name: 'texte.txt', mimeType: 'text/plain', buffer: Buffer.from('texte'),
   });
   await expect(receipt.getByRole('alert')).toBeVisible();
