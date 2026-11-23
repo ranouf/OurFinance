@@ -62,3 +62,4 @@ ui-debug.log
 /DesignBase/node_modules/
 /DesignBase/dist/
 /DesignBase/.angular/
+/test-results/
