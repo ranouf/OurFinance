@@ -38,6 +38,7 @@ export interface Env extends Partial<CloudinaryEnv> {
   FIREBASE_SERVICE_ACCOUNT_JSON?: string;
   ENABLE_API_V1?: string;
   ENABLE_TEST_EXPENSES?: string;
+  ENABLE_TEST_IMPORTS?: string;
   ENABLE_TEST_RECEIPTS?: string;
   ENABLE_TEST_SETTLEMENTS?: string;
   ENABLE_TEST_CATEGORIES?: string;
@@ -115,11 +116,15 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
   const mediaCleanupMatch = /^\/groups\/([A-Za-z0-9_-]{1,128})\/receipt-upload-jobs\/cleanup$/.exec(url.pathname);
   const testReceipts = env.FIREBASE_PROJECT_ID === 'ourfinance-test' && env.ENABLE_TEST_RECEIPTS === 'true' &&
     Boolean(mediaMatch || mediaCleanupMatch);
+  const importCreate = /^\/groups\/([A-Za-z0-9_-]{1,128})\/imports$/.exec(url.pathname);
+  const importUndo = /^\/groups\/([A-Za-z0-9_-]{1,128})\/imports\/([A-Za-z0-9_-]{1,128})$/.exec(url.pathname);
+  const testImports = env.FIREBASE_PROJECT_ID === 'ourfinance-test' && env.ENABLE_TEST_IMPORTS === 'true' &&
+    Boolean(importCreate || importUndo);
   const testRestorePreview = env.FIREBASE_PROJECT_ID === 'ourfinance-test' && env.ENABLE_TEST_RESTORE_PREVIEW === 'true' &&
     request.method === 'POST' && Boolean(restorePreviewMatch);
   const testExpenseWrite = env.FIREBASE_PROJECT_ID === 'ourfinance-test' && env.ENABLE_TEST_EXPENSES === 'true' &&
     ((expenseMatch && request.method === 'POST') || (expenseItemMatch && (request.method === 'PATCH' || request.method === 'DELETE')));
-  if (env.ENABLE_API_V1 === 'true' || testExpenseWrite || testInvitations || testCategories || testSettlements || testReceipts || testRestorePreview) {
+  if (env.ENABLE_API_V1 === 'true' || testExpenseWrite || testInvitations || testCategories || testSettlements || testReceipts || testImports || testRestorePreview) {
     const clientIp = request.headers.get('CF-Connecting-IP');
     if (!env.API_RATE_LIMITER || !clientIp || !/^[0-9a-fA-F:.]{2,45}$/.test(clientIp))
       return new Response(JSON.stringify({ error: 'rate_limit_unavailable' }), { status: 503, headers });
@@ -380,11 +385,9 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       return new Response(JSON.stringify({ error: code }), { status, headers });
     }
   }
-  const importCreate = /^\/groups\/([A-Za-z0-9_-]{1,128})\/imports$/.exec(url.pathname);
-  const importUndo = /^\/groups\/([A-Za-z0-9_-]{1,128})\/imports\/([A-Za-z0-9_-]{1,128})$/.exec(url.pathname);
   if ((importCreate && request.method === 'POST') || (importUndo && request.method === 'DELETE')) {
     const groupId = (importCreate ?? importUndo)![1];
-    if (!routeEnabled(env, env.ENABLE_IMPORT_POC, env.IMPORT_POC_GROUP_ID, groupId) || !env.FIREBASE_SERVICE_ACCOUNT_JSON) return new Response(JSON.stringify({ error: 'Import non configuré' }), { status: 503, headers });
+    if ((!testImports && !routeEnabled(env, env.ENABLE_IMPORT_POC, env.IMPORT_POC_GROUP_ID, groupId)) || !env.FIREBASE_SERVICE_ACCOUNT_JSON) return new Response(JSON.stringify({ error: 'Import non configuré' }), { status: 503, headers });
     let uid: string;
     try { uid = await verifyFirebaseVerifiedEmail(bearerToken(request), env.FIREBASE_PROJECT_ID); }
     catch { return new Response(JSON.stringify({ error: 'Non authentifié' }), { status: 401, headers }); }
