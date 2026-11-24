@@ -44,23 +44,10 @@ Préparer des identités exclusivement fictives : A propriétaire, B membre acti
 
 ## Contrôles communs à toutes les pages
 
-- Rejouer les parcours principaux en FR, EN et JA, à 320, 390, 768 et 1280 px. Tester les libellés longs et les montants signés. Consigner les combinaisons réellement exécutées. Aucun contrôle masqué, chevauchement ou défilement horizontal qui empêche l’action.
+- Rejouer les parcours principaux en FR, EN et JA, à 320, 390, 768 et 1280 px. Tester aussi zoom natif 200 % et 400 %, libellés longs et montants signés. Consigner les combinaisons réellement exécutées. Aucun contrôle masqué, chevauchement ou défilement horizontal qui empêche l’action.
 - Tester au clavier et au toucher. Nom accessible, label permanent, focus visible, erreur reliée au champ, ordre logique, cible tactile de 44 × 44 px, ouverture et fermeture des dialogues avec retour du focus. Icône, texte ou valeur donnent le sens même sans couleur. Vérifier contrastes et lire les montants/graphes avec une alternative textuelle.
 - Pour chaque écran exercer chargement, vide, succès, refus et erreur récupérable. Couper puis rétablir le réseau dans un navigateur isolé. Recharger et vérifier la persistance. Après déconnexion, tester Retour et accès direct hors ligne puis connexion avec un autre compte. Les données de la première session restent privées. Vérifier installation, lancement autonome et mise à jour PWA sur les plateformes prises en charge ; une simulation de largeur ne valide pas une installation mobile.
 - En cas d’échec, joindre une capture réelle au moment du défaut. Si utile, ajouter l’action réseau, le chemin anonymisé, le statut, l’heure, le code d’erreur ou la console expurgée. Supprimer courriels personnels, jetons, QR actifs, en-têtes d’autorisation et URL signées. Garder les médias de preuve hors du dépôt Git.
-
-### Validation du zoom et des petites largeurs
-
-| Configuration réelle | Largeur utile approximative | Vérification attendue |
-|---|---:|---|
-| Fenêtre ordinateur 1280 px, zoom natif 100 % | 1280 px CSS | Parcours desktop de référence. |
-| Même fenêtre, zoom natif 200 % | 640 px CSS | Navigation, formulaires et dialogues utilisables au clavier et à la souris. |
-| Même fenêtre, zoom natif 400 % | 320 px CSS | Présentation sur une colonne, sans défilement horizontal de la page ; chaque action reste accessible, y compris les boutons de dialogue. |
-| Mobile réel ou émulation mobile à 320 et 390 px CSS, zoom normal | 320 et 390 px CSS | Parcours tactile et navigation mobile utilisables. |
-
-Effectuer les trois premiers essais avec **le zoom du navigateur**, pas seulement avec une fenêtre Playwright redimensionnée : les deux mécanismes ne sont pas identiques. Pour chaque page, ouvrir les menus, listes, champs en erreur et dialogues ; vérifier que le texte des commandes est lisible, que les actions peuvent être activées et que le focus reste visible. Un panneau complexe peut défiler **localement** si son contenu exige une largeur minimale, mais son défilement doit être évident et toutes ses commandes doivent rester atteignables au clavier. Répéter les parcours critiques en FR, EN et JA et noter navigateur, zoom, largeur CSS observée, résultat et capture en cas d’échec.
-
-Une fenêtre mobile de 390 px simulée à 400 % produit environ 98 px CSS. Ce cas extrême peut servir à explorer la robustesse, mais **n’est pas un critère de clôture** : ne pas le confondre avec le test requis de 1280 px à 400 %, qui laisse environ 320 px CSS. Signaler séparément les limites observées à 98 px sans détourner les correctifs des parcours utilisables.
 
 ## Modèles pour GitHub
 
