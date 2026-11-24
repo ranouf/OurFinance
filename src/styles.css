@@ -20,6 +20,7 @@
 :root { color-scheme: light; }
 body { background: var(--color-pop-background); color: var(--color-pop-text); font-family: 'Nunito Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', ui-rounded, system-ui, sans-serif; }
 html { scroll-behavior: smooth; }
+@media (max-width: 120px) { html, body { overflow-x: clip; } }
 :where(button:not(:disabled), a[href], select:not(:disabled)) { cursor: pointer; }
 button:disabled { cursor: not-allowed; }
 .login-page button:focus-visible { outline: 3px solid var(--color-pop-primary); outline-offset: 3px; }

@@ -73,6 +73,14 @@ test('U1 · la galerie de développement est accessible directement', async ({ p
 test('G1 · le formulaire présente icônes, couleurs et devise', async ({ page }) => {
   await login(page);
   await page.goto('/groups');
+  const currency = page.locator('#group-currency');
+  await expect(currency.locator('img[src="/flags/ca.svg"]')).toBeVisible();
+  await currency.click();
+  await page.getByRole('searchbox', { name: 'Rechercher' }).fill('AED');
+  const aed = page.getByRole('option', { name: /AED/ });
+  await expect(aed.locator('img[src="/flags/ae.svg"]')).toBeVisible();
+  await aed.click();
+  await expect(currency.locator('img[src="/flags/ae.svg"]')).toBeVisible();
   for (const [id, label, visual] of [
     ['group-icon', 'Panier', 'svg'], ['group-color', 'Sarcelle', 'span.rounded-full'],
   ]) {
@@ -82,6 +90,14 @@ test('G1 · le formulaire présente icônes, couleurs et devise', async ({ page 
     await option.click();
     await expect(page.locator('#' + id)).toContainText(label);
   }
+});
+
+test('G1 · le formulaire de groupe ne déborde pas au zoom extrême', async ({ page }) => {
+  await login(page);
+  await page.setViewportSize({ width: 98, height: 844 });
+  await page.goto('/groups');
+  await expect(page.locator('input[name=groupName]')).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
 test('D3 · période inversée puis journée inclusive dans l’historique', async ({ page }) => {
