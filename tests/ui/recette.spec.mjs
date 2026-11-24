@@ -84,6 +84,14 @@ test('G1 · le formulaire présente icônes, couleurs et devise', async ({ page 
   }
 });
 
+test('G1 · le formulaire de groupe ne déborde pas au zoom extrême', async ({ page }) => {
+  await login(page);
+  await page.setViewportSize({ width: 98, height: 844 });
+  await page.goto('/groups');
+  await expect(page.locator('input[name=groupName]')).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
 test('D3 · période inversée puis journée inclusive dans l’historique', async ({ page }) => {
   await login(page);
   await page.goto('/expenses');

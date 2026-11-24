@@ -174,7 +174,7 @@ export class DashboardPage {
 @Component({
   imports: [FieldComponent, DropdownComponent, UiGroupCard, UiControlDirective, UiButton, UiAlert, FormsModule, RouterLink, GroupCurrencyPanel, GroupLifecyclePanel, GroupMetadataPanel, QrInvitationPanel, CategoryManager],
   template: `
-    <div class="mx-auto max-w-5xl space-y-6">
+    <div class="mx-auto max-w-5xl space-y-6 max-[120px]:overflow-x-clip">
       <header class="relative overflow-hidden rounded-[1.8rem] bg-pop-primary px-6 py-7 text-white shadow-[0_12px_30px_#6455ec30] sm:min-h-52 sm:px-9 sm:py-10">
         <div class="relative z-10 max-w-[62%] sm:max-w-md"><p class="text-sm font-bold text-white">ourfinance. · {{ t('navGroups') }}</p><h1 class="mt-2 text-3xl font-black sm:text-4xl">{{ t('myGroups') }}</h1><p class="mt-3 text-sm text-white/90 sm:text-base">{{ t('groupsPageIntro') }}</p>
           @if (!app.groupsError() && !app.groupsBusy() && app.selectedGroup(); as selected) { <p class="mt-4 inline-flex max-w-full flex-wrap gap-1 rounded-full bg-pop-primary-dark px-3 py-2 text-sm font-bold"><span class="break-words">{{ selected.name }}</span><span>· {{ selected.currency }}</span></p> }
@@ -198,13 +198,13 @@ export class DashboardPage {
         </section>
       }
       @if (app.groupServiceReady() && app.auth?.user()?.emailVerified && !app.groupsError()) {
-        <form class="max-w-2xl space-y-4 rounded-[1.7rem] border border-pop-border bg-white p-5 shadow-sm sm:p-7" (ngSubmit)="app.createGroup()">
-          <div class="flex items-center gap-3"><span class="flex h-11 w-11 items-center justify-center rounded-2xl bg-pop-lavender text-2xl text-pop-primary" aria-hidden="true"><svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg></span><div><h2 class="text-xl font-black">{{ t('createGroup') }}</h2><p class="text-sm text-pop-muted">{{ t('groupCreateHelp') }}</p></div></div>
+        <form class="max-w-2xl min-w-0 space-y-4 rounded-[1.7rem] border border-pop-border bg-white p-5 shadow-sm max-[120px]:p-2 sm:p-7" (ngSubmit)="app.createGroup()">
+          <div class="flex min-w-0 flex-wrap items-center gap-3"><span class="flex h-11 w-11 items-center justify-center rounded-2xl bg-pop-lavender text-2xl text-pop-primary" aria-hidden="true"><svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg></span><div class="min-w-0"><h2 class="text-xl font-black">{{ t('createGroup') }}</h2><p class="text-sm text-pop-muted">{{ t('groupCreateHelp') }}</p></div></div>
           <label class="block text-sm font-bold">{{ t('groupName') }}<input appUiControl class="mt-1 w-full" name="groupName" [(ngModel)]="app.groupName" maxlength="80" required /></label>
           <app-field class="block" controlId="group-currency" [label]="t('groupCurrency')">
             <app-dropdown controlId="group-currency" name="groupCurrency" [options]="currencyDropdownOptions(app.currencies())" [searchable]="true" [searchLabel]="t('search')" [(ngModel)]="app.groupCurrency" />
           </app-field>
-          <div class="grid gap-4 sm:grid-cols-2">
+          <div class="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-2">
             <app-field controlId="group-icon" [label]="metadataText().icon + ' · ' + metadataText().optional">
               <app-dropdown controlId="group-icon" name="groupIconId" [options]="iconOptions()" [(ngModel)]="app.groupIconId" />
             </app-field>
