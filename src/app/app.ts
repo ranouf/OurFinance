@@ -3,9 +3,8 @@ import { Router, RouterOutlet } from '@angular/router';
 import { NavigationEnd } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { filter } from 'rxjs';
-import { getAuth } from 'firebase/auth';
 import { AppShell } from './shared/components/app-shell/app-shell';
-import { AuthService } from './core/firebase/auth-service';
+import type { AuthService } from './core/firebase/auth-service';
 import { authDestination } from './core/firebase/auth-route';
 import { FirebaseWebConfig, createFirebaseApp } from './core/firebase/firebase-config';
 import type { GroupService } from './core/firebase/group-service';
@@ -206,6 +205,10 @@ export class App implements OnInit, OnDestroy {
       const config = await response.json() as FirebaseWebConfig;
       if (config.projectId !== 'ourfinance-test') throw new Error('Projet non autorisé');
       const firebaseApp = createFirebaseApp(config);
+      const [{ getAuth }, { AuthService }] = await Promise.all([
+        import('firebase/auth'),
+        import('./core/firebase/auth-service'),
+      ]);
       this.auth = new AuthService(getAuth(firebaseApp));
       this.firebaseApp = firebaseApp;
       this.workerUrl = config.workerUrl;
