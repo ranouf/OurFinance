@@ -15,10 +15,14 @@ test('group choices preserve identifiers, translated fallback and distinct names
 test('currency choices use a known flag and never invent one for an unknown code', () => {
   const choices = currencyDropdownOptions([
     { code: 'CAD', name: 'Dollar canadien', symbol: '$', minorDigits: 2 },
+    { code: 'AED', name: 'Dirham', symbol: 'د.إ', minorDigits: 2 },
+    { code: 'AFN', name: 'Afghani', symbol: '؋', minorDigits: 2 },
     { code: 'XTS', name: 'Code de test', symbol: 'XTS', minorDigits: 2 },
   ]);
   assert.equal(choices[0].iconSrc, '/flags/ca.svg');
-  assert.equal(choices[1].iconSrc, undefined);
+  assert.equal(choices[1].iconSrc, '/flags/ae.svg');
+  assert.equal(choices[2].iconSrc, '/flags/af.svg');
+  assert.equal(choices[3].iconSrc, undefined);
 });
 
 test('category choices keep a recognizable icon or the original glyph', () => {
