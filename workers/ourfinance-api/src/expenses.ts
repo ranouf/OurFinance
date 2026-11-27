@@ -24,6 +24,23 @@ const idPattern = /^[A-Za-z0-9_-]{1,128}$/;
 const string = (stringValue: string) => ({ stringValue });
 const integer = (value: number) => ({ integerValue: String(value) });
 const amountEntries = (entries: readonly Allocation[]) => ({ arrayValue: { values: entries.map(item => ({ mapValue: { fields: { userId: string(item.userId), amountMinor: integer(item.amountMinor) } } })) } });
+const sortedByUser = <T extends { readonly userId: string }>(entries: readonly T[]): T[] => [...entries].sort((a, b) => a.userId < b.userId ? -1 : a.userId > b.userId ? 1 : 0);
+
+/** Fingerprint the validated, effective body without relying on client property order. */
+export async function expenseFingerprint(expense: ExpenseInput, allocations: readonly Allocation[]): Promise<string> {
+  const mode = expense.splitMode;
+  const normalizedMode = mode.kind === 'equal' ? { kind: mode.kind, users: [...mode.users].sort() }
+    : mode.kind === 'exact' ? { kind: mode.kind, amounts: sortedByUser(mode.amounts) }
+    : mode.kind === 'percentage' ? { kind: mode.kind, weightsBasisPoints: sortedByUser(mode.weightsBasisPoints) }
+    : mode.kind === 'shares' ? { kind: mode.kind, weights: sortedByUser(mode.weights) }
+    : { kind: mode.kind, adjustments: sortedByUser(mode.adjustments) };
+  const body = JSON.stringify({
+    description: expense.description, categoryId: expense.categoryId, currency: expense.currency, date: expense.date,
+    amountMinor: expense.amountMinor, payments: sortedByUser(expense.payments), allocations: sortedByUser(allocations), splitMode: normalizedMode,
+  });
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(body));
+  return Array.from(new Uint8Array(digest), value => value.toString(16).padStart(2, '0')).join('');
+}
 
 export function parseExpense(value: unknown): ExpenseInput {
   if (!value || typeof value !== 'object') throw new ExpenseError(400, 'invalid_expense');
@@ -74,6 +91,7 @@ export async function createExpense(value: unknown, uid: string, groupId: string
   if (!idPattern.test(groupId) || !idPattern.test(uid)) throw new ExpenseError(400, 'invalid_group');
   const expense = parseExpense(value);
   const allocations = splitAmount(expense.amountMinor, expense.splitMode);
+  const fingerprint = await expenseFingerprint(expense, allocations);
   const members = [...new Set([uid, ...expense.payments.map(item => item.userId), ...allocations.map(item => item.userId)])];
   const root = `projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents`;
   const token = await serviceAccessToken(env.FIREBASE_SERVICE_ACCOUNT_JSON, env.FIREBASE_PROJECT_ID, transport);
@@ -92,10 +110,21 @@ export async function createExpense(value: unknown, uid: string, groupId: string
   const groupFields = group?.['fields'] as Record<string, { stringValue?: string }> | undefined;
   if (!groupFields || groupFields['status']?.stringValue !== 'active') throw new ExpenseError(403, 'group_inactive');
   if ((groupFields['currencyCode']?.stringValue ?? groupFields['currency']?.stringValue) !== expense.currency) throw new ExpenseError(400, 'currency_mismatch');
+  const caller = await read(`groups/${groupId}/members/${uid}`);
+  const callerFields = caller?.['fields'] as Record<string, { stringValue?: string }> | undefined;
+  if (callerFields?.['status']?.stringValue !== 'active') throw new ExpenseError(403, 'member_inactive');
+  const existing = await read(`groups/${groupId}/expenses/${expense.idempotencyKey}`);
+  if (existing) {
+    const fields = existing['fields'] as Record<string, { stringValue?: string }> | undefined;
+    // Legacy documents have no fingerprint; their body cannot be proven identical, so fail closed.
+    if (fields?.['createdBy']?.stringValue !== uid || fields['contentFingerprint']?.stringValue !== fingerprint) throw new ExpenseError(409, 'idempotency_conflict');
+    return expense.idempotencyKey;
+  }
   for (const memberId of members) {
+    if (memberId === uid) continue;
     const record = await read(`groups/${groupId}/members/${memberId}`);
     const fields = record?.['fields'] as Record<string, { stringValue?: string }> | undefined;
-    if (!fields || fields['status']?.stringValue !== 'active') throw new ExpenseError(403, 'member_inactive');
+    if (fields?.['status']?.stringValue !== 'active') throw new ExpenseError(403, 'member_inactive');
   }
   let category: CategoryDefinition = categoryById(expense.categoryId);
   if (isCustomCategoryId(expense.categoryId)) {
@@ -112,7 +141,7 @@ export async function createExpense(value: unknown, uid: string, groupId: string
   const writes: unknown[] = [
     write(`groups/${groupId}/expenses/${expenseId}`, {
       description: string(expense.description), categoryId: string(expense.categoryId), categoryLabel: string(category.label), categoryIcon: string(category.icon), categoryColor: string(category.color), currency: string(expense.currency), date: string(expense.date), amountMinor: integer(expense.amountMinor), createdBy: string(uid), createdAt: { timestampValue: now },
-      payments: amountEntries(expense.payments), allocations: amountEntries(allocations), splitSnapshotJson: string(JSON.stringify(expense.splitMode)), deleted: { booleanValue: false }, revision: integer(0),
+      payments: amountEntries(expense.payments), allocations: amountEntries(allocations), splitSnapshotJson: string(JSON.stringify(expense.splitMode)), contentFingerprint: string(fingerprint), deleted: { booleanValue: false }, revision: integer(0),
     }, false),
     write(`users/${uid}/groupPreferences/${groupId}`, {
       modeJson: string(JSON.stringify(expense.splitMode)), memberIds: { arrayValue: { values: allocations.map(item => string(item.userId)) } }, updatedAt: { timestampValue: now },
