@@ -1,6 +1,6 @@
 # UX V2 — PR 3 : groupes
 
-Statut : cadrage et wireframe à valider avant intégration. Base : `docs/UX_SPECIFICATION_V2.md`, `docs/INVITATIONS_QR.md` et les références Everyday Pop V2. La page `/groups` existante conserve ses services et permissions ; ce PR réorganise ses parcours.
+Statut : maquettes desktop et mobile validées par le propriétaire le 27 novembre 2026 ; intégration en cours. Base : `docs/UX_SPECIFICATION_V2.md`, `docs/INVITATIONS_QR.md` et les références Everyday Pop V2. La page `/groups` existante conserve ses services et permissions ; ce PR réorganise ses parcours.
 
 ## Hiérarchie proposée
 

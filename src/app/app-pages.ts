@@ -19,6 +19,7 @@ import { GroupCurrencyPanel } from './features/groups/group-currency-panel';
 import { GroupLifecyclePanel } from './features/groups/group-lifecycle-panel';
 import { GroupMetadataPanel } from './features/groups/group-metadata-panel';
 import { groupMetadataText } from './features/groups/group-metadata-text';
+import { groupsPageText } from './features/groups/groups-page-text';
 import { QrInvitationPanel } from './features/groups/qr-invitation-panel';
 import { InviteAcceptanceCard } from './features/groups/invite-acceptance-card';
 import { CategoryManager } from './features/categories/category-manager';
@@ -181,66 +182,44 @@ export class DashboardPage {
 
 @Component({
   imports: [FieldComponent, DropdownComponent, UiGroupCard, UiControlDirective, UiButton, UiAlert, FormsModule, RouterLink, GroupCurrencyPanel, GroupLifecyclePanel, GroupMetadataPanel, QrInvitationPanel, CategoryManager],
-  template: `
-    <div class="mx-auto max-w-5xl space-y-6 max-[120px]:overflow-x-clip">
-      <header class="relative overflow-hidden rounded-[1.8rem] bg-pop-primary px-6 py-7 text-white shadow-[0_12px_30px_#6455ec30] sm:min-h-52 sm:px-9 sm:py-10">
-        <div class="relative z-10 max-w-[62%] sm:max-w-md"><p class="text-sm font-bold text-white">ourfinance. · {{ t('navGroups') }}</p><h1 class="mt-2 text-3xl font-black sm:text-4xl">{{ t('myGroups') }}</h1><p class="mt-3 text-sm text-white/90 sm:text-base">{{ t('groupsPageIntro') }}</p>
-          @if (!app.groupsError() && !app.groupsBusy() && app.selectedGroup(); as selected) { <p class="mt-4 inline-flex max-w-full flex-wrap gap-1 rounded-full bg-pop-primary-dark px-3 py-2 text-sm font-bold"><span class="break-words">{{ selected.name }}</span><span>· {{ selected.currency }}</span></p> }
-        </div>
-        <img class="pointer-events-none absolute -bottom-5 -right-8 w-44 max-w-[55%] sm:bottom-[-3.5rem] sm:right-0 sm:w-80" src="/illustrations/friends-planning-trip.webp" alt="" />
-      </header>
-      @if (app.groupsBusy()) { <app-ui-alert variant="info">{{ t('loadingGroupList') }}</app-ui-alert> }
-      @else if (app.groupsError()) { <app-ui-alert variant="error">{{ t('groupsUnavailable') }}</app-ui-alert><app-ui-button variant="outline" type="button" class="mt-3" (click)="app.refreshGroups()">{{ t('refresh') }}</app-ui-button> }
-      @else if (app.groups().length) {
-        <section [attr.aria-label]="t('myGroups')"><div class="mb-3 flex items-center justify-between gap-3"><h2 class="text-xl font-black">{{ t('myGroups') }}</h2><span class="rounded-full bg-pop-lavender px-3 py-1 text-xs font-bold text-pop-primary-dark">{{ app.groups().length }}</span></div><div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          @for (group of app.groups(); track group.id) {
-            <app-ui-group-card [name]="group.name" [detail]="groupMemberCountLabel(group.memberCount ?? 1) + ' · ' + group.currency" [amount]="app.formatGroupBalance(group)" [amountTone]="app.groupBalanceTone(group)" [icon]="categoryDropdownIcon(group.iconId || 'home') || 'house'" [selected]="app.selectedGroupId() === group.id" [interactive]="true" (activated)="app.requestGroupSelection(group.id)" />
-          }
-        </div></section>
-      } @else { <p class="rounded-2xl border border-pop-border bg-white p-5 text-pop-muted">{{ t('noGroups') }} {{ t('gettingStartedIntro') }}</p> }
-      @if (!app.groupsError() && app.selectedGroup(); as selected) {
-        <section class="grid grid-cols-2 gap-3 rounded-2xl border border-pop-border bg-white p-4 sm:flex sm:items-center" [attr.aria-label]="t('myBalance')">
-          <div class="col-span-2 min-w-0 sm:flex-1"><p class="truncate text-sm font-bold">{{ selected.name }} · {{ selected.currency }}</p><p class="text-sm text-pop-muted">{{ t('myBalance') }} : <strong class="text-pop-text">{{ app.formatGroupBalance(selected) }}</strong></p></div>
-          <a class="inline-flex min-h-11 items-center justify-center rounded-xl bg-pop-lavender px-3 text-sm font-bold text-pop-primary-dark" routerLink="/expenses" [queryParams]="{ group: selected.id }">{{ t('navExpenses') }}</a>
-          <a class="inline-flex min-h-11 items-center justify-center rounded-xl bg-pop-lavender px-3 text-sm font-bold text-pop-primary-dark" routerLink="/statistics" fragment="settlement-form">{{ t('totalRepayments') }}</a>
-        </section>
-      }
-      @if (app.groupServiceReady() && app.auth?.user()?.emailVerified && !app.groupsError()) {
-        <form class="max-w-2xl min-w-0 space-y-4 rounded-[1.7rem] border border-pop-border bg-white p-5 shadow-sm max-[120px]:p-2 sm:p-7" (ngSubmit)="app.createGroup()">
-          <div class="flex min-w-0 flex-wrap items-center gap-3"><span class="flex h-11 w-11 items-center justify-center rounded-2xl bg-pop-lavender text-2xl text-pop-primary" aria-hidden="true"><svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg></span><div class="min-w-0"><h2 class="text-xl font-black">{{ t('createGroup') }}</h2><p class="text-sm text-pop-muted">{{ t('groupCreateHelp') }}</p></div></div>
-          <label class="block text-sm font-bold">{{ t('groupName') }}<input appUiControl class="mt-1 w-full" name="groupName" [(ngModel)]="app.groupName" maxlength="80" required /></label>
-          <app-field class="block" controlId="group-currency" [label]="t('groupCurrency')">
-            <app-dropdown controlId="group-currency" name="groupCurrency" [options]="currencyDropdownOptions(app.currencies())" [searchable]="true" [searchLabel]="t('search')" [(ngModel)]="app.groupCurrency" />
-          </app-field>
-          <div class="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-2">
-            <app-field controlId="group-icon" [label]="metadataText().icon + ' · ' + metadataText().optional">
-              <app-dropdown controlId="group-icon" name="groupIconId" [options]="iconOptions()" [(ngModel)]="app.groupIconId" />
-            </app-field>
-            <app-field controlId="group-color" [label]="metadataText().color + ' · ' + metadataText().optional">
-              <app-dropdown controlId="group-color" name="groupColor" [options]="colorOptions()" [(ngModel)]="app.groupColor" />
-            </app-field>
-          </div>
-          <label class="block text-sm font-bold" for="group-description">{{ metadataText().description }} · {{ metadataText().optional }}</label>
-          <textarea appUiControl id="group-description" class="min-h-24 w-full" name="groupDescription" [(ngModel)]="app.groupDescription" maxlength="500"></textarea>
-          <app-ui-button variant="coral" [block]="true" size="lg" class="w-full sm:w-auto" type="submit" [disabled]="app.busy() || !app.online()">+ {{ t('createGroup') }}</app-ui-button>
-          @if (app.groupCreateFailed()) { <app-ui-alert variant="error">{{ t('groupCreateFailed') }}</app-ui-alert> }
-        </form>
-      } @else if (!app.groupsError()) { <app-ui-alert variant="error">{{ t('groupServiceMissing') }}</app-ui-alert> }
-      @if (!app.groupsError() && !app.groupsBusy() && app.workerUrl && app.auth?.user(); as user) {
-        @if (app.firebaseApp && app.selectedGroup(); as selected) { <app-group-lifecycle-panel [group]="selected" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" (changed)="app.onInvitationJoined()" /> }
-        @if (app.firebaseApp && app.selectedGroup(); as selected) { <app-group-metadata-panel [group]="selected" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" (changed)="app.onInvitationJoined()" /> }
-        @if (app.firebaseApp && app.groups().length) { <app-group-currency-panel [groups]="app.groups()" [preferredGroupId]="app.selectedGroupId()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" (changed)="app.onInvitationJoined()" /> }
-        <app-qr-invitation-panel id="qr-invitations" [groups]="app.groups()" [preferredGroupId]="app.selectedGroupId()" [user]="user" [workerUrl]="app.workerUrl" />
-        @if (app.firebaseApp && app.groups().length) { <app-category-manager [groups]="app.groups()" [preferredGroupId]="app.selectedGroupId()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" (changed)="app.onCategoryChanged()" /> }
-      }
-      @if (app.message() && !app.groupsError()) { <app-ui-alert variant="error">{{ app.message() }}</app-ui-alert> }
-    </div>
-  `,
+  templateUrl: './groups-page.html',
 })
 export class GroupsPage {
   readonly groupMemberCountLabel = groupMemberCountLabel;
   readonly app = inject(App);
   readonly t = t;
+  readonly ux = computed(() => groupsPageText[language()]);
+  readonly activeGroups = computed(() => this.app.groups().filter(group => group.status === 'active'));
+  readonly archivedGroups = computed(() => this.app.groups().filter(group => group.status === 'archived'));
+  readonly detailOpen = signal(false);
+  readonly showCreate = signal(false);
+  readonly showArchived = signal(false);
+  readonly showJoin = signal(false);
+  readonly tab = signal<'overview' | 'members' | 'categories' | 'settings'>('overview');
+  readonly detailGroupId = signal('');
+  readonly detailGroup = computed(() => this.app.groups().find(group => group.id === (this.detailGroupId() || this.app.selectedGroupId())));
+  readonly tabs = computed(() => [
+    { id: 'overview' as const, label: this.ux().overview },
+    { id: 'members' as const, label: this.ux().members },
+    { id: 'categories' as const, label: this.ux().categories },
+    { id: 'settings' as const, label: this.ux().settings },
+  ]);
+  inviteLink = '';
+  readonly inviteLinkError = signal(false);
+  joinFromLink(event: Event): void {
+    event.preventDefault();
+    try { window.location.assign(validateInviteLink(this.inviteLink.trim(), window.location.origin)); }
+    catch { this.inviteLinkError.set(true); }
+  }
+  openGroup(groupId: string): void { this.detailGroupId.set(groupId); this.detailOpen.set(true); this.tab.set('overview'); this.app.requestGroupSelection(groupId); }
+  openArchived(groupId: string): void { this.detailGroupId.set(groupId); this.detailOpen.set(true); this.tab.set('overview'); }
+  async createGroup(): Promise<void> {
+    await this.app.createGroup();
+    if (this.app.groupCreateFailed()) return;
+    this.detailGroupId.set(this.app.selectedGroupId());
+    this.detailOpen.set(true);
+    this.showCreate.set(false);
+  }
   readonly currencyDropdownOptions = currencyDropdownOptions;
   readonly categoryDropdownIcon = categoryDropdownIcon;
   readonly metadataText = computed(() => groupMetadataText[language()]);

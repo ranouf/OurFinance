@@ -1,0 +1,77 @@
+<div class="mx-auto max-w-6xl space-y-5 pb-20 lg:pb-0">
+  <header class="flex items-start justify-between gap-4">
+    <div><h1 class="text-3xl font-black text-pop-text">{{ t('myGroups') }}</h1><p class="mt-1 text-sm text-pop-muted">{{ t('groupsPageIntro') }}</p></div>
+    <app-ui-button variant="coral" class="hidden lg:block" type="button" (click)="showCreate.set(true); detailOpen.set(false)">{{ ux().create }}</app-ui-button>
+  </header>
+  <section class="relative overflow-hidden rounded-[1.7rem] bg-pop-primary px-6 py-6 text-white shadow-[0_12px_30px_#6455ec24]">
+    <div class="relative z-10"><h2 class="text-2xl font-black">{{ ux().hero }}</h2><p class="mt-1 max-w-xl text-sm">{{ ux().heroHelp }}</p></div>
+    <span class="pointer-events-none absolute -bottom-16 right-0 size-52 rounded-full bg-white/10" aria-hidden="true"></span>
+  </section>
+  @if (app.groupsBusy()) { <app-ui-alert variant="info">{{ t('loadingGroupList') }}</app-ui-alert> }
+  @else if (app.groupsError()) { <app-ui-alert variant="error">{{ t('groupsUnavailable') }}</app-ui-alert><app-ui-button variant="outline" type="button" (click)="app.refreshGroups()">{{ t('refresh') }}</app-ui-button> }
+  @else if (showCreate() || (!activeGroups().length && !archivedGroups().length)) {
+    @if (activeGroups().length || archivedGroups().length) { <app-ui-button variant="ghost" type="button" (click)="showCreate.set(false)">← {{ ux().back }}</app-ui-button> }
+      @if (app.groupServiceReady() && app.auth?.user()?.emailVerified && !app.groupsError()) {
+        <form class="max-w-2xl min-w-0 space-y-4 rounded-[1.7rem] border border-pop-border bg-white p-5 shadow-sm max-[120px]:p-2 sm:p-7" (ngSubmit)="createGroup()">
+          <div class="flex min-w-0 flex-wrap items-center gap-3"><span class="flex h-11 w-11 items-center justify-center rounded-2xl bg-pop-lavender text-2xl text-pop-primary" aria-hidden="true"><svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg></span><div class="min-w-0"><h2 class="text-xl font-black">{{ t('createGroup') }}</h2><p class="text-sm text-pop-muted">{{ t('groupCreateHelp') }}</p></div></div>
+          <label class="block text-sm font-bold">{{ t('groupName') }}<input appUiControl class="mt-1 w-full" name="groupName" [(ngModel)]="app.groupName" maxlength="80" required /></label>
+          <app-field class="block" controlId="group-currency" [label]="t('groupCurrency')">
+            <app-dropdown controlId="group-currency" name="groupCurrency" [options]="currencyDropdownOptions(app.currencies())" [searchable]="true" [searchLabel]="t('search')" [(ngModel)]="app.groupCurrency" />
+          </app-field>
+          <div class="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-2">
+            <app-field controlId="group-icon" [label]="metadataText().icon + ' · ' + metadataText().optional">
+              <app-dropdown controlId="group-icon" name="groupIconId" [options]="iconOptions()" [(ngModel)]="app.groupIconId" />
+            </app-field>
+            <app-field controlId="group-color" [label]="metadataText().color + ' · ' + metadataText().optional">
+              <app-dropdown controlId="group-color" name="groupColor" [options]="colorOptions()" [(ngModel)]="app.groupColor" />
+            </app-field>
+          </div>
+          <label class="block text-sm font-bold" for="group-description">{{ metadataText().description }} · {{ metadataText().optional }}</label>
+          <textarea appUiControl id="group-description" class="min-h-24 w-full" name="groupDescription" [(ngModel)]="app.groupDescription" maxlength="500"></textarea>
+          <app-ui-button variant="coral" [block]="true" size="lg" class="w-full sm:w-auto" type="submit" [disabled]="app.busy() || !app.online()">+ {{ t('createGroup') }}</app-ui-button>
+          @if (app.groupCreateFailed()) { <app-ui-alert variant="error">{{ t('groupCreateFailed') }}</app-ui-alert> }
+        </form>
+      } @else if (!app.groupsError()) { <app-ui-alert variant="error">{{ t('groupServiceMissing') }}</app-ui-alert> }
+  } @else {
+    <div class="grid gap-4 lg:grid-cols-[minmax(16rem,20rem)_minmax(0,1fr)] lg:items-start">
+      <section class="rounded-[1.7rem] border border-pop-border bg-white p-4 shadow-sm" [class.max-lg:hidden]="detailOpen()" [attr.aria-label]="t('myGroups')">
+        <h2 class="mb-4 text-xl font-black">{{ ux().list }}</h2>
+        <div class="space-y-3">
+          @for (group of activeGroups(); track group.id) {
+            <app-ui-group-card [name]="group.name" [detail]="groupMemberCountLabel(group.memberCount ?? 1) + ' · ' + group.currency" [amount]="app.formatGroupBalance(group)" [amountTone]="app.groupBalanceTone(group)" [icon]="categoryDropdownIcon(group.iconId || 'home') || 'house'" [selected]="detailGroup()?.id === group.id" [interactive]="true" (activated)="openGroup(group.id)" />
+          }
+        </div>
+        @if (archivedGroups().length) {
+          <button class="mt-4 min-h-11 text-sm font-bold text-pop-primary-dark underline focus-visible:outline-2 focus-visible:outline-pop-primary" type="button" [attr.aria-expanded]="showArchived()" (click)="showArchived.update(value => !value)">{{ ux().archived }} ({{ archivedGroups().length }})</button>
+          @if (showArchived()) { <div class="mt-2 space-y-2">@for (group of archivedGroups(); track group.id) { <app-ui-group-card [name]="group.name" [detail]="group.currency + ' · ' + ux().readOnly" [icon]="categoryDropdownIcon(group.iconId || 'home') || 'house'" [selected]="detailGroup()?.id === group.id" [interactive]="true" (activated)="openArchived(group.id)" /> }</div> }
+        }
+        <div class="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2"><app-ui-button variant="secondary" type="button" (click)="showCreate.set(true)">{{ ux().create }}</app-ui-button><app-ui-button variant="outline" type="button" (click)="showJoin.set(true)">{{ ux().join }}</app-ui-button></div>
+        @if (showJoin()) { <form class="mt-3 space-y-2" (submit)="joinFromLink($event)"><label class="block text-sm font-bold" for="groups-invite-link">{{ ux().join }}</label><input appUiControl id="groups-invite-link" class="w-full" type="url" [value]="inviteLink" (input)="inviteLink = $any($event.target).value" required />@if (inviteLinkError()) { <app-ui-alert variant="error">{{ t('invitationLinkInvalid') }}</app-ui-alert> }<app-ui-button variant="primary" type="submit">{{ t('joinGroupAction') }}</app-ui-button></form> }
+      </section>
+      @if (detailGroup(); as group) {
+        <section class="min-w-0 rounded-[1.7rem] border border-pop-border bg-white p-4 shadow-sm sm:p-6" [class.max-lg:hidden]="!detailOpen()" [attr.aria-label]="group.name">
+          <app-ui-button variant="ghost" class="mb-4 lg:hidden" type="button" (click)="detailOpen.set(false)">← {{ ux().back }}</app-ui-button>
+          <div class="flex flex-wrap items-start justify-between gap-3"><div><p class="text-xs font-bold uppercase tracking-wide text-pop-muted">{{ group.status === 'archived' ? ux().archived : ux().active }}</p><h2 class="mt-1 break-words text-3xl font-black">{{ group.name }}</h2>@if (group.description) { <p class="mt-1 text-sm text-pop-muted">{{ group.description }}</p> }</div><span class="rounded-full bg-pop-lavender px-3 py-2 text-sm font-black text-pop-primary-dark">{{ group.currency }}</span></div>
+          <div class="mt-5 grid gap-2 sm:grid-cols-3"><div class="rounded-2xl bg-pop-lavender p-4"><small class="text-pop-muted">{{ t('myBalance') }}</small><strong class="mt-1 block text-lg">{{ app.formatGroupBalance(group) }}</strong></div><div class="rounded-2xl bg-pop-mint-soft p-4"><small class="text-pop-muted">{{ ux().members }}</small><strong class="mt-1 block text-lg">{{ groupMemberCountLabel(group.memberCount ?? 1) }}</strong></div><div class="rounded-2xl bg-pop-peach p-4"><small class="text-pop-muted">{{ ux().status }}</small><strong class="mt-1 block text-lg">{{ group.status === 'archived' ? ux().readOnly : ux().active }}</strong></div></div>
+          <div class="mt-5 flex gap-2 overflow-x-auto border-b border-pop-border pb-2" role="tablist" [attr.aria-label]="ux().sections">
+            @for (item of tabs(); track item.id) { <button class="shrink-0 rounded-xl px-3 py-2 text-sm font-bold focus-visible:outline-2 focus-visible:outline-pop-primary" [class.bg-pop-primary]="tab() === item.id" [class.text-white]="tab() === item.id" type="button" role="tab" [attr.aria-selected]="tab() === item.id" [attr.aria-controls]="'group-panel'" (click)="tab.set(item.id)">{{ item.label }}</button> }
+          </div>
+          <div id="group-panel" role="tabpanel" class="min-w-0 pt-4">
+            @if (tab() === 'overview') {
+              @if (group.status === 'archived') { <app-ui-alert variant="info">{{ ux().readOnly }}</app-ui-alert> }
+              @if (group.id === app.selectedGroupId() && app.dashboardMemberBalances().length) { <ul class="divide-y divide-pop-border">@for (item of app.dashboardMemberBalances(); track item.userId) { <li class="flex justify-between gap-3 py-3"><span>{{ app.dashboardMemberName(item.userId) }}</span><strong>{{ app.formatDashboardMinor(item.balanceMinor) }}</strong></li> }</ul> }
+              <div class="mt-4 flex flex-wrap gap-2"><a class="rounded-xl bg-pop-lavender px-4 py-3 text-sm font-bold text-pop-primary-dark" routerLink="/expenses" [queryParams]="{ group: group.id }">{{ t('navExpenses') }}</a><a class="rounded-xl bg-pop-lavender px-4 py-3 text-sm font-bold text-pop-primary-dark" routerLink="/statistics" fragment="settlement-form">{{ t('totalRepayments') }}</a></div>
+            } @else if (tab() === 'members') {
+              @if (app.firebaseApp && app.workerUrl && app.auth?.user(); as user) { <app-group-lifecycle-panel [group]="group" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" (changed)="app.onInvitationJoined()" />@if (group.status === 'active') { <app-qr-invitation-panel [groups]="activeGroups()" [preferredGroupId]="group.id" [user]="user" [workerUrl]="app.workerUrl" /> } }
+            } @else if (tab() === 'categories') {
+              @if (app.firebaseApp && app.workerUrl && app.auth?.user(); as user) { @if (group.status === 'active') { <app-category-manager [groups]="activeGroups()" [preferredGroupId]="group.id" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" (changed)="app.onCategoryChanged()" /> } @else { <app-ui-alert variant="info">{{ ux().readOnly }}</app-ui-alert> } }
+            } @else {
+              @if (app.firebaseApp && app.workerUrl && app.auth?.user(); as user) { <app-group-metadata-panel [group]="group" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" (changed)="app.onInvitationJoined()" />@if (group.status === 'active') { <app-group-currency-panel [groups]="activeGroups()" [preferredGroupId]="group.id" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" (changed)="app.onInvitationJoined()" /> } }
+            }
+          </div>
+        </section>
+      }
+    </div>
+  }
+  @if (app.message() && !app.groupsError()) { <app-ui-alert variant="error">{{ app.message() }}</app-ui-alert> }
+</div>

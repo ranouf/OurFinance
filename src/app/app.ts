@@ -16,7 +16,7 @@ import { Group } from './core/firebase/group-model';
 import { readPendingInvite, readInvalidInvite, clearPendingInvite } from './core/firebase/pending-invite';
 import type { ExpenseHistoryEntry } from './core/firebase/expense-service';
 import { dashboardMetrics } from './features/dashboard/dashboard-metrics';
-import { accessibleGroupId, groupSelectionStorageKey } from './features/dashboard/group-selection';
+import { accessibleGroupId, groupSelectionStorageKey, selectableGroupIds } from './features/dashboard/group-selection';
 import { loadSharedMemberProfiles } from './core/firebase/member-profile-service';
 import { categoryLabel } from './shared/utils/category-label';
 import { qrInvitationText } from './features/groups/qr-invitation-text';
@@ -127,7 +127,7 @@ export class App implements OnInit, OnDestroy {
     resolve?.(true);
   }
   requestGroupSelection(groupId: string): void {
-    if (groupId === this.selectedGroupId() || !this.groups().some(group => group.id === groupId)) return;
+    if (groupId === this.selectedGroupId() || !this.groups().some(group => group.id === groupId && group.status === 'active')) return;
     if (this.expenseDraftActive()) { this.pendingGroupId.set(groupId); this.switchGroupDialog?.open(); return; }
     this.selectGroup(groupId);
   }
@@ -136,13 +136,14 @@ export class App implements OnInit, OnDestroy {
     const edit = this.pendingExpenseEdit;
     this.pendingExpenseEdit = undefined;
     this.switchGroupDialog?.close();
-    if (!this.groups().some(group => group.id === groupId)) return;
+    if (!this.groups().some(group => group.id === groupId && group.status === 'active')) return;
     this.expenseDraftActive.set(false);
     this.selectGroup(groupId);
     if (edit) this.startExpenseEdit(edit);
   }
   searchExpenses(search: string): void { void this.router.navigate(['/expenses'], { queryParams: { group: this.selectedGroupId(), ...(search ? { search } : {}) } }); }
   private selectGroup(groupId: string): void {
+    if (!this.groups().some(group => group.id === groupId && group.status === 'active')) return;
     this.selectedGroupId.set(groupId);
     const userId = this.auth?.user()?.uid;
     if (userId && typeof window !== 'undefined') window.sessionStorage.setItem(groupSelectionStorageKey(userId), groupId);
@@ -318,10 +319,10 @@ export class App implements OnInit, OnDestroy {
       if (requestId !== this.groupLoadVersion || this.auth?.user()?.uid !== user.uid) return;
       this.groups.set(groups);
       this.dashboardGroupBalances.set({});
-      void this.loadGroupBalances(groups, user.uid, requestId);
+      void this.loadGroupBalances(groups.filter(group => group.status === 'active'), user.uid, requestId);
       const requestedGroupId = typeof window !== 'undefined' && window.location.pathname === '/expenses' ? new URLSearchParams(window.location.search).get('group') : null;
       const storedGroupId = typeof window !== 'undefined' ? window.sessionStorage.getItem(groupSelectionStorageKey(user.uid)) : null;
-      this.selectedGroupId.set(accessibleGroupId(groups.map(group => group.id), requestedGroupId, this.selectedGroupId(), storedGroupId));
+      this.selectedGroupId.set(accessibleGroupId(selectableGroupIds(groups), requestedGroupId, this.selectedGroupId(), storedGroupId));
     }
     catch { if (requestId === this.groupLoadVersion && this.auth?.user()?.uid === user.uid) { this.groupsError.set(true); this.message.set(t('groupsUnavailable')); } }
     finally { if (requestId === this.groupLoadVersion) this.groupsBusy.set(false); }
@@ -395,13 +396,14 @@ export class App implements OnInit, OnDestroy {
     this.busy.set(true); this.groupCreateFailed.set(false);
     try {
       if (!this.groupService) { const { GroupService } = await import('./core/firebase/group-service'); this.groupService = new GroupService(this.firebaseApp, this.workerUrl); }
-      await this.groupService.create(user, this.groupName, this.groupCurrency, {
+      const createdGroupId = await this.groupService.create(user, this.groupName, this.groupCurrency, {
         ...(this.groupIconId ? { iconId: this.groupIconId } : {}),
         ...(this.groupColor ? { color: this.groupColor } : {}),
         ...(this.groupDescription.trim() ? { description: this.groupDescription.trim() } : {}),
       });
       this.groupName = ''; this.groupIconId = ''; this.groupColor = ''; this.groupDescription = '';
       await this.loadGroups();
+      if (this.groups().some(group => group.id === createdGroupId && group.status === 'active')) this.selectGroup(createdGroupId);
       if (new URLSearchParams(this.router.url.split('?')[1] ?? '').get('intent') === 'import') void this.router.navigate(['/account'], { fragment: 'import-expenses' }); }
     catch { this.groupCreateFailed.set(true); }
     finally { this.busy.set(false); }

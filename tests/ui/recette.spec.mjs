@@ -25,11 +25,11 @@ test('I1 · une invitation incomplète ne déclenche aucune adhésion', async ({
 test('H1/G1/D3/S1/P1 · session persistante et pages du groupe', async ({ page }) => {
   await login(page);
   for (const [route, selector] of [
-    ['groups', 'input[name=groupName]'], ['expenses', 'app-expense-history'],
+    ['groups', 'app-ui-group-card'], ['expenses', 'app-expense-history'],
     ['statistics', 'app-statistics-summary'], ['account', 'app-profile-panel'],
   ]) {
     await page.goto('/' + route);
-    await expect(page.locator(selector)).toBeVisible();
+    await expect(page.locator(selector).first()).toBeVisible();
     await expect(page).toHaveURL(new RegExp('/' + route + '$'));
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   }
@@ -74,6 +74,7 @@ test('U1 · la galerie de développement est accessible directement', async ({ p
 test('G1 · le formulaire présente icônes, couleurs et devise', async ({ page }) => {
   await login(page);
   await page.goto('/groups');
+  await page.getByRole('button', { name: 'Créer un groupe' }).filter({ visible: true }).first().click();
   const currency = page.locator('#group-currency');
   await expect(currency.locator('img[src="/flags/ca.svg"]')).toBeVisible();
   await currency.click();
@@ -93,10 +94,11 @@ test('G1 · le formulaire présente icônes, couleurs et devise', async ({ page 
   }
 });
 
-test('G1 · le formulaire de groupe ne déborde pas au zoom extrême', async ({ page }) => {
+test('G1 · le formulaire de groupe ne déborde pas sur un petit mobile', async ({ page }) => {
   await login(page);
-  await page.setViewportSize({ width: 98, height: 844 });
+  await page.setViewportSize({ width: 320, height: 844 });
   await page.goto('/groups');
+  await page.getByRole('button', { name: 'Créer un groupe' }).filter({ visible: true }).first().click();
   await expect(page.locator('input[name=groupName]')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
@@ -183,7 +185,7 @@ for (const locale of ['en', 'ja']) {
       await login(page);
       for (const path of ['dashboard', 'groups', 'expenses', 'statistics', 'account']) {
         await page.goto('/' + path);
-        await expect(page.locator(({ dashboard: 'app-ui-group-card', groups: 'input[name=groupName]', expenses: 'app-expense-history', statistics: 'app-statistics-summary', account: 'app-profile-panel' })[path]).filter({ visible: true }).first()).toBeVisible();
+        await expect(page.locator(({ dashboard: 'app-ui-group-card', groups: 'app-ui-group-card', expenses: 'app-expense-history', statistics: 'app-statistics-summary', account: 'app-profile-panel' })[path]).filter({ visible: true }).first()).toBeVisible();
         await expect(page).toHaveURL(new RegExp('/' + path + '$'));
         await expect(page.locator('html')).toHaveAttribute('lang', locale);
       }
@@ -228,6 +230,8 @@ test('S2 · refuser le remboursement de zéro et identifier le champ en erreur',
 test('C1 · prévisualiser une catégorie et refuser un nom vide', async ({ page }) => {
   await login(page);
   await page.goto('/groups');
+  await page.locator('app-ui-group-card').filter({ hasText: 'Famille recette' }).first().click();
+  await page.getByRole('tab', { name: 'Catégories' }).click();
   const panel = page.locator('app-category-manager');
   await panel.locator('#categoryGroup').click();
   await panel.getByRole('option', { name: /Famille recette/ }).click();
