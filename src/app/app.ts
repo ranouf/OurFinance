@@ -39,7 +39,7 @@ import { detectLanguage, language, locale, setLanguage, t } from './shared/utils
         </div>
       }
       @else { <router-outlet /> }
-    </app-shell><app-ui-dialog #switchGroupDialog [title]="t('discardDraftTitle')" [closeLabel]="t('closeDialog')" (closed)="pendingGroupId.set('')"><p class="text-sm">{{ t('discardDraftText') }}</p><div class="mt-4 flex justify-end gap-2"><button class="min-h-11 rounded-xl px-4 font-bold focus-visible:outline-2 focus-visible:outline-pop-primary" type="button" (click)="switchGroupDialog.close()">{{ t('keepDraft') }}</button><button class="min-h-11 rounded-xl bg-pop-coral px-4 font-bold focus-visible:outline-2 focus-visible:outline-pop-primary" type="button" (click)="confirmGroupSelection()">{{ t('discardDraft') }}</button></div></app-ui-dialog><app-ui-dialog #leaveExpenseDialog [title]="t('leaveDraftTitle')" [closeLabel]="t('closeDialog')" (closed)="onLeaveExpenseDialogClosed()"><p class="text-sm">{{ t('leaveDraftText') }}</p><div class="mt-4 flex justify-end gap-2"><button class="min-h-11 rounded-xl px-4 font-bold focus-visible:outline-2 focus-visible:outline-pop-primary" type="button" (click)="leaveExpenseDialog.close()">{{ t('keepDraft') }}</button><button class="min-h-11 rounded-xl bg-pop-coral px-4 font-bold focus-visible:outline-2 focus-visible:outline-pop-primary" type="button" (click)="acceptLeaveExpensePage()">{{ t('leaveDraft') }}</button></div></app-ui-dialog> }
+    </app-shell><app-ui-dialog #switchGroupDialog [title]="t('discardDraftTitle')" [closeLabel]="t('closeDialog')" (closed)="pendingGroupId.set(''); pendingExpenseEdit = undefined"><p class="text-sm">{{ t('discardDraftText') }}</p><div class="mt-4 flex justify-end gap-2"><button class="min-h-11 rounded-xl px-4 font-bold focus-visible:outline-2 focus-visible:outline-pop-primary" type="button" (click)="switchGroupDialog.close()">{{ t('keepDraft') }}</button><button class="min-h-11 rounded-xl bg-pop-coral px-4 font-bold focus-visible:outline-2 focus-visible:outline-pop-primary" type="button" (click)="confirmGroupSelection()">{{ t('discardDraft') }}</button></div></app-ui-dialog><app-ui-dialog #leaveExpenseDialog [title]="t('leaveDraftTitle')" [closeLabel]="t('closeDialog')" (closed)="onLeaveExpenseDialogClosed()"><p class="text-sm">{{ t('leaveDraftText') }}</p><div class="mt-4 flex justify-end gap-2"><button class="min-h-11 rounded-xl px-4 font-bold focus-visible:outline-2 focus-visible:outline-pop-primary" type="button" (click)="leaveExpenseDialog.close()">{{ t('keepDraft') }}</button><button class="min-h-11 rounded-xl bg-pop-coral px-4 font-bold focus-visible:outline-2 focus-visible:outline-pop-primary" type="button" (click)="acceptLeaveExpensePage()">{{ t('leaveDraft') }}</button></div></app-ui-dialog> }
   `
 })
 export class App implements OnInit, OnDestroy {
@@ -85,6 +85,7 @@ export class App implements OnInit, OnDestroy {
   readonly selectedGroup = computed(() => this.groups().find(group => group.id === this.selectedGroupId()));
   readonly expenseDraftActive = signal(false);
   readonly pendingGroupId = signal('');
+  pendingExpenseEdit?: { groupId: string; entry: ExpenseHistoryEntry };
   @ViewChild('switchGroupDialog') switchGroupDialog?: UiDialog;
   @ViewChild('leaveExpenseDialog') leaveExpenseDialog?: UiDialog;
   private leaveExpenseResolver?: (leave: boolean) => void;
@@ -111,10 +112,13 @@ export class App implements OnInit, OnDestroy {
   }
   confirmGroupSelection(): void {
     const groupId = this.pendingGroupId();
+    const edit = this.pendingExpenseEdit;
+    this.pendingExpenseEdit = undefined;
     this.switchGroupDialog?.close();
     if (!this.groups().some(group => group.id === groupId)) return;
     this.expenseDraftActive.set(false);
     this.selectGroup(groupId);
+    if (edit) this.startExpenseEdit(edit);
   }
   searchExpenses(search: string): void { void this.router.navigate(['/expenses'], { queryParams: { group: this.selectedGroupId(), ...(search ? { search } : {}) } }); }
   private selectGroup(groupId: string): void {
@@ -435,6 +439,15 @@ export class App implements OnInit, OnDestroy {
   }
   onExpenseSaved(): void { this.expenseRevision.update(value => value + 1); }
   onExpenseEdit(target: { groupId: string; entry: ExpenseHistoryEntry }): void {
+    if (this.expenseDraftActive()) {
+      this.pendingExpenseEdit = target;
+      this.pendingGroupId.set(target.groupId);
+      this.switchGroupDialog?.open();
+      return;
+    }
+    this.startExpenseEdit(target);
+  }
+  private startExpenseEdit(target: { groupId: string; entry: ExpenseHistoryEntry }): void {
     this.editingExpense.set(target);
     this.selectGroup(target.groupId);
     void this.router.navigateByUrl('/expenses').then(() => requestAnimationFrame(() =>

@@ -67,6 +67,25 @@ test('D2c · le formulaire adopte le groupe choisi quand le brouillon est vide',
   await expect(page.locator('app-expense-form')).toContainText('EUR');
 });
 
+test('D2d · éditer une dépense ne remplace pas un brouillon sans confirmation', async ({ page }) => {
+  test.skip(page.viewportSize()?.width < 1280, 'Historique et formulaire côte à côte sur ordinateur');
+  await login(page);
+  await page.goto('/expenses?action=add');
+  const description = page.getByRole('textbox', { name: 'Description' });
+  await description.fill('Brouillon fictif à conserver');
+  const history = page.locator('app-expense-history');
+  await history.getByText('Repas de recette', { exact: true }).click();
+  const edit = history.getByRole('button', { name: 'Modifier' });
+  await edit.click();
+  const dialog = page.getByRole('dialog', { name: 'Changer de groupe ?' });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: 'Garder le brouillon' }).click();
+  await expect(description).toHaveValue('Brouillon fictif à conserver');
+  await edit.click();
+  await dialog.getByRole('button', { name: 'Abandonner et changer' }).click();
+  await expect(description).toHaveValue('Repas de recette');
+});
+
 test('D2b · quitter le formulaire demande de conserver ou abandonner le brouillon', async ({ page }) => {
   await login(page);
   await page.goto('/expenses?action=add');
