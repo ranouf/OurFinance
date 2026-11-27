@@ -2,6 +2,11 @@ import { test, expect } from '@playwright/test';
 import { email, password } from '../ui/seed.mjs';
 
 test('la PWA de production sert le shell hors ligne sans exposer le groupe après déconnexion', async ({ page, context }) => {
+  const authResponses = [];
+  page.on('response', response => {
+    const { hostname, pathname } = new URL(response.url());
+    if (pathname.includes('identitytoolkit')) authResponses.push(`${hostname}${pathname}:${response.status()}`);
+  });
   await page.addInitScript(() => {
     Object.assign(window, { __FIREBASE_DEFAULTS__: {
       emulatorHosts: { auth: '127.0.0.1:9099', firestore: '127.0.0.1:8080' },
@@ -11,7 +16,8 @@ test('la PWA de production sert le shell hors ligne sans exposer le groupe aprè
   await page.locator('#login-email').fill(email);
   await page.locator('#login-password').fill(password);
   await page.locator('form button[type=submit]').click();
-  await expect(page).toHaveURL(/\/dashboard$/);
+  try { await expect(page).toHaveURL(/\/dashboard$/); }
+  catch (error) { throw new Error(`${error.message}\nAuth HTTP: ${authResponses.join(', ') || 'aucune réponse'}`); }
   await expect(page.getByText('Famille recette', { exact: true }).filter({ visible: true }).first()).toBeVisible();
 
   await expect.poll(async () => page.evaluate(() => navigator.serviceWorker.controller?.state)).toBe('activated');
