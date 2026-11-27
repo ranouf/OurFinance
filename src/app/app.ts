@@ -69,10 +69,9 @@ export class App implements OnInit, OnDestroy {
   readonly isExpensesRoute = computed(() => { this.routeEvent(); return this.router.url.split('?')[0] === '/expenses'; });
   readonly qrText = computed(() => qrInvitationText[language()]);
   readonly authRedirect = computed(() => {
-    this.routeEvent();
+    if (!this.routeEvent()) return null;
     if (this.isComponentsGallery()) return null;
     if (this.state() !== 'ready') return null;
-    if (!this.router.navigated) return null;
     return authDestination(this.auth?.ready() ?? false, this.router.url.split(/[?#]/)[0], this.auth?.user() ?? null, !!this.pendingInvite() || this.invalidInvite() || this.inviteStorageUnavailable() || !!this.inviteTerminalError());
   });
   readonly online = signal(typeof navigator === 'undefined' ? true : navigator.onLine);
@@ -463,7 +462,10 @@ export class App implements OnInit, OnDestroy {
     this.pendingInvite.set(null);
     this.inviteTerminalError.set(reason);
   }
-  declineInvite(): void { this.clearStoredInvite(); this.pendingInvite.set(null); this.invalidInvite.set(false); this.inviteStorageUnavailable.set(false); this.inviteTerminalError.set(null); this.inviteJoinedNotice.set(null); }
+  declineInvite(navigate = true): void {
+    this.clearStoredInvite(); this.pendingInvite.set(null); this.invalidInvite.set(false); this.inviteStorageUnavailable.set(false); this.inviteTerminalError.set(null); this.inviteJoinedNotice.set(null);
+    if (navigate) void this.router.navigateByUrl(this.auth?.user()?.emailVerified ? '/dashboard' : '/login');
+  }
   async onQrJoined(result: { groupId: string; token: string; uid: string }): Promise<void> {
     if (this.auth?.user()?.uid !== result.uid) {
       this.inviteJoinedNotice.set('invitationJoinedOtherAccount');
@@ -475,7 +477,7 @@ export class App implements OnInit, OnDestroy {
       return;
     }
     this.inviteJoinedNotice.set(null);
-    this.declineInvite();
+    this.declineInvite(false);
     await this.loadGroups();
     if (this.groups().some(group => group.id === result.groupId)) this.selectGroup(result.groupId);
     await this.router.navigateByUrl('/groups');

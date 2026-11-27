@@ -9,7 +9,7 @@ export const routes: Routes = [
   { path: 'join', loadComponent: () => import('./app-pages').then(m => m.JoinPage) },
   { path: 'dashboard', loadComponent: () => import('./app-pages').then(m => m.DashboardPage) },
   { path: 'groups', loadComponent: () => import('./app-pages').then(m => m.GroupsPage) },
-  { path: 'expenses', loadComponent: () => import('./app-pages').then(m => m.ExpensesPage), canDeactivate: [(component: ExpensesPage) => component.app.confirmLeaveExpensePage()] },
+  { path: 'expenses', loadComponent: () => import('./app-pages').then(m => m.ExpensesPage), canDeactivate: [(component: ExpensesPage | null) => component?.app.confirmLeaveExpensePage() ?? true] },
   { path: 'statistics', loadComponent: () => import('./app-pages').then(m => m.StatisticsPage) },
   { path: 'account', loadComponent: () => import('./app-pages').then(m => m.AccountPage) },
   ...(isDevMode() ? galleryRoutes : []),
