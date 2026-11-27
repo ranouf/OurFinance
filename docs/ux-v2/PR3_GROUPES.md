@@ -35,11 +35,11 @@ Sur ordinateur, les cartes restent visibles pendant la consultation du détail. 
 | Section | Contenu et actions |
 |---|---|
 | **Aperçu** | Devise, membres, solde personnel, dettes/créances lisibles, lien vers dépenses et équilibrage. Une devise claire même si le solde est nul. |
-| **Membres** | Membres actifs, rôles, personnes révoquées si le compte a les droits, invitation unique QR/lien/partage, statut, expiration et révocation. Le même CTA ouvre le QR et la copie du lien. |
+| **Membres** | Membres actifs et rôles affichés, invitation unique QR/lien/partage, statut, expiration et révocation. Le propriétaire peut révoquer un membre non propriétaire après confirmation. Le même CTA ouvre le QR et la copie du lien. |
 | **Catégories** | Catalogue système en lecture seule ; catégories personnalisées modifiables par tout membre actif, avec icône/couleur. Archive et réactivation ; catégories historiques conservées. |
-| **Paramètres** | Nom, description, image, icône/couleur et devise modifiables selon droits. Verrouillage de devise expliqué. Archiver/quitter/supprimer séparés, avec conséquence et confirmation. |
+| **Paramètres** | Nom, description, icône/couleur et devise modifiables selon les droits déjà disponibles. Verrouillage de devise expliqué. Le propriétaire peut archiver après confirmation. Le groupe archivé reste visible en lecture seule dans la liste, avec accès à l'export de son historique. |
 
-Les droits sont contrôlés côté service/Worker et reflétés dans l'interface. Une action indisponible explique sa raison sans donner l'impression d'un bouton cassé. Après une modification, les cartes et l'en-tête se mettent à jour sans rechargement manuel.
+Le contrat actuel n'expose ni transfert de propriété, ni départ du propriétaire, ni suppression définitive, ni réactivation d'un **groupe** archivé. Ne pas afficher ces actions. La réactivation des **catégories** archivées, elle, reste prévue. Les droits sont contrôlés côté service/Worker et reflétés dans l'interface. Une action indisponible explique sa raison sans donner l'impression d'un bouton cassé. Après une modification, les cartes et l'en-tête se mettent à jour sans rechargement manuel.
 
 ## Invitation QR
 
