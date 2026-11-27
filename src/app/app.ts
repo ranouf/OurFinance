@@ -54,6 +54,7 @@ export class App implements OnInit, OnDestroy {
   readonly invalidInvite = signal(false);
   readonly inviteStorageUnavailable = signal(false);
   readonly inviteTerminalError = signal<'inviteExpired' | 'inviteFailed' | null>(null);
+  readonly inviteJoinedNotice = signal(false);
   private readonly router = inject(Router);
   private readonly routeEvent = toSignal(this.router.events.pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd)));
   readonly isComponentsGallery = computed(() => {
@@ -462,11 +463,17 @@ export class App implements OnInit, OnDestroy {
     this.pendingInvite.set(null);
     this.inviteTerminalError.set(reason);
   }
-  declineInvite(): void { this.clearStoredInvite(); this.pendingInvite.set(null); this.invalidInvite.set(false); this.inviteStorageUnavailable.set(false); this.inviteTerminalError.set(null); }
-  async onQrJoined(groupId: string): Promise<void> {
+  declineInvite(): void { this.clearStoredInvite(); this.pendingInvite.set(null); this.invalidInvite.set(false); this.inviteStorageUnavailable.set(false); this.inviteTerminalError.set(null); this.inviteJoinedNotice.set(false); }
+  async onQrJoined(result: { groupId: string; token: string }): Promise<void> {
+    if (this.pendingInvite() !== result.token) {
+      await this.loadGroups();
+      this.inviteJoinedNotice.set(true);
+      return;
+    }
+    this.inviteJoinedNotice.set(false);
     this.declineInvite();
     await this.loadGroups();
-    if (this.groups().some(group => group.id === groupId)) this.selectGroup(groupId);
+    if (this.groups().some(group => group.id === result.groupId)) this.selectGroup(result.groupId);
     await this.router.navigateByUrl('/groups');
   }
   onExpenseSaved(): void { this.expenseRevision.update(value => value + 1); }

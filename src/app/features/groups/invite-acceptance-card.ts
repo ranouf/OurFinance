@@ -38,7 +38,7 @@ export class InviteAcceptanceCard implements OnChanges {
   @Input({ required: true }) user!: User;
   @Input({ required: true }) workerUrl = '';
   @Input({ required: true }) token = '';
-  @Output() readonly joined = new EventEmitter<string>();
+  @Output() readonly joined = new EventEmitter<{ groupId: string; token: string }>();
   @Output() readonly declined = new EventEmitter<void>();
   @Output() readonly changeAccount = new EventEmitter<void>();
   @Output() readonly invalidated = new EventEmitter<'inviteExpired' | 'inviteFailed'>();
@@ -77,7 +77,8 @@ export class InviteAcceptanceCard implements OnChanges {
     this.busy.set(true); this.messageKey.set('joining');
     try {
       const result = await new QrInvitationService(this.workerUrl).accept(user, token);
-      if (version === this.requestVersion) { this.messageKey.set('done'); this.joined.emit(result.groupId); }
+      if (version === this.requestVersion) this.messageKey.set('done');
+      this.joined.emit({ groupId: result.groupId, token });
     } catch (error) { if (version === this.requestVersion) { this.messageKey.set(null); this.errorKey.set(this.keyFor(error)); this.preview.set(null); this.clearUnusableToken(error); } }
     finally { if (version === this.requestVersion) this.busy.set(false); }
   }

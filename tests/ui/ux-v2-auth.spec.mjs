@@ -104,3 +104,23 @@ test('une invitation expirée efface le jeton et interdit un nouvel aperçu', as
   await page.reload();
   expect(previews).toBe(1);
 });
+
+test('une adhésion achevée après l’ouverture d’un autre lien reste annoncée', async ({ page }) => {
+  await login(page);
+  const first = 'a'.repeat(43);
+  const second = 'b'.repeat(43);
+  let acceptRoute;
+  await page.route('https://worker.invalid/qr-invitations/preview', route => route.fulfill({
+    json: { groupName: route.request().postDataJSON().token === first ? 'Premier groupe' : 'Second groupe', currency: 'CAD', expiresAt: '2030-01-01T00:00:00Z' },
+  }));
+  await page.route('https://worker.invalid/qr-invitations/accept', route => { acceptRoute = route; });
+  await page.goto(`/join#invite=${first}`);
+  await page.getByRole('heading', { name: 'Premier groupe' }).waitFor();
+  await page.getByRole('button', { name: 'Rejoindre le groupe' }).click();
+  await expect.poll(() => !!acceptRoute).toBe(true);
+  await page.evaluate(token => { location.hash = `#invite=${token}`; }, second);
+  await page.getByRole('heading', { name: 'Second groupe' }).waitFor();
+  await acceptRoute.fulfill({ json: { groupId: 'famille' } });
+  await expect(page.getByText(/Vous avez rejoint le groupe de l’invitation précédente/i)).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Second groupe' })).toBeVisible();
+});
