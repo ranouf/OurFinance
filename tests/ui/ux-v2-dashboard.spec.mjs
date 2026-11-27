@@ -54,6 +54,16 @@ test('D2 · le changement de groupe demande de protéger une dépense saisie', a
   await expect(page.getByRole('textbox', { name: 'Description' })).toHaveValue('');
 });
 
+test('D2b · quitter le formulaire efface son indicateur de brouillon', async ({ page }) => {
+  await login(page);
+  await page.goto('/expenses?action=add');
+  await page.getByRole('textbox', { name: 'Description' }).fill('Dépense fictive abandonnée');
+  await page.goto('/dashboard');
+  await page.locator('header select').selectOption('voyage');
+  await expect(page.locator('header select')).toHaveValue('voyage');
+  await expect(page.getByRole('dialog', { name: 'Changer de groupe ?' })).toBeHidden();
+});
+
 test('D3 · le bouton central mobile ouvre le formulaire du groupe actif', async ({ page }) => {
   test.skip(page.viewportSize()?.width > 390, 'Navigation basse mobile seulement');
   await login(page);

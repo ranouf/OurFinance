@@ -5,7 +5,7 @@ import { UiGroupCard } from './shared/components/ui-group-card/ui-group-card';
 import { UiControlDirective } from './shared/components/ui-field/ui-control.directive';
 import { UiButton } from './shared/components/ui-button/ui-button';
 import { UiAlert } from './shared/components/ui-alert/ui-alert';
-import { Component, ElementRef, ViewChild, computed, inject, signal } from '@angular/core';
+import { Component, ElementRef, OnDestroy, ViewChild, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { App } from './app';
@@ -274,7 +274,12 @@ export class GroupsPage {
     </div>
   `,
 })
-export class ExpensesPage { readonly app = inject(App); readonly t = t; readonly showEditor = signal(inject(ActivatedRoute).snapshot.queryParamMap.get('action') === 'add'); }
+export class ExpensesPage implements OnDestroy {
+  readonly app = inject(App);
+  readonly t = t;
+  readonly showEditor = signal(inject(ActivatedRoute).snapshot.queryParamMap.get('action') === 'add');
+  ngOnDestroy(): void { this.app.expenseDraftActive.set(false); }
+}
 
 @Component({
   imports: [StatisticsSummary, BalanceSummary, SettlementForm, SettlementHistory],
