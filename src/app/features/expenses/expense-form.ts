@@ -76,8 +76,9 @@ import { expenseMessage, expenseText, unnamedExpenseMember } from './expense-tex
             <section class="rounded-2xl border border-pop-border bg-pop-lavender p-4" [attr.aria-label]="text('splitSummary')">
               <div class="flex flex-wrap items-center justify-between gap-2"><div><h3 class="font-extrabold text-pop-primary-dark">{{ text('splitSummary') }}</h3><p class="text-xs text-pop-muted">{{ previousSplitUsed() ? text('previousSplit') : editing ? text('savedSplit') : text('equalDefault') }} · {{ text(draft.kind) }}</p></div><app-ui-button variant="outline" type="button" (click)="splitEditorOpen.set(!splitEditorOpen())">{{ splitEditorOpen() ? text('finishSplit') : text('modifySplit') }}</app-ui-button></div>
               <ul class="mt-3 divide-y divide-pop-border rounded-xl bg-pop-surface px-3 text-sm">
-                @for (row of draft.rows; track row.userId) { @if (row.selected) { <li class="flex min-h-11 items-center justify-between gap-3 py-2"><span class="min-w-0 break-words">{{ memberLabel(row.userId) }}</span><strong class="shrink-0">{{ summaryAmount(row.userId) }}</strong></li> } }
+                @for (row of draft.rows; track row.userId) { @if (row.selected) { <li class="flex min-h-11 items-center justify-between gap-3 py-2"><span class="min-w-0 break-words">{{ memberLabel(row.userId) }}</span><span class="shrink-0 text-right">@if (summaryInput(row.userId)) { <small class="block text-pop-muted">{{ summaryInput(row.userId) }}</small> }<strong>{{ summaryAmount(row.userId) }}</strong></span></li> } }
               </ul>
+              @if (draft.amount && !summaryAllocations().length) { <p class="mt-2 text-sm text-pop-muted" role="status">{{ text('splitPending') }}</p> }
             </section>
             @if (splitEditorOpen()) { <fieldset class="rounded-2xl border border-pop-border bg-pop-lavender p-4">
               <legend class="px-2 text-sm font-extrabold text-pop-primary-dark">{{ text('split') }}</legend>
@@ -254,9 +255,12 @@ export class ExpenseForm implements OnChanges {
   summaryAmount(userId: string): string {
     const assigned = this.summaryAllocations().find(row => row.userId === userId);
     if (assigned) return formatMinor(assigned.amountMinor, this.draft.currency, locale());
-    const value = this.draft.rows.find(row => row.userId === userId)?.value;
-    if (value) return `${value}${this.draft.kind === 'percentage' ? ' %' : this.draft.kind === 'shares' ? ' ×' : ` ${this.draft.currency}`}`;
     return this.text('amountPending');
+  }
+  summaryInput(userId: string): string {
+    if (this.draft.kind === 'equal') return '';
+    const value = this.draft.rows.find(row => row.userId === userId)?.value;
+    return value ? `${value}${this.draft.kind === 'percentage' ? ' %' : this.draft.kind === 'shares' ? ' ×' : ` ${this.draft.currency}`}` : '';
   }
   private applyPreference(mode: SplitMode): void {
     this.draft.kind = mode.kind;

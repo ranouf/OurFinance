@@ -59,6 +59,8 @@ test('D2 · à 99 %, effacer les parts et bloquer la création', async ({ page }
   await expect(preview).toBeVisible();
   await weights.nth(1).fill('59');
   await expect(preview).toBeHidden();
+  await expect(form.getByRole('region', { name: 'Répartition proposée' })).toContainText('Les montants seront affichés');
+  await expect(form.getByRole('region', { name: 'Répartition proposée' })).toContainText('Montant à préciser');
   const writes = [];
   page.on('request', req => { if (req.url().endsWith('/expenses') && req.method() === 'POST') writes.push(req.url()); });
   await form.getByRole('button', { name: /Enregistrer la dépense/ }).click();
