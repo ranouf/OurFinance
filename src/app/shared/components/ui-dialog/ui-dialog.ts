@@ -6,18 +6,21 @@ export class UiDialog {
   @Input() closeLabel = 'Close';
   @Output() closed = new EventEmitter<void>();
   @ViewChild('dialog') dialog!: ElementRef<HTMLDialogElement>;
-  private pendingProgrammaticCloseEvents = 0;
+  private pendingNativeCloseEvents = 0;
 
   open(): void { this.dialog.nativeElement.showModal(); }
   close(): void {
     if (!this.dialog.nativeElement.open) return;
-    this.pendingProgrammaticCloseEvents++;
+    this.pendingNativeCloseEvents++;
     this.dialog.nativeElement.close();
     this.closed.emit();
   }
+  onCancel(event: Event): void {
+    event.preventDefault();
+    this.close();
+  }
   onClose(): void {
-    if (this.pendingProgrammaticCloseEvents) { this.pendingProgrammaticCloseEvents--; return; }
-    // Escape can also queue a close event that arrives after a new open.
-    if (!this.dialog.nativeElement.open) this.closed.emit();
+    if (this.pendingNativeCloseEvents) { this.pendingNativeCloseEvents--; return; }
+    this.closed.emit();
   }
 }
