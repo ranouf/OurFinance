@@ -16,8 +16,9 @@ test('I1 · une invitation incomplète ne déclenche aucune adhésion', async ({
   const mutations = [];
   page.on('request', r => { if (r.method() === 'POST' && r.url().includes('worker.invalid')) mutations.push(r.url()); });
   await page.goto('/join#invite=abc');
-  await expect(page).toHaveURL(/\/login$/);
-  await expect(page.locator('#login-email')).toBeVisible();
+  await expect(page).toHaveURL(/\/join$/);
+  await expect(page.getByText(/lien d’invitation n’est pas valide/i)).toBeVisible();
+  await expect(page.locator('#login-email')).toHaveCount(0);
   expect(mutations).toEqual([]);
 });
 

@@ -9,17 +9,25 @@ import { t } from './shared/utils/i18n';
   selector: 'app-login-page',
   imports: [FormsModule, UiControlDirective, UiButton, UiAlert],
   template: `
-    <div class="login-page mx-auto max-w-5xl overflow-hidden rounded-[1.7rem] bg-white shadow-[0_18px_50px_#30275214] lg:grid lg:min-h-[690px] lg:grid-cols-[1.1fr_1fr]">
-      <div class="relative overflow-hidden bg-pop-primary lg:flex lg:flex-col lg:justify-end">
-        <div class="flex items-center gap-2 bg-white px-5 py-3 lg:hidden"><img src="/illustrations/ourfinance-mark.svg" width="34" height="34" alt="" /><span class="text-lg font-black text-pop-primary-dark">ourfinance.</span></div>
-        <picture><source media="(min-width: 1024px)" srcset="/illustrations/cafe-hero.webp" /><img class="h-72 w-full object-cover object-center sm:h-72 lg:h-full lg:min-h-[690px]" src="/illustrations/cafe-hero-mobile.webp" alt="" /></picture>
-        <div class="hidden lg:absolute lg:inset-x-0 lg:top-0 lg:block lg:bg-gradient-to-b lg:from-pop-primary/95 lg:via-pop-primary/75 lg:to-transparent lg:p-8 lg:pb-44 lg:text-white">
-          <p class="flex items-center gap-2 text-2xl font-black"><img src="/illustrations/ourfinance-mark.svg" width="42" height="42" alt="" />ourfinance.</p>
-          <p class="mt-10 max-w-sm text-4xl font-black leading-tight">{{ t('loginHeroLead') }} <span class="text-pop-sun">{{ t('loginHeroHighlight') }}</span></p>
-        </div>
+    <div class="login-page mx-auto max-w-5xl overflow-hidden rounded-[1.7rem] bg-white shadow-[0_18px_50px_#30275214] lg:grid lg:min-h-[690px] lg:grid-cols-[1.08fr_1fr]">
+      <div class="relative overflow-hidden bg-pop-primary">
+        <div class="flex items-center gap-2 bg-white px-5 py-4 lg:hidden"><img src="/illustrations/ourfinance-mark.svg" width="36" height="36" alt="" /><span class="text-xl font-black tracking-tight text-pop-text">ourfinance<span class="text-pop-sun">.</span></span></div>
+        <picture><source media="(min-width: 1024px)" srcset="/illustrations/cafe-hero.webp" /><img class="h-[335px] w-full object-cover object-[center_65%] sm:h-[420px] lg:h-full lg:min-h-[690px] lg:object-center" src="/illustrations/cafe-hero.webp" alt="" /></picture>
       </div>
-      <div class="px-5 py-6 max-[240px]:px-1 sm:px-10 lg:flex lg:flex-col lg:justify-center lg:px-12">
-        <div class="mb-3 hidden items-center gap-2 lg:flex"><img src="/illustrations/ourfinance-mark.svg" width="37" height="37" alt="" /><span class="text-lg font-black text-pop-primary-dark">ourfinance.</span></div>
+      <div class="px-5 py-7 max-[240px]:px-1 sm:px-10 lg:flex lg:flex-col lg:justify-center lg:px-14">
+        <div class="mb-7 hidden items-center gap-2 lg:flex"><img src="/illustrations/ourfinance-mark.svg" width="41" height="41" alt="" /><span class="text-2xl font-black tracking-tight text-pop-text">ourfinance<span class="text-pop-sun">.</span></span></div>
+        @if (app.invalidInvite() || app.inviteStorageUnavailable()) {
+          <section class="rounded-3xl border border-pop-border bg-white p-6 shadow-sm" role="alert"><h1 class="text-2xl font-black">{{ app.inviteStorageUnavailable() ? t('invitationStorageUnavailable') : t('invitationLinkInvalid') }}</h1><app-ui-button variant="secondary" class="mt-4" type="button" (click)="app.declineInvite()">{{ app.qrText().decline }}</app-ui-button></section>
+        } @else if (app.pendingInvite() && !app.auth?.user() && !showInviteAuth()) {
+          <section class="rounded-3xl border border-pop-border bg-white p-5 shadow-sm sm:p-7" [attr.aria-label]="app.qrText().received">
+            <span class="flex size-14 items-center justify-center rounded-2xl bg-pop-lavender text-pop-primary-dark" aria-hidden="true"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg></span>
+            <p class="mt-4 font-extrabold text-pop-primary-dark">{{ app.qrText().received }}</p>
+            <h1 class="mt-2 text-3xl font-black leading-tight">{{ t('inviteGuestHeading') }}</h1>
+            <p class="mt-3 text-pop-muted">{{ app.qrText().signIn }}</p>
+            <div class="mt-6 grid gap-3 sm:grid-cols-2"><app-ui-button variant="primary" type="button" (click)="showInviteAuth.set(true); app.mode.set('login')">{{ t('login') }}</app-ui-button><app-ui-button variant="secondary" type="button" (click)="showInviteAuth.set(true); app.mode.set('register')">{{ t('register') }}</app-ui-button></div>
+            <app-ui-button variant="ghost" class="mt-4" type="button" (click)="app.declineInvite()">{{ app.qrText().decline }}</app-ui-button>
+          </section>
+        } @else {
         <h1 class="text-2xl font-black leading-tight sm:text-3xl">@if (app.mode() === 'login') { <span class="lg:hidden">{{ t('welcomeMobile') }}</span><span class="hidden lg:inline">{{ app.heading() }}</span> 👋 } @else { {{ app.heading() }} }</h1>
         <p class="mt-1 text-sm text-pop-muted">{{ t('loginIntro') }}</p>
         @if (app.pendingInvite()) {
@@ -63,6 +71,7 @@ import { t } from './shared/utils/i18n';
           }
         }
         @if (app.message()) { <app-ui-alert [variant]="messageVariant()" id="login-auth-message" class="mt-4">{{ app.message() }}</app-ui-alert> }
+        }
       </div>
     </div>
   `,
@@ -71,6 +80,7 @@ export class LoginPage {
   readonly app = inject(App);
   readonly t = t;
   readonly submitted = signal(false);
+  readonly showInviteAuth = signal(false);
   messageVariant(): 'success' | 'error' { return this.app.message() === t('verifySent') || this.app.message() === t('resetSent') ? 'success' : 'error'; }
   @ViewChild('emailInput') emailInput?: ElementRef<HTMLInputElement>;
   @ViewChild('passwordInput') passwordInput?: ElementRef<HTMLInputElement>;

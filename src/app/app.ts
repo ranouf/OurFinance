@@ -13,7 +13,7 @@ import type { FirebaseApp } from 'firebase/app';
 import { currencyCatalog } from './shared/utils/currency';
 import { formatMinorExact } from './shared/utils/currency';
 import { Group } from './core/firebase/group-model';
-import { capturePendingInvite, clearPendingInvite } from './core/firebase/pending-invite';
+import { readPendingInvite, readInvalidInvite, clearPendingInvite } from './core/firebase/pending-invite';
 import type { ExpenseHistoryEntry } from './core/firebase/expense-service';
 import { dashboardMetrics } from './features/dashboard/dashboard-metrics';
 import { accessibleGroupId, groupSelectionStorageKey } from './features/dashboard/group-selection';
@@ -51,6 +51,10 @@ export class App implements OnInit, OnDestroy {
   readonly message = signal('');
   readonly groupCreateFailed = signal(false);
   readonly pendingInvite = signal<string | null>(null);
+  readonly invalidInvite = signal(false);
+  readonly inviteStorageUnavailable = signal(false);
+  readonly inviteTerminalError = signal<'inviteExpired' | 'inviteFailed' | null>(null);
+  readonly inviteJoinedNotice = signal<'invitationJoinedPrevious' | 'invitationJoinedOtherAccount' | null>(null);
   private readonly router = inject(Router);
   private readonly routeEvent = toSignal(this.router.events.pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd)));
   readonly isComponentsGallery = computed(() => {
@@ -65,14 +69,31 @@ export class App implements OnInit, OnDestroy {
   readonly isExpensesRoute = computed(() => { this.routeEvent(); return this.router.url.split('?')[0] === '/expenses'; });
   readonly qrText = computed(() => qrInvitationText[language()]);
   readonly authRedirect = computed(() => {
-    this.routeEvent();
+    if (!this.routeEvent()) return null;
     if (this.isComponentsGallery()) return null;
     if (this.state() !== 'ready') return null;
-    return authDestination(this.auth?.ready() ?? false, this.router.url.split('?')[0], this.auth?.user() ?? null, !!this.pendingInvite());
+    return authDestination(this.auth?.ready() ?? false, this.router.url.split(/[?#]/)[0], this.auth?.user() ?? null, !!this.pendingInvite() || this.invalidInvite() || this.inviteStorageUnavailable() || !!this.inviteTerminalError());
   });
   readonly online = signal(typeof navigator === 'undefined' ? true : navigator.onLine);
   @HostListener('window:online') onOnline(): void { this.online.set(true); }
   @HostListener('window:offline') onOffline(): void { this.online.set(false); }
+  @HostListener('window:ourfinance:invite-changed') onInviteChanged(): void {
+    if (typeof window === 'undefined') return;
+    this.inviteTerminalError.set(null);
+    this.syncStoredInvite(true);
+    if (this.pendingInvite() || this.invalidInvite() || this.inviteStorageUnavailable()) void this.router.navigateByUrl('/join');
+  }
+  private syncStoredInvite(invitationChanged = false): void {
+    try {
+      this.pendingInvite.set(readPendingInvite(window.sessionStorage));
+      this.invalidInvite.set(readInvalidInvite(window.sessionStorage));
+      this.inviteStorageUnavailable.set(false);
+    } catch {
+      this.pendingInvite.set(null);
+      this.invalidInvite.set(false);
+      this.inviteStorageUnavailable.set(invitationChanged || window.location.pathname === '/join');
+    }
+  }
   auth?: AuthService;
   private groupService?: GroupService;
   firebaseApp?: FirebaseApp;
@@ -235,13 +256,19 @@ export class App implements OnInit, OnDestroy {
       const destination = this.authRedirect();
       if (destination) void this.router.navigateByUrl(destination);
     });
+    effect(() => {
+      const event = this.routeEvent();
+      if (event?.urlAfterRedirects.startsWith('/join#') && typeof window !== 'undefined') {
+        window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search);
+      }
+    });
   }
   email = '';
   password = '';
   readonly heading = () => this.mode() === 'register' ? t('registerHeading') : this.mode() === 'reset' ? t('resetHeading') : t('welcome');
 
   async ngOnInit(): Promise<void> {
-    if (typeof window !== 'undefined') this.pendingInvite.set(capturePendingInvite(window.location, window.history, window.sessionStorage));
+    if (typeof window !== 'undefined') this.syncStoredInvite();
     setLanguage(language());
     try {
       const response = await fetch('/app-config.json', { cache: 'no-store' });
@@ -429,12 +456,30 @@ export class App implements OnInit, OnDestroy {
     catch { this.message.set(t('actionFailed')); }
     finally { this.busy.set(false); }
   }
-  clearStoredInvite(): void { if (typeof window !== 'undefined') clearPendingInvite(window.sessionStorage); }
-  declineInvite(): void { this.clearStoredInvite(); this.pendingInvite.set(null); }
-  async onQrJoined(groupId: string): Promise<void> {
-    this.declineInvite();
+  clearStoredInvite(): void { if (typeof window !== 'undefined') { try { clearPendingInvite(window.sessionStorage); } catch { /* Le stockage peut être désactivé. */ } } }
+  invalidateInvite(reason: 'inviteExpired' | 'inviteFailed'): void {
+    this.clearStoredInvite();
+    this.pendingInvite.set(null);
+    this.inviteTerminalError.set(reason);
+  }
+  declineInvite(navigate = true): void {
+    this.clearStoredInvite(); this.pendingInvite.set(null); this.invalidInvite.set(false); this.inviteStorageUnavailable.set(false); this.inviteTerminalError.set(null); this.inviteJoinedNotice.set(null);
+    if (navigate) void this.router.navigateByUrl(this.auth?.user()?.emailVerified ? '/dashboard' : '/login');
+  }
+  async onQrJoined(result: { groupId: string; token: string; uid: string }): Promise<void> {
+    if (this.auth?.user()?.uid !== result.uid) {
+      this.inviteJoinedNotice.set('invitationJoinedOtherAccount');
+      return;
+    }
+    if (this.pendingInvite() !== result.token) {
+      await this.loadGroups();
+      this.inviteJoinedNotice.set('invitationJoinedPrevious');
+      return;
+    }
+    this.inviteJoinedNotice.set(null);
+    this.declineInvite(false);
     await this.loadGroups();
-    if (this.groups().some(group => group.id === groupId)) this.selectGroup(groupId);
+    if (this.groups().some(group => group.id === result.groupId)) this.selectGroup(result.groupId);
     await this.router.navigateByUrl('/groups');
   }
   onExpenseSaved(): void { this.expenseRevision.update(value => value + 1); }

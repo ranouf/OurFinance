@@ -1,4 +1,5 @@
 const KEY = 'ourfinance.pendingInvite';
+const INVALID_KEY = 'ourfinance.pendingInviteInvalid';
 const tokenPattern = /^[A-Za-z0-9_-]{43}$/;
 
 export function inviteUrl(origin: string, token: string): string {
@@ -24,7 +25,8 @@ export function readPendingInvite(storage: Pick<Storage, 'getItem' | 'removeItem
   return null;
 }
 
-export function clearPendingInvite(storage: Pick<Storage, 'removeItem'>): void { storage.removeItem(KEY); }
+export function readInvalidInvite(storage: Pick<Storage, 'getItem'>): boolean { return storage.getItem(INVALID_KEY) === '1'; }
+export function clearPendingInvite(storage: Pick<Storage, 'removeItem'>): void { storage.removeItem(KEY); storage.removeItem(INVALID_KEY); }
 
 /** Capture before auth redirects; never put the token in a reset continueUrl. */
 export function capturePendingInvite(location: Pick<Location, 'hash' | 'pathname' | 'search'>, history: Pick<History, 'replaceState' | 'state'>, storage: Pick<Storage, 'setItem' | 'getItem' | 'removeItem'>): string | null {
