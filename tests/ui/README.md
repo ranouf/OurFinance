@@ -14,7 +14,7 @@ Le job `ui` de `PR validation` exécute cette même commande à chaque PR et sur
 
 | Parcours de recette | Assertions dans le navigateur |
 |---|---|
-| A1–A2 | Accès anonyme aux routes privées, validation du courriel, mode récupération, inscription, vérification du courriel émulé, connexion, rechargement, déconnexion et Retour. |
+| A1–A2 | Accès anonyme aux routes privées, validation du courriel, mode récupération, inscription, vérification du courriel émulé, demande de réinitialisation, refus du rejeu du code et de l'ancien mot de passe, connexion avec le nouveau, rechargement, déconnexion et Retour. |
 | I1 | Fragment incomplet et invitation valide déclinée. Vérification des appels avant acceptation. |
 | H1, G1 et C1 | Navigation authentifiée, choix illustrés du groupe, prévisualisation de catégorie et blocage du nom vide. |
 | D2–D3 et R1 | Cinq répartitions de 10,01 CAD, erreur à 99 %, dates inclusives et inversées, détail, refus du reçu invalide et annulation de suppression. |
