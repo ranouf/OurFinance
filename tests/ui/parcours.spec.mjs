@@ -9,6 +9,8 @@ test('D2 · les cinq répartitions respectent les centimes de l’oracle', async
   await form.locator('[name=description]').fill('Repas à partager');
   await expect(form.getByRole('region', { name: 'Répartition proposée' })).toContainText('Moi');
   await expect(form.getByRole('region', { name: 'Répartition proposée' })).toContainText('Autre membre');
+  await expect(form.getByRole('region', { name: 'Répartition proposée' })).toContainText('Dernière répartition utilisée');
+  await expect(form.getByRole('region', { name: 'Répartition proposée' })).toContainText('60 %');
   await form.getByRole('button', { name: 'Modifier les parts' }).click();
   const members = form.getByRole('checkbox', { name: /^(Moi|Autre membre)/ });
   await expect(members).toHaveCount(2);
