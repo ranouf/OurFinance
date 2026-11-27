@@ -21,6 +21,7 @@ import { categories, type CustomCategory } from '../../shared/utils/categories';
 import { categoryLabel } from '../../shared/utils/category-label';
 import { language, locale } from '../../shared/utils/i18n';
 import { parseMinor, prepareExpense, type ExpenseDraft } from './expense-draft';
+import { expenseImpact } from './expense-impact';
 import type { SplitMode } from '../../shared/utils/split-engine';
 import { expenseMessage, expenseText, unnamedExpenseMember } from './expense-text';
 
@@ -100,6 +101,17 @@ import { expenseMessage, expenseText, unnamedExpenseMember } from './expense-tex
                 </ul>
               }
             </fieldset> }
+            @if (impact(); as result) {
+              <section class="rounded-2xl border border-pop-border bg-pop-surface p-4" [attr.aria-label]="text('thisExpenseImpact')">
+                <h3 class="font-extrabold text-pop-primary-dark">{{ text('thisExpenseImpact') }}</h3>
+                <dl class="mt-3 grid grid-cols-2 gap-3 text-sm">
+                  <div><dt class="text-pop-muted">{{ text('impactTotal') }}</dt><dd class="font-extrabold">{{ formatMinor(result.total, draft.currency, locale()) }}</dd></div>
+                  <div><dt class="text-pop-muted">{{ text('impactPaid') }}</dt><dd class="font-extrabold">{{ formatMinor(result.paid, draft.currency, locale()) }}</dd></div>
+                  <div><dt class="text-pop-muted">{{ text('impactShare') }}</dt><dd class="font-extrabold">{{ formatMinor(result.owed, draft.currency, locale()) }}</dd></div>
+                  <div><dt class="text-pop-muted">{{ text('impactNet') }}</dt><dd class="font-extrabold" [class.text-emerald-700]="result.net > 0" [class.text-rose-700]="result.net < 0">{{ formatMinor(result.net, draft.currency, locale()) }}</dd></div>
+                </dl>
+              </section>
+            }
             <app-ui-button variant="primary" [block]="true" class="w-full" type="submit" [disabled]="busy()">{{ editing ? text('saveEdit') : text('save') }}</app-ui-button>
             @if (editing) { <app-ui-button variant="secondary" [block]="true" class="w-full" type="button" (click)="editCancelled.emit()">{{ text('cancelEdit') }}</app-ui-button> }
           } @else { <p class="text-sm text-pop-muted">{{ text('noMembers') }}</p> }
@@ -251,6 +263,11 @@ export class ExpenseForm implements OnChanges {
       const payerId = this.members().find(member => member.userId === this.user?.uid)?.userId ?? this.members()[0]?.userId ?? '';
       return prepareExpense({ ...this.draft, multiplePayers: false, payerId }, new Set(this.members().map(member => member.userId))).allocations;
     } catch { return []; }
+  }
+  impact(): { total: number; paid: number; owed: number; net: number } | null {
+    if (!this.draft.amount || !this.user?.uid) return null;
+    try { return expenseImpact(this.draft, new Set(this.members().map(member => member.userId)), this.user.uid); }
+    catch { return null; }
   }
   summaryAmount(userId: string): string {
     const assigned = this.summaryAllocations().find(row => row.userId === userId);
