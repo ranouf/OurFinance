@@ -43,6 +43,15 @@ test('un second lien mal formé efface le premier sans exposer son jeton dans la
   expect(await page.evaluate(() => sessionStorage.getItem('ourfinance.pendingInvite'))).toBeNull();
 });
 
+test('un fragment incomplet remplace aussi l’invitation précédente', async ({ page }) => {
+  await page.goto(`/join#invite=${fictionalToken}`);
+  await expect(page.getByRole('heading', { name: /Un groupe vous attend/i })).toBeVisible();
+  await page.evaluate(() => { location.hash = '#invite'; });
+  await expect(page).toHaveURL(/\/join$/);
+  await expect(page.getByText(/lien d’invitation n’est pas valide/i)).toBeVisible();
+  expect(await page.evaluate(() => sessionStorage.getItem('ourfinance.pendingInvite'))).toBeNull();
+});
+
 test('le stockage bloqué présente une erreur sans laisser le fragment visible', async ({ page }) => {
   await page.addInitScript(() => Object.defineProperty(window, 'sessionStorage', {
     get() { throw new DOMException('blocked', 'SecurityError'); },

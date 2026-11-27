@@ -258,7 +258,7 @@ export class App implements OnInit, OnDestroy {
     });
     effect(() => {
       const event = this.routeEvent();
-      if (event?.urlAfterRedirects.startsWith('/join#invite=') && typeof window !== 'undefined') {
+      if (event?.urlAfterRedirects.startsWith('/join#') && typeof window !== 'undefined') {
         window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search);
       }
     });

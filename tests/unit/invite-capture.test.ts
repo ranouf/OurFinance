@@ -31,4 +31,12 @@ test('the preboot script erases the fragment before notifying the application', 
   strictEqual(values.has(key), false);
   strictEqual(values.get('ourfinance.pendingInviteInvalid'), '1');
   strictEqual(observations.at(-1), 'ourfinance:invite-changed::undefined');
+
+  location.hash = `#invite=${token}`;
+  handlers.get('hashchange')?.();
+  strictEqual(values.get(key), token);
+  location.hash = '#invite';
+  handlers.get('hashchange')?.();
+  strictEqual(values.has(key), false);
+  strictEqual(values.get('ourfinance.pendingInviteInvalid'), '1');
 });

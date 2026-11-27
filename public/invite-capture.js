@@ -4,7 +4,7 @@
   const invalidKey = 'ourfinance.pendingInviteInvalid';
   const tokenPattern = /^[A-Za-z0-9_-]{43}$/;
   const capture = () => {
-    if (location.pathname !== '/join' || !location.hash.startsWith('#invite=')) return;
+    if (location.pathname !== '/join' || !location.hash) return;
     const params = new URLSearchParams(location.hash.slice(1));
     const token = params.size === 1 ? params.get('invite') : null;
     history.replaceState(history.state, '', location.pathname + location.search);
