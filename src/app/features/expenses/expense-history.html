@@ -1,5 +1,13 @@
     <section class="mt-5 min-w-0 text-pop-text" [attr.aria-label]="text('history')">
-      <div class="grid gap-3 sm:grid-cols-2">
+      @if (selectedGroupId) {
+        <div class="flex items-end gap-2">
+          <label class="min-w-0 flex-1 text-sm font-bold"><span class="sr-only">{{ text('searchAll') }}</span>
+            <input appUiControl class="w-full" type="search" name="historySearch" [(ngModel)]="search" [placeholder]="text('searchPlaceholder')" />
+          </label>
+          <app-ui-button variant="primary" type="button" [disabled]="busy()" (click)="refresh()">{{ text('search') }}</app-ui-button>
+        </div>
+      }
+      <div class="mt-3 grid grid-cols-2 gap-3">
       @if (!readOnly) { <app-field class="block" controlId="history-group" [label]="text('group')">
         <app-dropdown controlId="history-group" name="historyGroup" [options]="groupOptions()" [(ngModel)]="selectedGroupId" (ngModelChange)="onGroupChange()" />
       </app-field> }
@@ -8,12 +16,6 @@
         </app-field> }
       </div>
       @if (selectedGroupId) {
-        <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end">
-          <label class="block min-w-0 flex-1 text-sm font-bold">{{ text('searchAll') }}
-            <input appUiControl class="mt-2 w-full" type="search" name="historySearch" [(ngModel)]="search" [placeholder]="text('searchPlaceholder')" />
-          </label>
-          <app-ui-button variant="primary"  type="button" [disabled]="busy()" (click)="refresh()">{{ text('search') }}</app-ui-button>
-        </div>
         <details class="mt-3 rounded-xl border border-pop-border px-4 py-3">
           <summary class="cursor-pointer text-sm font-bold text-pop-primary-dark focus-visible:outline-2 focus-visible:outline-pop-primary">{{ text('moreFilters') }}</summary>
           <div class="mt-4 grid gap-3 sm:grid-cols-2">

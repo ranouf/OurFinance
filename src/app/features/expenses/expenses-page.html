@@ -7,7 +7,7 @@
       @if (app.workerUrl && app.firebaseApp && app.auth?.user(); as user) {
         @if (app.groups().length) {
           @if (!showEditor()) { <app-ui-button variant="coral" size="lg" [block]="true" class="fixed inset-x-4 bottom-[calc(4.8rem+env(safe-area-inset-bottom))] z-20 block shadow-lg xl:hidden" type="button" (click)="showEditor.set(true)">＋ {{ t('addExpenseAction') }}</app-ui-button> }
-          <div class="grid gap-5 xl:grid-cols-[minmax(0,1fr)_18rem] xl:items-start">
+          <div class="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)] xl:items-start">
             <app-expense-history class="min-w-0" [class.max-xl:hidden]="showEditor()" [groups]="app.groups()" [preferredGroupId]="app.selectedGroupId()" [firebaseApp]="app.firebaseApp" [user]="user" [workerUrl]="app.workerUrl" [revision]="app.expenseRevision()" [categoryRevision]="app.categoryRevision()" (groupChange)="app.requestGroupSelection($event)" (commented)="app.onCommentAdded()" (editRequested)="app.onExpenseEdit($event); showEditor.set(true)" (deleted)="app.onExpenseSaved()" />
             <app-expense-form class="min-w-0" id="expense-editor" [class.max-xl:hidden]="!showEditor()" [groups]="app.groups()" [preferredGroupId]="app.selectedGroupId()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" [categoryRevision]="app.categoryRevision()" [editing]="app.editingExpense()" (groupChange)="app.requestGroupSelection($event)" (draftChanged)="app.expenseDraftActive.set($event)" (saved)="app.onExpenseSaved(); closeEditor()" (editCancelled)="app.editingExpense.set(undefined); app.expenseDraftActive.set(false); closeEditor()" />
           </div>
