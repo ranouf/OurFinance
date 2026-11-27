@@ -30,4 +30,11 @@ test('la PWA de production sert le shell hors ligne sans exposer le groupe aprè
   await expect(page).toHaveURL(/\/login$/);
   await expect(page.getByText('Famille recette', { exact: true })).toHaveCount(0);
   await context.setOffline(false);
+  await page.locator('#login-email').fill('alex@example.invalid');
+  await page.locator('#login-password').fill(password);
+  await page.locator('form button[type=submit]').click();
+  await expect(page).toHaveURL(/\/dashboard$/);
+  await page.goto('/groups');
+  await expect(page.locator('app-ui-group-card')).toHaveCount(1);
+  await expect(page.getByText('Voyage recette', { exact: true })).toHaveCount(0);
 });

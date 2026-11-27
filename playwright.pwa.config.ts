@@ -10,8 +10,11 @@ export default defineConfig({
     browserName: 'chromium',
     serviceWorkers: 'allow',
     locale: 'fr-CA',
-    viewport: { width: 390, height: 844 },
     actionTimeout: 10000,
     navigationTimeout: 15000,
   },
+  projects: [
+    { name: 'pwa-mobile', use: { viewport: { width: 390, height: 844 }, hasTouch: true } },
+    { name: 'pwa-desktop', use: { viewport: { width: 1280, height: 800 } } },
+  ],
 });
