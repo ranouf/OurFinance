@@ -45,6 +45,7 @@ test('D2 · à 99 %, effacer les parts et bloquer la création', async ({ page }
   await form.getByRole('option', { name: /Famille recette/ }).click();
   await form.locator('[name=description]').fill('Dîner fictif');
   await form.locator('[name=amount]').fill('10.01');
+  await form.getByRole('button', { name: 'Modifier les parts' }).click();
   await form.locator('#expense-split-mode').click();
   await form.getByRole('option', { name: /Pourcentages/ }).click();
   const participants = form.getByRole('checkbox', { name: /^(Moi|Autre membre)/ });

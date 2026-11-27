@@ -73,7 +73,13 @@ import { expenseMessage, expenseText, unnamedExpenseMember } from './expense-tex
                 @if (paymentError()) { <app-ui-alert variant="error" class="mt-3" id="payment-error">{{ displayMessage(message()) }}</app-ui-alert> }
               </fieldset>
             }
-            <fieldset class="rounded-2xl border border-pop-border bg-pop-lavender p-4">
+            <section class="rounded-2xl border border-pop-border bg-pop-lavender p-4" [attr.aria-label]="text('splitSummary')">
+              <div class="flex flex-wrap items-center justify-between gap-2"><div><h3 class="font-extrabold text-pop-primary-dark">{{ text('splitSummary') }}</h3><p class="text-xs text-pop-muted">{{ previousSplitUsed() ? text('previousSplit') : editing ? text('savedSplit') : text('equalDefault') }} · {{ text(draft.kind) }}</p></div><app-ui-button variant="outline" type="button" (click)="splitEditorOpen.set(!splitEditorOpen())">{{ splitEditorOpen() ? text('finishSplit') : text('modifySplit') }}</app-ui-button></div>
+              <ul class="mt-3 divide-y divide-pop-border rounded-xl bg-pop-surface px-3 text-sm">
+                @for (row of draft.rows; track row.userId) { @if (row.selected) { <li class="flex min-h-11 items-center justify-between gap-3 py-2"><span class="min-w-0 break-words">{{ memberLabel(row.userId) }}</span><strong class="shrink-0">{{ summaryAmount(row.userId) }}</strong></li> } }
+              </ul>
+            </section>
+            @if (splitEditorOpen()) { <fieldset class="rounded-2xl border border-pop-border bg-pop-lavender p-4">
               <legend class="px-2 text-sm font-extrabold text-pop-primary-dark">{{ text('split') }}</legend>
               <app-field controlId="expense-split-mode" [label]="text('splitMethod')">
                 <app-dropdown controlId="expense-split-mode" name="mode" [options]="splitModeOptions()" [(ngModel)]="draft.kind" (ngModelChange)="clearValues(); markDraft()" />
@@ -92,7 +98,7 @@ import { expenseMessage, expenseText, unnamedExpenseMember } from './expense-tex
                   @for (row of previewRows(); track row.userId) { <li>{{ memberLabel(row.userId) }} : {{ formatMinor(row.amountMinor, draft.currency, locale()) }}</li> }
                 </ul>
               }
-            </fieldset>
+            </fieldset> }
             <app-ui-button variant="primary" [block]="true" class="w-full" type="submit" [disabled]="busy()">{{ editing ? text('saveEdit') : text('save') }}</app-ui-button>
             @if (editing) { <app-ui-button variant="secondary" [block]="true" class="w-full" type="button" (click)="editCancelled.emit()">{{ text('cancelEdit') }}</app-ui-button> }
           } @else { <p class="text-sm text-pop-muted">{{ text('noMembers') }}</p> }
@@ -139,6 +145,8 @@ export class ExpenseForm implements OnChanges {
   readonly amountError = signal('');
   readonly descriptionError = signal(false);
   readonly previewRows = signal<{ userId: string; amountMinor: number }[]>([]);
+  readonly splitEditorOpen = signal(false);
+  readonly previousSplitUsed = signal(false);
   readonly draftDirty = signal(false);
   selectedGroupId = '';
   private groupRequestId = 0;
@@ -191,7 +199,7 @@ export class ExpenseForm implements OnChanges {
     this.draftDirty.set(false);
     this.draftChanged.emit(false);
     const requestId = ++this.groupRequestId;
-    this.members.set([]); this.memberNames.set({}); this.customCategories.set([]); this.previewRows.set([]); this.message.set(''); this.amountError.set(''); this.descriptionError.set(false); this.draft = this.emptyDraft();
+    this.members.set([]); this.memberNames.set({}); this.customCategories.set([]); this.previewRows.set([]); this.splitEditorOpen.set(!!this.editing); this.previousSplitUsed.set(false); this.message.set(''); this.amountError.set(''); this.descriptionError.set(false); this.draft = this.emptyDraft();
     this.pendingKey = undefined; this.pendingBody = undefined;
     const groupId = this.selectedGroupId;
     const group = this.groups.find(item => item.id === groupId);
@@ -211,7 +219,12 @@ export class ExpenseForm implements OnChanges {
       this.draft.rows = activeMembers.map(member => ({ userId: member.userId, selected: false, value: '' }));
       this.draft.paymentRows = activeMembers.map(member => ({ userId: member.userId, selected: false, value: '' }));
       const preference = this.editing?.groupId === groupId ? this.editing.entry.splitMode : await this.service.preference(this.user, groupId, new Set(activeMembers.map(member => member.userId)));
+      if (this.selectedGroupId === groupId && requestId === this.groupRequestId && !preference) {
+        this.draft.rows.forEach(row => { row.selected = true; });
+        this.changeDetector.markForCheck();
+      }
       if (this.selectedGroupId === groupId && requestId === this.groupRequestId && preference) {
+        this.previousSplitUsed.set(!this.editing);
         if (this.editing?.groupId === groupId) {
           const entry = this.editing.entry;
           this.draft.description = entry.description;
@@ -230,6 +243,20 @@ export class ExpenseForm implements OnChanges {
   memberLabel(userId: string): string {
     if (userId === this.user?.uid) return this.text('me');
     return this.memberNames()[userId] || unnamedExpenseMember(userId, this.members());
+  }
+  summaryAllocations(): readonly { userId: string; amountMinor: number }[] {
+    if (!this.draft.amount) return [];
+    try {
+      const payerId = this.members().find(member => member.userId === this.user?.uid)?.userId ?? this.members()[0]?.userId ?? '';
+      return prepareExpense({ ...this.draft, multiplePayers: false, payerId }, new Set(this.members().map(member => member.userId))).allocations;
+    } catch { return []; }
+  }
+  summaryAmount(userId: string): string {
+    const assigned = this.summaryAllocations().find(row => row.userId === userId);
+    if (assigned) return formatMinor(assigned.amountMinor, this.draft.currency, locale());
+    const value = this.draft.rows.find(row => row.userId === userId)?.value;
+    if (value) return `${value}${this.draft.kind === 'percentage' ? ' %' : this.draft.kind === 'shares' ? ' ×' : ` ${this.draft.currency}`}`;
+    return this.text('amountPending');
   }
   private applyPreference(mode: SplitMode): void {
     this.draft.kind = mode.kind;
