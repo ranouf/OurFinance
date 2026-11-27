@@ -4,6 +4,7 @@ const messages = {
   fr: {
     newExpense: 'Nouvelle dépense', editExpense: 'Modifier la dépense', authorOnly: 'Seul l’auteur peut modifier cette dépense.',
     splitHelp: 'Choisissez une répartition. Votre dernier partage dans ce groupe sera proposé après l’enregistrement.',
+    draftGroupLocked: 'Enregistrez ou abandonnez ce brouillon avant de changer de groupe.', discardDraft: 'Abandonner le brouillon',
     group: 'Groupe', chooseGroup: 'Choisir un groupe', description: 'Description', amount: 'Montant', fixedCurrency: 'Devise du groupe',
     date: 'Date', category: 'Catégorie', paidBy: 'Payé par', multiplePayers: 'Plusieurs payeurs', paymentFor: 'Paiement de', split: 'Répartition', splitMethod: 'Méthode de répartition',
     equal: 'Égalitaire', exact: 'Montants exacts', percentage: 'Pourcentages', shares: 'Parts', adjustment: 'Ajustements',
@@ -43,6 +44,7 @@ const messages = {
   en: {
     newExpense: 'New expense', editExpense: 'Edit expense', authorOnly: 'Only the author can edit this expense.',
     splitHelp: 'Choose a split. Your last split in this group will be suggested after saving.',
+    draftGroupLocked: 'Save or discard this draft before switching groups.', discardDraft: 'Discard draft',
     group: 'Group', chooseGroup: 'Choose a group', description: 'Description', amount: 'Amount', fixedCurrency: 'Group currency',
     date: 'Date', category: 'Category', paidBy: 'Paid by', multiplePayers: 'Multiple payers', paymentFor: 'Payment by', split: 'Split', splitMethod: 'Split method',
     equal: 'Equal', exact: 'Exact amounts', percentage: 'Percentages', shares: 'Shares', adjustment: 'Adjustments',
@@ -82,6 +84,7 @@ const messages = {
   ja: {
     newExpense: '新しい支出', editExpense: '支出を編集', authorOnly: 'この支出を編集できるのは作成者のみです。',
     splitHelp: '分け方を選んでください。保存後、このグループで最後に使った分け方が次回に提案されます。',
+    draftGroupLocked: 'グループを変更する前に下書きを保存または破棄してください。', discardDraft: '下書きを破棄',
     group: 'グループ', chooseGroup: 'グループを選択', description: '内容', amount: '金額', fixedCurrency: 'グループの通貨',
     date: '日付', category: 'カテゴリ', paidBy: '支払った人', multiplePayers: '複数人で支払う', paymentFor: '支払額', split: '分け方', splitMethod: '分け方の方法',
     equal: '均等', exact: '金額指定', percentage: '割合', shares: '比率', adjustment: '調整',

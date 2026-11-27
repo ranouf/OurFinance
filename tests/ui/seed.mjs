@@ -36,6 +36,7 @@ export default async function seed() {
   await json(documents + 'groups/famille/expenses/repas', 'PATCH', { fields: {
     createdBy: { stringValue: localId }, date: { stringValue: '2026-11-19' },
     description: { stringValue: 'Repas de recette' }, currency: { stringValue: 'CAD' },
+    splitSnapshotJson: { stringValue: JSON.stringify({ kind: 'equal', users: [localId, memberId] }) },
     amountMinor: { integerValue: 1001 }, categoryId: { stringValue: 'restaurant' },
     payments: amounts([[localId, 1001]]), allocations: amounts([[localId, 501], [memberId, 500]]),
   } });

@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import type { ExpensesPage } from './app-pages';
 import { isDevMode } from '@angular/core';
 import { galleryRoutes } from './gallery/gallery.routes';
 
@@ -8,7 +9,7 @@ export const routes: Routes = [
   { path: 'join', loadComponent: () => import('./app-pages').then(m => m.JoinPage) },
   { path: 'dashboard', loadComponent: () => import('./app-pages').then(m => m.DashboardPage) },
   { path: 'groups', loadComponent: () => import('./app-pages').then(m => m.GroupsPage) },
-  { path: 'expenses', loadComponent: () => import('./app-pages').then(m => m.ExpensesPage) },
+  { path: 'expenses', loadComponent: () => import('./app-pages').then(m => m.ExpensesPage), canDeactivate: [(component: ExpensesPage) => component.app.confirmLeaveExpensePage()] },
   { path: 'statistics', loadComponent: () => import('./app-pages').then(m => m.StatisticsPage) },
   { path: 'account', loadComponent: () => import('./app-pages').then(m => m.AccountPage) },
   ...(isDevMode() ? galleryRoutes : []),
