@@ -390,9 +390,9 @@ export class App implements OnInit, OnDestroy {
     } catch { if (requestId === this.recentExpenseRequestId && this.selectedGroupId() === requestGroupId) this.recentExpensesError.set(true); }
     finally { if (requestId === this.recentExpenseRequestId && this.selectedGroupId() === requestGroupId) this.recentExpensesBusy.set(false); }
   }
-  async createGroup(): Promise<void> {
+  async createGroup(): Promise<string | null> {
     const user = this.auth?.user();
-    if (!user || !this.firebaseApp || this.busy()) return;
+    if (!user || !this.firebaseApp || this.busy()) return null;
     this.busy.set(true); this.groupCreateFailed.set(false);
     try {
       if (!this.groupService) { const { GroupService } = await import('./core/firebase/group-service'); this.groupService = new GroupService(this.firebaseApp, this.workerUrl); }
@@ -403,9 +403,12 @@ export class App implements OnInit, OnDestroy {
       });
       this.groupName = ''; this.groupIconId = ''; this.groupColor = ''; this.groupDescription = '';
       await this.loadGroups();
-      if (this.groups().some(group => group.id === createdGroupId && group.status === 'active')) this.selectGroup(createdGroupId);
-      if (new URLSearchParams(this.router.url.split('?')[1] ?? '').get('intent') === 'import') void this.router.navigate(['/account'], { fragment: 'import-expenses' }); }
-    catch { this.groupCreateFailed.set(true); }
+      if (!this.groups().some(group => group.id === createdGroupId && group.status === 'active')) { this.groupCreateFailed.set(true); return null; }
+      this.selectGroup(createdGroupId);
+      if (new URLSearchParams(this.router.url.split('?')[1] ?? '').get('intent') === 'import') void this.router.navigate(['/account'], { fragment: 'import-expenses' });
+      return createdGroupId;
+    }
+    catch { this.groupCreateFailed.set(true); return null; }
     finally { this.busy.set(false); }
   }
   private clearSessionData(): void {

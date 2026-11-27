@@ -212,7 +212,7 @@ export class GroupsPage {
     try { window.location.assign(validateInviteLink(this.inviteLink.trim(), window.location.origin)); }
     catch { this.inviteLinkError.set(true); }
   }
-  openGroup(groupId: string): void { this.detailGroupId.set(groupId); this.detailOpen.set(true); this.tab.set('overview'); this.app.requestGroupSelection(groupId); }
+  openGroup(groupId: string): void { this.detailGroupId.set(''); this.detailOpen.set(true); this.tab.set('overview'); this.app.requestGroupSelection(groupId); }
   openArchived(groupId: string): void { this.detailGroupId.set(groupId); this.detailOpen.set(true); this.tab.set('overview'); }
   onTabKeydown(event: KeyboardEvent): void {
     const ids = this.tabs().map(item => item.id);
@@ -221,14 +221,14 @@ export class GroupsPage {
     if (next < 0) return;
     event.preventDefault();
     this.tab.set(ids[next]);
-    const target = (event.currentTarget as HTMLElement).querySelectorAll<HTMLButtonElement>('[role="tab"]')[next];
+    const target = (event.currentTarget as HTMLElement).parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next];
     target?.focus();
     target?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }
   async createGroup(): Promise<void> {
-    await this.app.createGroup();
-    if (this.app.groupCreateFailed()) return;
-    this.detailGroupId.set(this.app.selectedGroupId());
+    const createdGroupId = await this.app.createGroup();
+    if (!createdGroupId) return;
+    this.detailGroupId.set('');
     this.detailOpen.set(true);
     this.showCreate.set(false);
   }
