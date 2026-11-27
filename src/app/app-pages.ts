@@ -5,7 +5,7 @@ import { UiGroupCard } from './shared/components/ui-group-card/ui-group-card';
 import { UiControlDirective } from './shared/components/ui-field/ui-control.directive';
 import { UiButton } from './shared/components/ui-button/ui-button';
 import { UiAlert } from './shared/components/ui-alert/ui-alert';
-import { Component, ElementRef, OnDestroy, ViewChild, computed, inject, signal } from '@angular/core';
+import { Component, ElementRef, OnDestroy, ViewChild, computed, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -192,6 +192,7 @@ export class GroupsPage {
   readonly activeGroups = computed(() => this.app.groups().filter(group => group.status === 'active'));
   readonly archivedGroups = computed(() => this.app.groups().filter(group => group.status === 'archived'));
   readonly detailOpen = signal(false);
+  private readonly pendingDetailGroupId = signal('');
   readonly showCreate = signal(false);
   readonly showArchived = signal(false);
   readonly showJoin = signal(false);
@@ -199,6 +200,14 @@ export class GroupsPage {
   readonly detailGroupId = signal('');
   readonly detailGroup = computed(() => this.app.groups().find(group => group.id === (this.detailGroupId() || this.app.selectedGroupId())));
   readonly showDetail = computed(() => this.detailOpen() && !!this.detailGroup());
+  private readonly detailSelectionEffect = effect(() => {
+    const target = this.pendingDetailGroupId();
+    if (!target) return;
+    if (this.app.selectedGroupId() === target) {
+      this.pendingDetailGroupId.set('');
+      this.detailOpen.set(true);
+    } else if (!this.app.pendingGroupId()) this.pendingDetailGroupId.set('');
+  });
   readonly tabs = computed(() => [
     { id: 'overview' as const, label: this.ux().overview },
     { id: 'members' as const, label: this.ux().members },
@@ -212,7 +221,16 @@ export class GroupsPage {
     try { window.location.assign(validateInviteLink(this.inviteLink.trim(), window.location.origin)); }
     catch { this.inviteLinkError.set(true); }
   }
-  openGroup(groupId: string): void { this.detailGroupId.set(''); this.detailOpen.set(true); this.tab.set('overview'); this.app.requestGroupSelection(groupId); }
+  openGroup(groupId: string): void {
+    this.detailGroupId.set(''); this.tab.set('overview');
+    if (this.app.expenseDraftActive() && groupId !== this.app.selectedGroupId()) {
+      this.pendingDetailGroupId.set(groupId);
+      this.app.requestGroupSelection(groupId);
+      return;
+    }
+    this.app.requestGroupSelection(groupId);
+    this.detailOpen.set(true);
+  }
   openArchived(groupId: string): void { this.detailGroupId.set(groupId); this.detailOpen.set(true); this.tab.set('overview'); }
   onTabKeydown(event: KeyboardEvent): void {
     const ids = this.tabs().map(item => item.id);
@@ -313,7 +331,7 @@ export class StatisticsPage { readonly app = inject(App); readonly t = t; }
         <app-profile-panel [user]="user" [firebaseApp]="app.firebaseApp" />
         @if (app.groups().length) {
           <div id="activity"><app-activity-history [groups]="app.groups()" [preferredGroupId]="app.selectedGroupId()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" [revision]="app.expenseRevision() + app.settlementRevision() + app.categoryRevision() + app.commentRevision()" (groupChange)="app.requestGroupSelection($event)" /></div>
-          <app-export-panel id="export-history" [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" />
+          <app-export-panel id="export-history" [groups]="app.groups()" [preferredGroupId]="exportGroupId" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" />
           @if (app.workerUrl) { <app-import-panel id="import-expenses" [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" />
             <app-restore-panel [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" />
             <app-receipt-cleanup-panel [groups]="app.groups()" [user]="user" [workerUrl]="app.workerUrl" /> }
@@ -323,7 +341,7 @@ export class StatisticsPage { readonly app = inject(App); readonly t = t; }
     </div>
   `,
 })
-export class AccountPage { readonly app = inject(App); readonly t = t; }
+export class AccountPage { readonly app = inject(App); readonly t = t; readonly exportGroupId = inject(ActivatedRoute).snapshot.queryParamMap.get('exportGroup') ?? ''; }
 
 @Component({
   imports: [InviteAcceptanceCard, LoginPage, UiButton, UiAlert],

@@ -319,7 +319,7 @@ export class App implements OnInit, OnDestroy {
       if (requestId !== this.groupLoadVersion || this.auth?.user()?.uid !== user.uid) return;
       this.groups.set(groups);
       this.dashboardGroupBalances.set({});
-      void this.loadGroupBalances(groups.filter(group => group.status === 'active'), user.uid, requestId);
+      void this.loadGroupBalances(groups, user.uid, requestId);
       const requestedGroupId = typeof window !== 'undefined' && window.location.pathname === '/expenses' ? new URLSearchParams(window.location.search).get('group') : null;
       const storedGroupId = typeof window !== 'undefined' ? window.sessionStorage.getItem(groupSelectionStorageKey(user.uid)) : null;
       this.selectedGroupId.set(accessibleGroupId(selectableGroupIds(groups), requestedGroupId, this.selectedGroupId(), storedGroupId));

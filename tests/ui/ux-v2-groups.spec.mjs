@@ -43,3 +43,9 @@ test('G1 · un nouveau membre peut créer ou rejoindre depuis la page vide', asy
   await expect(page.locator('input[name=groupName]')).toBeVisible();
   await expect(page.locator('#groups-empty-invite-link')).toBeVisible();
 });
+
+test('G1 · le lien d’export ouvre le compte avec le groupe demandé', async ({ page }) => {
+  await login(page);
+  await page.goto('/account?exportGroup=voyage#export-history');
+  await expect(page.locator('app-export-panel #exportGroup')).toContainText('Voyage recette');
+});
