@@ -12,6 +12,8 @@ Sur Linux, utiliser la variante `npx playwright install --with-deps chromium` po
 
 Le job `ui` de `PR validation` exécute cette même commande à chaque PR et sur `main`. Un échec de scénario fait échouer le workflow. Les résultats et diagnostics locaux sont dans `test-results/`, exclu de Git.
 
+`npm run test:pwa` construit aussi la version de production avec une configuration fictive pour les émulateurs, lance Firebase Hosting local et vérifie avec le vrai service worker que le shell reste accessible hors ligne après déconnexion, tandis que les données privées disparaissent. Le job `ui` de la CI exécute également ce test. Il ne prouve ni l'installation sur Android/iOS physiques ni la réception d'une mise à jour PWA ; ces critères restent à vérifier séparément.
+
 | Parcours de recette | Assertions dans le navigateur |
 |---|---|
 | A1–A2 | Accès anonyme aux routes privées, validation du courriel, mode récupération, inscription, vérification du courriel émulé, connexion, rechargement, déconnexion et Retour. |
