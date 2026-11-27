@@ -146,6 +146,7 @@ import { validateInviteLink } from './core/firebase/pending-invite';
 })
 export class DashboardPage {
   readonly groupMemberCountLabel = groupMemberCountLabel;
+  balanceTone(amount: bigint): 'positive' | 'negative' | 'neutral' { return amount > 0n ? 'positive' : amount < 0n ? 'negative' : 'neutral'; }
   readonly app = inject(App);
   private readonly router = inject(Router);
   readonly t = t;
@@ -186,6 +187,7 @@ export class DashboardPage {
 })
 export class GroupsPage {
   readonly groupMemberCountLabel = groupMemberCountLabel;
+  balanceTone(amount: bigint): 'positive' | 'negative' | 'neutral' { return amount > 0n ? 'positive' : amount < 0n ? 'negative' : 'neutral'; }
   readonly app = inject(App);
   readonly t = t;
   readonly ux = computed(() => groupsPageText[language()]);
