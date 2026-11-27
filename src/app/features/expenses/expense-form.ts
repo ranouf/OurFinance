@@ -182,7 +182,11 @@ export class ExpenseForm implements OnChanges {
     return `${amount < 0 ? '-' : ''}${Math.floor(absolute / scale)}${digits ? '.' + String(absolute % scale).padStart(digits, '0') : ''}`;
   }
   clearValues(): void { this.previewRows.set([]); this.draft.rows.forEach(row => row.value = ''); }
-  onGroupChange(): void { this.groupChange.emit(this.selectedGroupId); }
+  onGroupChange(): void {
+    const requestedGroupId = this.selectedGroupId;
+    this.selectedGroupId = this.preferredGroupId;
+    this.groupChange.emit(requestedGroupId);
+  }
   async loadGroup(): Promise<void> {
     this.draftDirty.set(false);
     this.draftChanged.emit(false);

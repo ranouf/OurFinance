@@ -56,6 +56,17 @@ test('D2 · le changement de groupe demande de protéger une dépense saisie', a
   await expect(page.getByRole('textbox', { name: 'Description' })).toHaveValue('');
 });
 
+test('D2c · le formulaire adopte le groupe choisi quand le brouillon est vide', async ({ page }) => {
+  await login(page);
+  await page.goto('/expenses?action=add');
+  const group = page.locator('app-expense-form #group');
+  await group.click();
+  await page.locator('app-expense-form [role="option"]', { hasText: 'Voyage recette' }).click();
+  await expect(page.locator('header select')).toHaveValue('voyage');
+  await expect(group).toContainText('Voyage recette');
+  await expect(page.locator('app-expense-form')).toContainText('EUR');
+});
+
 test('D2b · quitter le formulaire demande de conserver ou abandonner le brouillon', async ({ page }) => {
   await login(page);
   await page.goto('/expenses?action=add');
