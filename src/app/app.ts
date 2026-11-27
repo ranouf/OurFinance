@@ -53,6 +53,7 @@ export class App implements OnInit, OnDestroy {
   readonly pendingInvite = signal<string | null>(null);
   readonly invalidInvite = signal(false);
   readonly inviteStorageUnavailable = signal(false);
+  readonly inviteTerminalError = signal<'inviteExpired' | 'inviteFailed' | null>(null);
   private readonly router = inject(Router);
   private readonly routeEvent = toSignal(this.router.events.pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd)));
   readonly isComponentsGallery = computed(() => {
@@ -71,13 +72,14 @@ export class App implements OnInit, OnDestroy {
     if (this.isComponentsGallery()) return null;
     if (this.state() !== 'ready') return null;
     if (!this.router.navigated) return null;
-    return authDestination(this.auth?.ready() ?? false, this.router.url.split(/[?#]/)[0], this.auth?.user() ?? null, !!this.pendingInvite() || this.invalidInvite() || this.inviteStorageUnavailable());
+    return authDestination(this.auth?.ready() ?? false, this.router.url.split(/[?#]/)[0], this.auth?.user() ?? null, !!this.pendingInvite() || this.invalidInvite() || this.inviteStorageUnavailable() || !!this.inviteTerminalError());
   });
   readonly online = signal(typeof navigator === 'undefined' ? true : navigator.onLine);
   @HostListener('window:online') onOnline(): void { this.online.set(true); }
   @HostListener('window:offline') onOffline(): void { this.online.set(false); }
   @HostListener('window:ourfinance:invite-changed') onInviteChanged(): void {
     if (typeof window === 'undefined') return;
+    this.inviteTerminalError.set(null);
     this.syncStoredInvite(true);
     if (this.pendingInvite() || this.invalidInvite() || this.inviteStorageUnavailable()) void this.router.navigateByUrl('/join');
   }
@@ -455,7 +457,12 @@ export class App implements OnInit, OnDestroy {
     finally { this.busy.set(false); }
   }
   clearStoredInvite(): void { if (typeof window !== 'undefined') { try { clearPendingInvite(window.sessionStorage); } catch { /* Le stockage peut être désactivé. */ } } }
-  declineInvite(): void { this.clearStoredInvite(); this.pendingInvite.set(null); this.invalidInvite.set(false); this.inviteStorageUnavailable.set(false); }
+  invalidateInvite(reason: 'inviteExpired' | 'inviteFailed'): void {
+    this.clearStoredInvite();
+    this.pendingInvite.set(null);
+    this.inviteTerminalError.set(reason);
+  }
+  declineInvite(): void { this.clearStoredInvite(); this.pendingInvite.set(null); this.invalidInvite.set(false); this.inviteStorageUnavailable.set(false); this.inviteTerminalError.set(null); }
   async onQrJoined(groupId: string): Promise<void> {
     this.declineInvite();
     await this.loadGroups();

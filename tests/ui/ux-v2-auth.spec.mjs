@@ -68,3 +68,18 @@ test('un ancien aperçu ne remplace pas celui du nouveau lien', async ({ page })
   await pending.get(newToken).fulfill({ json: { groupName: 'Nouveau groupe', currency: 'CAD', expiresAt: '2030-01-01T00:00:00Z' } });
   await expect(page.getByRole('heading', { name: 'Nouveau groupe' })).toBeVisible();
 });
+
+test('une invitation expirée efface le jeton et interdit un nouvel aperçu', async ({ page }) => {
+  await login(page);
+  let previews = 0;
+  await page.route('https://worker.invalid/qr-invitations/preview', route => {
+    previews++;
+    return route.fulfill({ status: 403, json: { error: 'invitation_expired' } });
+  });
+  await page.goto(`/join#invite=${fictionalToken}`);
+  await expect(page.getByRole('heading', { name: /invitation a expiré/i })).toBeVisible();
+  expect(await page.evaluate(() => sessionStorage.getItem('ourfinance.pendingInvite'))).toBeNull();
+  await expect(page.getByRole('button', { name: /Réessayer/i })).toHaveCount(0);
+  await page.reload();
+  expect(previews).toBe(1);
+});

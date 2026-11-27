@@ -41,7 +41,7 @@ export class InviteAcceptanceCard implements OnChanges {
   @Output() readonly joined = new EventEmitter<string>();
   @Output() readonly declined = new EventEmitter<void>();
   @Output() readonly changeAccount = new EventEmitter<void>();
-  @Output() readonly invalidated = new EventEmitter<void>();
+  @Output() readonly invalidated = new EventEmitter<'inviteExpired' | 'inviteFailed'>();
   readonly text = computed(() => qrInvitationText[language()]);
   readonly preview = signal<QrInvitePreview | null>(null);
   readonly errorKey = signal<'inviteFailed' | 'alreadyMember' | 'wrongAccount' | 'inviteExpired'>('inviteFailed');
@@ -94,7 +94,7 @@ export class InviteAcceptanceCard implements OnChanges {
     if (error instanceof QrInviteRequestError &&
         (error.code === 'invitation_expired' || (error.status === 403 && error.code === 'invitation_unavailable'))) {
       this.unusable.set(true);
-      this.invalidated.emit();
+      this.invalidated.emit(this.errorKey() === 'inviteExpired' ? 'inviteExpired' : 'inviteFailed');
     }
   }
 }
