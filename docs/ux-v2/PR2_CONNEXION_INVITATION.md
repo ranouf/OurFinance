@@ -8,7 +8,7 @@ Statut : inventaire et wireframe proposés, sans modification des parcours en pr
 Desktop (1280 px)                          Mobile (390 px)
 ┌────────────────┬─────────────────┐       ┌─────────────────────┐
 │ terrasse       │ marque          │       │ marque              │
-│ illustrée      │ Bienvenue       │       │ illustration courte │
+│ illustrée      │ Bienvenue       │       │ scène complète café │
 │ sans texte     │ courriel        │       │ Bienvenue           │
 │ localisé       │ mot de passe 👁  │       │ courriel            │
 │                │ Se connecter    │       │ mot de passe 👁      │
@@ -19,7 +19,7 @@ Desktop (1280 px)                          Mobile (390 px)
 Invitation reçue, avant connexion : « Vous avez reçu une invitation » sans nom du groupe ; choix Se connecter / Créer un compte / Pas maintenant. Après authentification et courriel vérifié : nom du groupe, devise, compte utilisé, date d'expiration et usage unique ; Rejoindre / Pas maintenant / Changer de compte. Aucun groupe rejoint sur un simple scan ou un simple affichage.
 ```
 
-- Sur mobile, l'illustration reste compacte : le premier champ est visible sans défilement excessif à 390 px, et le formulaire reste utilisable à 320 px avec clavier affiché.
+- Sur mobile, garder la **scène complète** de la référence V2 (amis, couple à la rose et tables), avec un recadrage qui n'ampute pas les personnages. Vérifier sur rendu réel que le premier champ reste repérable à 390 px et que le formulaire demeure utilisable à 320 px, y compris quand le clavier apparaît. L'invitation peut employer une scène plus courte pour garder son CTA visible.
 - L'intention d'invitation survit au passage connexion → inscription → vérification du courriel → réinitialisation → connexion, sans jeton dans une URL de réinitialisation. Si l'utilisateur ouvre l'email sur un autre appareil, proposer de rouvrir le lien d'invitation ; ne pas promettre une reprise interappareils.
 - Le changement de compte garde l'invitation dans la session du navigateur. Le refus la supprime de cette session sans consommer le lien côté serveur.
 - La restauration de session présente un état de chargement neutre ; elle ne montre pas brièvement le formulaire de connexion à un utilisateur déjà connecté.
