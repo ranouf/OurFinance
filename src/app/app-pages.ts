@@ -221,7 +221,9 @@ export class GroupsPage {
     if (next < 0) return;
     event.preventDefault();
     this.tab.set(ids[next]);
-    (event.currentTarget as HTMLElement).querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus();
+    const target = (event.currentTarget as HTMLElement).querySelectorAll<HTMLButtonElement>('[role="tab"]')[next];
+    target?.focus();
+    target?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }
   async createGroup(): Promise<void> {
     await this.app.createGroup();
@@ -311,7 +313,7 @@ export class StatisticsPage { readonly app = inject(App); readonly t = t; }
         <app-profile-panel [user]="user" [firebaseApp]="app.firebaseApp" />
         @if (app.groups().length) {
           <div id="activity"><app-activity-history [groups]="app.groups()" [preferredGroupId]="app.selectedGroupId()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" [revision]="app.expenseRevision() + app.settlementRevision() + app.categoryRevision() + app.commentRevision()" (groupChange)="app.requestGroupSelection($event)" /></div>
-          <app-export-panel [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" />
+          <app-export-panel id="export-history" [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" />
           @if (app.workerUrl) { <app-import-panel id="import-expenses" [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" />
             <app-restore-panel [groups]="app.groups()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" />
             <app-receipt-cleanup-panel [groups]="app.groups()" [user]="user" [workerUrl]="app.workerUrl" /> }

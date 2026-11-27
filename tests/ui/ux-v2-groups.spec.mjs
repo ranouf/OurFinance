@@ -25,3 +25,21 @@ test('G1 · créer un groupe reste un parcours distinct de la consultation', asy
   await expect(page.locator('input[name=groupName]')).toBeVisible();
   await expect(page.getByText('La devise sera verrouillée après la première opération.')).toBeVisible();
 });
+
+test('G1 · un nouveau membre peut créer ou rejoindre depuis la page vide', async ({ page }) => {
+  const address = `groups-${crypto.randomUUID()}@example.invalid`;
+  const authUrl = 'http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1';
+  const created = await fetch(`${authUrl}/accounts:signUp?key=demo`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: address, password: 'Only-in-local-emulators-123' }) });
+  expect(created.ok).toBeTruthy();
+  const { localId } = await created.json();
+  const verified = await fetch(`${authUrl}/accounts:update?key=demo`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer owner' }, body: JSON.stringify({ localId, emailVerified: true }) });
+  expect(verified.ok).toBeTruthy();
+  await page.goto('/login');
+  await page.locator('#login-email').fill(address);
+  await page.locator('#login-password').fill('Only-in-local-emulators-123');
+  await page.locator('form button[type=submit]').click();
+  await expect(page).toHaveURL(/\/dashboard$/);
+  await page.goto('/groups');
+  await expect(page.locator('input[name=groupName]')).toBeVisible();
+  await expect(page.locator('#groups-empty-invite-link')).toBeVisible();
+});
