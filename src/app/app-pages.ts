@@ -206,6 +206,7 @@ export class GroupsPage {
     if (this.app.selectedGroupId() === target) {
       this.pendingDetailGroupId.set('');
       this.detailOpen.set(true);
+      this.focusDetail();
     } else if (!this.app.pendingGroupId()) this.pendingDetailGroupId.set('');
   });
   readonly tabs = computed(() => [
@@ -230,8 +231,15 @@ export class GroupsPage {
     }
     this.app.requestGroupSelection(groupId);
     this.detailOpen.set(true);
+    this.focusDetail();
   }
-  openArchived(groupId: string): void { this.detailGroupId.set(groupId); this.detailOpen.set(true); this.tab.set('overview'); }
+  openArchived(groupId: string): void { this.detailGroupId.set(groupId); this.detailOpen.set(true); this.tab.set('overview'); this.focusDetail(); }
+  closeDetail(): void {
+    const groupId = this.detailGroup()?.id;
+    this.detailOpen.set(false);
+    if (groupId) setTimeout(() => document.getElementById(`group-card-${groupId}`)?.querySelector('button')?.focus(), 0);
+  }
+  private focusDetail(): void { setTimeout(() => document.getElementById('group-detail')?.focus(), 0); }
   onTabKeydown(event: KeyboardEvent): void {
     const ids = this.tabs().map(item => item.id);
     const current = ids.indexOf(this.tab());

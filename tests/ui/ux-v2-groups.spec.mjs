@@ -7,12 +7,17 @@ test('G1 · la liste ouvre le détail et conserve la sélection globale', async 
   const card = page.locator('app-ui-group-card').filter({ hasText: 'Famille recette' }).first();
   await expect(card).toBeVisible();
   await card.click();
+  await expect(page.locator('#group-detail')).toBeFocused();
   await expect(page.getByRole('tab', { name: 'Aperçu' })).toBeVisible();
   await page.getByRole('tab', { name: 'Aperçu' }).focus();
   await page.keyboard.press('ArrowRight');
   await expect(page.getByRole('tab', { name: 'Membres' })).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByRole('tab', { name: 'Membres' })).toBeFocused();
   await expect(page.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', 'group-tab-members');
+  if (page.viewportSize().width < 1024) {
+    await page.getByRole('button', { name: /Retour aux groupes/ }).filter({ visible: true }).click();
+    await expect(card.locator('button')).toBeFocused();
+  }
   await page.reload();
   await expect(page.locator('app-ui-group-card').filter({ hasText: 'Famille recette' }).first()).toBeVisible();
 });
