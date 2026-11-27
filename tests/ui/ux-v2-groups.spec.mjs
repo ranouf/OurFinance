@@ -3,7 +3,7 @@ import { test, expect, login } from './fixtures.mjs';
 test('G1 · la liste ouvre le détail et conserve la sélection globale', async ({ page }) => {
   await login(page);
   await page.goto('/groups');
-  await expect(page.getByRole('heading', { name: 'Mes groupes' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Mes groupes', exact: true })).toBeVisible();
   const card = page.locator('app-ui-group-card').filter({ hasText: 'Famille recette' }).first();
   await expect(card).toBeVisible();
   await card.click();
