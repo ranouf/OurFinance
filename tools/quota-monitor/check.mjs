@@ -27,7 +27,8 @@ export function evaluateQuotaSnapshot(snapshot) {
       throw new Error(`Valeur agrégée invalide pour ${key}`);
     }
     const percent = Math.round(value / limit.max * 10_000) / 100;
-    return { key, value, percent, state: percent >= 90 ? 'intervention' : percent >= 70 ? 'warning' : 'ok', ...limit };
+    const ratio = value / limit.max;
+    return { key, value, percent, state: ratio >= 0.9 ? 'intervention' : ratio >= 0.7 ? 'warning' : 'ok', ...limit };
   });
 }
 
