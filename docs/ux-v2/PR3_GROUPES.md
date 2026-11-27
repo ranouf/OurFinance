@@ -7,18 +7,20 @@ Statut : cadrage et wireframe à valider avant intégration. Base : `docs/UX_SPE
 **Liste → groupe actif → détail → action.** La page ouvre sur la liste de groupes ; sélectionner une carte change le groupe global et affiche son détail. La création est un parcours distinct. Les panneaux de paramètres et d'administration ne précèdent pas la consultation des membres et des comptes.
 
 ```text
-Ordinateur (1280 px)                      Mobile (390 px)
+Ordinateur (1280 px)                      Mobile (390 px) — état liste
 ┌───────┬──────────────────────────────┐  ┌─────────────────────────┐
 │ Menu  │ Mes groupes   [+ Créer]      │  │ En-tête / Mes groupes    │
 │       │ ┌─────────┐ ┌──────────────┐ │  │ [Groupe A · CAD]         │
 │       │ │ Cartes  │ │ Aperçu actif │ │  │ [Groupe B · EUR]         │
 │       │ │ groupes │ │ Solde/devise │ │  │ [+ Créer un groupe]      │
-│       │ │         │ │ Onglets      │ │  ├─────────────────────────┤
-│       │ │         │ │ Aperçu       │ │  │ Détail du groupe choisi │
-│       │ │         │ │ Membres      │ │  │ ← Retour aux groupes    │
-│       │ │         │ │ Catégories   │ │  │ Aperçu / Membres /      │
-│       │ │         │ │ Paramètres   │ │  │ Catégories / Paramètres │
-└───────┴─────────┴─┴──────────────┘ │  └─────────────────────────┘
+│       │ │         │ │ Onglets      │ │  └─────────────────────────┘
+│       │ │         │ │ Aperçu       │ │  Mobile — après sélection
+│       │ │         │ │ Membres      │ │  ┌─────────────────────────┐
+│       │ │         │ │ Catégories   │ │  │ ← Retour aux groupes    │
+│       │ │         │ │ Paramètres   │ │  │ Détail du groupe choisi │
+└───────┴─────────┴─┴──────────────┘ │  │ Aperçu / Membres /      │
+                                         │ Catégories / Paramètres │
+                                         └─────────────────────────┘
 ```
 
 Sur ordinateur, les cartes restent visibles pendant la consultation du détail. Sur mobile, la liste et le détail sont deux vues successives de la même route, avec un vrai retour, sans panneau latéral hors écran. Les onglets peuvent défiler horizontalement au clavier et au toucher, avec le panneau actif annoncé ; aucun onglet tronqué sans indice de défilement.
@@ -26,7 +28,7 @@ Sur ordinateur, les cartes restent visibles pendant la consultation du détail. 
 ## Liste et sélection
 
 - Carte : icône ou illustration du groupe, nom, nombre de membres, devise, solde **personnel** avec libellé et signe, état actif. Un groupe personnel est présenté comme tel ; aucune dette fictive.
-- La sélection d'un **groupe actif** synchronise la navigation globale et persiste comme dans le PR 1. Les groupes de devises différentes ne sont jamais additionnés. Les groupes archivés figurent dans une section distincte et ouvrent leur historique en lecture seule, sans devenir groupe actif global. Si le groupe global est archivé, choisir un autre groupe actif accessible ; s'il n'en existe aucun, revenir à l'état sans groupe et désactiver les actions de dépense et d'invitation.
+- La sélection d'un **groupe actif** synchronise la navigation globale et persiste comme dans le PR 1. Les groupes de devises différentes ne sont jamais additionnés. Les groupes archivés figurent dans une section distincte et ouvrent leur historique en lecture seule, sans devenir groupe actif global. **Au chargement d'une ancienne sélection mémorisée** ou juste après archivage du groupe courant, si celui-ci est devenu archivé, choisir un autre groupe actif accessible ; s'il n'en existe aucun, revenir à l'état sans groupe et désactiver les actions de dépense et d'invitation.
 - Erreur de chargement : état explicite et Réessayer. Zéro groupe : illustration, Créer un groupe ou Rejoindre par lien. Chargement : squelette sans faux montant.
 - Création : nom et devise obligatoire, icône/couleur/description facultatives, explication du verrouillage de devise après première opération. Le formulaire n'impose aucune répartition initiale. Après succès, ouvrir le nouveau groupe et proposer la première dépense ou une invitation.
 
