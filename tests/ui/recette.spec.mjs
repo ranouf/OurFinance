@@ -76,7 +76,7 @@ test('G1 · le formulaire présente icônes, couleurs et devise', async ({ page 
   const currency = page.locator('#group-currency');
   await expect(currency.locator('img[src="/flags/ca.svg"]')).toBeVisible();
   await currency.click();
-  await page.getByRole('searchbox', { name: 'Rechercher' }).fill('AED');
+  await page.getByRole('searchbox', { name: 'Rechercher', exact: true }).fill('AED');
   const aed = page.getByRole('option', { name: /AED/ });
   await expect(aed.locator('img[src="/flags/ae.svg"]')).toBeVisible();
   await aed.click();

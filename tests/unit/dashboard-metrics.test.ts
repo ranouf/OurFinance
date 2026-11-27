@@ -14,9 +14,10 @@ test('dashboard uses only the selected group, currency and month for its cards',
       payments: [{ userId: 'alex', amountMinor: 999 }], allocations: [{ userId: 'alex', amountMinor: 999 }] },
   ];
   deepStrictEqual(dashboardMetrics(expenses, [], 'canada', 'CAD', 'alex', '2026-11'), {
-    balanceMinor: -49n, groupSpentMinor: 301n, monthlySpentMinor: 101n, monthlyPaidMinor: 101n, settlementTotalMinor: 0n,
+    balanceMinor: -49n, groupSpentMinor: 301n, monthlySpentMinor: 101n, monthlyPaidMinor: 101n, monthlyOwedMinor: 50n, settlementTotalMinor: 0n,
     memberBalances: [{ userId: 'alex', balanceMinor: -49n }, { userId: 'camille', balanceMinor: 49n }],
-    categories: [{ id: 'other', label: undefined, amountMinor: 301n }],
+    suggestedTransfers: [{ fromUserId: 'alex', toUserId: 'camille', amountMinor: 49n }],
+    categories: [{ id: 'other', label: undefined, amountMinor: 101n }],
   });
   throws(() => dashboardMetrics(expenses, [], 'canada', 'CAD', 'alex', 'novembre'));
 });
@@ -30,9 +31,28 @@ test('dashboard derives repayments, member balances and categories from active g
     { groupId: 'japan', currency: 'JPY', date: '2026-11-03', fromUserId: 'camille', toUserId: 'alex', amountMinor: 999 },
   ];
   deepStrictEqual(dashboardMetrics(expenses, settlements, 'canada', 'CAD', 'alex', '2026-11'), {
-    balanceMinor: 31n, groupSpentMinor: 101n, monthlySpentMinor: 101n, monthlyPaidMinor: 101n,
+    balanceMinor: 31n, groupSpentMinor: 101n, monthlySpentMinor: 101n, monthlyPaidMinor: 101n, monthlyOwedMinor: 50n,
     settlementTotalMinor: 20n,
     memberBalances: [{ userId: 'alex', balanceMinor: 31n }, { userId: 'camille', balanceMinor: -31n }],
+    suggestedTransfers: [{ fromUserId: 'camille', toUserId: 'alex', amountMinor: 31n }],
     categories: [{ id: 'groceries', label: 'Épicerie', amountMinor: 101n }],
   });
+});
+
+test('dashboard suggestions balance a shared group without confusing a member net with a direct debt', () => {
+  const expenses = [
+    { groupId: 'g', currency: 'CAD', date: '2026-11-04', amountMinor: 300,
+      categoryId: 'restaurant', payments: [{ userId: 'a', amountMinor: 300 }],
+      allocations: [{ userId: 'a', amountMinor: 100 }, { userId: 'b', amountMinor: 100 }, { userId: 'c', amountMinor: 100 }] },
+    { groupId: 'g', currency: 'CAD', date: '2026-10-04', amountMinor: 90,
+      categoryId: 'groceries', payments: [{ userId: 'b', amountMinor: 90 }],
+      allocations: [{ userId: 'a', amountMinor: 30 }, { userId: 'b', amountMinor: 30 }, { userId: 'c', amountMinor: 30 }] },
+  ];
+  const result = dashboardMetrics(expenses, [], 'g', 'CAD', 'a', '2026-11');
+  deepStrictEqual(result.suggestedTransfers, [
+    { fromUserId: 'b', toUserId: 'a', amountMinor: 40n },
+    { fromUserId: 'c', toUserId: 'a', amountMinor: 130n },
+  ]);
+  deepStrictEqual(result.categories, [{ id: 'restaurant', label: undefined, amountMinor: 300n }]);
+  deepStrictEqual([result.monthlySpentMinor, result.monthlyPaidMinor, result.monthlyOwedMinor], [300n, 300n, 100n]);
 });

@@ -1,9 +1,10 @@
-import { Component, HostListener, OnDestroy, OnInit, computed, effect, inject, isDevMode, signal } from '@angular/core';
+import { Component, HostListener, OnDestroy, OnInit, ViewChild, computed, effect, inject, isDevMode, signal } from '@angular/core';
 import { Router, RouterOutlet } from '@angular/router';
 import { NavigationEnd } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { filter } from 'rxjs';
 import { AppShell } from './shared/components/app-shell/app-shell';
+import { UiDialog } from './shared/components/ui-dialog/ui-dialog';
 import type { AuthService } from './core/firebase/auth-service';
 import { authDestination } from './core/firebase/auth-route';
 import { FirebaseWebConfig, createFirebaseApp } from './core/firebase/firebase-config';
@@ -23,10 +24,10 @@ import { detectLanguage, language, locale, setLanguage, t } from './shared/utils
 
 @Component({
   selector: 'app-root',
-  imports: [AppShell, RouterOutlet],
+  imports: [AppShell, UiDialog, RouterOutlet],
   template: `
     @if (isComponentsGallery()) { <router-outlet /> }
-    @else { <app-shell [signedIn]="!!auth?.user()" [hasGroups]="groups().length > 0" [userInitial]="userInitial()" [userName]="auth?.user()?.displayName || auth?.user()?.email || ''" [pageTitle]="pageTitle()" (signOut)="logout()">
+    @else { <app-shell [signedIn]="!!auth?.user()" [hasGroups]="groups().length > 0" [groups]="groups()" [selectedGroupId]="selectedGroupId()" [userInitial]="userInitial()" [userName]="auth?.user()?.displayName || auth?.user()?.email || ''" [pageTitle]="pageTitle()" (groupSelected)="requestGroupSelection($event)" (searchRequested)="searchExpenses($event)" (signOut)="logout()">
       @if (!online()) { <p class="mx-auto max-w-6xl rounded-xl bg-amber-50 p-3 text-sm text-amber-900" role="status">{{ t('offline') }}</p> }
       @if (state() === 'loading') { <p class="mx-auto max-w-6xl p-6" role="status">{{ t('loadingConfig') }}</p> }
       @else if (state() === 'unconfigured') { <p class="mx-auto max-w-6xl p-6" role="status">{{ t('missingConfig') }}</p> }
@@ -38,7 +39,7 @@ import { detectLanguage, language, locale, setLanguage, t } from './shared/utils
         </div>
       }
       @else { <router-outlet /> }
-    </app-shell> }
+    </app-shell><app-ui-dialog #switchGroupDialog [title]="t('discardDraftTitle')" [closeLabel]="t('closeDialog')" (closed)="pendingGroupId.set('')"><p class="text-sm">{{ t('discardDraftText') }}</p><div class="mt-4 flex justify-end gap-2"><button class="min-h-11 rounded-xl px-4 font-bold focus-visible:outline-2 focus-visible:outline-pop-primary" type="button" (click)="switchGroupDialog.close()">{{ t('keepDraft') }}</button><button class="min-h-11 rounded-xl bg-pop-coral px-4 font-bold focus-visible:outline-2 focus-visible:outline-pop-primary" type="button" (click)="confirmGroupSelection()">{{ t('discardDraft') }}</button></div></app-ui-dialog> }
   `
 })
 export class App implements OnInit, OnDestroy {
@@ -81,6 +82,28 @@ export class App implements OnInit, OnDestroy {
   readonly groupsError = signal(false);
   readonly selectedGroupId = signal('');
   readonly selectedGroup = computed(() => this.groups().find(group => group.id === this.selectedGroupId()));
+  readonly expenseDraftActive = signal(false);
+  readonly pendingGroupId = signal('');
+  @ViewChild('switchGroupDialog') switchGroupDialog?: UiDialog;
+  requestGroupSelection(groupId: string): void {
+    if (groupId === this.selectedGroupId() || !this.groups().some(group => group.id === groupId)) return;
+    if (this.expenseDraftActive()) { this.pendingGroupId.set(groupId); this.switchGroupDialog?.open(); return; }
+    this.selectGroup(groupId);
+  }
+  confirmGroupSelection(): void {
+    const groupId = this.pendingGroupId();
+    this.switchGroupDialog?.close();
+    if (!this.groups().some(group => group.id === groupId)) return;
+    this.expenseDraftActive.set(false);
+    this.selectGroup(groupId);
+  }
+  searchExpenses(search: string): void { void this.router.navigate(['/expenses'], { queryParams: { group: this.selectedGroupId(), ...(search ? { search } : {}) } }); }
+  private selectGroup(groupId: string): void {
+    this.selectedGroupId.set(groupId);
+    const userId = this.auth?.user()?.uid;
+    if (userId && typeof window !== 'undefined') window.sessionStorage.setItem(groupSelectionStorageKey(userId), groupId);
+    if (this.router.url.split('?')[0] === '/expenses') void this.router.navigate([], { queryParams: { group: groupId }, queryParamsHandling: 'merge', replaceUrl: true });
+  }
   readonly firstName = computed(() => { this.state(); return this.auth?.user()?.displayName?.trim().split(/\s+/)[0] ?? ''; });
   readonly userInitial = computed(() => { this.state(); return (this.auth?.user()?.displayName?.trim() || this.auth?.user()?.email || '?').charAt(0).toLocaleUpperCase(locale()); });
   readonly balanceBusy = signal(false);
@@ -89,8 +112,10 @@ export class App implements OnInit, OnDestroy {
   readonly groupSpentMinor = signal<bigint>(0n);
   readonly monthlySpentMinor = signal<bigint>(0n);
   readonly monthlyPaidMinor = signal<bigint>(0n);
+  readonly monthlyOwedMinor = signal<bigint>(0n);
   readonly settlementTotalMinor = signal<bigint>(0n);
   readonly dashboardMemberBalances = signal<readonly { userId: string; balanceMinor: bigint }[]>([]);
+  readonly dashboardSuggestedTransfers = signal<readonly { fromUserId: string; toUserId: string; amountMinor: bigint }[]>([]);
   readonly dashboardActiveMembers = signal<readonly { userId: string; balanceMinor: bigint }[]>([]);
   readonly dashboardGroupBalances = signal<Record<string, bigint>>({});
   formatGroupBalance(group: Group): string {
@@ -116,6 +141,7 @@ export class App implements OnInit, OnDestroy {
   readonly payableAmount = computed(() => this.selectedGroup() ? formatMinorExact(this.selectedBalanceMinor() < 0n ? -this.selectedBalanceMinor() : 0n, this.selectedGroup()!.currency, locale()) : '');
   readonly monthlySpent = computed(() => this.selectedGroup() ? formatMinorExact(this.monthlySpentMinor(), this.selectedGroup()!.currency, locale()) : '');
   readonly monthlyPaid = computed(() => this.selectedGroup() ? formatMinorExact(this.monthlyPaidMinor(), this.selectedGroup()!.currency, locale()) : '');
+  readonly monthlyOwed = computed(() => this.selectedGroup() ? formatMinorExact(this.monthlyOwedMinor(), this.selectedGroup()!.currency, locale()) : '');
   readonly settlementTotal = computed(() => this.selectedGroup() ? formatMinorExact(this.settlementTotalMinor(), this.selectedGroup()!.currency, locale()) : '');
   formatDashboardMinor(value: bigint): string { return this.selectedGroup() ? formatMinorExact(value, this.selectedGroup()!.currency, locale()) : ''; }
   dashboardCategoryLabel(item: { id: string; label?: string }): string { return categoryLabel(item.id, language(), item.label); }
@@ -181,11 +207,6 @@ export class App implements OnInit, OnDestroy {
         void this.loadSelectedBalance(group);
         void this.loadRecentExpenses(group);
       } else this.recentExpenses.set([]);
-    });
-    effect(() => {
-      const groupId = this.selectedGroupId();
-      const userId = this.auth?.user()?.uid;
-      if (groupId && userId && typeof window !== 'undefined') window.sessionStorage.setItem(groupSelectionStorageKey(userId), groupId);
     });
     effect(() => {
       const destination = this.authRedirect();
@@ -270,6 +291,7 @@ export class App implements OnInit, OnDestroy {
     this.balanceBusy.set(true);
     this.balanceError.set(false);
     this.dashboardMemberBalances.set([]);
+    this.dashboardSuggestedTransfers.set([]);
     this.dashboardActiveMembers.set([]);
     this.dashboardMemberNames.set({});
     try {
@@ -283,8 +305,10 @@ export class App implements OnInit, OnDestroy {
       this.groupSpentMinor.set(metrics.groupSpentMinor);
       this.monthlySpentMinor.set(metrics.monthlySpentMinor);
       this.monthlyPaidMinor.set(metrics.monthlyPaidMinor);
+      this.monthlyOwedMinor.set(metrics.monthlyOwedMinor);
       this.settlementTotalMinor.set(metrics.settlementTotalMinor);
       this.dashboardMemberBalances.set(metrics.memberBalances);
+      this.dashboardSuggestedTransfers.set(metrics.suggestedTransfers);
       this.dashboardActiveMembers.set(metrics.memberBalances);
       this.dashboardCategories.set(metrics.categories);
       const currentUser = this.auth?.user();
@@ -327,7 +351,8 @@ export class App implements OnInit, OnDestroy {
         ...(this.groupDescription.trim() ? { description: this.groupDescription.trim() } : {}),
       });
       this.groupName = ''; this.groupIconId = ''; this.groupColor = ''; this.groupDescription = '';
-      await this.loadGroups(); }
+      await this.loadGroups();
+      if (new URLSearchParams(this.router.url.split('?')[1] ?? '').get('intent') === 'import') void this.router.navigate(['/account'], { fragment: 'import-expenses' }); }
     catch { this.groupCreateFailed.set(true); }
     finally { this.busy.set(false); }
   }
@@ -343,6 +368,7 @@ export class App implements OnInit, OnDestroy {
     this.groupIconId = '';
     this.groupColor = '';
     this.groupDescription = '';
+    this.expenseDraftActive.set(false);
     this.message.set('');
     this.groups.set([]);
     this.groupsBusy.set(false);
@@ -352,8 +378,10 @@ export class App implements OnInit, OnDestroy {
     this.groupSpentMinor.set(0n);
     this.monthlySpentMinor.set(0n);
     this.monthlyPaidMinor.set(0n);
+    this.monthlyOwedMinor.set(0n);
     this.settlementTotalMinor.set(0n);
     this.dashboardMemberBalances.set([]);
+    this.dashboardSuggestedTransfers.set([]);
     this.dashboardActiveMembers.set([]);
     this.dashboardGroupBalances.set({});
     this.dashboardMemberNames.set({});

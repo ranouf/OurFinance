@@ -40,6 +40,8 @@ button:disabled { cursor: not-allowed; }
 .dashboard-cloud::after { content: ''; position: absolute; z-index: 0; right: -1.5rem; bottom: -3rem; width: 18rem; height: 7rem; border-radius: 50%; background: #ffffff1a; filter: blur(12px); pointer-events: none; }
 @media (max-width: 639px) { .dashboard-action { min-height: 5.25rem; } .dashboard-action strong { font-size: 1.1rem; } }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+/* Firebase Emulator injects an informational strip over the mobile action bar. */
+.firebase-emulator-warning { pointer-events: none; }
 .gallery-root { font-family: 'Nunito Sans Variable', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', ui-rounded, system-ui, sans-serif; }
 .gallery-sidebar { background: linear-gradient(180deg, #fff 0%, #fbf9ff 62%, #f4eeff 100%); }
 .gallery-nav-link { display: flex; min-height: 2.25rem; align-items: center; gap: .55rem; border-radius: .65rem; padding: .35rem .6rem; color: var(--color-pop-text); }
