@@ -40,6 +40,16 @@ test('le stockage bloqué présente une erreur sans laisser le fragment visible'
   await expect(page.getByText(/stockage de cet onglet est désactivé/i)).toBeVisible();
 });
 
+test('un signal d’invitation depuis une autre page ouvre l’erreur si le stockage est bloqué', async ({ page }) => {
+  await page.addInitScript(() => Object.defineProperty(window, 'sessionStorage', {
+    get() { throw new DOMException('blocked', 'SecurityError'); },
+  }));
+  await page.goto('/login');
+  await page.evaluate(() => dispatchEvent(new Event('ourfinance:invite-changed')));
+  await expect(page).toHaveURL(/\/join$/);
+  await expect(page.getByText(/stockage de cet onglet est désactivé/i)).toBeVisible();
+});
+
 test('un ancien aperçu ne remplace pas celui du nouveau lien', async ({ page }) => {
   await login(page);
   const pending = new Map();

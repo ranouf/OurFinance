@@ -78,10 +78,10 @@ export class App implements OnInit, OnDestroy {
   @HostListener('window:offline') onOffline(): void { this.online.set(false); }
   @HostListener('window:ourfinance:invite-changed') onInviteChanged(): void {
     if (typeof window === 'undefined') return;
-    this.syncStoredInvite();
+    this.syncStoredInvite(true);
     if (this.pendingInvite() || this.invalidInvite() || this.inviteStorageUnavailable()) void this.router.navigateByUrl('/join');
   }
-  private syncStoredInvite(): void {
+  private syncStoredInvite(invitationChanged = false): void {
     try {
       this.pendingInvite.set(readPendingInvite(window.sessionStorage));
       this.invalidInvite.set(readInvalidInvite(window.sessionStorage));
@@ -89,7 +89,7 @@ export class App implements OnInit, OnDestroy {
     } catch {
       this.pendingInvite.set(null);
       this.invalidInvite.set(false);
-      this.inviteStorageUnavailable.set(window.location.pathname === '/join');
+      this.inviteStorageUnavailable.set(invitationChanged || window.location.pathname === '/join');
     }
   }
   auth?: AuthService;
