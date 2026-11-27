@@ -53,8 +53,10 @@ export class InviteAcceptanceCard implements OnChanges {
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['token'] || changes['user'] || changes['workerUrl']) {
+      ++this.requestVersion;
       this.preview.set(null);
       if (this.token && this.workerUrl && this.user) void this.load();
+      else { this.busy.set(false); this.messageKey.set(null); }
     }
   }
   formatDate(value: string): string { return new Intl.DateTimeFormat(locale(), { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)); }

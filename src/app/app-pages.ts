@@ -343,8 +343,8 @@ export class AccountPage { readonly app = inject(App); readonly t = t; }
           <picture class="block overflow-hidden bg-pop-primary"><source media="(min-width: 1024px)" srcset="/illustrations/cafe-hero.webp" /><img class="h-52 w-full object-cover object-center lg:h-full" src="/illustrations/cafe-hero.webp" alt="" /></picture>
           <div class="flex items-center p-4 sm:p-8"><app-invite-acceptance-card class="block w-full" [user]="user" [workerUrl]="app.workerUrl" [token]="app.pendingInvite()!" (joined)="app.onQrJoined($event)" (declined)="app.declineInvite()" (changeAccount)="app.logout()" (invalidated)="app.clearStoredInvite()" /></div>
         </div>
-      } @else if (app.invalidInvite()) {
-        <section class="mx-auto mt-6 max-w-xl rounded-3xl border border-pop-border bg-white p-6 shadow-sm" role="alert"><h1 class="text-2xl font-black">{{ t('invitationLinkInvalid') }}</h1><app-ui-button variant="secondary" class="mt-4" type="button" (click)="app.declineInvite()">{{ app.qrText().decline }}</app-ui-button></section>
+      } @else if (app.invalidInvite() || app.inviteStorageUnavailable()) {
+        <section class="mx-auto mt-6 max-w-xl rounded-3xl border border-pop-border bg-white p-6 shadow-sm" role="alert"><h1 class="text-2xl font-black">{{ app.inviteStorageUnavailable() ? t('invitationStorageUnavailable') : t('invitationLinkInvalid') }}</h1><app-ui-button variant="secondary" class="mt-4" type="button" (click)="app.declineInvite()">{{ app.qrText().decline }}</app-ui-button></section>
       } @else { <app-login-page /> }
     } @else { <app-login-page /> }
   `,

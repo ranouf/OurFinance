@@ -16,8 +16,8 @@ import { t } from './shared/utils/i18n';
       </div>
       <div class="px-5 py-7 max-[240px]:px-1 sm:px-10 lg:flex lg:flex-col lg:justify-center lg:px-14">
         <div class="mb-7 hidden items-center gap-2 lg:flex"><img src="/illustrations/ourfinance-mark.svg" width="41" height="41" alt="" /><span class="text-2xl font-black tracking-tight text-pop-text">ourfinance<span class="text-pop-sun">.</span></span></div>
-        @if (app.invalidInvite()) {
-          <section class="rounded-3xl border border-pop-border bg-white p-6 shadow-sm" role="alert"><h1 class="text-2xl font-black">{{ t('invitationLinkInvalid') }}</h1><app-ui-button variant="secondary" class="mt-4" type="button" (click)="app.declineInvite()">{{ app.qrText().decline }}</app-ui-button></section>
+        @if (app.invalidInvite() || app.inviteStorageUnavailable()) {
+          <section class="rounded-3xl border border-pop-border bg-white p-6 shadow-sm" role="alert"><h1 class="text-2xl font-black">{{ app.inviteStorageUnavailable() ? t('invitationStorageUnavailable') : t('invitationLinkInvalid') }}</h1><app-ui-button variant="secondary" class="mt-4" type="button" (click)="app.declineInvite()">{{ app.qrText().decline }}</app-ui-button></section>
         } @else if (app.pendingInvite() && !app.auth?.user() && !showInviteAuth()) {
           <section class="rounded-3xl border border-pop-border bg-white p-5 shadow-sm sm:p-7" [attr.aria-label]="app.qrText().received">
             <span class="flex size-14 items-center justify-center rounded-2xl bg-pop-lavender text-pop-primary-dark" aria-hidden="true"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg></span>

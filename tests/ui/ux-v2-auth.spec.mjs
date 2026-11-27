@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, login } from './fixtures.mjs';
 
 const fictionalToken = 'a'.repeat(43);
 
@@ -29,4 +29,32 @@ test('un second lien mal formé efface le premier sans exposer son jeton dans la
   await expect(page).toHaveURL(/\/join$/);
   await expect(page.getByText(/lien d’invitation n’est pas valide/i)).toBeVisible();
   expect(await page.evaluate(() => sessionStorage.getItem('ourfinance.pendingInvite'))).toBeNull();
+});
+
+test('le stockage bloqué présente une erreur sans laisser le fragment visible', async ({ page }) => {
+  await page.addInitScript(() => Object.defineProperty(window, 'sessionStorage', {
+    get() { throw new DOMException('blocked', 'SecurityError'); },
+  }));
+  await page.goto(`/join#invite=${fictionalToken}`);
+  await expect(page).toHaveURL(/\/join$/);
+  await expect(page.getByText(/stockage de cet onglet est désactivé/i)).toBeVisible();
+});
+
+test('un ancien aperçu ne remplace pas celui du nouveau lien', async ({ page }) => {
+  await login(page);
+  const pending = new Map();
+  await page.route('https://worker.invalid/qr-invitations/preview', route => {
+    const token = route.request().postDataJSON().token;
+    pending.set(token, route);
+  });
+  const oldToken = 'a'.repeat(43);
+  const newToken = 'b'.repeat(43);
+  await page.goto(`/join#invite=${oldToken}`);
+  await expect.poll(() => pending.has(oldToken)).toBe(true);
+  await page.evaluate(token => { location.hash = `#invite=${token}`; }, newToken);
+  await expect.poll(() => pending.has(newToken)).toBe(true);
+  await pending.get(oldToken).fulfill({ json: { groupName: 'Ancien groupe', currency: 'CAD', expiresAt: '2030-01-01T00:00:00Z' } });
+  await expect(page.getByText('Ancien groupe')).toHaveCount(0);
+  await pending.get(newToken).fulfill({ json: { groupName: 'Nouveau groupe', currency: 'CAD', expiresAt: '2030-01-01T00:00:00Z' } });
+  await expect(page.getByRole('heading', { name: 'Nouveau groupe' })).toBeVisible();
 });

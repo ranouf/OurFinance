@@ -52,6 +52,7 @@ export class App implements OnInit, OnDestroy {
   readonly groupCreateFailed = signal(false);
   readonly pendingInvite = signal<string | null>(null);
   readonly invalidInvite = signal(false);
+  readonly inviteStorageUnavailable = signal(false);
   private readonly router = inject(Router);
   private readonly routeEvent = toSignal(this.router.events.pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd)));
   readonly isComponentsGallery = computed(() => {
@@ -70,16 +71,26 @@ export class App implements OnInit, OnDestroy {
     if (this.isComponentsGallery()) return null;
     if (this.state() !== 'ready') return null;
     if (!this.router.navigated) return null;
-    return authDestination(this.auth?.ready() ?? false, this.router.url.split(/[?#]/)[0], this.auth?.user() ?? null, !!this.pendingInvite() || this.invalidInvite());
+    return authDestination(this.auth?.ready() ?? false, this.router.url.split(/[?#]/)[0], this.auth?.user() ?? null, !!this.pendingInvite() || this.invalidInvite() || this.inviteStorageUnavailable());
   });
   readonly online = signal(typeof navigator === 'undefined' ? true : navigator.onLine);
   @HostListener('window:online') onOnline(): void { this.online.set(true); }
   @HostListener('window:offline') onOffline(): void { this.online.set(false); }
   @HostListener('window:ourfinance:invite-changed') onInviteChanged(): void {
     if (typeof window === 'undefined') return;
-    this.pendingInvite.set(readPendingInvite(window.sessionStorage));
-    this.invalidInvite.set(readInvalidInvite(window.sessionStorage));
-    if (this.pendingInvite() || this.invalidInvite()) void this.router.navigateByUrl('/join');
+    this.syncStoredInvite();
+    if (this.pendingInvite() || this.invalidInvite() || this.inviteStorageUnavailable()) void this.router.navigateByUrl('/join');
+  }
+  private syncStoredInvite(): void {
+    try {
+      this.pendingInvite.set(readPendingInvite(window.sessionStorage));
+      this.invalidInvite.set(readInvalidInvite(window.sessionStorage));
+      this.inviteStorageUnavailable.set(false);
+    } catch {
+      this.pendingInvite.set(null);
+      this.invalidInvite.set(false);
+      this.inviteStorageUnavailable.set(window.location.pathname === '/join');
+    }
   }
   auth?: AuthService;
   private groupService?: GroupService;
@@ -255,10 +266,7 @@ export class App implements OnInit, OnDestroy {
   readonly heading = () => this.mode() === 'register' ? t('registerHeading') : this.mode() === 'reset' ? t('resetHeading') : t('welcome');
 
   async ngOnInit(): Promise<void> {
-    if (typeof window !== 'undefined') {
-      this.pendingInvite.set(readPendingInvite(window.sessionStorage));
-      this.invalidInvite.set(readInvalidInvite(window.sessionStorage));
-    }
+    if (typeof window !== 'undefined') this.syncStoredInvite();
     setLanguage(language());
     try {
       const response = await fetch('/app-config.json', { cache: 'no-store' });
@@ -446,8 +454,8 @@ export class App implements OnInit, OnDestroy {
     catch { this.message.set(t('actionFailed')); }
     finally { this.busy.set(false); }
   }
-  clearStoredInvite(): void { if (typeof window !== 'undefined') clearPendingInvite(window.sessionStorage); }
-  declineInvite(): void { this.clearStoredInvite(); this.pendingInvite.set(null); this.invalidInvite.set(false); }
+  clearStoredInvite(): void { if (typeof window !== 'undefined') { try { clearPendingInvite(window.sessionStorage); } catch { /* Le stockage peut être désactivé. */ } } }
+  declineInvite(): void { this.clearStoredInvite(); this.pendingInvite.set(null); this.invalidInvite.set(false); this.inviteStorageUnavailable.set(false); }
   async onQrJoined(groupId: string): Promise<void> {
     this.declineInvite();
     await this.loadGroups();
