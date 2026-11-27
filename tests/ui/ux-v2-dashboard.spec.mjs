@@ -54,6 +54,7 @@ test('D2 · le changement de groupe demande de protéger une dépense saisie', a
   await dialog.getByRole('button', { name: 'Abandonner et changer' }).click();
   await expect(page.locator('header select')).toHaveValue('voyage');
   await expect(page.getByRole('textbox', { name: 'Description' })).toHaveValue('');
+  await expect(page.getByRole('dialog', { name: 'Quitter la dépense ?' })).toBeHidden();
 });
 
 test('D2c · le formulaire adopte le groupe choisi quand le brouillon est vide', async ({ page }) => {
