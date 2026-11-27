@@ -6,6 +6,7 @@ import { UiControlDirective } from './shared/components/ui-field/ui-control.dire
 import { UiButton } from './shared/components/ui-button/ui-button';
 import { UiAlert } from './shared/components/ui-alert/ui-alert';
 import { Component, ElementRef, OnDestroy, ViewChild, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { App } from './app';
@@ -68,7 +69,7 @@ import { validateInviteLink } from './core/firebase/pending-invite';
         <div class="flex flex-col">
         <nav class="order-1 mt-5 grid gap-3 sm:grid-cols-3" [attr.aria-label]="t('quickActions')">
           <a class="dashboard-action dashboard-action-coral" routerLink="/expenses" [queryParams]="{ group: app.selectedGroupId(), action: 'add' }"><span class="dashboard-action-icon dashboard-action-icon-coral" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none"><path d="M24 10v28M10 24h28" stroke="currentColor" stroke-width="5" stroke-linecap="round" /></svg></span><strong>{{ t('addExpenseAction') }}</strong></a>
-          @if (app.auth?.user()?.uid === group.ownerId && app.workerUrl) { <button class="dashboard-action dashboard-action-lavender text-left" type="button" (click)="openInvite()"><span class="dashboard-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 21a8 8 0 0 1 13.292-6"/><circle cx="10" cy="8" r="5"/><path d="M19 16v6"/><path d="M22 19h-6"/></svg></span><strong>{{ t('inviteQrAction') }}</strong><svg class="dashboard-action-qr" viewBox="0 0 36 36" fill="none" aria-hidden="true"><path d="M2 2h12v12H2zM22 2h12v12H22zM2 22h12v12H2z" stroke="currentColor" stroke-width="3"/><path d="M22 22h4v4h-4zM30 22h4v4h-4zM22 30h4v4h-4zM30 30h4v4h-4z" fill="currentColor"/></svg></button> }
+          @if (app.auth?.user()?.uid === group.ownerId && app.workerUrl) { <button class="dashboard-action dashboard-action-lavender text-left" type="button" (click)="openInvite()"><span class="dashboard-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 21a8 8 0 0 1 13.292-6"/><circle cx="10" cy="8" r="5"/><path d="M19 16v6"/><path d="M22 19h-6"/></svg></span><strong>{{ t('inviteQrAction') }}</strong><svg class="dashboard-action-qr" viewBox="0 0 36 36" fill="none" aria-hidden="true"><path d="M2 2h12v12H2zM22 2h12v12H22zM2 22h12v12H2z" stroke="currentColor" stroke-width="3"/><path d="M22 22h4v4h-4zM30 22h4v4h-4zM22 30h4v4h-4zM30 30h4v4h-4z" fill="currentColor"/></svg></button> } @else { <a class="dashboard-action dashboard-action-lavender" routerLink="/groups" fragment="qr-invitations"><span class="dashboard-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 21a8 8 0 0 1 13.292-6"/><circle cx="10" cy="8" r="5"/><path d="M19 16v6"/><path d="M22 19h-6"/></svg></span><span><strong class="block">{{ t('inviteQrAction') }}</strong><small class="text-xs font-normal">{{ t('inviteOwnerHelp') }}</small></span></a> }
           <a class="dashboard-action dashboard-action-lavender" routerLink="/statistics" fragment="settlement-form"><span class="dashboard-action-icon" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none"><path d="M11 16h25l-6-6m6 6-6 6M37 32H12l6-6m-6 6 6 6" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span><strong>{{ t('settleAction') }}</strong></a>
         </nav>
         <section class="order-2 mt-5 sm:order-3" [attr.aria-label]="t('myGroups')"><h2 class="mb-2 text-lg font-black">{{ t('myGroups') }}</h2><div class="flex max-w-full min-w-0 snap-x gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:overflow-visible">
@@ -260,14 +261,14 @@ export class GroupsPage {
       <header class="mb-5 flex flex-wrap items-center justify-between gap-4">
         <div><p class="text-sm font-bold text-pop-muted">{{ app.selectedGroup()?.name }} · {{ app.selectedGroup()?.currency }}</p><h1 class="text-3xl font-black">{{ t('navExpenses') }}</h1></div>
         @if (app.groups().length && app.workerUrl && app.firebaseApp && app.auth?.user()) { <a class="hidden min-h-11 rounded-xl bg-pop-coral px-5 font-extrabold text-pop-text xl:inline-flex xl:items-center" href="#expense-editor">＋ {{ t('addExpenseAction') }}</a> }
-        @if (showEditor()) { <app-ui-button variant="secondary" class="xl:hidden" type="button" (click)="showEditor.set(false)">← {{ t('navExpenses') }}</app-ui-button> }
+        @if (showEditor()) { <app-ui-button variant="secondary" class="xl:hidden" type="button" (click)="closeEditor()">← {{ t('navExpenses') }}</app-ui-button> }
       </header>
       @if (app.workerUrl && app.firebaseApp && app.auth?.user(); as user) {
         @if (app.groups().length) {
           @if (!showEditor()) { <app-ui-button variant="coral" size="lg" [block]="true" class="mb-5 block xl:hidden" type="button" (click)="showEditor.set(true)">＋ {{ t('addExpenseAction') }}</app-ui-button> }
           <div class="grid gap-5 xl:grid-cols-[minmax(0,1fr)_18rem] xl:items-start">
             <app-expense-history class="min-w-0" [class.max-xl:hidden]="showEditor()" [groups]="app.groups()" [preferredGroupId]="app.selectedGroupId()" [firebaseApp]="app.firebaseApp" [user]="user" [workerUrl]="app.workerUrl" [revision]="app.expenseRevision()" [categoryRevision]="app.categoryRevision()" (groupChange)="app.requestGroupSelection($event)" (commented)="app.onCommentAdded()" (editRequested)="app.onExpenseEdit($event); showEditor.set(true)" (deleted)="app.onExpenseSaved()" />
-            <app-expense-form class="min-w-0" id="expense-editor" [class.max-xl:hidden]="!showEditor()" [groups]="app.groups()" [preferredGroupId]="app.selectedGroupId()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" [categoryRevision]="app.categoryRevision()" [editing]="app.editingExpense()" (groupChange)="app.requestGroupSelection($event)" (draftChanged)="app.expenseDraftActive.set($event)" (saved)="app.onExpenseSaved(); showEditor.set(false)" (editCancelled)="app.editingExpense.set(undefined); app.expenseDraftActive.set(false); showEditor.set(false)" />
+            <app-expense-form class="min-w-0" id="expense-editor" [class.max-xl:hidden]="!showEditor()" [groups]="app.groups()" [preferredGroupId]="app.selectedGroupId()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" [categoryRevision]="app.categoryRevision()" [editing]="app.editingExpense()" (groupChange)="app.requestGroupSelection($event)" (draftChanged)="app.expenseDraftActive.set($event)" (saved)="app.onExpenseSaved(); closeEditor()" (editCancelled)="app.editingExpense.set(undefined); app.expenseDraftActive.set(false); closeEditor()" />
           </div>
 
         } @else { <p class="rounded-2xl bg-white p-5">{{ t('noGroups') }}</p> }
@@ -278,7 +279,21 @@ export class GroupsPage {
 export class ExpensesPage implements OnDestroy {
   readonly app = inject(App);
   readonly t = t;
-  readonly showEditor = signal(inject(ActivatedRoute).snapshot.queryParamMap.get('action') === 'add');
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  readonly showEditor = signal(this.route.snapshot.queryParamMap.get('action') === 'add');
+  private lastAction = this.route.snapshot.queryParamMap.get('action');
+  constructor() {
+    this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe(params => {
+      const action = params.get('action');
+      if (action === 'add' && action !== this.lastAction) this.showEditor.set(true);
+      this.lastAction = action;
+    });
+  }
+  closeEditor(): void {
+    this.showEditor.set(false);
+    void this.router.navigate([], { relativeTo: this.route, queryParams: { action: null }, queryParamsHandling: 'merge', replaceUrl: true });
+  }
   ngOnDestroy(): void { this.app.expenseDraftActive.set(false); }
 }
 

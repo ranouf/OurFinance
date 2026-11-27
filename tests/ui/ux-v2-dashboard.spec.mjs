@@ -82,6 +82,19 @@ test('D3 · le bouton central mobile ouvre le formulaire du groupe actif', async
   await expect(page.getByRole('textbox', { name: 'Description' })).toBeVisible();
 });
 
+test('D3b · le bouton central rouvre le formulaire depuis l’historique mobile', async ({ page }) => {
+  test.skip(page.viewportSize()?.width > 390, 'Navigation basse mobile seulement');
+  await login(page);
+  await page.goto('/expenses');
+  const add = page.getByRole('navigation', { name: 'Navigation principale' }).last().getByRole('link', { name: 'Ajouter une dépense' });
+  await add.click();
+  await expect(page.getByRole('textbox', { name: 'Description' })).toBeVisible();
+  await page.getByRole('button', { name: /Dépenses/ }).filter({ visible: true }).first().click();
+  await expect(page.getByRole('textbox', { name: 'Description' })).toBeHidden();
+  await add.click();
+  await expect(page.getByRole('textbox', { name: 'Description' })).toBeVisible();
+});
+
 test('D6 · fermer l’invitation par Échap rend le focus au raccourci', async ({ page }) => {
   await login(page);
   const trigger = page.getByRole('button', { name: 'Inviter des membres' });
@@ -90,6 +103,14 @@ test('D6 · fermer l’invitation par Échap rend le focus au raccourci', async 
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog', { name: 'Inviter des membres' })).toBeHidden();
   await expect(trigger).toBeFocused();
+});
+
+test('D7 · un membre voit pourquoi l’invitation est indisponible', async ({ page }) => {
+  await login(page, 'alex@example.invalid');
+  const invite = page.getByRole('link', { name: /Inviter des membres/ }).filter({ visible: true }).first();
+  await expect(invite).toContainText('Seul le propriétaire');
+  await invite.click();
+  await expect(page).toHaveURL(/\/groups#qr-invitations/);
 });
 
 test('D4 · sans groupe, les trois parcours de démarrage restent accessibles', async ({ page }) => {
