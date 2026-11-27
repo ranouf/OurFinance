@@ -335,13 +335,18 @@ export class StatisticsPage { readonly app = inject(App); readonly t = t; }
 export class AccountPage { readonly app = inject(App); readonly t = t; }
 
 @Component({
-  imports: [InviteAcceptanceCard, LoginPage],
+  imports: [InviteAcceptanceCard, LoginPage, UiButton],
   template: `
     @if (app.auth?.user(); as user) {
       @if (user.emailVerified && app.pendingInvite() && app.workerUrl) {
-        <app-invite-acceptance-card [user]="user" [workerUrl]="app.workerUrl" [token]="app.pendingInvite()!" (joined)="app.onQrJoined($event)" (declined)="app.declineInvite()" (changeAccount)="app.logout()" (invalidated)="app.clearStoredInvite()" />
+        <div class="mx-auto max-w-5xl overflow-hidden rounded-3xl bg-white shadow-[0_18px_50px_#30275214] lg:grid lg:min-h-[620px] lg:grid-cols-[1.08fr_1fr]">
+          <picture class="block overflow-hidden bg-pop-primary"><source media="(min-width: 1024px)" srcset="/illustrations/cafe-hero.webp" /><img class="h-52 w-full object-cover object-center lg:h-full" src="/illustrations/cafe-hero.webp" alt="" /></picture>
+          <div class="flex items-center p-4 sm:p-8"><app-invite-acceptance-card class="block w-full" [user]="user" [workerUrl]="app.workerUrl" [token]="app.pendingInvite()!" (joined)="app.onQrJoined($event)" (declined)="app.declineInvite()" (changeAccount)="app.logout()" (invalidated)="app.clearStoredInvite()" /></div>
+        </div>
+      } @else if (app.invalidInvite()) {
+        <section class="mx-auto mt-6 max-w-xl rounded-3xl border border-pop-border bg-white p-6 shadow-sm" role="alert"><h1 class="text-2xl font-black">{{ t('invitationLinkInvalid') }}</h1><app-ui-button variant="secondary" class="mt-4" type="button" (click)="app.declineInvite()">{{ app.qrText().decline }}</app-ui-button></section>
       } @else { <app-login-page /> }
     } @else { <app-login-page /> }
   `,
 })
-export class JoinPage { readonly app = inject(App); }
+export class JoinPage { readonly app = inject(App); readonly t = t; }

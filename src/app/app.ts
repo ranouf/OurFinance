@@ -13,7 +13,7 @@ import type { FirebaseApp } from 'firebase/app';
 import { currencyCatalog } from './shared/utils/currency';
 import { formatMinorExact } from './shared/utils/currency';
 import { Group } from './core/firebase/group-model';
-import { capturePendingInvite, clearPendingInvite } from './core/firebase/pending-invite';
+import { readPendingInvite, readInvalidInvite, clearPendingInvite } from './core/firebase/pending-invite';
 import type { ExpenseHistoryEntry } from './core/firebase/expense-service';
 import { dashboardMetrics } from './features/dashboard/dashboard-metrics';
 import { accessibleGroupId, groupSelectionStorageKey } from './features/dashboard/group-selection';
@@ -51,6 +51,7 @@ export class App implements OnInit, OnDestroy {
   readonly message = signal('');
   readonly groupCreateFailed = signal(false);
   readonly pendingInvite = signal<string | null>(null);
+  readonly invalidInvite = signal(false);
   private readonly router = inject(Router);
   private readonly routeEvent = toSignal(this.router.events.pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd)));
   readonly isComponentsGallery = computed(() => {
@@ -68,11 +69,18 @@ export class App implements OnInit, OnDestroy {
     this.routeEvent();
     if (this.isComponentsGallery()) return null;
     if (this.state() !== 'ready') return null;
-    return authDestination(this.auth?.ready() ?? false, this.router.url.split('?')[0], this.auth?.user() ?? null, !!this.pendingInvite());
+    if (!this.router.navigated) return null;
+    return authDestination(this.auth?.ready() ?? false, this.router.url.split(/[?#]/)[0], this.auth?.user() ?? null, !!this.pendingInvite() || this.invalidInvite());
   });
   readonly online = signal(typeof navigator === 'undefined' ? true : navigator.onLine);
   @HostListener('window:online') onOnline(): void { this.online.set(true); }
   @HostListener('window:offline') onOffline(): void { this.online.set(false); }
+  @HostListener('window:ourfinance:invite-changed') onInviteChanged(): void {
+    if (typeof window === 'undefined') return;
+    this.pendingInvite.set(readPendingInvite(window.sessionStorage));
+    this.invalidInvite.set(readInvalidInvite(window.sessionStorage));
+    if (this.pendingInvite() || this.invalidInvite()) void this.router.navigateByUrl('/join');
+  }
   auth?: AuthService;
   private groupService?: GroupService;
   firebaseApp?: FirebaseApp;
@@ -235,13 +243,22 @@ export class App implements OnInit, OnDestroy {
       const destination = this.authRedirect();
       if (destination) void this.router.navigateByUrl(destination);
     });
+    effect(() => {
+      const event = this.routeEvent();
+      if (event?.urlAfterRedirects.startsWith('/join#invite=') && typeof window !== 'undefined') {
+        window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search);
+      }
+    });
   }
   email = '';
   password = '';
   readonly heading = () => this.mode() === 'register' ? t('registerHeading') : this.mode() === 'reset' ? t('resetHeading') : t('welcome');
 
   async ngOnInit(): Promise<void> {
-    if (typeof window !== 'undefined') this.pendingInvite.set(capturePendingInvite(window.location, window.history, window.sessionStorage));
+    if (typeof window !== 'undefined') {
+      this.pendingInvite.set(readPendingInvite(window.sessionStorage));
+      this.invalidInvite.set(readInvalidInvite(window.sessionStorage));
+    }
     setLanguage(language());
     try {
       const response = await fetch('/app-config.json', { cache: 'no-store' });
@@ -430,7 +447,7 @@ export class App implements OnInit, OnDestroy {
     finally { this.busy.set(false); }
   }
   clearStoredInvite(): void { if (typeof window !== 'undefined') clearPendingInvite(window.sessionStorage); }
-  declineInvite(): void { this.clearStoredInvite(); this.pendingInvite.set(null); }
+  declineInvite(): void { this.clearStoredInvite(); this.pendingInvite.set(null); this.invalidInvite.set(false); }
   async onQrJoined(groupId: string): Promise<void> {
     this.declineInvite();
     await this.loadGroups();

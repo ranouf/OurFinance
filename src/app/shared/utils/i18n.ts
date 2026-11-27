@@ -14,7 +14,7 @@ const messages = {
   fr: {
     restoreCheckOutcome: 'Vérifier le résultat de cette tentative', restoreStillLocked: 'La restauration est encore en cours ou nécessite une intervention. Ne la relancez pas.', restoreOutcomeUnavailable: 'Résultat indisponible. Réessayez la vérification plus tard, sans relancer la restauration.',
     navLabel: 'Navigation principale', navHome: 'Accueil', navExpenses: 'Dépenses', navStatistics: 'Statistiques', navGroups: 'Groupes', navAdd: 'Ajouter', navHistory: 'Historique', navBalances: 'Soldes', navAccount: 'Profil',
-    loginHero: 'Vos dépenses partagées, en toute simplicité.', loginHeroLead: 'Les dépenses ensemble,', loginHeroHighlight: 'tout simplement.', loginIntro: 'Connectez-vous pour retrouver vos groupes et vos dépenses.', or: 'ou', newHere: 'Pas encore de compte ?',
+    loginHero: 'Vos dépenses partagées, en toute simplicité.', loginHeroLead: 'Les dépenses ensemble,', loginHeroHighlight: 'tout simplement.', loginIntro: 'Connectez-vous pour retrouver vos groupes et vos dépenses.', inviteGuestHeading: 'Un groupe vous attend !', or: 'ou', newHere: 'Pas encore de compte ?',
     totalRepayments: 'Remboursements', quickActions: 'Actions rapides', searchExpenses: 'Rechercher une dépense', search: 'Rechercher', preferences: 'Préférences', addExpenseAction: 'Ajouter une dépense', inviteQrAction: 'Inviter des membres', settleAction: 'Équilibrer les comptes', whoOwes: 'Qui doit quoi ?', byCategory: 'Dépenses par catégorie', totalLabel: 'Total', otherCategories: 'Autres',
     inviteOwnerHelp: 'Seul le propriétaire peut créer une invitation.',
     leaveDraftTitle: 'Quitter la dépense ?', leaveDraftText: 'La dépense en cours n’est pas enregistrée. La quitter abandonnera ce brouillon.', leaveDraft: 'Abandonner et quitter',
@@ -64,7 +64,7 @@ const messages = {
   en: {
     restoreCheckOutcome: 'Check this attempt’s result', restoreStillLocked: 'The restore is still in progress or needs attention. Do not restart it.', restoreOutcomeUnavailable: 'Result unavailable. Check again later without restarting the restore.',
     navLabel: 'Main navigation', navHome: 'Home', navExpenses: 'Expenses', navStatistics: 'Statistics', navGroups: 'Groups', navAdd: 'Add', navHistory: 'History', navBalances: 'Balances', navAccount: 'Profile',
-    loginHero: 'Shared expenses, made simple.', loginHeroLead: 'Shared expenses,', loginHeroHighlight: 'made simple.', loginIntro: 'Sign in to see your groups and expenses.', or: 'or', newHere: 'No account yet?',
+    loginHero: 'Shared expenses, made simple.', loginHeroLead: 'Shared expenses,', loginHeroHighlight: 'made simple.', loginIntro: 'Sign in to see your groups and expenses.', inviteGuestHeading: 'A group is waiting for you!', or: 'or', newHere: 'No account yet?',
     totalRepayments: 'Repayments', quickActions: 'Quick actions', searchExpenses: 'Search expenses', search: 'Search', preferences: 'Preferences', addExpenseAction: 'Add an expense', inviteQrAction: 'Invite members', settleAction: 'Settle balances', whoOwes: 'Who owes what?', byCategory: 'Spending by category', totalLabel: 'Total', otherCategories: 'Other',
     inviteOwnerHelp: 'Only the group owner can create an invitation.',
     leaveDraftTitle: 'Leave the expense?', leaveDraftText: 'This expense has not been saved. Leaving will discard the draft.', leaveDraft: 'Discard and leave',
@@ -114,7 +114,7 @@ const messages = {
   ja: {
     restoreCheckOutcome: 'この試行の結果を確認', restoreStillLocked: '復元は進行中か、対応が必要です。再実行しないでください。', restoreOutcomeUnavailable: '結果を取得できません。復元を再実行せず、後でもう一度確認してください。',
     navLabel: 'メインナビゲーション', navHome: 'ホーム', navExpenses: '支出', navStatistics: '統計', navGroups: 'グループ', navAdd: '追加', navHistory: '履歴', navBalances: '残高', navAccount: '設定',
-    loginHero: 'みんなの支出を、もっと簡単に。', loginHeroLead: 'みんなの支出を、', loginHeroHighlight: 'もっと簡単に。', loginIntro: 'ログインしてグループと支出を確認しましょう。', or: 'または', newHere: 'アカウントをお持ちでないですか？',
+    loginHero: 'みんなの支出を、もっと簡単に。', loginHeroLead: 'みんなの支出を、', loginHeroHighlight: 'もっと簡単に。', loginIntro: 'ログインしてグループと支出を確認しましょう。', inviteGuestHeading: 'グループへの招待が届いています！', or: 'または', newHere: 'アカウントをお持ちでないですか？',
     totalRepayments: '返済額', quickActions: 'クイック操作', searchExpenses: '支出を検索', search: '検索', preferences: '設定', addExpenseAction: '支出を追加', inviteQrAction: 'メンバーを招待', settleAction: '残高を精算', whoOwes: '残高の内訳', byCategory: 'カテゴリ別の支出', totalLabel: '合計', otherCategories: 'その他',
     inviteOwnerHelp: '招待を作成できるのはグループの所有者のみです。',
     leaveDraftTitle: '支出の入力を終了しますか？', leaveDraftText: 'この支出は保存されていません。画面を離れると下書きが破棄されます。', leaveDraft: '破棄して終了',

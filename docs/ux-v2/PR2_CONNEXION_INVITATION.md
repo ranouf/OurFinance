@@ -1,6 +1,6 @@
 # UX V2 — PR 2 : connexion et invitation reçue
 
-Statut : inventaire et wireframe proposés, sans modification des parcours en production. Références : `docs/UX_SPECIFICATION_V2.md`, `docs/INVITATIONS_QR.md`, maquettes Everyday Pop V2 de connexion mobile et V1 desktop.
+Statut : maquettes desktop/mobile validées, intégration Angular en cours sur la branche PR 2. Références : `docs/UX_SPECIFICATION_V2.md`, `docs/INVITATIONS_QR.md`, maquettes Everyday Pop V2 de connexion mobile et V1 desktop.
 
 ## Écrans desktop et mobile
 
