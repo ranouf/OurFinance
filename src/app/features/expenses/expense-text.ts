@@ -2,6 +2,7 @@ import { language } from '../../shared/utils/i18n';
 
 const messages = {
   fr: {
+    expensePageTitle: 'Les dépenses', expensePageIntro: 'Toutes les opérations du groupe, au même endroit.',
     newExpense: 'Nouvelle dépense', editExpense: 'Modifier la dépense', authorOnly: 'Seul l’auteur peut modifier cette dépense.',
     splitHelp: 'Vérifiez la répartition proposée pour ce groupe avant d’enregistrer la dépense.',
     draftGroupLocked: 'Enregistrez ou abandonnez ce brouillon avant de changer de groupe.', discardDraft: 'Abandonner le brouillon',
@@ -44,6 +45,7 @@ const messages = {
     inconsistentSum: 'Somme incohérente',
   },
   en: {
+    expensePageTitle: 'Expenses', expensePageIntro: 'Every group transaction in one place.',
     newExpense: 'New expense', editExpense: 'Edit expense', authorOnly: 'Only the author can edit this expense.',
     splitHelp: 'Review the suggested split for this group before saving the expense.',
     draftGroupLocked: 'Save or discard this draft before switching groups.', discardDraft: 'Discard draft',
@@ -86,6 +88,7 @@ const messages = {
     inconsistentSum: 'Amounts do not add up to the total.',
   },
   ja: {
+    expensePageTitle: '支出', expensePageIntro: 'グループのすべての取引を一か所で確認できます。',
     newExpense: '新しい支出', editExpense: '支出を編集', authorOnly: 'この支出を編集できるのは作成者のみです。',
     splitHelp: '支出を保存する前に、このグループで提案された分け方を確認してください。',
     draftGroupLocked: 'グループを変更する前に下書きを保存または破棄してください。', discardDraft: '下書きを破棄',

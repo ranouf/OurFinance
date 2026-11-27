@@ -5,8 +5,7 @@ import { UiGroupCard } from './shared/components/ui-group-card/ui-group-card';
 import { UiControlDirective } from './shared/components/ui-field/ui-control.directive';
 import { UiButton } from './shared/components/ui-button/ui-button';
 import { UiAlert } from './shared/components/ui-alert/ui-alert';
-import { Component, ElementRef, OnDestroy, ViewChild, computed, effect, inject, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Component, ElementRef, ViewChild, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { App } from './app';
@@ -23,7 +22,6 @@ import { groupsPageText } from './features/groups/groups-page-text';
 import { QrInvitationPanel } from './features/groups/qr-invitation-panel';
 import { InviteAcceptanceCard } from './features/groups/invite-acceptance-card';
 import { CategoryManager } from './features/categories/category-manager';
-import { ExpenseForm } from './features/expenses/expense-form';
 import { ExpenseHistory } from './features/expenses/expense-history';
 import { ReceiptCleanupPanel } from './features/expenses/receipt-cleanup-panel';
 import { SettlementForm } from './features/settlements/settlement-form';
@@ -271,49 +269,6 @@ export class GroupsPage {
     { value: '', label: this.metadataText().none },
     ...categoryColors.map((color, index) => ({ value: color.id, swatch: color.swatch, label: this.metadataText().colors[index] })),
   ]);
-}
-
-@Component({
-  imports: [UiButton, ExpenseForm, ExpenseHistory],
-  template: `
-    <div class="mx-auto max-w-5xl pb-20 xl:pb-0">
-      <header class="mb-5 flex flex-wrap items-center justify-between gap-4">
-        <div><p class="text-sm font-bold text-pop-muted">{{ app.selectedGroup()?.name }} · {{ app.selectedGroup()?.currency }}</p><h1 class="text-3xl font-black">{{ t('navExpenses') }}</h1></div>
-        @if (app.groups().length && app.workerUrl && app.firebaseApp && app.auth?.user()) { <a class="hidden min-h-11 rounded-xl bg-pop-coral px-5 font-extrabold text-pop-text xl:inline-flex xl:items-center" href="#expense-editor">＋ {{ t('addExpenseAction') }}</a> }
-        @if (showEditor()) { <app-ui-button variant="secondary" class="xl:hidden" type="button" (click)="closeEditor()">← {{ t('navExpenses') }}</app-ui-button> }
-      </header>
-      @if (app.workerUrl && app.firebaseApp && app.auth?.user(); as user) {
-        @if (app.groups().length) {
-          @if (!showEditor()) { <app-ui-button variant="coral" size="lg" [block]="true" class="mb-5 block xl:hidden" type="button" (click)="showEditor.set(true)">＋ {{ t('addExpenseAction') }}</app-ui-button> }
-          <div class="grid gap-5 xl:grid-cols-[minmax(0,1fr)_18rem] xl:items-start">
-            <app-expense-history class="min-w-0" [class.max-xl:hidden]="showEditor()" [groups]="app.groups()" [preferredGroupId]="app.selectedGroupId()" [firebaseApp]="app.firebaseApp" [user]="user" [workerUrl]="app.workerUrl" [revision]="app.expenseRevision()" [categoryRevision]="app.categoryRevision()" (groupChange)="app.requestGroupSelection($event)" (commented)="app.onCommentAdded()" (editRequested)="app.onExpenseEdit($event); showEditor.set(true)" (deleted)="app.onExpenseSaved()" />
-            <app-expense-form class="min-w-0" id="expense-editor" [class.max-xl:hidden]="!showEditor()" [groups]="app.groups()" [preferredGroupId]="app.selectedGroupId()" [user]="user" [firebaseApp]="app.firebaseApp" [workerUrl]="app.workerUrl" [categoryRevision]="app.categoryRevision()" [editing]="app.editingExpense()" (groupChange)="app.requestGroupSelection($event)" (draftChanged)="app.expenseDraftActive.set($event)" (saved)="app.onExpenseSaved(); closeEditor()" (editCancelled)="app.editingExpense.set(undefined); app.expenseDraftActive.set(false); closeEditor()" />
-          </div>
-
-        } @else { <p class="rounded-2xl bg-white p-5">{{ t('noGroups') }}</p> }
-      }
-    </div>
-  `,
-})
-export class ExpensesPage implements OnDestroy {
-  readonly app = inject(App);
-  readonly t = t;
-  private readonly route = inject(ActivatedRoute);
-  private readonly router = inject(Router);
-  readonly showEditor = signal(this.route.snapshot.queryParamMap.get('action') === 'add');
-  private lastAction = this.route.snapshot.queryParamMap.get('action');
-  constructor() {
-    this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe(params => {
-      const action = params.get('action');
-      if (action === 'add' && action !== this.lastAction) this.showEditor.set(true);
-      this.lastAction = action;
-    });
-  }
-  closeEditor(): void {
-    this.showEditor.set(false);
-    void this.router.navigate([], { relativeTo: this.route, queryParams: { action: null }, queryParamsHandling: 'merge', replaceUrl: true });
-  }
-  ngOnDestroy(): void { this.app.expenseDraftActive.set(false); }
 }
 
 @Component({
