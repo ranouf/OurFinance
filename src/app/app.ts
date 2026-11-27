@@ -411,13 +411,13 @@ export class App implements OnInit, OnDestroy {
   async onQrJoined(groupId: string): Promise<void> {
     this.declineInvite();
     await this.loadGroups();
-    if (this.groups().some(group => group.id === groupId)) this.selectedGroupId.set(groupId);
+    if (this.groups().some(group => group.id === groupId)) this.selectGroup(groupId);
     await this.router.navigateByUrl('/groups');
   }
   onExpenseSaved(): void { this.expenseRevision.update(value => value + 1); }
   onExpenseEdit(target: { groupId: string; entry: ExpenseHistoryEntry }): void {
     this.editingExpense.set(target);
-    this.selectedGroupId.set(target.groupId);
+    this.selectGroup(target.groupId);
     void this.router.navigateByUrl('/expenses').then(() => requestAnimationFrame(() =>
       document.getElementById('expense-editor')?.scrollIntoView({ behavior: 'smooth' })));
   }
