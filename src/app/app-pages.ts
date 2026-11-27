@@ -224,8 +224,8 @@ export class GroupsPage {
   openGroup(groupId: string): void {
     this.detailGroupId.set(''); this.tab.set('overview');
     if (this.app.expenseDraftActive() && groupId !== this.app.selectedGroupId()) {
-      this.pendingDetailGroupId.set(groupId);
       this.app.requestGroupSelection(groupId);
+      if (this.app.pendingGroupId() === groupId) this.pendingDetailGroupId.set(groupId);
       return;
     }
     this.app.requestGroupSelection(groupId);
