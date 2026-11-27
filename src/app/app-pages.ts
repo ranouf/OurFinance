@@ -347,8 +347,14 @@ export class AccountPage { readonly app = inject(App); readonly t = t; }
         <section class="mx-auto mt-6 max-w-xl rounded-3xl border border-pop-border bg-white p-6 shadow-sm" role="alert"><h1 class="text-2xl font-black">{{ app.qrText()[reason] }}</h1><app-ui-button variant="secondary" class="mt-4" type="button" (click)="app.declineInvite()">{{ app.qrText().decline }}</app-ui-button></section>
       } @else if (app.invalidInvite() || app.inviteStorageUnavailable()) {
         <section class="mx-auto mt-6 max-w-xl rounded-3xl border border-pop-border bg-white p-6 shadow-sm" role="alert"><h1 class="text-2xl font-black">{{ app.inviteStorageUnavailable() ? t('invitationStorageUnavailable') : t('invitationLinkInvalid') }}</h1><app-ui-button variant="secondary" class="mt-4" type="button" (click)="app.declineInvite()">{{ app.qrText().decline }}</app-ui-button></section>
-      } @else { <app-login-page /> }
-    } @else { <app-login-page /> }
+      } @else { <section class="mx-auto mt-6 max-w-xl rounded-3xl border border-pop-border bg-white p-6 shadow-sm" role="status"><h1 class="text-2xl font-black">{{ t('invitationMissing') }}</h1><app-ui-button variant="secondary" class="mt-4" type="button" (click)="goBack()">{{ t('navHome') }}</app-ui-button></section> }
+    } @else if (app.pendingInvite() || app.invalidInvite() || app.inviteStorageUnavailable()) { <app-login-page /> }
+    @else { <section class="mx-auto mt-6 max-w-xl rounded-3xl border border-pop-border bg-white p-6 shadow-sm" role="status"><h1 class="text-2xl font-black">{{ t('invitationMissing') }}</h1><app-ui-button variant="secondary" class="mt-4" type="button" (click)="goBack()">{{ t('connection') }}</app-ui-button></section> }
   `,
 })
-export class JoinPage { readonly app = inject(App); readonly t = t; }
+export class JoinPage {
+  readonly app = inject(App);
+  readonly t = t;
+  private readonly router = inject(Router);
+  goBack(): void { void this.router.navigateByUrl(this.app.auth?.user() ? '/dashboard' : '/login'); }
+}

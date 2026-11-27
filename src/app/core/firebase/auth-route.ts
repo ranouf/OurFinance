@@ -9,6 +9,6 @@ export function authDestination(
   if (path === '/ui/components' || path === '/gallery/Gallery') return null;
   if (hasPendingInvite && user?.emailVerified && path !== '/join') return '/join';
   if ((!user || !user.emailVerified) && path !== '/login' && path !== '/join') return '/login';
-  if (user?.emailVerified && !hasPendingInvite && (path === '/login' || path === '/join')) return '/dashboard';
+  if (user?.emailVerified && !hasPendingInvite && path === '/login') return '/dashboard';
   return null;
 }

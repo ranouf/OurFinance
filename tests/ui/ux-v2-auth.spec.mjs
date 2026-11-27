@@ -2,6 +2,18 @@ import { test, expect, login } from './fixtures.mjs';
 
 const fictionalToken = 'a'.repeat(43);
 
+test('la route de participation sans lien explique l’invitation absente', async ({ page }) => {
+  await page.goto('/join');
+  await expect(page.getByRole('heading', { name: /Aucune invitation en attente/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Connexion/i })).toBeVisible();
+});
+
+test('un membre connecté voit aussi l’état sans invitation', async ({ page }) => {
+  await login(page);
+  await page.goto('/join');
+  await expect(page.getByRole('heading', { name: /Aucune invitation en attente/i })).toBeVisible();
+});
+
 test('connexion et récupération gardent des champs accessibles', async ({ page }) => {
   await page.goto('/login');
   await expect(page.getByRole('heading', { name: /Bienvenue/i })).toBeVisible();
