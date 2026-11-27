@@ -22,14 +22,14 @@ import { qrInvitationText } from './qr-invitation-text';
           <div class="flex justify-between gap-3 py-3"><dt>{{ text().expires }}</dt><dd class="text-right font-bold">{{ formatDate(group.expiresAt) }}</dd></div>
         </dl>
         <div class="mt-5 flex flex-wrap gap-3">
-          <app-ui-button variant="primary"  type="button" [disabled]="busy()" (click)="accept()">{{ text().join }}</app-ui-button>
-          <app-ui-button variant="secondary"  type="button" (click)="declined.emit()">{{ text().decline }}</app-ui-button>
+          <app-ui-button variant="primary"  type="button" [disabled]="busy() || accepting()" (click)="accept()">{{ text().join }}</app-ui-button>
+          <app-ui-button variant="secondary"  type="button" [disabled]="accepting()" (click)="declined.emit()">{{ text().decline }}</app-ui-button>
         </div>
       } @else if (!busy()) {
         <app-ui-alert variant="error" class="mt-4">{{ text()[errorKey()] }}</app-ui-alert>
         @if (!unusable()) { <app-ui-button variant="outline" class="mt-3" type="button" (click)="load()">{{ text().retry }}</app-ui-button> }
       }
-      <app-ui-button variant="ghost" class="mt-5" type="button" (click)="changeAccount.emit()"><span class="underline">{{ text().changeAccount }}</span></app-ui-button>
+      <app-ui-button variant="ghost" class="mt-5" type="button" [disabled]="accepting()" (click)="changeAccount.emit()"><span class="underline">{{ text().changeAccount }}</span></app-ui-button>
       @if (message()) { <app-ui-alert [variant]="messageKey() === 'done' ? 'success' : 'info'" class="mt-3">{{ message() }}</app-ui-alert> }
     </section>
   `,
@@ -38,7 +38,7 @@ export class InviteAcceptanceCard implements OnChanges {
   @Input({ required: true }) user!: User;
   @Input({ required: true }) workerUrl = '';
   @Input({ required: true }) token = '';
-  @Output() readonly joined = new EventEmitter<{ groupId: string; token: string }>();
+  @Output() readonly joined = new EventEmitter<{ groupId: string; token: string; uid: string }>();
   @Output() readonly declined = new EventEmitter<void>();
   @Output() readonly changeAccount = new EventEmitter<void>();
   @Output() readonly invalidated = new EventEmitter<'inviteExpired' | 'inviteFailed'>();
@@ -47,6 +47,7 @@ export class InviteAcceptanceCard implements OnChanges {
   readonly errorKey = signal<'inviteFailed' | 'alreadyMember' | 'wrongAccount' | 'inviteExpired'>('inviteFailed');
   readonly unusable = signal(false);
   readonly busy = signal(false);
+  readonly accepting = signal(false);
   private requestVersion = 0;
   private readonly messageKey = signal<'inviteFailed' | 'joining' | 'done' | null>(null);
   readonly message = computed(() => this.messageKey() ? this.text()[this.messageKey()!] : '');
@@ -70,17 +71,17 @@ export class InviteAcceptanceCard implements OnChanges {
     finally { if (version === this.requestVersion) this.busy.set(false); }
   }
   async accept(): Promise<void> {
-    if (this.busy() || !this.preview()) return;
+    if (this.busy() || this.accepting() || !this.preview()) return;
     const version = ++this.requestVersion;
     const token = this.token;
     const user = this.user;
-    this.busy.set(true); this.messageKey.set('joining');
+    this.busy.set(true); this.accepting.set(true); this.messageKey.set('joining');
     try {
       const result = await new QrInvitationService(this.workerUrl).accept(user, token);
       if (version === this.requestVersion) this.messageKey.set('done');
-      this.joined.emit({ groupId: result.groupId, token });
+      this.joined.emit({ groupId: result.groupId, token, uid: user.uid });
     } catch (error) { if (version === this.requestVersion) { this.messageKey.set(null); this.errorKey.set(this.keyFor(error)); this.preview.set(null); this.clearUnusableToken(error); } }
-    finally { if (version === this.requestVersion) this.busy.set(false); }
+    finally { this.accepting.set(false); if (version === this.requestVersion) this.busy.set(false); }
   }
 
   private keyFor(error: unknown): 'inviteFailed' | 'alreadyMember' | 'wrongAccount' | 'inviteExpired' {

@@ -118,8 +118,10 @@ test('une adhésion achevée après l’ouverture d’un autre lien reste annonc
   await page.getByRole('heading', { name: 'Premier groupe' }).waitFor();
   await page.getByRole('button', { name: 'Rejoindre le groupe' }).click();
   await expect.poll(() => !!acceptRoute).toBe(true);
+  await expect(page.getByRole('button', { name: /Changer de compte/i })).toBeDisabled();
   await page.evaluate(token => { location.hash = `#invite=${token}`; }, second);
   await page.getByRole('heading', { name: 'Second groupe' }).waitFor();
+  await expect(page.getByRole('button', { name: /Changer de compte/i })).toBeDisabled();
   await acceptRoute.fulfill({ json: { groupId: 'famille' } });
   await expect(page.getByText(/Vous avez rejoint le groupe de l’invitation précédente/i)).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Second groupe' })).toBeVisible();

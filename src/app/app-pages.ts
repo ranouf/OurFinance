@@ -337,7 +337,7 @@ export class AccountPage { readonly app = inject(App); readonly t = t; }
 @Component({
   imports: [InviteAcceptanceCard, LoginPage, UiButton, UiAlert],
   template: `
-    @if (app.inviteJoinedNotice()) { <app-ui-alert variant="success" class="mx-auto mb-4 block max-w-5xl">{{ t('invitationJoinedPrevious') }}</app-ui-alert> }
+    @if (app.inviteJoinedNotice(); as notice) { <app-ui-alert variant="success" class="mx-auto mb-4 block max-w-5xl">{{ t(notice) }}</app-ui-alert> }
     @if (app.auth?.user(); as user) {
       @if (user.emailVerified && app.pendingInvite() && app.workerUrl) {
         <div class="mx-auto max-w-5xl overflow-hidden rounded-3xl bg-white shadow-[0_18px_50px_#30275214] lg:grid lg:min-h-[620px] lg:grid-cols-[1.08fr_1fr]">

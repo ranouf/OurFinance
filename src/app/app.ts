@@ -54,7 +54,7 @@ export class App implements OnInit, OnDestroy {
   readonly invalidInvite = signal(false);
   readonly inviteStorageUnavailable = signal(false);
   readonly inviteTerminalError = signal<'inviteExpired' | 'inviteFailed' | null>(null);
-  readonly inviteJoinedNotice = signal(false);
+  readonly inviteJoinedNotice = signal<'invitationJoinedPrevious' | 'invitationJoinedOtherAccount' | null>(null);
   private readonly router = inject(Router);
   private readonly routeEvent = toSignal(this.router.events.pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd)));
   readonly isComponentsGallery = computed(() => {
@@ -463,14 +463,18 @@ export class App implements OnInit, OnDestroy {
     this.pendingInvite.set(null);
     this.inviteTerminalError.set(reason);
   }
-  declineInvite(): void { this.clearStoredInvite(); this.pendingInvite.set(null); this.invalidInvite.set(false); this.inviteStorageUnavailable.set(false); this.inviteTerminalError.set(null); this.inviteJoinedNotice.set(false); }
-  async onQrJoined(result: { groupId: string; token: string }): Promise<void> {
-    if (this.pendingInvite() !== result.token) {
-      await this.loadGroups();
-      this.inviteJoinedNotice.set(true);
+  declineInvite(): void { this.clearStoredInvite(); this.pendingInvite.set(null); this.invalidInvite.set(false); this.inviteStorageUnavailable.set(false); this.inviteTerminalError.set(null); this.inviteJoinedNotice.set(null); }
+  async onQrJoined(result: { groupId: string; token: string; uid: string }): Promise<void> {
+    if (this.auth?.user()?.uid !== result.uid) {
+      this.inviteJoinedNotice.set('invitationJoinedOtherAccount');
       return;
     }
-    this.inviteJoinedNotice.set(false);
+    if (this.pendingInvite() !== result.token) {
+      await this.loadGroups();
+      this.inviteJoinedNotice.set('invitationJoinedPrevious');
+      return;
+    }
+    this.inviteJoinedNotice.set(null);
     this.declineInvite();
     await this.loadGroups();
     if (this.groups().some(group => group.id === result.groupId)) this.selectGroup(result.groupId);
