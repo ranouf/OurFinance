@@ -29,6 +29,7 @@ button:disabled { cursor: not-allowed; }
 .dashboard-action:focus-visible { outline: 3px solid var(--color-pop-primary-dark); outline-offset: 3px; }
 .dashboard-action strong { min-width: 0; max-width: 13ch; font-size: clamp(1rem, 1.55vw, 1.35rem); font-weight: 900; line-height: 1.14; }
 .dashboard-action-coral { background: linear-gradient(145deg, #ffa07c 0%, #ff785e 43%, #f9544d 100%); color: white; }
+.ui-button-coral { background: linear-gradient(145deg, #cb4938 0%, #c44436 58%, #bd4032 100%); box-shadow: 0 4px 10px #ca52432b; }
 .dashboard-action-coral::before { content: ''; position: absolute; left: -1.2rem; top: -2rem; width: 9rem; height: 9rem; border-radius: 50%; background: radial-gradient(circle, #ffffff38 0%, #ffffff14 55%, transparent 72%); pointer-events: none; }
 .dashboard-action-coral::after { content: ''; position: absolute; left: 2.5rem; bottom: -2.9rem; width: 8rem; height: 8rem; transform: rotate(25deg); border-radius: 40%; background: #ffffff12; pointer-events: none; }
 .dashboard-action-lavender { background: linear-gradient(120deg, #f1e8ff 0%, #ded4ff 100%); color: #271252; }
