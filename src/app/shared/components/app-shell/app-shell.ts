@@ -46,12 +46,12 @@ class NavIcon { @Input({ required: true }) name = ''; }
               <span class="hidden font-black text-pop-primary-dark lg:block">{{ pageTitle }}</span>
               @if (groups.length) {
                 <div class="order-3 flex min-w-0 w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-end lg:order-none lg:w-auto lg:flex-1">
-                  <form class="pop-header-search" role="search" (submit)="submitSearch($event)">
+                  @if (showExpenseSearch) { <form class="pop-header-search" role="search" (submit)="submitSearch($event)">
                     <label class="sr-only" for="global-expense-search">{{ t('searchExpenses') }}</label>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7"/><path d="m16 16 5 5"/></svg>
                     <input id="global-expense-search" type="search" name="globalExpenseSearch" [value]="searchText" (input)="onSearchInput($event)" [placeholder]="t('searchExpenses')" />
                     <button class="sr-only focus:not-sr-only" type="submit">{{ t('search') }}</button>
-                  </form>
+                  </form> }
                   <label class="pop-group-picker"><span class="sr-only">{{ t('chooseGroup') }}</span><select [value]="selectedGroupId" (change)="onGroupChange($event)">@for (group of groups; track group.id) { <option [value]="group.id" [selected]="group.id === selectedGroupId">{{ group.name }} · {{ group.currency }}</option> }</select></label>
                 </div>
               }
@@ -108,6 +108,7 @@ export class AppShell {
   @Input() pageTitle = '';
   @Input() groups: readonly Group[] = [];
   @Input() selectedGroupId = '';
+  @Input() showExpenseSearch = true;
   @Output() signOut = new EventEmitter<void>();
   @Output() groupSelected = new EventEmitter<string>();
   @Output() searchRequested = new EventEmitter<string>();

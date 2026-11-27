@@ -108,7 +108,7 @@ import { validateInviteLink } from './core/firebase/pending-invite';
           </section>
         </div>
         </div>
-        @if (app.auth?.user(); as user) { <dialog #inviteDialog class="max-h-[90vh] w-[min(94vw,40rem)] overflow-y-auto rounded-3xl border border-pop-border bg-pop-background p-4 text-pop-text shadow-2xl backdrop:bg-pop-text/60 sm:p-6" [attr.aria-label]="t('inviteQrAction')"><div class="flex items-center justify-between gap-3"><h2 class="text-xl font-black">{{ t('inviteQrAction') }}</h2><button class="flex size-11 items-center justify-center rounded-full bg-white text-xl focus-visible:outline-2 focus-visible:outline-pop-primary" type="button" [attr.aria-label]="t('closeDialog')" (click)="closeInvite()">×</button></div><app-qr-invitation-panel [groups]="[group]" [preferredGroupId]="group.id" [user]="user" [workerUrl]="app.workerUrl || ''" /></dialog> }
+        @if (app.auth?.user(); as user) { <dialog #inviteDialog class="max-h-[90vh] w-[min(94vw,40rem)] overflow-y-auto rounded-3xl border border-pop-border bg-pop-background p-4 text-pop-text shadow-2xl backdrop:bg-pop-text/60 sm:p-6" [attr.aria-label]="t('inviteQrAction')" (close)="onInviteClosed()"><div class="flex items-center justify-between gap-3"><h2 class="text-xl font-black">{{ t('inviteQrAction') }}</h2><button class="flex size-11 items-center justify-center rounded-full bg-white text-xl focus-visible:outline-2 focus-visible:outline-pop-primary" type="button" [attr.aria-label]="t('closeDialog')" (click)="closeInvite()">×</button></div><app-qr-invitation-panel [groups]="[group]" [preferredGroupId]="group.id" [user]="user" [workerUrl]="app.workerUrl || ''" /></dialog> }
         @if (app.firebaseApp && app.auth?.user(); as user) { <app-group-overview [group]="group" [firebaseApp]="app.firebaseApp" [user]="user" [revision]="app.expenseRevision() + app.settlementRevision() + app.categoryRevision() + app.commentRevision()" /> }
       } @else {
         <section class="relative mt-6 overflow-hidden rounded-[1.8rem] bg-pop-primary px-6 pt-8 text-white shadow-[0_15px_35px_#6455ec33] sm:px-10 sm:pt-12 lg:min-h-[330px]">
@@ -157,7 +157,8 @@ export class DashboardPage {
   @ViewChild('inviteDialog') inviteDialog?: ElementRef<HTMLDialogElement>;
   private inviteTrigger?: HTMLElement;
   openInvite(): void { this.inviteTrigger = document.activeElement as HTMLElement; this.inviteDialog?.nativeElement.showModal(); }
-  closeInvite(): void { this.inviteDialog?.nativeElement.close(); this.inviteTrigger?.focus(); }
+  closeInvite(): void { this.inviteDialog?.nativeElement.close(); }
+  onInviteClosed(): void { this.inviteTrigger?.focus(); }
   balancePhrase(): string { return this.app.selectedBalanceMinor() > 0n ? t('dashboardReceivable') : this.app.selectedBalanceMinor() < 0n ? t('dashboardPayable') : t('dashboardBalanced'); }
   balanceMagnitude(): string { return this.app.formatDashboardMinor(this.app.selectedBalanceMinor() < 0n ? -this.app.selectedBalanceMinor() : this.app.selectedBalanceMinor()); }
   search = '';

@@ -19,6 +19,8 @@ test('D1 · groupe global, recherche et montants du mois restent dans la devise 
   await page.locator('#global-expense-search').fill('Repas');
   await page.locator('header form[role=search]').press('Enter');
   await expect(page).toHaveURL(/\/expenses\?.*group=famille.*search=Repas/);
+  await expect(page.locator('input[name=historySearch]')).toHaveValue('Repas');
+  await expect(page.getByRole('searchbox', { name: 'Rechercher une dépense' })).toHaveCount(0);
   await page.screenshot({ path: testInfo.outputPath('dashboard-search.png'), fullPage: true });
 });
 
@@ -54,11 +56,19 @@ test('D2 · le changement de groupe demande de protéger une dépense saisie', a
   await expect(page.getByRole('textbox', { name: 'Description' })).toHaveValue('');
 });
 
-test('D2b · quitter le formulaire efface son indicateur de brouillon', async ({ page }) => {
+test('D2b · quitter le formulaire demande de conserver ou abandonner le brouillon', async ({ page }) => {
   await login(page);
   await page.goto('/expenses?action=add');
   await page.getByRole('textbox', { name: 'Description' }).fill('Dépense fictive abandonnée');
-  await page.goto('/dashboard');
+  await page.getByRole('navigation', { name: 'Navigation principale' }).filter({ visible: true }).first().getByRole('link', { name: 'Accueil' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Quitter la dépense ?' });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: 'Garder le brouillon' }).click();
+  await expect(page).toHaveURL(/\/expenses/);
+  await expect(page.getByRole('textbox', { name: 'Description' })).toHaveValue('Dépense fictive abandonnée');
+  await page.getByRole('navigation', { name: 'Navigation principale' }).filter({ visible: true }).first().getByRole('link', { name: 'Accueil' }).click();
+  await dialog.getByRole('button', { name: 'Abandonner et quitter' }).click();
+  await expect(page).toHaveURL(/\/dashboard/);
   await page.locator('header select').selectOption('voyage');
   await expect(page.locator('header select')).toHaveValue('voyage');
   await expect(page.getByRole('dialog', { name: 'Changer de groupe ?' })).toBeHidden();
@@ -70,6 +80,16 @@ test('D3 · le bouton central mobile ouvre le formulaire du groupe actif', async
   await page.getByRole('navigation', { name: 'Navigation principale' }).last().getByRole('link', { name: 'Ajouter une dépense' }).click();
   await expect(page).toHaveURL(/\/expenses\?.*group=famille.*action=add/);
   await expect(page.getByRole('textbox', { name: 'Description' })).toBeVisible();
+});
+
+test('D6 · fermer l’invitation par Échap rend le focus au raccourci', async ({ page }) => {
+  await login(page);
+  const trigger = page.getByRole('button', { name: 'Inviter des membres' });
+  await trigger.click();
+  await expect(page.getByRole('dialog', { name: 'Inviter des membres' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog', { name: 'Inviter des membres' })).toBeHidden();
+  await expect(trigger).toBeFocused();
 });
 
 test('D4 · sans groupe, les trois parcours de démarrage restent accessibles', async ({ page }) => {

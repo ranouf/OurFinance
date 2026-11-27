@@ -27,7 +27,7 @@ import { detectLanguage, language, locale, setLanguage, t } from './shared/utils
   imports: [AppShell, UiDialog, RouterOutlet],
   template: `
     @if (isComponentsGallery()) { <router-outlet /> }
-    @else { <app-shell [signedIn]="!!auth?.user()" [hasGroups]="groups().length > 0" [groups]="groups()" [selectedGroupId]="selectedGroupId()" [userInitial]="userInitial()" [userName]="auth?.user()?.displayName || auth?.user()?.email || ''" [pageTitle]="pageTitle()" (groupSelected)="requestGroupSelection($event)" (searchRequested)="searchExpenses($event)" (signOut)="logout()">
+    @else { <app-shell [signedIn]="!!auth?.user()" [hasGroups]="groups().length > 0" [groups]="groups()" [selectedGroupId]="selectedGroupId()" [showExpenseSearch]="!isExpensesRoute()" [userInitial]="userInitial()" [userName]="auth?.user()?.displayName || auth?.user()?.email || ''" [pageTitle]="pageTitle()" (groupSelected)="requestGroupSelection($event)" (searchRequested)="searchExpenses($event)" (signOut)="logout()">
       @if (!online()) { <p class="mx-auto max-w-6xl rounded-xl bg-amber-50 p-3 text-sm text-amber-900" role="status">{{ t('offline') }}</p> }
       @if (state() === 'loading') { <p class="mx-auto max-w-6xl p-6" role="status">{{ t('loadingConfig') }}</p> }
       @else if (state() === 'unconfigured') { <p class="mx-auto max-w-6xl p-6" role="status">{{ t('missingConfig') }}</p> }
@@ -39,7 +39,7 @@ import { detectLanguage, language, locale, setLanguage, t } from './shared/utils
         </div>
       }
       @else { <router-outlet /> }
-    </app-shell><app-ui-dialog #switchGroupDialog [title]="t('discardDraftTitle')" [closeLabel]="t('closeDialog')" (closed)="pendingGroupId.set('')"><p class="text-sm">{{ t('discardDraftText') }}</p><div class="mt-4 flex justify-end gap-2"><button class="min-h-11 rounded-xl px-4 font-bold focus-visible:outline-2 focus-visible:outline-pop-primary" type="button" (click)="switchGroupDialog.close()">{{ t('keepDraft') }}</button><button class="min-h-11 rounded-xl bg-pop-coral px-4 font-bold focus-visible:outline-2 focus-visible:outline-pop-primary" type="button" (click)="confirmGroupSelection()">{{ t('discardDraft') }}</button></div></app-ui-dialog> }
+    </app-shell><app-ui-dialog #switchGroupDialog [title]="t('discardDraftTitle')" [closeLabel]="t('closeDialog')" (closed)="pendingGroupId.set('')"><p class="text-sm">{{ t('discardDraftText') }}</p><div class="mt-4 flex justify-end gap-2"><button class="min-h-11 rounded-xl px-4 font-bold focus-visible:outline-2 focus-visible:outline-pop-primary" type="button" (click)="switchGroupDialog.close()">{{ t('keepDraft') }}</button><button class="min-h-11 rounded-xl bg-pop-coral px-4 font-bold focus-visible:outline-2 focus-visible:outline-pop-primary" type="button" (click)="confirmGroupSelection()">{{ t('discardDraft') }}</button></div></app-ui-dialog><app-ui-dialog #leaveExpenseDialog [title]="t('leaveDraftTitle')" [closeLabel]="t('closeDialog')" (closed)="onLeaveExpenseDialogClosed()"><p class="text-sm">{{ t('leaveDraftText') }}</p><div class="mt-4 flex justify-end gap-2"><button class="min-h-11 rounded-xl px-4 font-bold focus-visible:outline-2 focus-visible:outline-pop-primary" type="button" (click)="leaveExpenseDialog.close()">{{ t('keepDraft') }}</button><button class="min-h-11 rounded-xl bg-pop-coral px-4 font-bold focus-visible:outline-2 focus-visible:outline-pop-primary" type="button" (click)="acceptLeaveExpensePage()">{{ t('leaveDraft') }}</button></div></app-ui-dialog> }
   `
 })
 export class App implements OnInit, OnDestroy {
@@ -62,6 +62,7 @@ export class App implements OnInit, OnDestroy {
     const path = this.router.url.split('?')[0];
     return path === '/groups' ? t('navGroups') : path === '/expenses' ? t('navExpenses') : path === '/statistics' ? t('navStatistics') : path === '/account' ? t('navAccount') : t('navHome');
   });
+  readonly isExpensesRoute = computed(() => { this.routeEvent(); return this.router.url.split('?')[0] === '/expenses'; });
   readonly qrText = computed(() => qrInvitationText[language()]);
   readonly authRedirect = computed(() => {
     this.routeEvent();
@@ -85,6 +86,24 @@ export class App implements OnInit, OnDestroy {
   readonly expenseDraftActive = signal(false);
   readonly pendingGroupId = signal('');
   @ViewChild('switchGroupDialog') switchGroupDialog?: UiDialog;
+  @ViewChild('leaveExpenseDialog') leaveExpenseDialog?: UiDialog;
+  private leaveExpenseResolver?: (leave: boolean) => void;
+  confirmLeaveExpensePage(): boolean | Promise<boolean> {
+    if (!this.expenseDraftActive()) return true;
+    return new Promise(resolve => { this.leaveExpenseResolver = resolve; this.leaveExpenseDialog?.open(); });
+  }
+  onLeaveExpenseDialogClosed(): void {
+    const resolve = this.leaveExpenseResolver;
+    this.leaveExpenseResolver = undefined;
+    resolve?.(false);
+  }
+  acceptLeaveExpensePage(): void {
+    const resolve = this.leaveExpenseResolver;
+    this.leaveExpenseResolver = undefined;
+    this.expenseDraftActive.set(false);
+    this.leaveExpenseDialog?.close();
+    resolve?.(true);
+  }
   requestGroupSelection(groupId: string): void {
     if (groupId === this.selectedGroupId() || !this.groups().some(group => group.id === groupId)) return;
     if (this.expenseDraftActive()) { this.pendingGroupId.set(groupId); this.switchGroupDialog?.open(); return; }
