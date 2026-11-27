@@ -26,7 +26,7 @@ Sur ordinateur, les cartes restent visibles pendant la consultation du détail. 
 ## Liste et sélection
 
 - Carte : icône ou illustration du groupe, nom, nombre de membres, devise, solde **personnel** avec libellé et signe, état actif. Un groupe personnel est présenté comme tel ; aucune dette fictive.
-- La sélection synchronise la navigation globale et persiste comme dans le PR 1. Les groupes de devises différentes ne sont jamais additionnés.
+- La sélection d'un **groupe actif** synchronise la navigation globale et persiste comme dans le PR 1. Les groupes de devises différentes ne sont jamais additionnés. Les groupes archivés figurent dans une section distincte et ouvrent leur historique en lecture seule, sans devenir groupe actif global. Si le groupe global est archivé, choisir un autre groupe actif accessible ; s'il n'en existe aucun, revenir à l'état sans groupe et désactiver les actions de dépense et d'invitation.
 - Erreur de chargement : état explicite et Réessayer. Zéro groupe : illustration, Créer un groupe ou Rejoindre par lien. Chargement : squelette sans faux montant.
 - Création : nom et devise obligatoire, icône/couleur/description facultatives, explication du verrouillage de devise après première opération. Le formulaire n'impose aucune répartition initiale. Après succès, ouvrir le nouveau groupe et proposer la première dépense ou une invitation.
 
@@ -39,11 +39,11 @@ Sur ordinateur, les cartes restent visibles pendant la consultation du détail. 
 | **Catégories** | Catalogue système en lecture seule ; catégories personnalisées modifiables par tout membre actif, avec icône/couleur. Archive et réactivation ; catégories historiques conservées. |
 | **Paramètres** | Nom, description, icône/couleur et devise modifiables selon les droits déjà disponibles. Verrouillage de devise expliqué. Le propriétaire peut archiver après confirmation. Le groupe archivé reste visible en lecture seule dans la liste, avec accès à l'export de son historique. |
 
-Le contrat actuel n'expose ni transfert de propriété, ni départ du propriétaire, ni suppression définitive, ni réactivation d'un **groupe** archivé. Ne pas afficher ces actions. La réactivation des **catégories** archivées, elle, reste prévue. Les droits sont contrôlés côté service/Worker et reflétés dans l'interface. Une action indisponible explique sa raison sans donner l'impression d'un bouton cassé. Après une modification, les cartes et l'en-tête se mettent à jour sans rechargement manuel.
+Le contrat actuel n'expose ni transfert de propriété, ni départ volontaire d'un membre, ni suppression définitive, ni réactivation d'un **groupe** archivé. Ne pas afficher ces actions ; la révocation par le propriétaire est le seul retrait de membre actuellement disponible. La réactivation des **catégories** archivées, elle, reste prévue. Les droits sont contrôlés côté service/Worker et reflétés dans l'interface. Une action indisponible explique sa raison sans donner l'impression d'un bouton cassé. Après une modification, les cartes et l'en-tête se mettent à jour sans rechargement manuel.
 
 ## Invitation QR
 
-Le propriétaire voit un CTA « Inviter des membres ». Il choisit une invitation ouverte ou ciblée selon le contrat existant. La modale desktop ou la page mobile affiche sur fond blanc le QR lisible, sa durée, son caractère à usage unique, Copier le lien, Partager si disponible et Régénérer. Un lien brut ne figure jamais dans une capture publique. La fermeture rend le focus au déclencheur. La simple consultation ne consomme pas le jeton ; l'acceptation appartient au PR 2.
+Le propriétaire voit un CTA « Inviter des membres ». Il choisit une invitation ouverte ou ciblée ; **les deux types sont à usage unique pour un nouvel adhérent**. La modale desktop ou la page mobile affiche sur fond blanc le QR lisible, sa durée, Copier le lien, Partager si disponible et Révoquer. « Remplacer l'invitation » crée un nouveau lien puis révoque l'ancien ; tant que la révocation n'est pas confirmée, l'interface annonce explicitement que l'ancien reste actif et permet de réessayer. Pour plusieurs personnes, créer une invitation distincte par personne. Un lien brut ne figure jamais dans une capture publique. La fermeture rend le focus au déclencheur. La simple consultation ne consomme pas le jeton ; l'acceptation appartient au PR 2.
 
 ## Vérifications après validation de la maquette
 
