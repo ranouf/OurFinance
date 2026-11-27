@@ -40,12 +40,16 @@ class NavIcon { @Input({ required: true }) name = ''; }
       }
       <div [class.lg:pl-56]="signedIn">
         @if (signedIn) {
-          <header class="relative z-40 bg-white/90">
-            <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-3 sm:px-7 lg:flex-nowrap lg:px-8">
-              <a class="flex items-center gap-1.5 lg:hidden" routerLink="/dashboard"><img src="/illustrations/ourfinance-mark.svg" width="34" height="34" alt="" /><strong class="max-[180px]:sr-only text-base font-black text-pop-primary-dark">ourfinance.</strong></a>
+          <header class="relative z-40 bg-white/90" [class.groups-mobile-header]="compactGroupsHeader">
+            <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-3 sm:px-7 lg:flex-nowrap lg:px-8" [class.max-lg:flex-nowrap]="compactGroupsHeader">
+              @if (compactGroupsHeader) {
+                <div class="min-w-0 flex-1 lg:hidden"><h1 class="text-2xl font-black">{{ t('myGroups') }}</h1><p class="text-xs text-pop-muted">{{ t('groupsPageIntro') }}</p></div>
+              } @else {
+                <a class="flex items-center gap-1.5 lg:hidden" routerLink="/dashboard"><img src="/illustrations/ourfinance-mark.svg" width="34" height="34" alt="" /><strong class="max-[180px]:sr-only text-base font-black text-pop-primary-dark">ourfinance.</strong></a>
+              }
               <span class="hidden font-black text-pop-primary-dark lg:block">{{ pageTitle }}</span>
               @if (groups.length) {
-                <div class="order-3 flex min-w-0 w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-end lg:order-none lg:w-auto lg:flex-1">
+                <div class="order-3 flex min-w-0 w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-end lg:order-none lg:w-auto lg:flex-1" [class.max-lg:hidden]="compactGroupsHeader">
                   @if (showExpenseSearch) { <form class="pop-header-search" role="search" (submit)="submitSearch($event)">
                     <label class="sr-only" for="global-expense-search">{{ t('searchExpenses') }}</label>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7"/><path d="m16 16 5 5"/></svg>
@@ -97,6 +101,7 @@ class NavIcon { @Input({ required: true }) name = ''; }
     .pop-header-search input { min-width:0; width:100%; background:transparent; outline:none; font-size:.82rem; }
     .pop-group-picker { min-width:0; max-width:13rem; border:1px solid var(--color-pop-border); border-radius:999px; background:white; padding:.45rem .7rem; }
     .pop-group-picker select { max-width:100%; background:transparent; font-size:.78rem; font-weight:800; outline:none; }
+    @media (max-width:1023px) { .groups-mobile-header { background:transparent; } }
     @media (max-width:639px) { .pop-header-search { max-width:none; } .pop-group-picker { max-width:none; } }
   `],
 })
@@ -109,6 +114,7 @@ export class AppShell {
   @Input() groups: readonly Group[] = [];
   @Input() selectedGroupId = '';
   @Input() showExpenseSearch = true;
+  @Input() compactGroupsHeader = false;
   @Output() signOut = new EventEmitter<void>();
   @Output() groupSelected = new EventEmitter<string>();
   @Output() searchRequested = new EventEmitter<string>();

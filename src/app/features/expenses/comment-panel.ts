@@ -17,12 +17,12 @@ import { publishThenRefresh } from './publish-refresh';
   template: `
     <section class="rounded-2xl border border-pop-border bg-pop-lavender p-4" [attr.aria-label]="text('comments')">
       <h3 class="font-extrabold text-pop-text">{{ text('comments') }}</h3>
-      <form class="mt-3 space-y-2" (ngSubmit)="save()">
+      @if (!readOnly) { <form class="mt-3 space-y-2" (ngSubmit)="save()">
         <label class="block font-bold">{{ text('newComment') }}
           <textarea appUiControl class="mt-2 w-full" name="commentText" [(ngModel)]="draft" maxlength="1000" rows="3" required></textarea>
         </label>
         <app-ui-button variant="primary"  type="submit" [disabled]="busy() || !draft.trim()">{{ text('publishComment') }}</app-ui-button>
-      </form>
+      </form> }
       @if (entries().length) {
         <ol class="mt-4 divide-y divide-pop-border">
           @for (entry of entries(); track entry.id) {
@@ -39,6 +39,7 @@ import { publishThenRefresh } from './publish-refresh';
   `,
 })
 export class CommentPanel implements OnChanges {
+  @Input() readOnly = false;
   @Input({ required: true }) firebaseApp?: FirebaseApp;
   @Input({ required: true }) workerUrl?: string;
   @Input({ required: true }) user?: User;
@@ -75,7 +76,7 @@ export class CommentPanel implements OnChanges {
     finally { this.busy.set(false); }
   }
   async save(): Promise<void> {
-    if (!this.service || !this.user || !this.draft.trim() || this.busy()) return;
+    if (!this.service || !this.user || !this.draft.trim() || this.busy() || this.readOnly) return;
     const text = this.draft.trim();
     if (text.length > 1000) { this.message.set('commentTooLong'); return; }
     if (this.pendingText !== text) this.pendingKey = undefined;

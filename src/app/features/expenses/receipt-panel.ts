@@ -14,10 +14,10 @@ import { publishThenRefresh } from './publish-refresh';
       <h3 class="font-extrabold text-pop-text">{{ text('privateReceipts') }}</h3>
       <p class="mt-1 text-pop-muted">{{ text('receiptHelp') }}</p>
       <div class="mt-3 flex flex-wrap items-center gap-2">
-        <label class="flex min-h-11 cursor-pointer items-center rounded-xl border border-pop-primary px-4 py-2 font-bold text-pop-primary-dark focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-pop-primary">
+        @if (!readOnly) { <label class="flex min-h-11 cursor-pointer items-center rounded-xl border border-pop-primary px-4 py-2 font-bold text-pop-primary-dark focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-pop-primary">
           {{ text('addReceipt') }}
           <input class="sr-only" type="file" accept="image/png,image/jpeg" [disabled]="busy()" (change)="upload($event)" />
-        </label>
+        </label> }
         <app-ui-button variant="secondary"  type="button" [disabled]="busy()" (click)="refresh()">{{ text('refresh') }}</app-ui-button>
       </div>
       @if (receipts().length) {
@@ -26,7 +26,7 @@ import { publishThenRefresh } from './publish-refresh';
             <li class="flex flex-wrap items-center gap-2 rounded-xl bg-pop-surface p-3">
               <span>{{ text('receipt') }} {{ i + 1 }}</span>
               <app-ui-button variant="outline"  type="button" [disabled]="busy()" (click)="view(receipt)">{{ text('view') }}</app-ui-button>
-              @if (receipt.ownerId === user?.uid || groupOwnerId === user?.uid) { <app-ui-button variant="outline"  type="button" [disabled]="busy()" (click)="remove(receipt)">{{ text('remove') }}</app-ui-button> }
+              @if (!readOnly && (receipt.ownerId === user?.uid || groupOwnerId === user?.uid)) { <app-ui-button variant="outline"  type="button" [disabled]="busy()" (click)="remove(receipt)">{{ text('remove') }}</app-ui-button> }
             </li>
           }
         </ul>
@@ -42,6 +42,7 @@ import { publishThenRefresh } from './publish-refresh';
   `,
 })
 export class ReceiptPanel implements OnChanges, OnDestroy {
+  @Input() readOnly = false;
   @Input({ required: true }) firebaseApp?: FirebaseApp;
   @Input({ required: true }) workerUrl?: string;
   @Input({ required: true }) user?: User;
@@ -75,7 +76,7 @@ export class ReceiptPanel implements OnChanges, OnDestroy {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     input.value = '';
-    if (!file || !this.service || !this.user) return;
+    if (!file || !this.service || !this.user || this.readOnly) return;
     this.busy.set(true);
     try {
       const result = await publishThenRefresh(
@@ -98,7 +99,7 @@ export class ReceiptPanel implements OnChanges, OnDestroy {
   }
 
   async remove(receipt: Receipt): Promise<void> {
-    if (!this.service || !this.user) return;
+    if (!this.service || !this.user || this.readOnly) return;
     this.busy.set(true);
     try { await this.service.remove(this.user, this.groupId, this.expenseId, receipt.id); this.closeImage(); this.receipts.set(this.receipts().filter(item => item.id !== receipt.id)); this.message.set('receiptRemoved'); }
     catch (error) { this.message.set(error instanceof TypeError ? 'receiptRemoveFailed' : error instanceof Error ? error.message : 'receiptRemoveFailed'); }

@@ -57,6 +57,44 @@ test('D2 · le changement de groupe demande de protéger une dépense saisie', a
   await expect(page.getByRole('dialog', { name: 'Quitter la dépense ?' })).toBeHidden();
 });
 
+test('D2 · Échap puis réouverture du dialogue conserve la nouvelle sélection', async ({ page }) => {
+  await login(page);
+  await page.goto('/expenses?action=add');
+  await page.getByRole('textbox', { name: 'Description' }).fill('Brouillon fictif');
+  const picker = page.locator('header select');
+  const dialog = page.getByRole('dialog', { name: 'Changer de groupe ?' });
+  await picker.selectOption('voyage');
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await picker.selectOption('voyage');
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: 'Abandonner et changer' }).click();
+  await expect(picker).toHaveValue('voyage');
+});
+
+test('D2 · fermer puis rouvrir dans la même tâche ignore l’ancien événement close', async ({ page }) => {
+  await login(page);
+  await page.goto('/expenses?action=add');
+  await page.getByRole('textbox', { name: 'Description' }).fill('Brouillon fictif');
+  const picker = page.locator('header select');
+  const dialog = page.getByRole('dialog', { name: 'Changer de groupe ?' });
+  await picker.selectOption('voyage');
+  await expect(dialog).toBeVisible();
+  await page.evaluate(() => {
+    const modal = document.querySelector('dialog[aria-label="Changer de groupe ?"]');
+    const keep = [...modal.querySelectorAll('button')].find(button => button.textContent.includes('Garder le brouillon'));
+    keep.click();
+    const select = document.querySelector('header select');
+    select.value = 'voyage';
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  await page.waitForTimeout(100);
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: 'Abandonner et changer' }).click();
+  await expect(picker).toHaveValue('voyage');
+});
+
 test('D2c · le formulaire adopte le groupe choisi quand le brouillon est vide', async ({ page }) => {
   await login(page);
   await page.goto('/expenses?action=add');

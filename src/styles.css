@@ -29,6 +29,7 @@ button:disabled { cursor: not-allowed; }
 .dashboard-action:focus-visible { outline: 3px solid var(--color-pop-primary-dark); outline-offset: 3px; }
 .dashboard-action strong { min-width: 0; max-width: 13ch; font-size: clamp(1rem, 1.55vw, 1.35rem); font-weight: 900; line-height: 1.14; }
 .dashboard-action-coral { background: linear-gradient(145deg, #ffa07c 0%, #ff785e 43%, #f9544d 100%); color: white; }
+.ui-button-coral { background: #ff765f; box-shadow: 0 4px 10px #ca52432b; -webkit-text-stroke: .55px #29134f; text-shadow: 0 1px 1px #29134f; }
 .dashboard-action-coral::before { content: ''; position: absolute; left: -1.2rem; top: -2rem; width: 9rem; height: 9rem; border-radius: 50%; background: radial-gradient(circle, #ffffff38 0%, #ffffff14 55%, transparent 72%); pointer-events: none; }
 .dashboard-action-coral::after { content: ''; position: absolute; left: 2.5rem; bottom: -2.9rem; width: 8rem; height: 8rem; transform: rotate(25deg); border-radius: 40%; background: #ffffff12; pointer-events: none; }
 .dashboard-action-lavender { background: linear-gradient(120deg, #f1e8ff 0%, #ded4ff 100%); color: #271252; }
@@ -40,8 +41,8 @@ button:disabled { cursor: not-allowed; }
 .dashboard-cloud::after { content: ''; position: absolute; z-index: 0; right: -1.5rem; bottom: -3rem; width: 18rem; height: 7rem; border-radius: 50%; background: #ffffff1a; filter: blur(12px); pointer-events: none; }
 @media (max-width: 639px) { .dashboard-action { min-height: 5.25rem; } .dashboard-action strong { font-size: 1.1rem; } }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
-/* Firebase Emulator injects an informational strip over the mobile action bar. */
-.firebase-emulator-warning { pointer-events: none; }
+/* The emulator banner obscures app controls and visual test captures. */
+.firebase-emulator-warning { display: none !important; }
 .gallery-root { font-family: 'Nunito Sans Variable', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', ui-rounded, system-ui, sans-serif; }
 .gallery-sidebar { background: linear-gradient(180deg, #fff 0%, #fbf9ff 62%, #f4eeff 100%); }
 .gallery-nav-link { display: flex; min-height: 2.25rem; align-items: center; gap: .55rem; border-radius: .65rem; padding: .35rem .6rem; color: var(--color-pop-text); }

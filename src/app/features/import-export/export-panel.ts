@@ -3,7 +3,7 @@ import { DropdownComponent, type DropdownOption } from '../../shared/components/
 import { groupDropdownOptions } from '../../shared/components/dropdown/dropdown-options';
 import { UiAlert } from '../../shared/components/ui-alert/ui-alert';
 import { UiButton } from '../../shared/components/ui-button/ui-button';
-import { Component, Input, signal } from '@angular/core';
+import { Component, Input, OnChanges, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { FirebaseApp } from 'firebase/app';
 import type { User } from 'firebase/auth';
@@ -42,7 +42,7 @@ type ExportKind = 'csv' | 'json' | 'zip' | 'zip-v2';
     </section>
   `,
 })
-export class ExportPanel {
+export class ExportPanel implements OnChanges {
   exportKindOptions(): DropdownOption[] { return [{ value: 'csv', label: this.t('exportCsv') }, { value: 'json', label: this.t('exportJson') }, { value: 'zip', label: this.t('exportZip') }, { value: 'zip-v2', label: this.t('exportZipV2') }]; }
   readonly groupDropdownOptions = groupDropdownOptions;
   readonly t = t;
@@ -50,11 +50,16 @@ export class ExportPanel {
   @Input({ required: true }) user?: User;
   @Input({ required: true }) firebaseApp?: FirebaseApp;
   @Input({ required: true }) workerUrl?: string;
+  @Input() preferredGroupId = '';
 
   readonly busy = signal(false);
   readonly message = signal<MessageKey | null>(null);
   groupId = '';
   kind: ExportKind = 'csv';
+
+  ngOnChanges(): void {
+    if (this.preferredGroupId && this.groups.some(group => group.id === this.preferredGroupId)) this.groupId = this.preferredGroupId;
+  }
 
   isOwner(): boolean { return this.groups.some(group => group.id === this.groupId && group.ownerId === this.user?.uid); }
 
