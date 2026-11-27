@@ -27,7 +27,7 @@ import { detectLanguage, language, locale, setLanguage, t } from './shared/utils
   imports: [AppShell, UiDialog, RouterOutlet],
   template: `
     @if (isComponentsGallery()) { <router-outlet /> }
-    @else { <app-shell [signedIn]="!!auth?.user()" [hasGroups]="groups().length > 0" [groups]="groups()" [selectedGroupId]="selectedGroupId()" [showExpenseSearch]="!isExpensesRoute()" [userInitial]="userInitial()" [userName]="auth?.user()?.displayName || auth?.user()?.email || ''" [pageTitle]="pageTitle()" (groupSelected)="requestGroupSelection($event)" (searchRequested)="searchExpenses($event)" (signOut)="logout()">
+    @else { <app-shell [signedIn]="!!auth?.user()" [hasGroups]="groups().length > 0" [groups]="groups()" [selectedGroupId]="selectedGroupId()" [showExpenseSearch]="!isExpensesRoute() && !isGroupsRoute()" [compactGroupsHeader]="isGroupsRoute()" [userInitial]="userInitial()" [userName]="auth?.user()?.displayName || auth?.user()?.email || ''" [pageTitle]="pageTitle()" (groupSelected)="requestGroupSelection($event)" (searchRequested)="searchExpenses($event)" (signOut)="logout()">
       @if (!online()) { <p class="mx-auto max-w-6xl rounded-xl bg-amber-50 p-3 text-sm text-amber-900" role="status">{{ t('offline') }}</p> }
       @if (state() === 'loading') { <p class="mx-auto max-w-6xl p-6" role="status">{{ t('loadingConfig') }}</p> }
       @else if (state() === 'unconfigured') { <p class="mx-auto max-w-6xl p-6" role="status">{{ t('missingConfig') }}</p> }
@@ -67,6 +67,7 @@ export class App implements OnInit, OnDestroy {
     return path === '/groups' ? t('navGroups') : path === '/expenses' ? t('navExpenses') : path === '/statistics' ? t('navStatistics') : path === '/account' ? t('navAccount') : t('navHome');
   });
   readonly isExpensesRoute = computed(() => { this.routeEvent(); return this.router.url.split('?')[0] === '/expenses'; });
+  readonly isGroupsRoute = computed(() => { this.routeEvent(); return this.router.url.split('?')[0] === '/groups'; });
   readonly qrText = computed(() => qrInvitationText[language()]);
   readonly authRedirect = computed(() => {
     if (!this.routeEvent()) return null;

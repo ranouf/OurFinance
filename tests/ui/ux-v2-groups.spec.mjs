@@ -8,6 +8,8 @@ test('G1 · la liste ouvre le détail et conserve la sélection globale', async 
   await expect(card).toBeVisible();
   await card.click();
   await expect(page.locator('#group-detail')).toBeFocused();
+  await expect(card.locator('button')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#group-detail [role="group"]').filter({ has: page.getByRole('button', { name: 'Membres' }) })).toBeVisible();
   await expect(page.getByRole('tab', { name: 'Aperçu' })).toBeVisible();
   await page.getByRole('tab', { name: 'Aperçu' }).focus();
   await page.keyboard.press('ArrowRight');
@@ -15,6 +17,9 @@ test('G1 · la liste ouvre le détail et conserve la sélection globale', async 
   await expect(page.getByRole('tab', { name: 'Membres' })).toBeFocused();
   await expect(page.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', 'group-tab-members');
   if (page.viewportSize().width < 1024) {
+    await expect(page.locator('header .pop-group-picker')).toBeHidden();
+    await expect(page.locator('header .pop-header-search')).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Les dépenses ensemble' })).toBeHidden();
     await page.getByRole('button', { name: /Retour aux groupes/ }).filter({ visible: true }).click();
     await expect(card.locator('button')).toBeFocused();
   }
@@ -26,6 +31,7 @@ test('G1 · créer un groupe reste un parcours distinct de la consultation', asy
   await login(page);
   await page.goto('/groups');
   await expect(page.locator('input[name=groupName]')).toHaveCount(0);
+  if (page.viewportSize().width >= 1024) await expect(page.locator('section').filter({ has: page.getByRole('heading', { name: 'Les dépenses ensemble' }) }).getByRole('button', { name: 'Créer un groupe' })).toBeVisible();
   await page.getByRole('button', { name: 'Créer un groupe' }).filter({ visible: true }).first().click();
   await expect(page.locator('input[name=groupName]')).toBeVisible();
   await expect(page.getByText('La devise sera verrouillée après la première opération.')).toBeVisible();
