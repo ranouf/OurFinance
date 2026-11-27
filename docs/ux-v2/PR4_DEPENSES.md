@@ -1,6 +1,6 @@
 # UX V2 — PR 4 : dépenses
 
-Statut : cadrage et wireframes à valider avant l'intégration. Base : `docs/UX_SPECIFICATION_V2.md`, `docs/PAGES_SITE_DESIGN.md`, `docs/PLAN_TECHNIQUE_V1.md` et les références `design-references/depenses-*`. Le périmètre est l'ensemble du parcours `/expenses` : historique, création, détail, édition, suppression, commentaires et reçus privés. Les services métier existants restent la source des calculs et des droits.
+Statut : cadrage et wireframes à valider avant l'intégration. Les maquettes PR 4 desktop/mobile seront produites à partir de ce cadrage puis soumises au propriétaire ; les images `design-references/depenses-*` sont des références, **pas une validation des nouvelles maquettes**. Base : `docs/UX_SPECIFICATION_V2.md`, `docs/PAGES_SITE_DESIGN.md` et `docs/PLAN_TECHNIQUE_V1.md`. Le périmètre est l'ensemble du parcours `/expenses` : historique, création, détail, édition, suppression, commentaires et reçus privés. Les services métier existants restent la source des calculs et des droits.
 
 ## Hiérarchie
 
@@ -40,12 +40,12 @@ Le formulaire rapide affiche d'abord groupe/devise, description, montant, catég
 
 La zone avancée permet plusieurs payeurs, inclusion/exclusion de participants, reçu et les cinq modes : égalitaire, montants exacts, pourcentages, parts, ajustements. Chaque ligne montre le nom, la valeur saisie et le montant attribué dans la devise du groupe. Le restant, l'écart de somme et les règles d'arrondi sont expliqués avant confirmation. Une synthèse d'impact distingue **total**, **payé**, **part attribuée** et **dette de cette dépense** ; par exemple, pour 100 CAD payés par moi et partagés 60/40, Alex me doit 40 CAD pour cette dépense. Les calculs viennent des services métier, y compris payeurs multiples et fractions historiques.
 
-L'édition recharge la répartition réellement enregistrée, respecte les droits existants et ne se fonde pas sur une préférence plus récente. La suppression exige une confirmation et n'est offerte qu'à l'utilisateur autorisé. Double clic bloqué ; après erreur serveur, la saisie et le reçu local restent disponibles pour Réessayer sans créer de doublon. Après succès, l'historique est rafraîchi puis le contexte d'origine est restauré.
+L'édition recharge la répartition réellement enregistrée, respecte les droits existants et ne se fonde pas sur une préférence plus récente. La suppression exige une confirmation et n'est offerte qu'à l'utilisateur autorisé. Double clic bloqué ; la création réutilise la **même clé d'idempotence déjà prise en charge par le formulaire et le Worker** tant que le corps de dépense reste identique. Après une réponse perdue, vérifier l'état de l'opération avant toute nouvelle tentative ; un corps modifié reçoit une nouvelle clé. L'envoi d'un reçu n'a pas le même contrat d'idempotence : si sa réponse est incertaine, rafraîchir la liste privée des pièces jointes et proposer un rapprochement avant tout nouvel envoi, jamais une reprise aveugle. Après succès confirmé, l'historique est rafraîchi puis le contexte d'origine est restauré.
 
 ## Détail, commentaires et reçus
 
 - Le détail montre description, catégorie, date, groupe, devise, total, chaque paiement et chaque part, puis les conséquences de **cette** opération. Les commentaires sont accessibles avec leur auteur et leur date ; état vide et erreurs distincts.
-- Reçu : choisir un fichier ou capturer une photo si le navigateur le permet, aperçu local, progression, confirmation d'accès privé, lecture réservée aux membres actifs, retrait selon droits et reprise d'un nettoyage distant en attente. Aucun lien Cloudinary non signé n'est affiché comme URL publique. L'accès révoqué ferme l'aperçu et empêche une nouvelle lecture.
+- Reçu : choisir un fichier ou capturer une photo si le navigateur le permet, aperçu local, progression, confirmation d'accès privé, lecture réservée aux membres actifs, retrait selon droits et reprise d'un nettoyage distant en attente. Le navigateur reçoit uniquement le Blob via le Worker après contrôle du membre actif ; l'URL Cloudinary signée reste côté Worker, et sa réponse porte `Cache-Control: no-store`. Tout `objectURL` local est révoqué et l'aperçu fermé lors de la fermeture, d'un changement de groupe ou compte, d'une déconnexion ou d'une révocation détectée. Une image déjà téléchargée dans la mémoire d'un appareil ne peut pas être effacée à distance : ne pas promettre une révocation rétroactive de ces octets. Une nouvelle lecture après révocation est refusée côté Worker.
 - Les actions Éditer et Supprimer sont visibles uniquement selon les droits réels. Une dépense supprimée ouverte depuis un ancien lien affiche un état explicite, sans faux détail. Le focus revient à la ligne déclenchante après fermeture quand elle existe encore.
 
 ## États à maquetter et vérifier
@@ -56,8 +56,8 @@ L'édition recharge la répartition réellement enregistrée, respecte les droit
 | Groupe personnel | Dépense personnelle sans dette artificielle ni invitation exigée. |
 | Recherche sans résultat | Filtres visibles, effaçables, message distinct de l'historique vide. |
 | Erreur de champ ou somme | Message lié au contrôle, focus utile, saisie conservée. |
-| Réseau ou session expirée | Réessayer ou se reconnecter ; brouillon conservé selon sécurité de session. |
-| Membre révoqué | Aucun détail ni reçu privé ; état d'accès refusé clair. |
+| Réseau ou session expirée | Réessayer ou se reconnecter ; conserver temporairement le brouillon uniquement pour le même compte et le même groupe encore autorisé, après réauthentification. |
+| Changement de compte/groupe ou membre révoqué | Isoler ou purger le brouillon et les données financières de l'ancien contexte ; fermer et révoquer les aperçus Blob. Aucun détail ni nouveau reçu privé après révocation ; état d'accès refusé clair. |
 | Navigation avec brouillon | Confirmation avant perte ; retour sans effacement intempestif. |
 
 ## Composants communs
@@ -69,4 +69,4 @@ Réutiliser `UiFormField`, `UiControlErrors`, `UiInput`/`UiTextarea`, `app-dropd
 - Maquettes desktop **et** mobile approuvées avant modification du parcours ; conserver la référence Everyday Pop V2 et les illustrations sans cacher les champs.
 - Tests locaux à 320, 390, 768 et 1280 px, FR/EN/JA, clavier, lecteur d'écran applicable, focus, brouillon, filtres et retour. Scénarios de cinq modes, plusieurs payeurs, création/édition/suppression, commentaires et reçu privé avec comptes fictifs ; aucun total multidevise.
 - Typecheck, lint, tests unitaires et intégration pertinents, build, Playwright, revue IA après chaque commit/push et workflow PR Validation vert au HEAD. Captures réelles 1280 × 800 et 390 × 844, vidéo, comparaison aux références et écarts restants dans la description du PR ; aucun média de validation dans le dépôt.
-- Validation visuelle explicite du propriétaire avant squash merge. Le parcours intégré sera revérifié sur TEST après fusion ; la production relève d'une décision distincte.
+- Validation visuelle explicite du propriétaire avant squash merge. La revue, les tests locaux et la CI sont les portes de fusion de ce PR. Le parcours intégré sera revérifié sur TEST **après** fusion dans la validation globale des sept PR ; cette vérification ne constitue pas une porte de fusion rétroactive. Toute défaillance trouvée sur TEST fera l'objet d'un correctif distinct avant la clôture du plan. La production relève d'une décision distincte.
