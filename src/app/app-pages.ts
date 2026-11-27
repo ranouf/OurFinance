@@ -181,7 +181,7 @@ export class DashboardPage {
 }
 
 @Component({
-  imports: [FieldComponent, DropdownComponent, UiGroupCard, UiControlDirective, UiButton, UiAlert, FormsModule, RouterLink, GroupCurrencyPanel, GroupLifecyclePanel, GroupMetadataPanel, QrInvitationPanel, CategoryManager],
+  imports: [FieldComponent, DropdownComponent, UiGroupCard, UiControlDirective, UiButton, UiAlert, FormsModule, RouterLink, GroupCurrencyPanel, GroupLifecyclePanel, GroupMetadataPanel, QrInvitationPanel, CategoryManager, ExpenseHistory],
   templateUrl: './groups-page.html',
 })
 export class GroupsPage {
@@ -198,6 +198,7 @@ export class GroupsPage {
   readonly tab = signal<'overview' | 'members' | 'categories' | 'settings'>('overview');
   readonly detailGroupId = signal('');
   readonly detailGroup = computed(() => this.app.groups().find(group => group.id === (this.detailGroupId() || this.app.selectedGroupId())));
+  readonly showDetail = computed(() => this.detailOpen() && !!this.detailGroup());
   readonly tabs = computed(() => [
     { id: 'overview' as const, label: this.ux().overview },
     { id: 'members' as const, label: this.ux().members },
@@ -213,6 +214,15 @@ export class GroupsPage {
   }
   openGroup(groupId: string): void { this.detailGroupId.set(groupId); this.detailOpen.set(true); this.tab.set('overview'); this.app.requestGroupSelection(groupId); }
   openArchived(groupId: string): void { this.detailGroupId.set(groupId); this.detailOpen.set(true); this.tab.set('overview'); }
+  onTabKeydown(event: KeyboardEvent): void {
+    const ids = this.tabs().map(item => item.id);
+    const current = ids.indexOf(this.tab());
+    const next = event.key === 'ArrowRight' ? (current + 1) % ids.length : event.key === 'ArrowLeft' ? (current + ids.length - 1) % ids.length : event.key === 'Home' ? 0 : event.key === 'End' ? ids.length - 1 : -1;
+    if (next < 0) return;
+    event.preventDefault();
+    this.tab.set(ids[next]);
+    (event.currentTarget as HTMLElement).querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus();
+  }
   async createGroup(): Promise<void> {
     await this.app.createGroup();
     if (this.app.groupCreateFailed()) return;

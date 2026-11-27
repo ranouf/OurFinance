@@ -30,9 +30,9 @@ import { expenseMessage, expenseText, unnamedExpenseMember } from './expense-tex
     <section class="mt-6 rounded-3xl border border-pop-border bg-pop-surface p-5 text-pop-text shadow-sm md:p-7" [attr.aria-label]="text('history')">
       <div class="mb-5 h-1.5 w-14 rounded-full bg-pop-sun" aria-hidden="true"></div>
       <h2 class="text-2xl font-extrabold tracking-tight">{{ text('history') }}</h2>
-      <app-field class="mt-5 block" controlId="history-group" [label]="text('group')">
+      @if (!readOnly) { <app-field class="mt-5 block" controlId="history-group" [label]="text('group')">
         <app-dropdown controlId="history-group" name="historyGroup" [options]="groupOptions()" [(ngModel)]="selectedGroupId" (ngModelChange)="onGroupChange()" />
-      </app-field>
+      </app-field> }
       @if (selectedGroupId) {
         <app-field class="mt-4 block" controlId="history-category" [label]="text('category')">
           <app-dropdown controlId="history-category" name="historyCategory" [options]="categoryDropdownOptions()" [(ngModel)]="selectedCategoryId" (ngModelChange)="refresh()" />
@@ -71,7 +71,7 @@ import { expenseMessage, expenseText, unnamedExpenseMember } from './expense-tex
                   </summary>
                   <div class="grid gap-4 border-t border-pop-border pb-4 pt-4 text-sm">
                     <p>{{ text('category') }} : {{ categoryLabel(entry.categoryId, language(), entry.categoryLabel) }}</p>
-                    @if (entry.createdBy === user?.uid) {
+                    @if (!isReadOnly() && entry.createdBy === user?.uid) {
                       <div class="flex flex-wrap gap-2">
                         @if (entry.splitMode) { <app-ui-button variant="outline"  type="button" (click)="editRequested.emit({ groupId: selectedGroupId, entry })">{{ text('edit') }}</app-ui-button> }
                         <app-ui-button variant="outline"  type="button" (click)="deleteConfirmId.set(entry.id)">{{ text('remove') }}</app-ui-button>
@@ -96,8 +96,8 @@ import { expenseMessage, expenseText, unnamedExpenseMember } from './expense-tex
                         <p class="mt-1 flex justify-between gap-2"><span class="min-w-0 break-all">{{ memberLabel(allocation.userId) }}</span><span class="shrink-0">{{ format(allocation.amountMinor, entry.currency) }}</span></p>
                       } @empty { <p class="mt-1 text-slate-600">{{ text('unavailable') }}</p> }
                     </div>
-                    @if (opened().has(entry.id)) { <app-receipt-panel [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" [user]="user" [groupId]="selectedGroupId" [expenseId]="entry.id" [groupOwnerId]="groupOwnerId()" /> }
-                    @if (opened().has(entry.id)) { <app-comment-panel [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" [user]="user" [groupId]="selectedGroupId" [expenseId]="entry.id" [memberNames]="memberNames()" (changed)="commented.emit()" /> }
+                    @if (opened().has(entry.id)) { <app-receipt-panel [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" [user]="user" [groupId]="selectedGroupId" [expenseId]="entry.id" [groupOwnerId]="groupOwnerId()" [readOnly]="isReadOnly()" /> }
+                    @if (opened().has(entry.id)) { <app-comment-panel [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" [user]="user" [groupId]="selectedGroupId" [expenseId]="entry.id" [memberNames]="memberNames()" [readOnly]="isReadOnly()" (changed)="commented.emit()" /> }
                   </div>
                 </details>
               </li>
@@ -112,6 +112,7 @@ import { expenseMessage, expenseText, unnamedExpenseMember } from './expense-tex
   `,
 })
 export class ExpenseHistory implements OnChanges {
+  @Input() readOnly = false;
   @Output() readonly commented = new EventEmitter<void>();
   @Output() readonly editRequested = new EventEmitter<{ groupId: string; entry: ExpenseHistoryEntry }>();
   @Output() readonly deleted = new EventEmitter<void>();
@@ -177,6 +178,7 @@ export class ExpenseHistory implements OnChanges {
     return this.memberNames()[userId] || unnamedExpenseMember(userId, this.participantOptions());
   }
   groupOwnerId(): string { return this.groups.find(group => group.id === this.selectedGroupId)?.ownerId ?? ''; }
+  isReadOnly(): boolean { return this.readOnly || this.groups.find(group => group.id === this.selectedGroupId)?.status === 'archived'; }
   onToggle(expenseId: string, event: Event): void {
     const next = new Set(this.opened());
     if ((event.target as HTMLDetailsElement).open) next.add(expenseId); else next.delete(expenseId);
@@ -184,7 +186,7 @@ export class ExpenseHistory implements OnChanges {
   }
   categoryColorClass = categoryColorClass;
   async deleteExpense(entry: ExpenseHistoryEntry): Promise<void> {
-    if (!this.service || !this.user || this.deleteBusy()) return;
+    if (!this.service || !this.user || this.deleteBusy() || this.isReadOnly()) return;
     this.deleteBusy.set(true);
     try {
       await this.service.mutate(this.user, this.selectedGroupId, entry.id, 'DELETE', { expectedRevision: entry.revision });
