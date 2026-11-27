@@ -16,7 +16,8 @@
     "lint:worker": "eslint workers/ourfinance-api/src workers/ourfinance-api/tests",
     "config:test": "node scripts/write-test-config.mjs",
     "test:coverage": "node --import tsx --test --experimental-test-coverage --test-coverage-include='src/app/core/firebase/*service.ts' --test-coverage-include='src/app/core/language/*service.ts' --test-coverage-include='src/app/shared/utils/*.ts' --test-coverage-include='src/app/features/import-export/*.ts' --test-coverage-include='src/app/features/statistics/chart-data.ts' --test-coverage-include='src/app/features/statistics/period-range.ts' --test-coverage-include='src/app/features/statistics/statistics-service.ts' --test-coverage-include='src/app/features/dashboard/dashboard-metrics.ts' --test-coverage-include='workers/ourfinance-api/src/*.ts' --test-coverage-exclude='src/app/features/import-export/*panel.ts' --test-coverage-lines=90 --test-coverage-branches=90 --test-coverage-functions=90 tests/unit/*.test.ts workers/ourfinance-api/tests/*.test.ts",
-    "test:ui": "firebase emulators:exec --only auth,firestore --project ourfinance-test \"playwright test\""
+    "test:ui": "firebase emulators:exec --only auth,firestore --project ourfinance-test \"playwright test\"",
+    "test:pwa": "node tests/pwa/write-config.mjs && ng build && firebase emulators:exec --config firebase.pwa.json --only auth,firestore,hosting --project ourfinance-test \"playwright test -c playwright.pwa.config.ts\""
   },
   "private": true,
   "packageManager": "npm@11.9.0",
