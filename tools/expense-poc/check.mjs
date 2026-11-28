@@ -11,15 +11,19 @@ const input = {
   idempotencyKey: crypto.randomUUID(), description: 'Dépense fictive POC', currency: 'CAD', date: new Date().toISOString().slice(0, 10), amountMinor: 101,
   payments: [{ userId: authorId, amountMinor: 101 }], splitMode: { kind: 'equal', users: [authorId, otherId] },
 };
-const post = () => fetch(endpoint, { method: 'POST', headers: { Authorization: `Bearer ${token}`, Origin: 'https://ourfinance-test.web.app', 'Content-Type': 'application/json' }, body: JSON.stringify(input), redirect: 'error' });
-const first = await post();
+const post = (body) => fetch(endpoint, { method: 'POST', headers: { Authorization: `Bearer ${token}`, Origin: 'https://ourfinance-test.web.app', 'Content-Type': 'application/json' }, body: JSON.stringify(body), redirect: 'error' });
+const first = await post(input);
 console.log(`Création : HTTP ${first.status} (attendu 201)`);
 if (first.status !== 201) { process.exitCode = 1; }
 else {
   const result = await first.json();
   if (result.expenseId !== input.idempotencyKey) process.exitCode = 1;
-  const repeat = await post();
-  console.log(`Répétition même clé : HTTP ${repeat.status} (attendu 409)`);
-  if (repeat.status !== 409) process.exitCode = 1;
+  const repeat = await post(input);
+  const repeatedId = repeat.status === 201 ? (await repeat.json()).expenseId : undefined;
+  console.log(`Répétition identique : HTTP ${repeat.status} (attendu 201)`);
+  if (repeat.status !== 201 || repeatedId !== input.idempotencyKey) process.exitCode = 1;
+  const changed = await post({ ...input, description: 'Dépense fictive différente' });
+  console.log(`Même clé, corps différent : HTTP ${changed.status} (attendu 409)`);
+  if (changed.status !== 409) process.exitCode = 1;
   console.log(`TEST_EXPENSE_ID=${input.idempotencyKey}`);
 }
