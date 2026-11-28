@@ -2,7 +2,7 @@ import { test, expect, login } from './fixtures.mjs';
 import { exportPKCS8, generateKeyPair } from 'jose';
 import { createExpense, ExpenseError } from '../../workers/ourfinance-api/src/expenses';
 
-test('D2 · le formulaire écrit une dépense via la transaction Worker et Firestore émulé', async ({ page }) => {
+test('D2 · le formulaire rejoint la transaction métier sur Firestore émulé', async ({ page }) => {
   const emulator = process.env.FIRESTORE_EMULATOR_HOST;
   expect(emulator).toBeTruthy();
   const { privateKey } = await generateKeyPair('RS256', { extractable: true });
@@ -13,6 +13,7 @@ test('D2 · le formulaire écrit une dépense via la transaction Worker et Fires
     if (!url.startsWith('https://firestore.googleapis.com/v1/')) throw new Error(`Unexpected provider: ${url}`);
     return fetch(url.replace('https://firestore.googleapis.com/v1/', `http://${emulator}/v1/`), { ...init, headers: { ...init?.headers, Authorization: 'Bearer owner' } });
   };
+  // Local bridge exercises the production transaction function, not the deployed HTTP handler.
   await page.route('https://worker.invalid/groups/*/expenses', async route => {
     const token = route.request().headers()['authorization']?.replace(/^Bearer /, '');
     const auth = await fetch('http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:lookup?key=demo', {
