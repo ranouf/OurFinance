@@ -16,6 +16,16 @@
         </app-field> }
       </div>
       @if (selectedGroupId) {
+        @if (searchTerm || from || to || selectedCategoryId || selectedParticipantId) {
+          <div class="mt-3 flex flex-wrap items-center gap-2 text-xs font-bold" [attr.aria-label]="text('moreFilters')">
+            @if (searchTerm) { <button type="button" class="rounded-full border border-pop-border bg-pop-lavender px-3 py-2 focus-visible:outline-2 focus-visible:outline-pop-primary" [attr.aria-label]="text('removeFilter') + ' ' + text('search')" (click)="removeFilter('search')">{{ text('search') }} : {{ searchTerm }} ×</button> }
+            @if (from) { <button type="button" class="rounded-full border border-pop-border bg-pop-lavender px-3 py-2 focus-visible:outline-2 focus-visible:outline-pop-primary" [attr.aria-label]="text('removeFilter') + ' ' + text('from')" (click)="removeFilter('from')">{{ text('from') }} : {{ from }} ×</button> }
+            @if (to) { <button type="button" class="rounded-full border border-pop-border bg-pop-lavender px-3 py-2 focus-visible:outline-2 focus-visible:outline-pop-primary" [attr.aria-label]="text('removeFilter') + ' ' + text('to')" (click)="removeFilter('to')">{{ text('to') }} : {{ to }} ×</button> }
+            @if (selectedCategoryId) { <button type="button" class="rounded-full border border-pop-border bg-pop-lavender px-3 py-2 focus-visible:outline-2 focus-visible:outline-pop-primary" [attr.aria-label]="text('removeFilter') + ' ' + text('category')" (click)="removeFilter('category')">{{ text('category') }} : {{ categoryFilterLabel() }} ×</button> }
+            @if (selectedParticipantId) { <button type="button" class="rounded-full border border-pop-border bg-pop-lavender px-3 py-2 focus-visible:outline-2 focus-visible:outline-pop-primary" [attr.aria-label]="text('removeFilter') + ' ' + text('participant')" (click)="removeFilter('participant')">{{ text('participant') }} : {{ participantFilterLabel() }} ×</button> }
+            <app-ui-button variant="ghost" type="button" (click)="resetFilters()">{{ text('resetFilters') }}</app-ui-button>
+          </div>
+        }
         <details class="mt-3 rounded-xl border border-pop-border px-4 py-3">
           <summary class="cursor-pointer text-sm font-bold text-pop-primary-dark focus-visible:outline-2 focus-visible:outline-pop-primary">{{ text('moreFilters') }}</summary>
           <div class="mt-4 grid gap-3 sm:grid-cols-2">

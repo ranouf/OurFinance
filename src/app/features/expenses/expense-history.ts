@@ -115,6 +115,25 @@ export class ExpenseHistory implements OnChanges {
     finally { this.deleteBusy.set(false); }
   }
   hasFilter(): boolean { return !!(this.searchTerm || this.selectedCategoryId || this.selectedParticipantId); }
+  resetFilters(): void {
+    this.search = '';
+    this.searchTerm = '';
+    this.from = '';
+    this.to = '';
+    this.selectedCategoryId = '';
+    this.selectedParticipantId = '';
+    void this.refresh();
+  }
+  removeFilter(filter: 'search' | 'from' | 'to' | 'category' | 'participant'): void {
+    if (filter === 'search') this.search = '';
+    else if (filter === 'from') this.from = '';
+    else if (filter === 'to') this.to = '';
+    else if (filter === 'category') this.selectedCategoryId = '';
+    else this.selectedParticipantId = '';
+    void this.refresh();
+  }
+  categoryFilterLabel(): string { return this.categoryLabel(this.selectedCategoryId, this.language(), this.categoryOptions().find(item => item.id === this.selectedCategoryId)?.label ?? this.selectedCategoryId); }
+  participantFilterLabel(): string { return this.memberLabel(this.selectedParticipantId); }
   onGroupChange(emit = true): void {
     if (emit) this.groupChange.emit(this.selectedGroupId);
     this.selectedCategoryId = '';
@@ -178,7 +197,15 @@ export class ExpenseHistory implements OnChanges {
         hasMore = page.hasMore;
         if (!hasMore) break;
       }
-      this.entries.update(entries => [...entries, ...matches]);
+      this.entries.update(entries => {
+        const seen = new Set(entries.map(entry => entry.id));
+        const additions = matches.filter(entry => {
+          if (seen.has(entry.id)) return false;
+          seen.add(entry.id);
+          return true;
+        });
+        return [...entries, ...additions];
+      });
       if (matches.some(entry => entry.id === this.targetExpenseId)) this.opened.update(opened => new Set([...opened, this.targetExpenseId]));
       this.scannedCount.update(count => count + scanned);
       this.last = cursor;
