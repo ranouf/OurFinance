@@ -125,7 +125,7 @@ export class ExpenseHistory implements OnChanges {
     void this.refresh();
   }
   removeFilter(filter: 'search' | 'from' | 'to' | 'category' | 'participant'): void {
-    if (filter === 'search') this.search = '';
+    if (filter === 'search') { this.search = ''; this.searchTerm = ''; }
     else if (filter === 'from') this.from = '';
     else if (filter === 'to') this.to = '';
     else if (filter === 'category') this.selectedCategoryId = '';
