@@ -12,7 +12,7 @@ import { FormsModule } from '@angular/forms';
 import type { FirebaseApp } from 'firebase/app';
 import type { User } from 'firebase/auth';
 import type { Group } from '../../core/firebase/group-model';
-import { ExpenseService } from '../../core/firebase/expense-service';
+import { ExpenseCreateUncertainError, ExpenseService } from '../../core/firebase/expense-service';
 import type { ExpenseHistoryEntry } from '../../core/firebase/expense-service';
 import { CategoryService } from '../../core/firebase/category-service';
 import { loadSharedMemberProfiles } from '../../core/firebase/member-profile-service';
@@ -76,6 +76,7 @@ export class ExpenseForm implements OnChanges {
   private categoryService?: CategoryService;
   private pendingKey?: string;
   private pendingBody?: string;
+  private pendingUncertain = false;
   markDraft(): void { this.draftDirty.set(true); this.draftChanged.emit(true); }
   discardDraft(): void { void this.loadGroup(); }
 
@@ -121,7 +122,7 @@ export class ExpenseForm implements OnChanges {
     this.draftChanged.emit(false);
     const requestId = ++this.groupRequestId;
     this.members.set([]); this.memberNames.set({}); this.customCategories.set([]); this.previewRows.set([]); this.splitEditorOpen.set(!!this.editing); this.previousSplitUsed.set(false); this.message.set(''); this.amountError.set(''); this.descriptionError.set(false); this.draft = this.emptyDraft();
-    this.pendingKey = undefined; this.pendingBody = undefined;
+    this.pendingKey = undefined; this.pendingBody = undefined; this.pendingUncertain = false;
     const groupId = this.selectedGroupId;
     const group = this.groups.find(item => item.id === groupId);
     if (!group || !this.service || !this.user) return;
@@ -242,15 +243,20 @@ export class ExpenseForm implements OnChanges {
         await this.service.mutate(this.user, this.selectedGroupId, this.editing.entry.id, 'PATCH', { expectedRevision: this.editing.entry.revision, ...content });
       } else {
         const serialized = JSON.stringify(content);
+        if (this.pendingUncertain && serialized !== this.pendingBody) { this.message.set('creationPendingChanged'); return; }
         if (serialized !== this.pendingBody) this.pendingKey = undefined;
         const idempotencyKey = this.pendingKey ?? crypto.randomUUID();
         this.pendingKey = idempotencyKey; this.pendingBody = serialized;
         await this.service.create(this.user, this.selectedGroupId, { idempotencyKey, ...content });
       }
-      this.pendingKey = undefined; this.pendingBody = undefined;
+      this.pendingKey = undefined; this.pendingBody = undefined; this.pendingUncertain = false;
       this.message.set(this.editing ? 'updated' : 'saved'); this.draft.description = ''; this.draft.amount = ''; this.previewRows.set([]); this.draftDirty.set(false); this.draftChanged.emit(false); this.saved.emit();
       if (this.editing) this.editCancelled.emit();
-    } catch (error) { this.message.set(error instanceof TypeError ? 'saveFailed' : error instanceof Error ? error.message : 'saveFailed'); }
+    } catch (error) {
+      this.pendingUncertain = error instanceof ExpenseCreateUncertainError;
+      if (!this.pendingUncertain) { this.pendingKey = undefined; this.pendingBody = undefined; }
+      this.message.set(error instanceof TypeError ? 'saveFailed' : error instanceof Error ? error.message : 'saveFailed');
+    }
     finally { this.busy.set(false); }
   }
 }
