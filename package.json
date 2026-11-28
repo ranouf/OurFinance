@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "lint": "eslint src/app workers/ourfinance-api/src workers/ourfinance-api/tests",
     "test:rules": "firebase emulators:exec --only firestore --project ourfinance-rules-test \"node --import tsx --test tests/firestore-rules/*.test.mjs\"",
+    "test:expense-integration": "firebase emulators:exec --only firestore --project ourfinance-test \"node --import tsx --test tests/integration/expense-firestore-emulator.test.ts\"",
     "test:unit": "tsx --test tests/unit/*.test.ts",
     "test:worker": "tsx --test workers/ourfinance-api/tests/*.test.ts",
     "typecheck:worker": "tsc -p tsconfig.worker.json",
