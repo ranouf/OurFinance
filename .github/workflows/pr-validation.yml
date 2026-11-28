@@ -22,6 +22,7 @@ jobs:
       - run: npm run typecheck:worker
       - run: npm run test:coverage
       - run: npm run test:rules
+      - run: npm run test:expense-integration
 
   ui:
     runs-on: ubuntu-latest

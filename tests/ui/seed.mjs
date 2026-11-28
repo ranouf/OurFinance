@@ -30,6 +30,9 @@ export default async function seed() {
     await document('users/' + memberId + '/groupMemberships/' + id, { groupId: id });
     await document('users/' + localId + '/groupMemberships/' + id, { status: 'active', groupId: id });
   }
+  await document('users/' + localId + '/groupPreferences/famille', {
+    modeJson: JSON.stringify({ kind: 'percentage', weightsBasisPoints: [{ userId: localId, value: 6000 }, { userId: memberId, value: 4000 }] }),
+  });
   const amounts = (entries) => ({ arrayValue: { values: entries.map(([userId, amountMinor]) => ({
     mapValue: { fields: { userId: { stringValue: userId }, amountMinor: { integerValue: amountMinor } } },
   })) } });

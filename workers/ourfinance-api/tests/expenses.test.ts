@@ -2,7 +2,7 @@ import { withBatchGet } from './batch-get-mock';
 import { test } from 'node:test';
 import { deepStrictEqual, strictEqual, rejects, throws } from 'node:assert';
 import { exportPKCS8, generateKeyPair } from 'jose';
-import { createExpense, ExpenseError, mutateExpense, parseExpense } from '../src/expenses';
+import { createExpense, expenseFingerprint, ExpenseError, mutateExpense, parseExpense } from '../src/expenses';
 const input = {
   idempotencyKey: '123e4567-e89b-42d3-a456-426614174000', description: 'Épicerie', currency: 'CAD', date: '2026-11-16', amountMinor: 101,
   payments: [{ userId: 'alice', amountMinor: 101 }], splitMode: { kind: 'equal', users: ['alice', 'bob'] },
@@ -89,6 +89,49 @@ test('expense creation rejects redirected group and caller before obtaining a se
     (error: unknown) => error instanceof ExpenseError && error.code === 'invalid_group');
 });
 
+test('an existing expense key returns success only for the same author and canonical body', async () => {
+  const { privateKey } = await generateKeyPair('RS256', { extractable: true });
+  const env = { FIREBASE_PROJECT_ID: 'ourfinance-test', FIREBASE_SERVICE_ACCOUNT_JSON: JSON.stringify({ project_id: 'ourfinance-test', client_email: 'test@ourfinance-test.iam.gserviceaccount.com', private_key: await exportPKCS8(privateKey) }) };
+  const fingerprint = await expenseFingerprint(parseExpense(input), [{ userId: 'alice', amountMinor: 51 }, { userId: 'bob', amountMinor: 50 }]);
+  for (const [author, storedFingerprint, submitted, revision, deleted, bobActive, aliceActive, expected] of [
+    ['alice', fingerprint, input, '0', false, true, true, 'success'],
+    ['alice', fingerprint, { ...input, description: 'Autre dépense' }, '0', false, true, true, 'idempotency_conflict'],
+    ['mallory', fingerprint, input, '0', false, true, true, 'idempotency_conflict'],
+    ['alice', undefined, input, '0', false, true, true, 'idempotency_conflict'],
+    ['alice', fingerprint, input, '1', false, true, true, 'success'],
+    ['alice', fingerprint, input, '0', true, true, true, 'success'],
+    ['alice', fingerprint, input, '0', false, false, true, 'success'],
+    ['alice', fingerprint, input, '0', false, true, false, 'member_inactive'],
+  ] as const) {
+    let commits = 0;
+    let rollbacks = 0;
+    const transport = (async (resource: string | URL | Request) => {
+      const url = String(resource);
+      if (url.includes('oauth2.googleapis.com')) return Response.json({ access_token: 'service-token' });
+      if (url.endsWith(':beginTransaction')) return Response.json({ transaction: 'txn' });
+      if (url.endsWith(':rollback')) { rollbacks++; return Response.json({}); }
+      if (url.endsWith(':commit')) { commits++; return Response.json({}); }
+      if (url.includes('/expenses/') && url.includes('?transaction=')) return Response.json({ fields: { createdBy: { stringValue: author }, revision: { integerValue: revision }, deleted: { booleanValue: deleted }, ...(storedFingerprint ? { contentFingerprint: { stringValue: storedFingerprint } } : {}) } });
+      if (url.includes('/members/') && url.includes('?transaction=')) return Response.json({ fields: { status: { stringValue: url.includes('/members/bob') ? (bobActive ? 'active' : 'revoked') : (aliceActive ? 'active' : 'revoked') } } });
+      if (url.includes('/groups/g1?')) return Response.json({ fields: { status: { stringValue: 'active' }, currencyCode: { stringValue: 'CAD' } } });
+      throw new Error(`Unexpected request ${url}`);
+    }) as typeof fetch;
+    if (expected === 'success') strictEqual(await createExpense(submitted, 'alice', 'g1', env, withBatchGet(transport)), input.idempotencyKey);
+    else await rejects(createExpense(submitted, 'alice', 'g1', env, withBatchGet(transport)), (error: unknown) => error instanceof ExpenseError && error.status === (expected === 'member_inactive' ? 403 : 409) && error.code === expected);
+    strictEqual(commits, 0);
+    strictEqual(rollbacks, 1);
+  }
+});
+
+test('the expense fingerprint ignores row order but distinguishes changed allocations', async () => {
+  const first = parseExpense({ ...input, amountMinor: 100, payments: [{ userId: 'alice', amountMinor: 100 }], splitMode: { kind: 'exact', amounts: [{ userId: 'alice', amountMinor: 60 }, { userId: 'bob', amountMinor: 40 }] } });
+  const reordered = parseExpense({ ...input, amountMinor: 100, payments: [{ userId: 'alice', amountMinor: 100 }], splitMode: { kind: 'exact', amounts: [{ userId: 'bob', amountMinor: 40 }, { userId: 'alice', amountMinor: 60 }] } });
+  const changed = parseExpense({ ...input, amountMinor: 100, payments: [{ userId: 'alice', amountMinor: 100 }], splitMode: { kind: 'exact', amounts: [{ userId: 'alice', amountMinor: 50 }, { userId: 'bob', amountMinor: 50 }] } });
+  const original = await expenseFingerprint(first, [{ userId: 'alice', amountMinor: 60 }, { userId: 'bob', amountMinor: 40 }]);
+  strictEqual(original, await expenseFingerprint(reordered, [{ userId: 'bob', amountMinor: 40 }, { userId: 'alice', amountMinor: 60 }]));
+  strictEqual(original === await expenseFingerprint(changed, [{ userId: 'alice', amountMinor: 50 }, { userId: 'bob', amountMinor: 50 }]), false);
+});
+
 test('expense transactions fail closed on absent group, member, category and conflicting commit', async () => {
   const { privateKey } = await generateKeyPair('RS256', { extractable: true });
   const env = { FIREBASE_PROJECT_ID: 'ourfinance-test', FIREBASE_SERVICE_ACCOUNT_JSON: JSON.stringify({ project_id: 'ourfinance-test', client_email: 'test@ourfinance-test.iam.gserviceaccount.com', private_key: await exportPKCS8(privateKey) }) };
@@ -106,6 +149,7 @@ test('expense transactions fail closed on absent group, member, category and con
       if (url.endsWith(':beginTransaction')) return Response.json({ transaction: 'txn' });
       if (url.endsWith(':rollback')) { rollback++; return Response.json({}); }
       if (url.endsWith(':commit')) return Response.json({}, { status: scenario === 'commit-conflict' ? 409 : 200 });
+      if (url.includes('/expenses/') && url.includes('?transaction=')) return Response.json({}, { status: 404 });
       if (url.includes('/categories/')) return scenario === 'category-missing' ? Response.json({}, { status: 404 }) : Response.json({ fields: { status: { stringValue: 'active' }, name: { stringValue: 'Fictif' }, iconId: { stringValue: 'home' }, color: { stringValue: 'sky' } } });
       if (url.includes('/members/')) return scenario === 'member-missing' ? Response.json({}, { status: 404 }) : Response.json({ fields: { status: { stringValue: 'active' } } });
       if (url.includes('/groups/g1?')) return scenario === 'group-missing' ? Response.json({}, { status: 404 }) : Response.json({ fields: { status: { stringValue: scenario === 'group-archived' ? 'archived' : 'active' }, currencyCode: { stringValue: 'CAD' } } });
@@ -194,6 +238,7 @@ test('expense transaction reads active group/members and atomically writes expen
     if (url.endsWith(':beginTransaction')) return Response.json({ transaction: 'txn' });
     if (url.includes('?transaction=')) {
       readPaths.push(url);
+      if (url.includes('/groups/g1/expenses/')) return Response.json({}, { status: 404 });
       if (url.includes('/groups/g1/members/')) return Response.json({ fields: { status: { stringValue: 'active' } } });
       return Response.json({ fields: { status: { stringValue: 'active' }, currencyCode: { stringValue: 'CAD' } } });
     }
@@ -201,7 +246,7 @@ test('expense transaction reads active group/members and atomically writes expen
     throw new Error('Requête inattendue');
   };
   strictEqual(await createExpense({ ...input, categoryId: 'education' }, 'alice', 'g1', { FIREBASE_PROJECT_ID: 'ourfinance-test', FIREBASE_SERVICE_ACCOUNT_JSON: service }, withBatchGet(transport)), input.idempotencyKey);
-  strictEqual(readPaths.length, 3);
+  strictEqual(readPaths.length, 4);
   strictEqual(commit.transaction, 'txn');
   strictEqual(commit.writes.length, 4);
   strictEqual(commit.writes[0].currentDocument.exists, false);
@@ -219,6 +264,7 @@ test('revoked participant prevents a commit', async () => {
     const url = String(resource);
     if (url.includes('oauth2.googleapis.com')) return Response.json({ access_token: 'service-token' });
     if (url.endsWith(':beginTransaction')) return Response.json({ transaction: 'txn' });
+    if (url.includes('/expenses/') && url.includes('?transaction=')) return Response.json({}, { status: 404 });
     if (url.includes('/members/bob')) return Response.json({ fields: { status: { stringValue: 'revoked' } } });
     if (url.includes('?transaction=')) return Response.json({ fields: { status: { stringValue: 'active' }, currencyCode: { stringValue: 'CAD' } } });
     if (url.endsWith(':commit')) committed = true;
@@ -269,6 +315,7 @@ test('une catégorie personnalisée active est figée sur la dépense, une archi
     if (url.includes('oauth2.googleapis.com')) return Response.json({ access_token: 'service-token' });
     if (url.endsWith(':beginTransaction')) return Response.json({ transaction: 'txn' });
     if (url.includes('/categories/') && url.includes('?transaction=')) return Response.json({ fields: { status: { stringValue: status }, name: { stringValue: 'Frais de chalet' }, iconId: { stringValue: 'home' }, color: { stringValue: 'sky' } } });
+    if (url.includes('/expenses/') && url.includes('?transaction=')) return Response.json({}, { status: 404 });
     if (url.includes('?transaction=')) return Response.json({ fields: { status: { stringValue: 'active' }, currencyCode: { stringValue: 'CAD' } } });
     if (url.endsWith(':commit')) { commit = JSON.parse(String(options?.body)); return Response.json({ writeResults: [{}, {}, {}] }); }
     if (url.endsWith(':rollback')) { rolledBack = true; return Response.json({}); }

@@ -4,6 +4,8 @@ import type { FirebaseApp } from 'firebase/app';
 import type { User } from 'firebase/auth';
 import type { DocumentData, DocumentSnapshot, QueryDocumentSnapshot, QuerySnapshot } from 'firebase/firestore';
 import { ExpenseService, type ExpenseRepository } from '../../src/app/core/firebase/expense-service';
+import { ExpenseCreateUncertainError, ExpenseCreateConflictError } from '../../src/app/core/firebase/expense-service';
+import { expenseFingerprint } from '../../src/app/shared/utils/expense-fingerprint';
 
 const app = {} as FirebaseApp;
 const user = { uid: 'alice', emailVerified: true, getIdToken: async () => 'fixture-token' } as User;
@@ -32,16 +34,64 @@ function fixture(rows: QueryDocumentSnapshot<DocumentData>[] = []) {
   };
   const requests: { url: string; method: string; authorization: string | null; body: unknown }[] = [];
   let reply: Response = Response.json({ expenseId: 'expense-1' });
+  let lostResponses = 0;
   const transport = async (input: string | URL | Request, init?: RequestInit) => {
     requests.push({
       url: String(input), method: init?.method ?? 'GET',
       authorization: new Headers(init?.headers).get('Authorization'), body: JSON.parse(String(init?.body ?? '{}')),
     });
+    if (lostResponses-- > 0) throw new TypeError('network lost');
     return reply;
   };
   const service = new ExpenseService(app, 'https://worker.example', repository, transport as typeof fetch);
-  return { service, repository, calls, requests, reply: (response: Response) => { reply = response; } };
+  return { service, repository, calls, requests, reply: (response: Response) => { reply = response; }, lose: (count: number) => { lostResponses = count; } };
 }
+
+test('une réponse perdue confirme le document existant sans seconde création', async () => {
+  const f = fixture();
+  const idempotencyKey = 'ae4b59c1-e386-4a6c-83e2-989f1c8bb077';
+  const body = { idempotencyKey, description: 'Repas fictif', categoryId: 'other', currency: 'CAD', date: '2026-11-27', amountMinor: 101,
+    payments: [{ userId: 'alice', amountMinor: 101 }], splitMode: { kind: 'equal' as const, users: ['alice', 'bob'] } };
+  const fingerprint = await expenseFingerprint(body, [{ userId: 'alice', amountMinor: 51 }, { userId: 'bob', amountMinor: 50 }]);
+  f.repository.expenseById = async (_app, groupId, expenseId) => {
+    deepStrictEqual([groupId, expenseId], ['group-a', idempotencyKey]);
+    return preference({ createdBy: 'alice', contentFingerprint: fingerprint });
+  };
+  f.lose(1);
+  strictEqual(await f.service.create(user, 'group-a', body), idempotencyKey);
+  strictEqual(f.requests.length, 1);
+  f.reply(Response.json({ error: 'temporary' }, { status: 503 }));
+  strictEqual(await f.service.create(user, 'group-a', body), idempotencyKey);
+  f.reply(Response.json({ unexpected: true }));
+  strictEqual(await f.service.create(user, 'group-a', body), idempotencyKey);
+  f.repository.expenseById = async () => preference({ createdBy: 'bob', contentFingerprint: fingerprint });
+  f.lose(1);
+  await rejects(f.service.create(user, 'group-a', body), ExpenseCreateConflictError);
+  f.lose(0);
+  f.reply(Response.json({ error: 'idempotency_conflict' }, { status: 409 }));
+  await rejects(f.service.create(user, 'group-a', body), ExpenseCreateConflictError);
+});
+
+test('si le document est absent, le retry garde la clé ; une lecture impossible reste incertaine', async () => {
+  const f = fixture();
+  const idempotencyKey = 'ae4b59c1-e386-4a6c-83e2-989f1c8bb077';
+  const body = { idempotencyKey, description: 'Repas fictif', categoryId: 'other', currency: 'CAD', date: '2026-11-27', amountMinor: 101,
+    payments: [{ userId: 'alice', amountMinor: 101 }], splitMode: { kind: 'equal' as const, users: ['alice', 'bob'] } };
+  f.repository.expenseById = async () => preference();
+  f.reply(Response.json({ expenseId: idempotencyKey }));
+  f.lose(1);
+  strictEqual(await f.service.create(user, 'group-a', body), idempotencyKey);
+  deepStrictEqual(f.requests.map(item => (item.body as { idempotencyKey: string }).idempotencyKey), [idempotencyKey, idempotencyKey]);
+  f.repository.expenseById = async () => { throw new Error('read unavailable'); };
+  f.lose(1);
+  await rejects(f.service.create(user, 'group-a', body), ExpenseCreateUncertainError);
+  strictEqual(f.requests.length, 3);
+  f.repository.expenseById = async () => preference();
+  f.reply(Response.json({ error: 'temporary' }, { status: 503 }));
+  f.lose(1);
+  await rejects(f.service.create(user, 'group-a', body), ExpenseCreateUncertainError);
+  strictEqual(f.requests.length, 5);
+});
 
 test('expense history pages within one group, skips deleted rows and preserves exact split data', async () => {
   const split = { kind: 'equal', users: ['alice', 'bob'] };

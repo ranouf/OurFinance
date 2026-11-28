@@ -1,6 +1,8 @@
 import type { FirebaseApp } from 'firebase/app';
 import type { User } from 'firebase/auth';
-import { collection, doc, getDoc, getDocs, getFirestore, limit, orderBy, query, startAfter, where, type DocumentData, type DocumentSnapshot, type QueryDocumentSnapshot, type QuerySnapshot } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocFromServer, getDocs, getFirestore, limit, orderBy, query, startAfter, where, type DocumentData, type DocumentSnapshot, type QueryDocumentSnapshot, type QuerySnapshot } from 'firebase/firestore';
+import { expenseFingerprint, type ExpenseFingerprintInput } from '../../shared/utils/expense-fingerprint';
+import { splitAmount } from '../../shared/utils/split-engine';
 import { decodeStoredPreference } from '../../shared/utils/split-preference';
 import { categoryById, type CategoryColor } from '../../shared/utils/categories';
 import type { Allocation, SplitMode } from '../../shared/utils/split-engine';
@@ -27,6 +29,7 @@ export interface ExpenseRepository {
   history(app: FirebaseApp, groupId: string, after?: QueryDocumentSnapshot<DocumentData>, from?: string, to?: string): Promise<QuerySnapshot<DocumentData>>;
   members(app: FirebaseApp, groupId: string): Promise<QuerySnapshot<DocumentData>>;
   preference(app: FirebaseApp, uid: string, groupId: string): Promise<DocumentSnapshot<DocumentData>>;
+  expenseById?(app: FirebaseApp, groupId: string, expenseId: string): Promise<DocumentSnapshot<DocumentData>>;
 }
 const firestoreExpenseRepository: ExpenseRepository = {
   history: (app, groupId, after, from, to) => {
@@ -37,7 +40,11 @@ const firestoreExpenseRepository: ExpenseRepository = {
   },
   members: (app, groupId) => getDocs(collection(getFirestore(app), 'groups', groupId, 'members')),
   preference: (app, uid, groupId) => getDoc(doc(getFirestore(app), 'users', uid, 'groupPreferences', groupId)),
+  expenseById: (app, groupId, expenseId) => getDocFromServer(doc(getFirestore(app), 'groups', groupId, 'expenses', expenseId)),
 };
+
+export class ExpenseCreateUncertainError extends Error { constructor() { super('creationUncertain'); } }
+export class ExpenseCreateConflictError extends Error { constructor() { super('creationConflict'); } }
 
 export class ExpenseService {
   constructor(
@@ -91,11 +98,43 @@ export class ExpenseService {
     if (!user.emailVerified) throw new Error('Adresse courriel non confirmée');
     const url = new URL(`/groups/${encodeURIComponent(groupId)}/expenses`, this.workerUrl);
     if (url.protocol !== 'https:') throw new Error('URL Worker non sécurisée');
-    const response = await this.transport(url, { method: 'POST', headers: { Authorization: `Bearer ${await user.getIdToken()}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-    if (!response.ok) throw new Error(response.status === 503 ? 'Création de dépenses désactivée sur cet environnement' : `Création refusée (HTTP ${response.status})`);
-    const result = await response.json() as { expenseId?: string };
-    if (!result.expenseId) throw new Error('Réponse Worker invalide');
-    return result.expenseId;
+    const request = body as ExpenseFingerprintInput & { idempotencyKey?: string };
+    const headers = { Authorization: `Bearer ${await user.getIdToken()}`, 'Content-Type': 'application/json' };
+    const send = () => this.transport(url, { method: 'POST', headers, body: JSON.stringify(body) });
+    const reconcile = async (): Promise<boolean> => {
+      if (!request.idempotencyKey) throw new ExpenseCreateUncertainError();
+      let snapshot: DocumentSnapshot<DocumentData>;
+      try {
+        const read = this.repository.expenseById ?? firestoreExpenseRepository.expenseById!;
+        snapshot = await read(this.app, groupId, request.idempotencyKey);
+      } catch { throw new ExpenseCreateUncertainError(); }
+      if (snapshot.exists()) {
+        let fingerprint: string;
+        try { fingerprint = await expenseFingerprint(request, splitAmount(request.amountMinor, request.splitMode)); }
+        catch { throw new ExpenseCreateUncertainError(); }
+        const data = snapshot.data();
+        if (data['createdBy'] !== user.uid || data['contentFingerprint'] !== fingerprint) throw new ExpenseCreateConflictError();
+        return true;
+      }
+      return false;
+    };
+    for (let attempt = 0; attempt < 2; attempt++) {
+      let response: Response | undefined;
+      try { response = await send(); } catch { /* The write may already have committed. */ }
+      if (response?.ok) {
+        let result: { expenseId?: string } | undefined;
+        try { result = await response.json() as { expenseId?: string }; } catch { /* Reconcile malformed success. */ }
+        if (result?.expenseId && (!request.idempotencyKey || result.expenseId === request.idempotencyKey)) return result.expenseId;
+        if (!request.idempotencyKey) throw new Error('Réponse Worker invalide');
+      } else if (response && response.status < 500) {
+        if (response.status === 409 && request.idempotencyKey) throw new ExpenseCreateConflictError();
+        throw new Error(`Création refusée (HTTP ${response.status})`);
+      } else if (response?.status === 503 && !request.idempotencyKey) {
+        throw new Error('Création de dépenses désactivée sur cet environnement');
+      }
+      if (await reconcile()) return request.idempotencyKey!;
+    }
+    throw new ExpenseCreateUncertainError();
   }
 
   async mutate(user: User, groupId: string, expenseId: string, method: 'PATCH' | 'DELETE', body: object): Promise<void> {

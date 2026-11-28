@@ -12,7 +12,7 @@ import { FormsModule } from '@angular/forms';
 import type { FirebaseApp } from 'firebase/app';
 import type { User } from 'firebase/auth';
 import type { Group } from '../../core/firebase/group-model';
-import { ExpenseService } from '../../core/firebase/expense-service';
+import { ExpenseCreateConflictError, ExpenseCreateUncertainError, ExpenseService } from '../../core/firebase/expense-service';
 import type { ExpenseHistoryEntry } from '../../core/firebase/expense-service';
 import { CategoryService } from '../../core/firebase/category-service';
 import { loadSharedMemberProfiles } from '../../core/firebase/member-profile-service';
@@ -21,86 +21,13 @@ import { categories, type CustomCategory } from '../../shared/utils/categories';
 import { categoryLabel } from '../../shared/utils/category-label';
 import { language, locale } from '../../shared/utils/i18n';
 import { parseMinor, prepareExpense, type ExpenseDraft } from './expense-draft';
+import { expenseImpact } from './expense-impact';
 import type { SplitMode } from '../../shared/utils/split-engine';
 import { expenseMessage, expenseText, unnamedExpenseMember } from './expense-text';
 
 @Component({
   selector: 'app-expense-form', imports: [FieldComponent, ControlErrorsComponent, DropdownComponent, UiCheckboxDirective, UiControlDirective, UiAlert, UiButton, FormsModule],
-  template: `
-    <section class="mt-6 rounded-3xl border border-pop-border bg-pop-surface p-5 text-pop-text shadow-sm md:p-7" [attr.aria-label]="editing ? text('editExpense') : text('newExpense')">
-      <div class="mb-5 h-1.5 w-14 rounded-full bg-pop-coral" aria-hidden="true"></div>
-      <h2 class="text-2xl font-extrabold tracking-tight">{{ editing ? text('editExpense') : text('newExpense') }}</h2>
-      @if (editing) { <p class="mt-1 text-sm text-pop-muted">{{ text('authorOnly') }}</p> }
-      <p class="mt-2 text-sm leading-6 text-pop-muted">{{ text('splitHelp') }}</p>
-      <form class="mt-6 grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4" (input)="markDraft()" (ngSubmit)="save()">
-        <app-field class="block" controlId="group" [label]="text('group')"><app-dropdown controlId="group" [options]="groupDropdownOptions(groups, text('chooseGroup'), false)" name="group" [(ngModel)]="selectedGroupId" (ngModelChange)="onGroupChange()" [disabled]="!!editing || draftDirty()" required /></app-field>
-        @if (draftDirty() && !editing) { <div class="flex flex-wrap items-center gap-2 text-sm"><span>{{ text('draftGroupLocked') }}</span><app-ui-button variant="ghost" type="button" (click)="discardDraft()">{{ text('discardDraft') }}</app-ui-button></div> }
-        @if (selectedGroupId) {
-          <label class="block text-sm font-bold">{{ text('description') }}
-            <input #descriptionInput appUiControl class="mt-2 w-full" name="description" [(ngModel)]="draft.description" (ngModelChange)="descriptionError.set(false)" [attr.aria-invalid]="descriptionError() ? 'true' : null" [attr.aria-describedby]="descriptionError() ? 'expense-description-error' : null" aria-required="true" maxlength="160" />
-            @if (descriptionError()) { <app-control-errors errorId="expense-description-error" [explicitMessage]="text('descriptionRequired')" /> }
-          </label>
-          <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-            <label class="block text-sm font-bold">{{ text('amount') }}
-              <input #amountInput appUiControl class="mt-2 w-full" name="amount" [(ngModel)]="draft.amount" (ngModelChange)="previewRows.set([]); amountError.set('')" [attr.aria-invalid]="amountError() ? 'true' : null" [attr.aria-describedby]="amountError() ? 'expense-amount-error' : null" aria-required="true" inputmode="decimal" placeholder="0,00" />
-              @if (amountError()) { <app-control-errors errorId="expense-amount-error" [explicitMessage]="displayMessage(amountError())" /> }
-            </label>
-            <div class="block text-sm font-bold">{{ text('fixedCurrency') }}
-              <div class="mt-2 min-h-11 rounded-xl border border-pop-border bg-pop-lavender p-3 text-lg font-extrabold text-pop-primary-dark" [attr.aria-label]="text('fixedCurrency')">{{ draft.currency }}</div>
-            </div>
-          </div>
-          <label class="block text-sm font-bold">{{ text('date') }}
-            <input appUiControl class="mt-2 w-full" type="date" name="date" [(ngModel)]="draft.date" required />
-          </label>
-          <app-field class="block" controlId="expense-category" [label]="text('category')">
-            <app-dropdown controlId="expense-category" name="category" [options]="expenseCategoryOptions()" [(ngModel)]="draft.categoryId" (ngModelChange)="markDraft()" />
-          </app-field>
-          @if (members().length) {
-            @if (members().length > 1) { <label class="flex min-h-11 items-center gap-2 text-sm font-bold"><input appUiCheckbox class="size-5 accent-pop-primary focus-visible:outline-2 focus-visible:outline-pop-primary" type="checkbox" name="multiplePayers" [(ngModel)]="draft.multiplePayers" (ngModelChange)="markDraft()" />{{ text('multiplePayers') }}</label> }
-            @if (!draft.multiplePayers) {
-              <app-field class="block" controlId="expense-payer" [label]="text('paidBy')" [required]="true">
-                <app-dropdown controlId="expense-payer" name="payer" [options]="payerOptions()" [(ngModel)]="draft.payerId" (ngModelChange)="markDraft()" required />
-              </app-field>
-            } @else {
-              <fieldset class="rounded-2xl border border-pop-border bg-pop-lavender p-4">
-                <legend class="px-2 text-sm font-extrabold text-pop-primary-dark">{{ text('paidBy') }}</legend>
-                @for (row of draft.paymentRows; track row.userId; let i = $index) {
-                  <div class="mt-3 flex min-h-11 items-center gap-3 rounded-xl bg-pop-surface px-3 py-2">
-                    <label class="flex min-w-0 flex-1 items-center gap-2 text-sm"><input appUiCheckbox #payerCheckbox class="size-5 shrink-0 accent-pop-primary focus-visible:outline-2 focus-visible:outline-pop-primary" type="checkbox" [name]="'payer-selected-' + i" [(ngModel)]="row.selected" (ngModelChange)="paymentError.set(false); message.set(''); markDraft()" [attr.aria-invalid]="paymentError() ? 'true' : null" [attr.aria-describedby]="paymentError() ? 'payment-error' : null" /><span class="min-w-0 break-all">{{ memberLabel(row.userId) }}</span></label>
-                    @if (row.selected) { <input appUiControl #paymentInput class="min-w-0 max-w-24 flex-none" [class.border-rose-600]="paymentError()" [name]="'payer-value-' + i" [(ngModel)]="row.value" (ngModelChange)="paymentError.set(false); message.set('')" inputmode="decimal" [attr.aria-label]="text('paymentFor') + ' ' + (memberLabel(row.userId))" [attr.aria-invalid]="paymentError() ? 'true' : null" [attr.aria-describedby]="paymentError() ? 'payment-error' : null" [placeholder]="draft.currency" /> }
-                  </div>
-                }
-                @if (paymentError()) { <app-ui-alert variant="error" class="mt-3" id="payment-error">{{ displayMessage(message()) }}</app-ui-alert> }
-              </fieldset>
-            }
-            <fieldset class="rounded-2xl border border-pop-border bg-pop-lavender p-4">
-              <legend class="px-2 text-sm font-extrabold text-pop-primary-dark">{{ text('split') }}</legend>
-              <app-field controlId="expense-split-mode" [label]="text('splitMethod')">
-                <app-dropdown controlId="expense-split-mode" name="mode" [options]="splitModeOptions()" [(ngModel)]="draft.kind" (ngModelChange)="clearValues(); markDraft()" />
-              </app-field>
-              @for (row of draft.rows; track row.userId; let i = $index) {
-                <div class="mt-3 flex min-h-11 items-center gap-3 rounded-xl bg-pop-surface px-3 py-2">
-                  <label class="flex min-w-0 flex-1 items-center gap-2 text-sm"><input appUiCheckbox class="size-5 shrink-0 accent-pop-primary" type="checkbox" [name]="'selected-' + i" [(ngModel)]="row.selected" (ngModelChange)="previewRows.set([]); markDraft()" /><span class="min-w-0 break-all">{{ memberLabel(row.userId) }}</span></label>
-                  @if (draft.kind !== 'equal' && row.selected) {
-                    <input appUiControl class="min-w-0 max-w-24 flex-none" [name]="'value-' + i" [(ngModel)]="row.value" (ngModelChange)="previewRows.set([])" inputmode="decimal" [attr.aria-label]="text('valueFor') + ' ' + (memberLabel(row.userId))" [placeholder]="draft.kind === 'percentage' ? '%' : draft.kind === 'shares' ? text('shares') : draft.currency" />
-                  }
-                </div>
-              }
-              <app-ui-button variant="outline" class="mt-4" type="button" (click)="preview()">{{ text('calculate') }}</app-ui-button>
-              @if (previewRows().length) {
-                <ul class="mt-3 space-y-1 rounded-xl bg-pop-surface p-3 text-sm" [attr.aria-label]="text('calculated')">
-                  @for (row of previewRows(); track row.userId) { <li>{{ memberLabel(row.userId) }} : {{ formatMinor(row.amountMinor, draft.currency, locale()) }}</li> }
-                </ul>
-              }
-            </fieldset>
-            <app-ui-button variant="primary" [block]="true" class="w-full" type="submit" [disabled]="busy()">{{ editing ? text('saveEdit') : text('save') }}</app-ui-button>
-            @if (editing) { <app-ui-button variant="secondary" [block]="true" class="w-full" type="button" (click)="editCancelled.emit()">{{ text('cancelEdit') }}</app-ui-button> }
-          } @else { <p class="text-sm text-pop-muted">{{ text('noMembers') }}</p> }
-        }
-      </form>
-      @if (message() && !paymentError() && !amountError() && !descriptionError()) { <app-ui-alert class="mt-4" [variant]="message() === 'saved' || message() === 'updated' ? 'success' : 'error'">{{ displayMessage(message()) }}</app-ui-alert> }
-    </section>
-  `,
+  templateUrl: './expense-form.html',
 })
 export class ExpenseForm implements OnChanges {
   readonly groupDropdownOptions = groupDropdownOptions;
@@ -139,6 +66,8 @@ export class ExpenseForm implements OnChanges {
   readonly amountError = signal('');
   readonly descriptionError = signal(false);
   readonly previewRows = signal<{ userId: string; amountMinor: number }[]>([]);
+  readonly splitEditorOpen = signal(false);
+  readonly previousSplitUsed = signal(false);
   readonly draftDirty = signal(false);
   selectedGroupId = '';
   private groupRequestId = 0;
@@ -147,6 +76,7 @@ export class ExpenseForm implements OnChanges {
   private categoryService?: CategoryService;
   private pendingKey?: string;
   private pendingBody?: string;
+  private pendingUncertain = false;
   markDraft(): void { this.draftDirty.set(true); this.draftChanged.emit(true); }
   discardDraft(): void { void this.loadGroup(); }
 
@@ -160,6 +90,7 @@ export class ExpenseForm implements OnChanges {
       void this.loadGroup();
     }
     if (changes['categoryRevision'] && !changes['categoryRevision'].firstChange && this.selectedGroupId) void this.loadCategories().catch(() => this.message.set('categoriesUnavailable'));
+    if (changes['user'] && !changes['user'].firstChange && changes['user'].previousValue?.uid !== this.user?.uid) void this.loadGroup();
     if (changes['editing']) {
       if (this.editing) this.selectedGroupId = this.editing.groupId;
       void this.loadGroup();
@@ -191,8 +122,8 @@ export class ExpenseForm implements OnChanges {
     this.draftDirty.set(false);
     this.draftChanged.emit(false);
     const requestId = ++this.groupRequestId;
-    this.members.set([]); this.memberNames.set({}); this.customCategories.set([]); this.previewRows.set([]); this.message.set(''); this.amountError.set(''); this.descriptionError.set(false); this.draft = this.emptyDraft();
-    this.pendingKey = undefined; this.pendingBody = undefined;
+    this.members.set([]); this.memberNames.set({}); this.customCategories.set([]); this.previewRows.set([]); this.splitEditorOpen.set(!!this.editing); this.previousSplitUsed.set(false); this.message.set(''); this.amountError.set(''); this.descriptionError.set(false); this.draft = this.emptyDraft();
+    this.pendingKey = undefined; this.pendingBody = undefined; this.pendingUncertain = false;
     const groupId = this.selectedGroupId;
     const group = this.groups.find(item => item.id === groupId);
     if (!group || !this.service || !this.user) return;
@@ -211,7 +142,12 @@ export class ExpenseForm implements OnChanges {
       this.draft.rows = activeMembers.map(member => ({ userId: member.userId, selected: false, value: '' }));
       this.draft.paymentRows = activeMembers.map(member => ({ userId: member.userId, selected: false, value: '' }));
       const preference = this.editing?.groupId === groupId ? this.editing.entry.splitMode : await this.service.preference(this.user, groupId, new Set(activeMembers.map(member => member.userId)));
+      if (this.selectedGroupId === groupId && requestId === this.groupRequestId && !preference) {
+        this.draft.rows.forEach(row => { row.selected = true; });
+        this.changeDetector.markForCheck();
+      }
       if (this.selectedGroupId === groupId && requestId === this.groupRequestId && preference) {
+        this.previousSplitUsed.set(!this.editing);
         if (this.editing?.groupId === groupId) {
           const entry = this.editing.entry;
           this.draft.description = entry.description;
@@ -230,6 +166,28 @@ export class ExpenseForm implements OnChanges {
   memberLabel(userId: string): string {
     if (userId === this.user?.uid) return this.text('me');
     return this.memberNames()[userId] || unnamedExpenseMember(userId, this.members());
+  }
+  summaryAllocations(): readonly { userId: string; amountMinor: number }[] {
+    if (!this.draft.amount) return [];
+    try {
+      const payerId = this.members().find(member => member.userId === this.user?.uid)?.userId ?? this.members()[0]?.userId ?? '';
+      return prepareExpense({ ...this.draft, multiplePayers: false, payerId }, new Set(this.members().map(member => member.userId))).allocations;
+    } catch { return []; }
+  }
+  impact(): { total: number; paid: number; owed: number; net: number } | null {
+    if (!this.draft.amount || !this.user?.uid) return null;
+    try { return expenseImpact(this.draft, new Set(this.members().map(member => member.userId)), this.user.uid); }
+    catch { return null; }
+  }
+  summaryAmount(userId: string): string {
+    const assigned = this.summaryAllocations().find(row => row.userId === userId);
+    if (assigned) return formatMinor(assigned.amountMinor, this.draft.currency, locale());
+    return this.text('amountPending');
+  }
+  summaryInput(userId: string): string {
+    if (this.draft.kind === 'equal') return '';
+    const value = this.draft.rows.find(row => row.userId === userId)?.value;
+    return value ? `${value}${this.draft.kind === 'percentage' ? ' %' : this.draft.kind === 'shares' ? ' ×' : ` ${this.draft.currency}`}` : '';
   }
   private applyPreference(mode: SplitMode): void {
     this.draft.kind = mode.kind;
@@ -279,6 +237,10 @@ export class ExpenseForm implements OnChanges {
       return;
     }
     this.busy.set(true);
+    const requestGroup = this.selectedGroupId;
+    const requestUser = this.user.uid;
+    const requestGeneration = this.groupRequestId;
+    const wasEditing = !!this.editing;
     try {
       const result = prepareExpense(this.draft, new Set(this.members().map(member => member.userId)));
       const content = { description: this.draft.description.trim(), currency: this.draft.currency, date: this.draft.date, categoryId: this.draft.categoryId, amountMinor: result.amountMinor, payments: result.payments, splitMode: result.splitMode };
@@ -286,15 +248,22 @@ export class ExpenseForm implements OnChanges {
         await this.service.mutate(this.user, this.selectedGroupId, this.editing.entry.id, 'PATCH', { expectedRevision: this.editing.entry.revision, ...content });
       } else {
         const serialized = JSON.stringify(content);
+        if (this.pendingUncertain && serialized !== this.pendingBody) { this.message.set('creationPendingChanged'); return; }
         if (serialized !== this.pendingBody) this.pendingKey = undefined;
         const idempotencyKey = this.pendingKey ?? crypto.randomUUID();
         this.pendingKey = idempotencyKey; this.pendingBody = serialized;
         await this.service.create(this.user, this.selectedGroupId, { idempotencyKey, ...content });
       }
-      this.pendingKey = undefined; this.pendingBody = undefined;
-      this.message.set(this.editing ? 'updated' : 'saved'); this.draft.description = ''; this.draft.amount = ''; this.previewRows.set([]); this.draftDirty.set(false); this.draftChanged.emit(false); this.saved.emit();
-      if (this.editing) this.editCancelled.emit();
-    } catch (error) { this.message.set(error instanceof TypeError ? 'saveFailed' : error instanceof Error ? error.message : 'saveFailed'); }
+      if (this.selectedGroupId !== requestGroup || this.user?.uid !== requestUser || this.groupRequestId !== requestGeneration) return;
+      this.pendingKey = undefined; this.pendingBody = undefined; this.pendingUncertain = false;
+      this.message.set(wasEditing ? 'updated' : 'saved'); this.draft.description = ''; this.draft.amount = ''; this.previewRows.set([]); this.draftDirty.set(false); this.draftChanged.emit(false); this.saved.emit();
+      if (wasEditing) this.editCancelled.emit();
+    } catch (error) {
+      if (this.selectedGroupId !== requestGroup || this.user?.uid !== requestUser || this.groupRequestId !== requestGeneration) return;
+      this.pendingUncertain = error instanceof ExpenseCreateUncertainError || error instanceof ExpenseCreateConflictError;
+      if (!this.pendingUncertain) { this.pendingKey = undefined; this.pendingBody = undefined; }
+      this.message.set(error instanceof TypeError ? 'saveFailed' : error instanceof Error ? error.message : 'saveFailed');
+    }
     finally { this.busy.set(false); }
   }
 }

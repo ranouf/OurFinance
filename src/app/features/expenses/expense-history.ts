@@ -26,90 +26,7 @@ import { expenseMessage, expenseText, unnamedExpenseMember } from './expense-tex
 @Component({
   selector: 'app-expense-history',
   imports: [FieldComponent, DropdownComponent, UiControlDirective, UiAlert, UiButton, FormsModule, ReceiptPanel, CommentPanel],
-  template: `
-    <section class="mt-6 rounded-3xl border border-pop-border bg-pop-surface p-5 text-pop-text shadow-sm md:p-7" [attr.aria-label]="text('history')">
-      <div class="mb-5 h-1.5 w-14 rounded-full bg-pop-sun" aria-hidden="true"></div>
-      <h2 class="text-2xl font-extrabold tracking-tight">{{ text('history') }}</h2>
-      @if (!readOnly) { <app-field class="mt-5 block" controlId="history-group" [label]="text('group')">
-        <app-dropdown controlId="history-group" name="historyGroup" [options]="groupOptions()" [(ngModel)]="selectedGroupId" (ngModelChange)="onGroupChange()" />
-      </app-field> }
-      @if (selectedGroupId) {
-        <app-field class="mt-4 block" controlId="history-category" [label]="text('category')">
-          <app-dropdown controlId="history-category" name="historyCategory" [options]="categoryDropdownOptions()" [(ngModel)]="selectedCategoryId" (ngModelChange)="refresh()" />
-        </app-field>
-        <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end">
-          <label class="block min-w-0 flex-1 text-sm font-bold">{{ text('searchAll') }}
-            <input appUiControl class="mt-2 w-full" type="search" name="historySearch" [(ngModel)]="search" [placeholder]="text('searchPlaceholder')" />
-          </label>
-          <app-ui-button variant="primary"  type="button" [disabled]="busy()" (click)="refresh()">{{ text('search') }}</app-ui-button>
-        </div>
-        <details class="mt-3 rounded-xl border border-pop-border px-4 py-3">
-          <summary class="cursor-pointer text-sm font-bold text-pop-primary-dark focus-visible:outline-2 focus-visible:outline-pop-primary">{{ text('moreFilters') }}</summary>
-          <div class="mt-4 grid gap-3 sm:grid-cols-2">
-            <label class="block text-sm font-bold">{{ text('from') }}
-              <input appUiControl class="mt-2 w-full" type="date" name="historyFrom" [(ngModel)]="from" (ngModelChange)="refresh()" [attr.aria-invalid]="from && to && from > to ? 'true' : null" [attr.aria-describedby]="from && to && from > to ? 'history-date-error' : null" />
-            </label>
-            <label class="block text-sm font-bold">{{ text('to') }}
-              <input appUiControl class="mt-2 w-full" type="date" name="historyTo" [(ngModel)]="to" (ngModelChange)="refresh()" [attr.aria-invalid]="from && to && from > to ? 'true' : null" [attr.aria-describedby]="from && to && from > to ? 'history-date-error' : null" />
-            </label>
-          </div>
-          <app-field class="mt-3 block" controlId="history-participant" [label]="text('participant')">
-            <app-dropdown controlId="history-participant" name="historyParticipant" [options]="participantDropdownOptions()" [(ngModel)]="selectedParticipantId" (ngModelChange)="refresh()" />
-          </app-field>
-          @if (from && to && from > to) { <p id="history-date-error" role="alert" class="mt-2 text-sm text-rose-700">{{ text('invalidDates') }}</p> }
-        </details>
-        @if (hasFilter()) { <p class="mt-2 text-sm text-pop-muted">{{ scannedCount() }} {{ text(usesSingular(scannedCount()) ? 'scannedOne' : 'scanned') }}</p> }
-        @if (entries().length) {
-          <ul class="mt-5 space-y-3">
-            @for (entry of entries(); track entry.id) {
-              <li [id]="'expense-' + entry.id" class="rounded-2xl border border-pop-border bg-pop-surface px-4 shadow-sm">
-                <details [open]="opened().has(entry.id)" (toggle)="onToggle(entry.id, $event)">
-                  <summary class="flex min-h-16 cursor-pointer items-center gap-3 py-3 focus-visible:outline-2 focus-visible:outline-pop-primary">
-                    <span class="flex size-11 shrink-0 items-center justify-center rounded-2xl text-xl" [class]="categoryColorClass(entry.categoryColor)" aria-hidden="true">{{ entry.categoryIcon }}</span>
-                    <span class="min-w-0 flex-1"><span class="block break-words font-bold">{{ entry.description }}</span><span class="block text-sm text-pop-muted">{{ displayDate(entry.date) }} · {{ categoryLabel(entry.categoryId, language(), entry.categoryLabel) }}</span></span>
-                    <span class="shrink-0 text-right font-extrabold text-pop-primary-dark">{{ amount(entry) }}</span>
-                  </summary>
-                  <div class="grid gap-4 border-t border-pop-border pb-4 pt-4 text-sm">
-                    <p>{{ text('category') }} : {{ categoryLabel(entry.categoryId, language(), entry.categoryLabel) }}</p>
-                    @if (!isReadOnly() && entry.createdBy === user?.uid) {
-                      <div class="flex flex-wrap gap-2">
-                        @if (entry.splitMode) { <app-ui-button variant="outline"  type="button" (click)="editRequested.emit({ groupId: selectedGroupId, entry })">{{ text('edit') }}</app-ui-button> }
-                        <app-ui-button variant="outline"  type="button" (click)="deleteConfirmId.set(entry.id)">{{ text('remove') }}</app-ui-button>
-                      </div>
-                      @if (deleteConfirmId() === entry.id) {
-                        <div class="flex flex-wrap items-center gap-2 rounded-xl bg-pop-peach p-3">
-                          <span>{{ text('removePrompt') }}</span>
-                          <app-ui-button variant="coral"  type="button" [disabled]="deleteBusy()" (click)="deleteExpense(entry)">{{ text('confirm') }}</app-ui-button>
-                          <app-ui-button variant="secondary"  type="button" (click)="deleteConfirmId.set('')">{{ text('cancel') }}</app-ui-button>
-                        </div>
-                      }
-                    }
-                    <div>
-                      <h3 class="font-semibold">{{ text('payments') }}</h3>
-                      @for (payment of entry.payments; track payment.userId) {
-                        <p class="mt-1 flex justify-between gap-2"><span class="min-w-0 break-all">{{ memberLabel(payment.userId) }}</span><span class="shrink-0">{{ format(payment.amountMinor, entry.currency) }}</span></p>
-                      } @empty { <p class="mt-1 text-slate-600">{{ text('unavailable') }}</p> }
-                    </div>
-                    <div>
-                      <h3 class="font-semibold">{{ text('owed') }}</h3>
-                      @for (allocation of entry.allocations; track allocation.userId) {
-                        <p class="mt-1 flex justify-between gap-2"><span class="min-w-0 break-all">{{ memberLabel(allocation.userId) }}</span><span class="shrink-0">{{ format(allocation.amountMinor, entry.currency) }}</span></p>
-                      } @empty { <p class="mt-1 text-slate-600">{{ text('unavailable') }}</p> }
-                    </div>
-                    @if (opened().has(entry.id)) { <app-receipt-panel [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" [user]="user" [groupId]="selectedGroupId" [expenseId]="entry.id" [groupOwnerId]="groupOwnerId()" [readOnly]="isReadOnly()" /> }
-                    @if (opened().has(entry.id)) { <app-comment-panel [firebaseApp]="firebaseApp" [workerUrl]="workerUrl" [user]="user" [groupId]="selectedGroupId" [expenseId]="entry.id" [memberNames]="memberNames()" [readOnly]="isReadOnly()" (changed)="commented.emit()" /> }
-                  </div>
-                </details>
-              </li>
-            }
-          </ul>
-        }
-        @if (hasMore()) { <app-ui-button variant="secondary" class="mt-4" type="button" [disabled]="busy()" (click)="loadMore()">{{ hasFilter() ? text('continueSearch') : text('loadMore') }}</app-ui-button> }
-        @if (!entries().length && !busy() && !message() && !(from && to && from > to)) { <p class="mt-5 rounded-2xl bg-pop-lavender p-5 text-center text-sm text-pop-muted">{{ hasMore() ? text('noPageResults') : text('noResults') }}</p> }
-      }
-      @if (message()) { <app-ui-alert [variant]="message() === 'deleted' ? 'success' : 'error'" class="mt-4">{{ displayMessage(message()) }}</app-ui-alert> }
-    </section>
-  `,
+  templateUrl: './expense-history.html',
 })
 export class ExpenseHistory implements OnChanges {
   @Input() readOnly = false;
@@ -198,6 +115,25 @@ export class ExpenseHistory implements OnChanges {
     finally { this.deleteBusy.set(false); }
   }
   hasFilter(): boolean { return !!(this.searchTerm || this.selectedCategoryId || this.selectedParticipantId); }
+  resetFilters(): void {
+    this.search = '';
+    this.searchTerm = '';
+    this.from = '';
+    this.to = '';
+    this.selectedCategoryId = '';
+    this.selectedParticipantId = '';
+    void this.refresh();
+  }
+  removeFilter(filter: 'search' | 'from' | 'to' | 'category' | 'participant'): void {
+    if (filter === 'search') { this.search = ''; this.searchTerm = ''; }
+    else if (filter === 'from') this.from = '';
+    else if (filter === 'to') this.to = '';
+    else if (filter === 'category') this.selectedCategoryId = '';
+    else this.selectedParticipantId = '';
+    void this.refresh();
+  }
+  categoryFilterLabel(): string { return this.categoryLabel(this.selectedCategoryId, this.language(), this.categoryOptions().find(item => item.id === this.selectedCategoryId)?.label ?? this.selectedCategoryId); }
+  participantFilterLabel(): string { return this.memberLabel(this.selectedParticipantId); }
   onGroupChange(emit = true): void {
     if (emit) this.groupChange.emit(this.selectedGroupId);
     this.selectedCategoryId = '';
@@ -261,7 +197,15 @@ export class ExpenseHistory implements OnChanges {
         hasMore = page.hasMore;
         if (!hasMore) break;
       }
-      this.entries.update(entries => [...entries, ...matches]);
+      this.entries.update(entries => {
+        const seen = new Set(entries.map(entry => entry.id));
+        const additions = matches.filter(entry => {
+          if (seen.has(entry.id)) return false;
+          seen.add(entry.id);
+          return true;
+        });
+        return [...entries, ...additions];
+      });
       if (matches.some(entry => entry.id === this.targetExpenseId)) this.opened.update(opened => new Set([...opened, this.targetExpenseId]));
       this.scannedCount.update(count => count + scanned);
       this.last = cursor;
