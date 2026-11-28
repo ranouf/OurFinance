@@ -60,8 +60,15 @@ test('une réponse perdue confirme le document existant sans seconde création',
   f.lose(1);
   strictEqual(await f.service.create(user, 'group-a', body), idempotencyKey);
   strictEqual(f.requests.length, 1);
+  f.reply(Response.json({ error: 'temporary' }, { status: 503 }));
+  strictEqual(await f.service.create(user, 'group-a', body), idempotencyKey);
+  f.reply(Response.json({ unexpected: true }));
+  strictEqual(await f.service.create(user, 'group-a', body), idempotencyKey);
   f.repository.expenseById = async () => preference({ createdBy: 'bob', contentFingerprint: fingerprint });
   f.lose(1);
+  await rejects(f.service.create(user, 'group-a', body), ExpenseCreateConflictError);
+  f.lose(0);
+  f.reply(Response.json({ error: 'idempotency_conflict' }, { status: 409 }));
   await rejects(f.service.create(user, 'group-a', body), ExpenseCreateConflictError);
 });
 

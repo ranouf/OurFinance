@@ -12,7 +12,7 @@ import { FormsModule } from '@angular/forms';
 import type { FirebaseApp } from 'firebase/app';
 import type { User } from 'firebase/auth';
 import type { Group } from '../../core/firebase/group-model';
-import { ExpenseCreateUncertainError, ExpenseService } from '../../core/firebase/expense-service';
+import { ExpenseCreateConflictError, ExpenseCreateUncertainError, ExpenseService } from '../../core/firebase/expense-service';
 import type { ExpenseHistoryEntry } from '../../core/firebase/expense-service';
 import { CategoryService } from '../../core/firebase/category-service';
 import { loadSharedMemberProfiles } from '../../core/firebase/member-profile-service';
@@ -90,6 +90,7 @@ export class ExpenseForm implements OnChanges {
       void this.loadGroup();
     }
     if (changes['categoryRevision'] && !changes['categoryRevision'].firstChange && this.selectedGroupId) void this.loadCategories().catch(() => this.message.set('categoriesUnavailable'));
+    if (changes['user'] && !changes['user'].firstChange && changes['user'].previousValue?.uid !== this.user?.uid) void this.loadGroup();
     if (changes['editing']) {
       if (this.editing) this.selectedGroupId = this.editing.groupId;
       void this.loadGroup();
@@ -236,6 +237,10 @@ export class ExpenseForm implements OnChanges {
       return;
     }
     this.busy.set(true);
+    const requestGroup = this.selectedGroupId;
+    const requestUser = this.user.uid;
+    const requestGeneration = this.groupRequestId;
+    const wasEditing = !!this.editing;
     try {
       const result = prepareExpense(this.draft, new Set(this.members().map(member => member.userId)));
       const content = { description: this.draft.description.trim(), currency: this.draft.currency, date: this.draft.date, categoryId: this.draft.categoryId, amountMinor: result.amountMinor, payments: result.payments, splitMode: result.splitMode };
@@ -249,11 +254,13 @@ export class ExpenseForm implements OnChanges {
         this.pendingKey = idempotencyKey; this.pendingBody = serialized;
         await this.service.create(this.user, this.selectedGroupId, { idempotencyKey, ...content });
       }
+      if (this.selectedGroupId !== requestGroup || this.user?.uid !== requestUser || this.groupRequestId !== requestGeneration) return;
       this.pendingKey = undefined; this.pendingBody = undefined; this.pendingUncertain = false;
-      this.message.set(this.editing ? 'updated' : 'saved'); this.draft.description = ''; this.draft.amount = ''; this.previewRows.set([]); this.draftDirty.set(false); this.draftChanged.emit(false); this.saved.emit();
-      if (this.editing) this.editCancelled.emit();
+      this.message.set(wasEditing ? 'updated' : 'saved'); this.draft.description = ''; this.draft.amount = ''; this.previewRows.set([]); this.draftDirty.set(false); this.draftChanged.emit(false); this.saved.emit();
+      if (wasEditing) this.editCancelled.emit();
     } catch (error) {
-      this.pendingUncertain = error instanceof ExpenseCreateUncertainError;
+      if (this.selectedGroupId !== requestGroup || this.user?.uid !== requestUser || this.groupRequestId !== requestGeneration) return;
+      this.pendingUncertain = error instanceof ExpenseCreateUncertainError || error instanceof ExpenseCreateConflictError;
       if (!this.pendingUncertain) { this.pendingKey = undefined; this.pendingBody = undefined; }
       this.message.set(error instanceof TypeError ? 'saveFailed' : error instanceof Error ? error.message : 'saveFailed');
     }

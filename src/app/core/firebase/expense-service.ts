@@ -101,10 +101,7 @@ export class ExpenseService {
     const request = body as ExpenseFingerprintInput & { idempotencyKey?: string };
     const headers = { Authorization: `Bearer ${await user.getIdToken()}`, 'Content-Type': 'application/json' };
     const send = () => this.transport(url, { method: 'POST', headers, body: JSON.stringify(body) });
-    let response: Response;
-    let retriedAfterLostResponse = false;
-    try { response = await send(); }
-    catch {
+    const reconcile = async (): Promise<boolean> => {
       if (!request.idempotencyKey) throw new ExpenseCreateUncertainError();
       let snapshot: DocumentSnapshot<DocumentData>;
       try {
@@ -117,17 +114,27 @@ export class ExpenseService {
         catch { throw new ExpenseCreateUncertainError(); }
         const data = snapshot.data();
         if (data['createdBy'] !== user.uid || data['contentFingerprint'] !== fingerprint) throw new ExpenseCreateConflictError();
-        return request.idempotencyKey;
+        return true;
       }
-      retriedAfterLostResponse = true;
-      try { response = await send(); }
-      catch { throw new ExpenseCreateUncertainError(); }
+      return false;
+    };
+    for (let attempt = 0; attempt < 2; attempt++) {
+      let response: Response | undefined;
+      try { response = await send(); } catch { /* The write may already have committed. */ }
+      if (response?.ok) {
+        let result: { expenseId?: string } | undefined;
+        try { result = await response.json() as { expenseId?: string }; } catch { /* Reconcile malformed success. */ }
+        if (result?.expenseId && (!request.idempotencyKey || result.expenseId === request.idempotencyKey)) return result.expenseId;
+        if (!request.idempotencyKey) throw new Error('Réponse Worker invalide');
+      } else if (response && response.status < 500) {
+        if (response.status === 409 && request.idempotencyKey) throw new ExpenseCreateConflictError();
+        throw new Error(`Création refusée (HTTP ${response.status})`);
+      } else if (response?.status === 503 && !request.idempotencyKey) {
+        throw new Error('Création de dépenses désactivée sur cet environnement');
+      }
+      if (await reconcile()) return request.idempotencyKey!;
     }
-    if (retriedAfterLostResponse && response.status >= 500) throw new ExpenseCreateUncertainError();
-    if (!response.ok) throw new Error(response.status === 503 ? 'Création de dépenses désactivée sur cet environnement' : `Création refusée (HTTP ${response.status})`);
-    const result = await response.json() as { expenseId?: string };
-    if (!result.expenseId || (request.idempotencyKey && result.expenseId !== request.idempotencyKey)) throw new Error('Réponse Worker invalide');
-    return result.expenseId;
+    throw new ExpenseCreateUncertainError();
   }
 
   async mutate(user: User, groupId: string, expenseId: string, method: 'PATCH' | 'DELETE', body: object): Promise<void> {
